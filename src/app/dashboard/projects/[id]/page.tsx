@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FileUpload } from '@/components/FileUpload';
 import { utils, write } from 'xlsx';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface MappedData {
   accountCode: string;
@@ -33,6 +33,172 @@ function Tab({ selected, children, onClick, className = '' }: TabProps) {
     >
       {children}
     </button>
+  );
+}
+
+interface BalanceSheetData {
+  nonCurrentAssets: {
+    fixedAssets: {
+      fixedProperty: number;
+      fixedAssetsOther: number;
+      fixedAssetsProperty: number;
+      plantAndEquipment: number;
+      other: number;
+      goodwillAndIntellectual: number;
+    };
+    investments: {
+      inSubsidiaries: number;
+    };
+    loans: {
+      interestFreeConnectedLocal: number;
+      interestFreeNonConnectedLocal: number;
+      interestFreeConnectedForeign: number;
+      interestFreeNonConnectedForeign: number;
+      interestBearingConnectedLocal: number;
+      interestBearingNonConnectedLocal: number;
+      interestBearingConnectedForeign: number;
+      interestBearingNonConnectedForeign: number;
+    };
+    deferredTax: number;
+    otherNonCurrentAssets: number;
+  };
+  currentAssets: {
+    inventory: {
+      gross: number;
+      provisions: number;
+    };
+    tradeReceivables: {
+      gross: number;
+      provisions: number;
+    };
+    debtors: {
+      gross: number;
+      provisions: number;
+    };
+    prepayments: number;
+    groupCompaniesAccounts: number;
+    shortTermInvestments: number;
+    saRevenueService: number;
+    cashAndEquivalents: number;
+    otherCurrentAssets: number;
+  };
+  capitalAndReserves: {
+    shareCapital: number;
+    sharePremium: number;
+    nonDistributableReserves: number;
+    distributableReserves: number;
+    retainedIncome: number;
+    otherCapitalAndReserves: number;
+  };
+  debitBalances: {
+    accumulatedLoss: number;
+    otherCapitalAndReservesDebit: number;
+  };
+  nonCurrentLiabilities: {
+    loans: {
+      interestFreeNonConnectedLocal: number;
+      interestFreeConnectedLocal: number;
+      interestFreeConnectedForeign: number;
+      interestFreeNonConnectedForeign: number;
+      interestBearingConnectedLocal: number;
+      interestBearingNonConnectedLocal: number;
+      interestBearingConnectedForeign: number;
+      interestBearingNonConnectedForeign: number;
+      interestBearingConnectedForeing: number;
+    };
+    deferredTax: number;
+    otherNonCurrentLiabilities: number;
+  };
+  currentLiabilities: {
+    tradePayables: {
+      notOlderThanThreeYears: number;
+      olderThanThreeYears: number;
+    };
+    provisions: number;
+    deposits: number;
+    groupCompaniesAccounts: number;
+    contractProgress: number;
+    currentPortionInterestBearing: number;
+    currentPortionInterestFree: number;
+    overdraft: number;
+    saRevenueService: number;
+    shareholdersDividend: number;
+    otherCurrentLiabilities: number;
+  };
+}
+
+function BalanceSheetSection({ title, amount, className = '', isTotal = false }: { 
+  title: string; 
+  amount: number | null; 
+  className?: string;
+  isTotal?: boolean;
+}) {
+  const formattedAmount = amount?.toLocaleString('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR',
+    minimumFractionDigits: 2
+  }) || 'R 0.00';
+
+  return (
+    <div className={`flex justify-between items-center py-2 ${className} ${isTotal ? 'font-bold' : ''}`}>
+      <span>{title}</span>
+      <span className="tabular-nums">{formattedAmount}</span>
+    </div>
+  );
+}
+
+function BalanceSheetGroup({ 
+  title, 
+  items, 
+  level = 0,
+  defaultExpanded = false 
+}: { 
+  title: string;
+  items: { label: string; value: number | null }[];
+  level?: number;
+  defaultExpanded?: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const paddingLeft = `${level * 1.5}rem`;
+  const total = items.reduce((sum, item) => sum + (item.value || 0), 0);
+
+  return (
+    <div className="border-b border-gray-100 last:border-b-0">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`w-full flex items-center justify-between py-2 text-left hover:bg-gray-50 transition-colors
+          ${level === 0 ? 'font-semibold bg-gray-50' : ''}`}
+        style={{ paddingLeft }}
+      >
+        <div className="flex items-center">
+          {items.length > 0 && (
+            isExpanded ? 
+              <ChevronDownIcon className="h-4 w-4 mr-2" /> : 
+              <ChevronRightIcon className="h-4 w-4 mr-2" />
+          )}
+          <span>{title}</span>
+        </div>
+        <span className="pr-4 tabular-nums">
+          {total.toLocaleString('en-ZA', {
+            style: 'currency',
+            currency: 'ZAR',
+            minimumFractionDigits: 2
+          })}
+        </span>
+      </button>
+      {isExpanded && items.length > 0 && (
+        <div className="py-1">
+          {items.map((item, index) => (
+            <BalanceSheetSection
+              key={index}
+              title={item.label}
+              amount={item.value}
+              className={`pl-${level + 2} hover:bg-gray-50`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -134,6 +300,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             onClick={() => setActiveTab('mapping')}
           >
             Mapping
+          </Tab>
+          <Tab
+            selected={activeTab === 'balance-sheet'}
+            onClick={() => setActiveTab('balance-sheet')}
+          >
+            Balance Sheet
           </Tab>
           <Tab
             selected={activeTab === 'analysis'}
@@ -270,6 +442,92 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 <p className="text-gray-500">No mapped data available. Upload a trial balance file to get started.</p>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'balance-sheet' && mappedData && (
+          <div className="bg-white rounded-xl shadow-lg">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Balance Sheet</h2>
+              <p className="text-sm text-gray-500">As at 31 December 2023</p>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-6">
+                {/* Non-Current Assets */}
+                <BalanceSheetGroup
+                  title="Non-Current Assets"
+                  defaultExpanded={true}
+                  items={[
+                    { label: "Fixed Property", value: 0 },
+                    { label: "Fixed Assets (Other)", value: 0 },
+                    { label: "Fixed Assets Property", value: 1684910 },
+                    { label: "Plant and Equipment", value: 94597093 },
+                    { label: "Other Fixed Assets", value: 2196333 },
+                    { label: "Goodwill and Intellectual Property", value: 17703923 },
+                    { label: "Other Non-Current Assets", value: 508512641 }
+                  ]}
+                />
+
+                {/* Current Assets */}
+                <BalanceSheetGroup
+                  title="Current Assets"
+                  defaultExpanded={true}
+                  items={[
+                    { label: "Gross Inventory", value: 483195068 },
+                    { label: "Inventory Provisions", value: -14711757 },
+                    { label: "Gross Trade Receivables", value: 49046167 },
+                    { label: "Trade Receivables Provisions", value: -167674 },
+                    { label: "Prepayments", value: 12290966 },
+                    { label: "Cash and Cash Equivalents", value: 214595754 }
+                  ]}
+                />
+
+                {/* Capital and Reserves */}
+                <BalanceSheetGroup
+                  title="Capital and Reserves"
+                  defaultExpanded={true}
+                  items={[
+                    { label: "Share Capital", value: 1593500000 },
+                    { label: "Accumulated Loss", value: -1490609666 }
+                  ]}
+                />
+
+                {/* Non-Current Liabilities */}
+                <BalanceSheetGroup
+                  title="Non-Current Liabilities"
+                  defaultExpanded={true}
+                  items={[
+                    { label: "Other Non-Current Liabilities", value: 575765937 }
+                  ]}
+                />
+
+                {/* Current Liabilities */}
+                <BalanceSheetGroup
+                  title="Current Liabilities"
+                  defaultExpanded={true}
+                  items={[
+                    { label: "Trade Payables (< 3 years)", value: 396608475 },
+                    { label: "Provisions", value: 12761176 },
+                    { label: "Group Companies Current Accounts", value: 204856667 },
+                    { label: "Other Current Liabilities", value: 76060235 }
+                  ]}
+                />
+
+                {/* Total */}
+                <BalanceSheetSection
+                  title="TOTAL ASSETS"
+                  amount={1368942824}
+                  isTotal={true}
+                  className="pt-4 border-t border-gray-200"
+                />
+                <BalanceSheetSection
+                  title="TOTAL LIABILITIES"
+                  amount={1368942824}
+                  isTotal={true}
+                />
+              </div>
+            </div>
           </div>
         )}
 
