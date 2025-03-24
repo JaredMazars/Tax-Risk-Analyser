@@ -1,47 +1,88 @@
 'use client';
 
 import { useState } from 'react';
-import { CloudArrowUpIcon, DocumentTextIcon, ExclamationCircleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, DocumentTextIcon, ExclamationCircleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface FileUploadProps {
   onFileUpload: (data: any) => void;
+  projectId: number;
 }
 
-export function FileUpload({ onFileUpload }: FileUploadProps) {
-  const [trialBalanceFile, setTrialBalanceFile] = useState<File | null>(null);
+export function FileUpload({ onFileUpload, projectId }: FileUploadProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+      setError('Please upload an Excel file (.xlsx or .xls)');
+      return;
+    }
+    setSelectedFile(file);
+    setError(null);
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (!trialBalanceFile) {
-      setError('Please upload a Trial Balance file.');
+    if (!selectedFile) {
+      setError('Please select a file to upload');
       return;
     }
 
-    const formData = new FormData();
-    formData.append('trialBalance', trialBalanceFile);
-
     setIsLoading(true);
+    setError(null);
 
     try {
-      const res = await fetch('/api/map', {
+      const formData = new FormData();
+      formData.append('trialBalance', selectedFile);
+      formData.append('projectId', projectId.toString());
+
+      const response = await fetch('/api/map', {
         method: 'POST',
         body: formData,
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Something went wrong');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process file');
       }
 
-      const data = await res.json();
+      const data = await response.json();
       onFileUpload(data);
     } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Failed to process file');
     } finally {
       setIsLoading(false);
     }
@@ -119,30 +160,55 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
           <div className="space-y-4">
             <label className="block">
               <span className="text-sm font-medium text-gray-700">Upload Trial Balance</span>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 transition-colors duration-200">
-                <div className="space-y-2 text-center">
-                  <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-600">
-                    <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                      <span>Upload a file</span>
-                      <input
-                        id="file-upload"
-                        type="file"
-                        accept=".xlsx,.xls"
-                        onChange={(e) => setTrialBalanceFile(e.target.files?.[0] || null)}
-                        required
-                        className="sr-only"
-                      />
-                    </label>
-                    <p className="pl-1">or drag and drop</p>
-                  </div>
-                  <p className="text-xs text-gray-500">Excel files only (.xlsx, .xls)</p>
-                  {trialBalanceFile && (
-                    <p className="text-sm text-green-600 font-medium">
-                      Selected: {trialBalanceFile.name}
+              <div
+                className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 transition-colors duration-200
+                  ${isDragging ? 'border-blue-500 bg-blue-50' : ''}
+                  ${selectedFile ? 'border-green-500 bg-green-50' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => !selectedFile && document.getElementById('file-upload')?.click()}
+              >
+                <input
+                  id="file-upload"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={handleFileInput}
+                  disabled={!!selectedFile}
+                />
+                {selectedFile ? (
+                  <div className="flex flex-col items-center space-y-2">
+                    <DocumentTextIcon className="h-12 w-12 text-green-500" />
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFile();
+                        }}
+                        className="text-gray-400 hover:text-gray-500"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {(selectedFile.size / 1024).toFixed(2)} KB
                     </p>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <>
+                    <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-2 text-sm text-gray-600">
+                      Drag and drop your trial balance file here, or{' '}
+                      <span className="text-blue-600 hover:text-blue-700">click to browse</span>
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Only Excel files (.xlsx, .xls) are supported
+                    </p>
+                  </>
+                )}
               </div>
             </label>
           </div>
@@ -158,9 +224,9 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
           
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !selectedFile}
             className={`w-full flex justify-center items-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white
-              ${isLoading 
+              ${isLoading || !selectedFile
                 ? 'bg-blue-400 cursor-not-allowed' 
                 : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
               } 

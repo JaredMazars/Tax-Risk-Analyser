@@ -9,3 +9,26 @@ datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  mappings    MappedAccount[]
+  status      String   @default("ACTIVE")
+}
+
+model MappedAccount {
+  id          Int      @id @default(autoincrement())
+  accountCode String
+  account     String
+  section     String
+  balance     Float
+  sarsItem    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id])
+  projectId   Int
+}

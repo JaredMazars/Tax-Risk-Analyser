@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { read, utils } from 'xlsx';
 import OpenAI from 'openai';
 import { mappingGuide } from '@/lib/mappingGuide';
+import { prisma } from '@/lib/prisma';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,11 +12,40 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const trialBalanceFile = formData.get('trialBalance') as File;
+    const projectIdStr = formData.get('projectId') as string;
 
     if (!trialBalanceFile) {
       return NextResponse.json(
         { error: 'Trial Balance file is required.' },
         { status: 400 }
+      );
+    }
+
+    if (!projectIdStr) {
+      return NextResponse.json(
+        { error: 'Project ID is required.' },
+        { status: 400 }
+      );
+    }
+
+    // Convert projectId to number
+    const projectId = parseInt(projectIdStr, 10);
+    if (isNaN(projectId)) {
+      return NextResponse.json(
+        { error: 'Invalid Project ID format.' },
+        { status: 400 }
+      );
+    }
+
+    // Verify project exists
+    const project = await prisma.project.findUnique({
+      where: { id: projectId }
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Project not found.' },
+        { status: 404 }
       );
     }
 
@@ -33,59 +63,71 @@ export async function POST(request: NextRequest) {
       (row: any) => row['Section']?.toLowerCase() === 'balance sheet'
     );
 
-    // Split mapping guide data
-    const mappingGuideData = mappingGuide[0];
-    const incomeStatementGuide = mappingGuideData.filter(
-      item => item.rootName === 'Statement of comprehensive income'
-    );
-    const balanceSheetGuide = mappingGuideData.filter(
-      item => item.rootName === 'Balance Sheet'
-    );
-
     // Process Income Statement first
-    const incomeStatementPrompt = generatePrompt(incomeStatementData, incomeStatementGuide, 'Income Statement');
+    const incomeStatementPrompt = generatePrompt(incomeStatementData, mappingGuide.incomeStatement, 'Income Statement');
     const incomeStatementCompletion = await openai.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `You are an accounting assistant that maps trial balance accounts to an account structure. 
+          content: `You are an accounting assistant that maps trial balance accounts to SARS categories. 
           You must return ONLY a valid JSON array with no additional text or explanation.
-          Each object in the array must include: accountCode, account, section, balance (as number), subFSAName, and subFSAId.`
+          Each object in the array must include: accountCode, account, section, balance (as number), and sarsItem.`
         },
         {
           role: "user",
           content: incomeStatementPrompt
         }
       ],
-      model: "gpt-4o",
-      temperature: 0.2, // Reduced temperature for more consistent output
+      model: "gpt-4o-mini",
+      temperature: 0.5,
     });
 
     const incomeStatementMapped = parseLLMResponse(incomeStatementCompletion.choices[0].message.content);
 
     // Process Balance Sheet
-    const balanceSheetPrompt = generatePrompt(balanceSheetData, balanceSheetGuide, 'Balance Sheet');
+    const balanceSheetPrompt = generatePrompt(balanceSheetData, mappingGuide.balanceSheet, 'Balance Sheet');
     const balanceSheetCompletion = await openai.chat.completions.create({
       messages: [
         {
           role: "system",
           content: `You are an accounting assistant that maps trial balance accounts to an account structure. 
           You must return ONLY a valid JSON array with no additional text or explanation.
-          Each object in the array must include: accountCode, account, section, balance (as number), subFSAName, and subFSAId.`
+          Each object in the array must include: accountCode, account, section, balance (as number), sarsItem.`
         },
         {
           role: "user",
           content: balanceSheetPrompt
         }
       ],
-      model: "gpt-4o",
-      temperature: 0.2,
+      model: "gpt-4o-mini",
+      temperature: 0.5,
     });
 
     const balanceSheetMapped = parseLLMResponse(balanceSheetCompletion.choices[0].message.content);
 
     // Combine results
     const combinedResults = [...incomeStatementMapped, ...balanceSheetMapped];
+
+    // Save mapped accounts to database
+    await prisma.$transaction(async (tx) => {
+      // Delete existing mapped accounts for this project
+      await tx.mappedAccount.deleteMany({
+        where: { projectId }
+      });
+
+      // Insert new mapped accounts
+      await tx.mappedAccount.createMany({
+        data: combinedResults.map(item => ({
+          projectId,
+          accountCode: item.accountCode.toString(),
+          account: item.account,
+          section: item.section,
+          balance: item.balance,
+          sarsItem: item.sarsItem
+        }))
+      });
+    });
+
     return NextResponse.json(combinedResults);
 
   } catch (error) {
@@ -97,7 +139,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generatePrompt(trialBalanceData: any[], mappingGuide: any[], section: string) {
+function generatePrompt(trialBalanceData: any[], mappingGuide: any, section: string) {
   const trialBalanceStr = JSON.stringify(trialBalanceData, null, 2);
   const mappingGuideStr = JSON.stringify(mappingGuide, null, 2);
 
@@ -111,11 +153,12 @@ ${mappingGuideStr}
 
 Rules:
 1. Return ONLY a JSON array with no additional text
-2. Each object must have: accountCode, account, section, balance (as number), subFSAName, and subFSAId
-3. Match accounts to the most appropriate FSA category based on the account name
+2. Each object must have: accountCode, account, section, balance (as number), sarsItem
+3. Match accounts to the most appropriate sarsItem based on the account name and the mapping guide structure
 4. Keep original account details exactly as provided
 5. Balance must be a number, not a string
 6. The response must be a valid JSON array starting with '[' and ending with ']'
+7. In the trial balance the income statement balances - amounts means income and + amounts are expenses. In the balance sheet - amounts means liabilities or equity and + amounts are assets.
 
 Example Response Format:
 [
@@ -124,8 +167,7 @@ Example Response Format:
     "account": "Cash at Bank",
     "section": "${section}",
     "balance": 50000.00,
-    "subFSAName": "Cash and cash equivalents",
-    "subFSAId": "BS1"
+    "sarsItem": "Cash and cash equivalents"
   }
 ]`;
 }
@@ -155,7 +197,7 @@ function parseLLMResponse(llmResponse: string | null) {
     // Validate each object in the array
     parsed.forEach((item, index) => {
       if (!item.accountCode || !item.account || !item.section || 
-          typeof item.balance !== 'number' || !item.subFSAName || !item.subFSAId) {
+          typeof item.balance !== 'number' || !item.sarsItem) {
         throw new Error(`Invalid object structure at index ${index}`);
       }
     });
