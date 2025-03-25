@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { mappingGuide } from '@/lib/mappingGuide';
 import { formatAmount } from '@/lib/formatters';
 import { MappedData } from '@/types';
@@ -28,94 +28,237 @@ interface BalanceSheetSectionProps {
   onMappingUpdate: (accountId: number, newSarsItem: string) => Promise<void>;
 }
 
-function BalanceSheetSection({ title, items, mappedData, projectId, onMappingUpdate }: BalanceSheetSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
+interface SarsItem {
+  sarsItem: string;
+}
 
-  const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-  const isNegative = totalAmount < 0;
+interface CustomSelectProps {
+  value: string;
+  onChange: (value: string, section: string, subsection: string) => void;
+  disabled?: boolean;
+  section: string;
+}
+
+const subsectionDisplayNames: Record<string, string> = {
+  nonCurrentAssets: 'Non-Current Assets',
+  currentAssets: 'Current Assets',
+  capitalAndReservesCreditBalances: 'Capital & Reserves (Credit)',
+  capitalAndReservesDebitBalances: 'Capital & Reserves (Debit)',
+  nonCurrentLiabilities: 'Non-Current Liabilities',
+  currentLiabilities: 'Current Liabilities'
+};
+
+function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const selectedLabel = value || 'Select SARS Item';
+
+  // Filter items based on search term and section
+  const filteredItems = Object.entries(mappingGuide.balanceSheet).reduce((acc, [subsection, items]) => {
+    const filteredItems = items.filter(item =>
+      item.sarsItem.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    if (filteredItems.length > 0) {
+      acc[subsection] = filteredItems;
+    }
+    return acc;
+  }, {} as Record<string, SarsItem[]>);
 
   return (
-    <div className="space-y-2">
-      {/* Main section row */}
-      <div 
-        className={`grid grid-cols-12 gap-4 cursor-pointer hover:bg-gray-50 ${isUpdating ? 'opacity-50' : ''}`}
-        onClick={() => setIsExpanded(!isExpanded)}
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={disabled}
+        className="w-full rounded-md border-0 py-1 pl-2 pr-8 text-left text-xs text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <div className={`col-span-8 pl-4 ${isNegative ? 'text-red-600' : ''} flex items-center font-medium`}>
-          <ChevronRightIcon 
-            className={`h-4 w-4 mr-2 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-          />
-          {title}
-          {isUpdating && (
-            <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-          )}
+        <span className="block truncate">{selectedLabel}</span>
+        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5">
+          <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </span>
+      </button>
+      {isOpen && (
+        <div className="absolute left-0 z-10 mt-1 w-[400px] bg-white shadow-lg ring-1 ring-black ring-opacity-5 rounded-md focus:outline-none">
+          <div className="sticky top-0 z-30 bg-white border-b border-gray-200">
+            <div className="p-2">
+              <div className="text-sm font-medium text-gray-900">Select SARS Item</div>
+              <div className="text-xs text-gray-500 mt-0.5">Balance Sheet Items</div>
+              <div className="mt-2 relative">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search items..."
+                  className="w-full rounded-md border-0 py-1 pl-7 pr-2 text-xs text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600"
+                />
+                <svg className="absolute left-2 top-1.5 h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          
+          <div className="overflow-y-auto max-h-[300px]">
+            {Object.entries(filteredItems).map(([subsection, items]) => (
+              <div key={subsection}>
+                <div className="sticky top-0 z-10 bg-gray-50 px-2 py-1 border-b border-gray-200">
+                  <div className="text-xs font-medium text-gray-900">
+                    {subsectionDisplayNames[subsection] || subsection}
+                  </div>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {items.map((item) => (
+                    <button
+                      key={item.sarsItem}
+                      type="button"
+                      onClick={() => {
+                        onChange(item.sarsItem, 'Balance Sheet', subsection);
+                        setIsOpen(false);
+                        setSearchTerm('');
+                      }}
+                      className={`w-full px-2 py-1.5 text-left text-xs hover:bg-gray-50 focus:bg-gray-50 focus:outline-none ${
+                        value === item.sarsItem
+                          ? 'bg-blue-50 text-blue-900 font-medium'
+                          : 'text-gray-700'
+                      }`}
+                    >
+                      {item.sarsItem}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className={`col-span-4 text-right tabular-nums ${isNegative ? 'text-red-600' : ''}`}>
+      )}
+    </div>
+  );
+}
+
+function BalanceSheetSection({ title, items, mappedData, projectId, onMappingUpdate }: BalanceSheetSectionProps) {
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [updatingAccount, setUpdatingAccount] = useState<number | null>(null);
+
+  // Filter out items with zero amount
+  const nonZeroItems = items.filter(item => item.amount !== 0);
+  const totalAmount = nonZeroItems.reduce((sum, item) => sum + item.amount, 0);
+  const isNegative = totalAmount < 0;
+
+  const toggleItem = (sarsItem: string) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [sarsItem]: !prev[sarsItem]
+    }));
+  };
+
+  const handleMappingChange = async (accountId: number, newSarsItem: string, newSection: string, newSubsection: string) => {
+    try {
+      setUpdatingAccount(accountId);
+      await onMappingUpdate(accountId, newSarsItem);
+    } finally {
+      setUpdatingAccount(null);
+    }
+  };
+
+  if (nonZeroItems.length === 0) return null;
+
+  return (
+    <div>
+      {/* Section header */}
+      <div className="grid grid-cols-12 border-b border-gray-200">
+        <div className="col-span-9 font-semibold px-4 py-1">{title}</div>
+        <div className="col-span-3 text-right px-4 tabular-nums font-semibold">
           {isNegative 
             ? `(${formatAmount(Math.abs(totalAmount))})` 
-            : formatAmount(Math.abs(totalAmount))}
+            : formatAmount(totalAmount)}
         </div>
       </div>
 
-      {/* Expanded details */}
-      {isExpanded && (
-        <div className="space-y-1">
-          {items.map((item, index) => (
-            <div key={index} className="ml-6">
-              <div className="grid grid-cols-12 gap-4 hover:bg-gray-50">
-                <div className={`col-span-8 pl-4 ${item.amount < 0 ? 'text-red-600' : ''} flex items-center`}>
-                  <ChevronRightIcon 
-                    className={`h-4 w-4 mr-2 opacity-0`}
-                  />
-                  <div>
-                    <div>{item.sarsItem}</div>
-                    <div className="text-sm text-gray-500 italic">{item.subsection}</div>
-                  </div>
-                </div>
-                <div className={`col-span-4 text-right tabular-nums ${item.amount < 0 ? 'text-red-600' : ''}`}>
-                  {item.amount < 0 
-                    ? `(${formatAmount(Math.abs(item.amount))})` 
-                    : formatAmount(Math.abs(item.amount))}
-                </div>
+      {/* SARS Items */}
+      <div className="divide-y divide-gray-100">
+        {nonZeroItems.map((item, index) => (
+          <div key={index}>
+            <div 
+              className="grid grid-cols-12 cursor-pointer hover:bg-gray-50"
+              onClick={() => toggleItem(item.sarsItem)}
+            >
+              <div className="col-span-9 pl-8 py-2 text-sm flex items-center">
+                <ChevronRightIcon 
+                  className={`h-4 w-4 mr-2 transition-transform ${expandedItems[item.sarsItem] ? 'rotate-90' : ''}`}
+                />
+                {item.sarsItem}
               </div>
-              
-              {/* Mapped accounts */}
-              {mappedData && (
-                <div className="ml-8 mt-1 mb-2">
-                  {mappedData
-                    .filter(account => account.sarsItem === item.sarsItem && account.balance !== 0)
-                    .map((account) => (
-                      <div key={account.id} className="grid grid-cols-12 gap-4 text-sm items-center py-1">
-                        <div className="col-span-2 text-gray-600">{account.accountCode}</div>
-                        <div className="col-span-3 text-gray-800 truncate">{account.accountName}</div>
-                        <div className="col-span-2">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium truncate
-                            ${account.section.toLowerCase() === 'balance sheet' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                            {account.section}
-                          </span>
-                        </div>
-                        <div className="col-span-2">
-                          <button
-                            onClick={() => onMappingUpdate(account.id, account.sarsItem)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            Edit Mapping
-                          </button>
-                        </div>
-                        <div className={`col-span-3 text-right tabular-nums ${account.balance < 0 ? 'text-red-600' : ''}`}>
-                          {account.balance < 0 
-                            ? `(${formatAmount(Math.abs(account.balance))})` 
-                            : formatAmount(account.balance)}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
+              <div className={`col-span-3 text-right px-4 py-2 text-sm tabular-nums ${item.amount < 0 ? 'text-red-600' : ''}`}>
+                {item.amount !== 0 && (item.amount < 0 
+                  ? `(${formatAmount(Math.abs(item.amount))})` 
+                  : formatAmount(item.amount))}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* Expanded account details */}
+            {expandedItems[item.sarsItem] && (
+              <div className="bg-gray-50 border-t border-gray-200">
+                <div className="px-4 py-2 border-b border-gray-200 bg-gray-100">
+                  <div className="text-xs font-medium text-gray-500">Mapped Accounts</div>
+                </div>
+                {item.mappedAccounts.map((account) => (
+                  <div 
+                    key={account.id} 
+                    className="grid grid-cols-12 px-10 py-2 text-sm hover:bg-gray-100 border-b border-gray-200 last:border-b-0"
+                  >
+                    <div className="col-span-2 text-gray-500">{account.accountCode}</div>
+                    <div className="col-span-4">
+                      <div className="text-gray-900">{account.accountName}</div>
+                    </div>
+                    <div className="col-span-3">
+                      {updatingAccount === account.id ? (
+                        <div className="animate-pulse text-xs text-gray-500">Updating...</div>
+                      ) : (
+                        <CustomSelect
+                          value={account.sarsItem}
+                          onChange={(newSarsItem, newSection, newSubsection) => 
+                            handleMappingChange(account.id, newSarsItem, newSection, newSubsection)
+                          }
+                          section="Balance Sheet"
+                        />
+                      )}
+                    </div>
+                    <div className={`col-span-3 text-right tabular-nums ${account.balance < 0 ? 'text-red-600' : ''}`}>
+                      {account.balance < 0 
+                        ? `(${formatAmount(Math.abs(account.balance))})` 
+                        : formatAmount(account.balance)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -317,98 +460,133 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
   const totalLiabilities = calculateNestedTotal(balanceSheet.nonCurrentLiabilities) + calculateNestedTotal(balanceSheet.currentLiabilities);
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="mb-6 border-b border-gray-200 pb-4">
-        <h2 className="text-xl font-semibold text-gray-900">{projectName}</h2>
-        <p className="text-sm text-gray-500">Balance Sheet</p>
-        <p className="text-sm text-gray-500">As at {new Date().toLocaleDateString('en-ZA')}</p>
+    <div className="space-y-2 p-8">
+      {/* Header */}
+      <div className="grid grid-cols-12 mb-4">
+        <div className="col-span-9"></div>
+        <div className="col-span-3 text-center font-semibold">R</div>
       </div>
 
-      <div className="space-y-6">
-        {/* Non Current Assets */}
-        <BalanceSheetSection
-          title="Non Current Assets"
-          items={Object.entries(balanceSheet.nonCurrentAssets).map(([sarsItem, data]) => ({
-            sarsItem,
-            amount: data.amount,
-            subsection: data.subsection,
-            mappedAccounts: data.mappedAccounts,
-          }))}
-          mappedData={mappedData}
-          projectId={params.id}
-          onMappingUpdate={handleMappingUpdate}
-        />
+      {/* Balance Sheet Title */}
+      <div className="grid grid-cols-12">
+        <div className="col-span-9 font-bold">Balance Sheet</div>
+        <div className="col-span-3"></div>
+      </div>
 
-        {/* Current Assets */}
-        <BalanceSheetSection
-          title="Current Assets"
-          items={Object.entries(balanceSheet.currentAssets).map(([sarsItem, data]) => ({
-            sarsItem,
-            amount: data.amount,
-            subsection: data.subsection,
-            mappedAccounts: data.mappedAccounts,
-          }))}
-          mappedData={mappedData}
-          projectId={params.id}
-          onMappingUpdate={handleMappingUpdate}
-        />
+      {/* Non-Current Assets */}
+      <BalanceSheetSection
+        title="Non Current Assets"
+        items={Object.entries(balanceSheet.nonCurrentAssets).map(([sarsItem, data]) => ({
+          sarsItem,
+          amount: data.amount,
+          subsection: data.subsection,
+          mappedAccounts: data.mappedAccounts,
+        }))}
+        mappedData={mappedData}
+        projectId={params.id}
+        onMappingUpdate={handleMappingUpdate}
+      />
 
-        {/* Total Assets */}
-        <div className="grid grid-cols-12 gap-4 font-bold border-t border-b border-gray-300 py-2">
-          <div className="col-span-8">TOTAL ASSETS</div>
-          <div className="col-span-4 text-right tabular-nums">
-            {formatAmount(totalAssets)}
-          </div>
+      {/* Current Assets */}
+      <BalanceSheetSection
+        title="Current Assets"
+        items={Object.entries(balanceSheet.currentAssets).map(([sarsItem, data]) => ({
+          sarsItem,
+          amount: data.amount,
+          subsection: data.subsection,
+          mappedAccounts: data.mappedAccounts,
+        }))}
+        mappedData={mappedData}
+        projectId={params.id}
+        onMappingUpdate={handleMappingUpdate}
+      />
+
+      {/* Total Assets */}
+      <div className="grid grid-cols-12 border-t border-b border-gray-200 py-1">
+        <div className="col-span-9 font-bold">TOTAL ASSETS</div>
+        <div className="col-span-3 text-right px-4 tabular-nums font-bold">
+          {formatAmount(totalAssets)}
         </div>
+      </div>
 
-        {/* Capital and Reserves */}
-        <BalanceSheetSection
-          title="Capital and Reserves"
-          items={Object.entries(balanceSheet.capitalAndReserves).map(([sarsItem, data]) => ({
-            sarsItem,
-            amount: data.amount,
-            subsection: data.subsection,
-            mappedAccounts: data.mappedAccounts,
-          }))}
-          mappedData={mappedData}
-          projectId={params.id}
-          onMappingUpdate={handleMappingUpdate}
-        />
+      {/* Capital and Reserves */}
+      <div className="grid grid-cols-12 mt-4">
+        <div className="col-span-9 font-bold">Capital and Reserves</div>
+        <div className="col-span-3"></div>
+      </div>
 
-        {/* Non-Current Liabilities */}
-        <BalanceSheetSection
-          title="Non-Current Liabilities"
-          items={Object.entries(balanceSheet.nonCurrentLiabilities).map(([sarsItem, data]) => ({
-            sarsItem,
-            amount: data.amount,
-            subsection: data.subsection,
-            mappedAccounts: data.mappedAccounts,
-          }))}
-          mappedData={mappedData}
-          projectId={params.id}
-          onMappingUpdate={handleMappingUpdate}
-        />
+      <BalanceSheetSection
+        title=""
+        items={Object.entries(balanceSheet.capitalAndReserves).map(([sarsItem, data]) => ({
+          sarsItem,
+          amount: data.amount,
+          subsection: data.subsection,
+          mappedAccounts: data.mappedAccounts,
+        }))}
+        mappedData={mappedData}
+        projectId={params.id}
+        onMappingUpdate={handleMappingUpdate}
+      />
 
-        {/* Current Liabilities */}
-        <BalanceSheetSection
-          title="Current Liabilities"
-          items={Object.entries(balanceSheet.currentLiabilities).map(([sarsItem, data]) => ({
-            sarsItem,
-            amount: data.amount,
-            subsection: data.subsection,
-            mappedAccounts: data.mappedAccounts,
-          }))}
-          mappedData={mappedData}
-          projectId={params.id}
-          onMappingUpdate={handleMappingUpdate}
-        />
+      {/* Debit Balances */}
+      <div className="grid grid-cols-12">
+        <div className="col-span-9 font-bold">Debit balances</div>
+        <div className="col-span-3 text-right px-4 tabular-nums text-red-600 font-bold">
+          {formatAmount(Math.abs(calculateNestedTotal(balanceSheet.debitBalances)))}
+        </div>
+      </div>
 
-        {/* Total Equity and Liabilities */}
-        <div className="grid grid-cols-12 gap-4 font-bold border-t border-b border-gray-300 py-2">
-          <div className="col-span-8">TOTAL EQUITY AND LIABILITIES</div>
-          <div className="col-span-4 text-right tabular-nums">
-            {formatAmount(- totalEquity + totalLiabilities)}
-          </div>
+      {/* Non-Current Liabilities */}
+      <div className="grid grid-cols-12 mt-4">
+        <div className="col-span-9 font-bold">Non-Current Liabilities</div>
+        <div className="col-span-3"></div>
+      </div>
+
+      <BalanceSheetSection
+        title=""
+        items={Object.entries(balanceSheet.nonCurrentLiabilities).map(([sarsItem, data]) => ({
+          sarsItem,
+          amount: data.amount,
+          subsection: data.subsection,
+          mappedAccounts: data.mappedAccounts,
+        }))}
+        mappedData={mappedData}
+        projectId={params.id}
+        onMappingUpdate={handleMappingUpdate}
+      />
+
+      {/* Current Liabilities */}
+      <div className="grid grid-cols-12 mt-4">
+        <div className="col-span-9 font-bold">Current Liabilities</div>
+        <div className="col-span-3"></div>
+      </div>
+
+      <BalanceSheetSection
+        title=""
+        items={Object.entries(balanceSheet.currentLiabilities).map(([sarsItem, data]) => ({
+          sarsItem,
+          amount: data.amount,
+          subsection: data.subsection,
+          mappedAccounts: data.mappedAccounts,
+        }))}
+        mappedData={mappedData}
+        projectId={params.id}
+        onMappingUpdate={handleMappingUpdate}
+      />
+
+      {/* Total Reserves & Liabilities */}
+      <div className="grid grid-cols-12 border-t border-b border-gray-200 py-1">
+        <div className="col-span-9 font-bold">TOTAL RESERVES & LIABILITIES</div>
+        <div className="col-span-3 text-right px-4 tabular-nums font-bold">
+          {formatAmount(totalEquity + totalLiabilities)}
+        </div>
+      </div>
+
+      {/* Check row */}
+      <div className="grid grid-cols-12 text-sm">
+        <div className="col-span-9 pl-4">Check (should be nil)</div>
+        <div className="col-span-3 text-right px-4 tabular-nums">
+          {formatAmount(totalAssets - (totalEquity + totalLiabilities))}
         </div>
       </div>
     </div>

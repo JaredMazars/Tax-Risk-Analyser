@@ -93,40 +93,40 @@ function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps)
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        className="w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-md border-0 py-1 pl-2 pr-8 text-left text-xs text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className="block truncate">{selectedLabel}</span>
-        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-          <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5">
+          <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
         </span>
       </button>
       {isOpen && (
-        <div className="absolute left-0 z-10 mt-1 w-[600px] bg-white shadow-lg ring-1 ring-black ring-opacity-5 rounded-md focus:outline-none">
+        <div className="absolute left-0 z-10 mt-1 w-[400px] bg-white shadow-lg ring-1 ring-black ring-opacity-5 rounded-md focus:outline-none">
           <div className="sticky top-0 z-30 bg-white border-b border-gray-200">
-            <div className="p-4">
-              <div className="text-base font-medium text-gray-900">Select SARS Item</div>
-              <div className="text-sm text-gray-500 mt-1">All Available Items</div>
-              <div className="mt-3 relative">
+            <div className="p-2">
+              <div className="text-sm font-medium text-gray-900">Select SARS Item</div>
+              <div className="text-xs text-gray-500 mt-0.5">All Available Items</div>
+              <div className="mt-2 relative">
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search items..."
-                  className="w-full rounded-md border-0 py-2 pl-8 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                  className="w-full rounded-md border-0 py-1 pl-7 pr-2 text-xs text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600"
                 />
-                <svg className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-2 top-1.5 h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -135,19 +135,19 @@ function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps)
             </div>
           </div>
           
-          <div className="overflow-y-auto max-h-[400px] relative">
+          <div className="overflow-y-auto max-h-[300px] relative">
             {Object.entries(filteredSectionItems).length > 0 ? (
               Object.entries(filteredSectionItems).map(([mainSection, sectionData]) => (
                 <div key={mainSection}>
-                  <div className="sticky top-0 z-20 bg-blue-50 px-4 py-2 border-b border-gray-200 shadow-sm">
-                    <div className="text-sm font-bold text-blue-900">
+                  <div className="sticky top-0 z-20 bg-blue-50 px-2 py-1 border-b border-gray-200 shadow-sm">
+                    <div className="text-xs font-bold text-blue-900">
                       {mainSection}
                     </div>
                   </div>
                   {Object.entries(sectionData).map(([subsection, items]) => (
                     <div key={subsection} className="relative">
-                      <div className="sticky top-8 z-10 bg-gray-100 px-4 py-2 border-b border-gray-200">
-                        <div className="text-sm font-semibold text-gray-900">
+                      <div className="sticky top-6 z-10 bg-gray-50 px-2 py-1 border-b border-gray-200">
+                        <div className="text-xs font-medium text-gray-900">
                           {subsectionDisplayNames[subsection] || subsection}
                         </div>
                       </div>
@@ -161,7 +161,7 @@ function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps)
                               setIsOpen(false);
                               setSearchTerm('');
                             }}
-                            className={`w-full px-4 py-3 text-left text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none ${
+                            className={`w-full px-2 py-1.5 text-left text-xs hover:bg-gray-50 focus:bg-gray-50 focus:outline-none ${
                               value === item.sarsItem
                                 ? 'bg-blue-50 text-blue-900 font-medium'
                                 : 'text-gray-700'
@@ -176,7 +176,7 @@ function CustomSelect({ value, onChange, disabled, section }: CustomSelectProps)
                 </div>
               ))
             ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
+              <div className="p-2 text-center text-xs text-gray-500">
                 No items match your search
               </div>
             )}
@@ -223,25 +223,25 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
+      <table className="w-full divide-y divide-gray-200 table-fixed">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="w-[8%] px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Code
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="w-[17%] px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Account Name
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="w-[10%] px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Section
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="w-[15%] px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Subsection
             </th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="w-[10%] px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Balance
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="w-[40%] px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               SARS Item
             </th>
           </tr>
@@ -249,22 +249,22 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
         <tbody className="bg-white divide-y divide-gray-200">
           {mappedData.map((item) => (
             <tr key={item.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900">
                 {item.accountCode}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="px-2 py-1 text-xs text-gray-900 truncate" title={item.accountName}>
                 {item.accountName}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900">
                 {item.section}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900 truncate" title={subsectionDisplayNames[item.subsection] || item.subsection}>
                 {subsectionDisplayNames[item.subsection] || item.subsection}
               </td>
-              <td className={`px-6 py-4 whitespace-nowrap text-sm text-right tabular-nums ${item.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+              <td className={`px-2 py-1 whitespace-nowrap text-xs text-right tabular-nums ${item.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                 {item.balance < 0 ? `(${formatAmount(Math.abs(item.balance))})` : formatAmount(item.balance)}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900">
                 {updatingRow === item.id ? (
                   <div className="animate-pulse">Updating...</div>
                 ) : (
