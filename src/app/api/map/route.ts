@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
           role: "system",
           content: `You are an accounting assistant that maps trial balance accounts to SARS categories. 
           You must return ONLY a valid JSON array with no additional text or explanation.
-          Each object in the array must include: accountCode, account, section, balance (as number), and sarsItem.`
+          Each object in the array must include: accountCode, accountName, section, subsection, balance (as number), and sarsItem.`
         },
         {
           role: "user",
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
           role: "system",
           content: `You are an accounting assistant that maps trial balance accounts to an account structure. 
           You must return ONLY a valid JSON array with no additional text or explanation.
-          Each object in the array must include: accountCode, account, section, balance (as number), sarsItem.`
+          Each object in the array must include: accountCode, accountName, section, subsection, balance (as number), sarsItem.`
         },
         {
           role: "user",
@@ -115,17 +115,31 @@ export async function POST(request: NextRequest) {
         where: { projectId }
       });
 
-      // Insert new mapped accounts
-      await tx.mappedAccount.createMany({
-        data: combinedResults.map(item => ({
-          projectId,
-          accountCode: item.accountCode.toString(),
-          account: item.account,
-          section: item.section,
-          balance: item.balance,
-          sarsItem: item.sarsItem
-        }))
-      });
+      // Log the data we're about to insert
+      console.log('Data to insert:', combinedResults.map(item => ({
+        projectId,
+        accountCode: item.accountCode.toString(),
+        accountName: item.accountName,
+        section: item.section,
+        subsection: item.subsection,
+        balance: item.balance,
+        sarsItem: item.sarsItem
+      })));
+
+      // Insert new mapped accounts one by one
+      for (const item of combinedResults) {
+        await tx.mappedAccount.create({
+          data: {
+            projectId,
+            accountCode: item.accountCode.toString(),
+            accountName: item.accountName,
+            section: item.section,
+            subsection: item.subsection,
+            balance: item.balance,
+            sarsItem: item.sarsItem
+          }
+        });
+      }
     });
 
     return NextResponse.json(combinedResults);
@@ -153,19 +167,24 @@ ${mappingGuideStr}
 
 Rules:
 1. Return ONLY a JSON array with no additional text
-2. Each object must have: accountCode, account, section, balance (as number), sarsItem
+2. Each object must have: accountCode, accountName, section, subsection, balance (as number), sarsItem
 3. Match accounts to the most appropriate sarsItem based on the account name and the mapping guide structure
 4. Keep original account details exactly as provided
 5. Balance must be a number, not a string
 6. The response must be a valid JSON array starting with '[' and ending with ']'
 7. In the trial balance the income statement balances - amounts means income and + amounts are expenses. In the balance sheet - amounts means liabilities or equity and + amounts are assets.
+8. For long-term loans:
+   - If balance is negative, set section to "Balance Sheet" and subsection to "nonCurrentLiabilities"
+   - If balance is positive, set section to "Balance Sheet" and subsection to "nonCurrentAssets"
+9. For all other items, set the subsection based on the mapping guide structure
 
 Example Response Format:
 [
   {
     "accountCode": "1000",
-    "account": "Cash at Bank",
+    "accountName": "Cash at Bank",
     "section": "${section}",
+    "subsection": "currentAssets",
     "balance": 50000.00,
     "sarsItem": "Cash and cash equivalents"
   }
@@ -196,9 +215,9 @@ function parseLLMResponse(llmResponse: string | null) {
 
     // Validate each object in the array
     parsed.forEach((item, index) => {
-      if (!item.accountCode || !item.account || !item.section || 
-          typeof item.balance !== 'number' || !item.sarsItem) {
-        throw new Error(`Invalid object structure at index ${index}`);
+      if (!item.accountCode || !item.accountName || !item.section || 
+          !item.subsection || typeof item.balance !== 'number' || !item.sarsItem) {
+        throw new Error(`Invalid object structure at index ${index}: ${JSON.stringify(item)}`);
       }
     });
 

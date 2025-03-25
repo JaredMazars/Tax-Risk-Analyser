@@ -27,6 +27,12 @@ export const mappingGuide = {
       { sarsItem: "Other current liabilities"}
     ],
     nonCurrentAssets: [
+      { sarsItem: "Long-term loans - interest free: Connected (Local)" },
+      { sarsItem: "Long-term loans - interest free: Non-Connected (Local)" },
+      { sarsItem: "Long-term loans - interest free: Connected (Foreign)" },
+      { sarsItem: "Long-term loans - interest free: Non-Connected (Foreign)" },
+      { sarsItem: "Long-term loans - interest bearing: Connected (Local)" },
+      { sarsItem: "Long-term loans - interest bearing: Non-Connected (Local)" },
       { sarsItem: "Long-term loans - interest bearing: Connected (Foreign)" },
       { sarsItem: "Long-term loans - interest bearing: Non-Connected (Foreign)" },
       { sarsItem: "Deferred tax assets" },

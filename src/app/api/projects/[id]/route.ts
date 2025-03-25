@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -10,19 +10,13 @@ export async function GET(
     
     if (isNaN(projectId)) {
       return NextResponse.json(
-        { error: 'Invalid project ID' },
+        { error: 'Invalid project ID format' },
         { status: 400 }
       );
     }
 
     const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      where: { id: projectId }
     });
 
     if (!project) {

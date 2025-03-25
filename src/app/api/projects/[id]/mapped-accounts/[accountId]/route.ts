@@ -6,32 +6,20 @@ export async function PATCH(
   { params }: { params: { id: string; accountId: string } }
 ) {
   try {
-    const { sarsItem } = await request.json();
-    const projectId = parseInt(params.id);
-    const accountId = parseInt(params.accountId);
-
-    if (!sarsItem) {
-      return NextResponse.json(
-        { error: 'SARS item is required' },
-        { status: 400 }
-      );
-    }
-
-    const updatedMapping = await prisma.mappedAccount.update({
+    const data = await request.json();
+    const mappedAccount = await prisma.mappedAccount.update({
       where: {
-        id: accountId,
-        projectId: projectId,
+        id: parseInt(params.accountId),
+        projectId: parseInt(params.id),
       },
-      data: {
-        sarsItem: sarsItem,
-      },
+      data,
     });
 
-    return NextResponse.json(updatedMapping);
+    return NextResponse.json(mappedAccount);
   } catch (error) {
-    console.error('Error updating mapping:', error);
+    console.error('Error updating mapped account:', error);
     return NextResponse.json(
-      { error: 'Failed to update mapping' },
+      { error: 'Failed to update mapped account' },
       { status: 500 }
     );
   }

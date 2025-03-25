@@ -1,9 +1,3 @@
-/*
-  Warnings:
-
-  - Added the required column `projectId` to the `MappedAccount` table without a default value. This is not possible if the table is not empty.
-
-*/
 -- CreateTable
 CREATE TABLE "Project" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -14,14 +8,13 @@ CREATE TABLE "Project" (
     "status" TEXT NOT NULL DEFAULT 'ACTIVE'
 );
 
--- RedefineTables
-PRAGMA defer_foreign_keys=ON;
-PRAGMA foreign_keys=OFF;
-CREATE TABLE "new_MappedAccount" (
+-- CreateTable
+CREATE TABLE "MappedAccount" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "accountCode" TEXT NOT NULL,
-    "account" TEXT NOT NULL,
+    "accountName" TEXT NOT NULL,
     "section" TEXT NOT NULL,
+    "subsection" TEXT NOT NULL,
     "balance" REAL NOT NULL,
     "sarsItem" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,8 +22,3 @@ CREATE TABLE "new_MappedAccount" (
     "projectId" INTEGER NOT NULL,
     CONSTRAINT "MappedAccount_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
-INSERT INTO "new_MappedAccount" ("account", "accountCode", "balance", "createdAt", "id", "sarsItem", "section", "updatedAt") SELECT "account", "accountCode", "balance", "createdAt", "id", "sarsItem", "section", "updatedAt" FROM "MappedAccount";
-DROP TABLE "MappedAccount";
-ALTER TABLE "new_MappedAccount" RENAME TO "MappedAccount";
-PRAGMA foreign_keys=ON;
-PRAGMA defer_foreign_keys=OFF;
