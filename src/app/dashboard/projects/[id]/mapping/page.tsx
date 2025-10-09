@@ -531,12 +531,61 @@ export default function MappingPage({ params }: { params: { id: string } }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Upload Section */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <h3 className="text-sm font-semibold text-gray-900">Upload Trial Balance</h3>
+              <div className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-gray-900">Upload Trial Balance</h3>
+                </div>
+                <a
+                  href="/trial-balance-template.xlsx"
+                  download="trial-balance-template.xlsx"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Template
+                </a>
               </div>
+              
+              {/* File Format Guidance */}
+              <details className="group">
+                <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  File Format Requirements
+                </summary>
+                <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-200 text-xs space-y-2">
+                  <div>
+                    <p className="font-semibold text-blue-900 mb-1">Required Columns:</p>
+                    <ul className="list-disc list-inside text-blue-800 space-y-0.5 ml-2">
+                      <li><span className="font-medium">Account Code</span> (e.g., "1000", "2000")</li>
+                      <li><span className="font-medium">Account Name</span> (e.g., "Cash at Bank")</li>
+                      <li><span className="font-medium">Section</span> (must be "Balance Sheet" or "Income Statement")</li>
+                      <li><span className="font-medium">Balance</span> (numeric values)</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-blue-900 mb-1">Balance Conventions:</p>
+                    <ul className="list-disc list-inside text-blue-800 space-y-0.5 ml-2">
+                      <li><span className="font-medium">Income Statement:</span> Negative = income, Positive = expenses</li>
+                      <li><span className="font-medium">Balance Sheet:</span> Negative = liabilities/equity, Positive = assets</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-blue-900 mb-1">File Requirements:</p>
+                    <ul className="list-disc list-inside text-blue-800 space-y-0.5 ml-2">
+                      <li>Formats: Excel (.xlsx, .xls) or CSV (.csv)</li>
+                      <li>System reads the first sheet only</li>
+                      <li>Headers must be in the first row</li>
+                    </ul>
+                  </div>
+                </div>
+              </details>
+
               <div className="flex justify-center px-4 pt-3 pb-4 border-2 border-blue-300 border-dashed rounded-lg bg-blue-50 transition-all duration-200 ease-in-out hover:bg-blue-100 hover:border-blue-400">
                 <div className="space-y-1 text-center">
                   <svg className="mx-auto h-8 w-8 text-blue-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
