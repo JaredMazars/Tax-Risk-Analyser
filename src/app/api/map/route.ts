@@ -10,9 +10,11 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('=== Starting POST /api/map ===');
     const formData = await request.formData();
     const trialBalanceFile = formData.get('trialBalance') as File;
     const projectIdStr = formData.get('projectId') as string;
+    console.log('Project ID:', projectIdStr);
 
     if (!trialBalanceFile) {
       return NextResponse.json(
@@ -70,46 +72,108 @@ export async function POST(request: NextRequest) {
     );
 
     // Process Income Statement first
+    console.log('Processing Income Statement with', incomeStatementData.length, 'rows');
     const incomeStatementPrompt = generatePrompt(incomeStatementData as Record<string, unknown>[], mappingGuide.incomeStatement, 'Income Statement');
-    const incomeStatementCompletion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: `You are an accounting assistant that maps trial balance accounts to SARS categories. 
-          You must return ONLY a valid JSON array with no additional text or explanation.
-          Each object in the array must include: accountCode, accountName, section, subsection, balance (as number), and sarsItem.`
-        },
-        {
-          role: "user",
-          content: incomeStatementPrompt
-        }
-      ],
-      model: "gpt-4o",
-      temperature: 0.5,
-    });
+    console.log('Calling OpenAI API for Income Statement...');
+    let incomeStatementCompletion;
+    try {
+      incomeStatementCompletion = await openai.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
 
+<task>
+Your task is to analyze trial balance data and map each account to the appropriate SARS category based on the provided mapping guide.
+</task>
+
+<output_format>
+Return a valid JSON array where each object contains:
+- accountCode: string
+- accountName: string
+- section: string
+- subsection: string
+- balance: number (not string)
+- sarsItem: string
+
+Do not include any explanation, commentary, or text outside the JSON array.
+</output_format>
+
+<instructions>
+- Match accounts to the most appropriate sarsItem based on account name and mapping guide
+- Preserve original account details exactly as provided
+- Ensure all balance values are numbers, not strings
+- Follow the mapping guide structure precisely
+</instructions>`
+          },
+          {
+            role: "user",
+            content: incomeStatementPrompt
+          }
+        ],
+        model: "gpt-5-mini",
+        response_format: { type: "json_object" }
+      });
+    } catch (apiError: any) {
+      console.error('OpenAI API Error for Income Statement:', apiError);
+      console.error('Error details:', {
+        message: apiError.message,
+        status: apiError.status,
+        code: apiError.code,
+        type: apiError.type
+      });
+      throw new Error(`OpenAI API Error: ${apiError.message || apiError}`);
+    }
+
+    console.log('Income Statement Response:', incomeStatementCompletion.choices[0].message.content);
     const incomeStatementMapped = parseLLMResponse(incomeStatementCompletion.choices[0].message.content);
+    console.log('Income Statement Mapped:', incomeStatementMapped);
 
     // Process Balance Sheet
+    console.log('Processing Balance Sheet with', balanceSheetData.length, 'rows');
     const balanceSheetPrompt = generatePrompt(balanceSheetData as Record<string, unknown>[], mappingGuide.balanceSheet, 'Balance Sheet');
+    console.log('Calling OpenAI API for Balance Sheet...');
     const balanceSheetCompletion = await openai.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `You are an accounting assistant that maps trial balance accounts to an account structure. 
-          You must return ONLY a valid JSON array with no additional text or explanation.
-          Each object in the array must include: accountCode, accountName, section, subsection, balance (as number), sarsItem.`
+          content: `You are an expert accounting assistant specializing in mapping trial balance accounts to SARS tax categories.
+
+<task>
+Your task is to analyze trial balance data and map each account to the appropriate SARS category based on the provided mapping guide.
+</task>
+
+<output_format>
+Return a valid JSON array where each object contains:
+- accountCode: string
+- accountName: string
+- section: string
+- subsection: string
+- balance: number (not string)
+- sarsItem: string
+
+Do not include any explanation, commentary, or text outside the JSON array.
+</output_format>
+
+<instructions>
+- Match accounts to the most appropriate sarsItem based on account name and mapping guide
+- Preserve original account details exactly as provided
+- Ensure all balance values are numbers, not strings
+- Follow the mapping guide structure precisely
+</instructions>`
         },
         {
           role: "user",
           content: balanceSheetPrompt
         }
       ],
-      model: "gpt-4.1",
-      temperature: 0.5,
+      model: "gpt-5-mini",
+      response_format: { type: "json_object" }
     });
 
+    console.log('Balance Sheet Response:', balanceSheetCompletion.choices[0].message.content);
     const balanceSheetMapped = parseLLMResponse(balanceSheetCompletion.choices[0].message.content);
+    console.log('Balance Sheet Mapped:', balanceSheetMapped);
 
     // Combine results
     const combinedResults = [...incomeStatementMapped, ...balanceSheetMapped];
@@ -152,8 +216,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error processing files:', error);
+    console.error('Error stack:', (error as Error).stack);
     return NextResponse.json(
-      { error: 'Error processing files: ' + (error as Error).message },
+      { error: 'Error processing files: ' + (error as Error).message, stack: (error as Error).stack },
       { status: 500 }
     );
   }
@@ -163,72 +228,74 @@ function generatePrompt(trialBalanceData: Record<string, unknown>[], mappingGuid
   const trialBalanceStr = JSON.stringify(trialBalanceData, null, 2);
   const mappingGuideStr = JSON.stringify(mappingGuide, null, 2);
 
-  return `Map the following ${section} trial balance accounts to their appropriate FSA categories.
+  return `<task>
+Map the following ${section} trial balance accounts to their appropriate SARS categories based on the provided mapping guide.
+</task>
 
-Trial Balance Data:
+<trial_balance_data>
 ${trialBalanceStr}
+</trial_balance_data>
 
-Mapping Guide:
+<mapping_guide>
 ${mappingGuideStr}
+</mapping_guide>
 
-Rules:
-1. Return ONLY a JSON array with no additional text
-2. Each object must have: accountCode, accountName, section, subsection, balance (as number), sarsItem
-3. Match accounts to the most appropriate sarsItem based on the account name and the mapping guide structure
-4. Keep original account details exactly as provided
-5. Balance must be a number, not a string
-6. The response must be a valid JSON array starting with '[' and ending with ']'
-7. In the trial balance the income statement balances - amounts means income and + amounts are expenses. In the balance sheet - amounts means liabilities or equity and + amounts are assets.
-8. For long-term loans:
-   - If balance is negative, set section to "Balance Sheet" and subsection to "nonCurrentLiabilities"
-   - If balance is positive, set section to "Balance Sheet" and subsection to "nonCurrentAssets"
-9. For balance sheet items if it refers to accumulated depreciation, set the sarsItem to a Other non-current assets
-9. For all other items, set the subsection based on the mapping guide structure
+<rules>
+1. Each account must have: accountCode, accountName, section, subsection, balance (as number), sarsItem
+2. Match accounts to the most appropriate sarsItem based on the account name and the mapping guide structure
+3. Keep original account details exactly as provided
+4. Balance must be a number, not a string
+5. In the trial balance:
+   - Income statement: negative amounts = income, positive amounts = expenses
+   - Balance sheet: negative amounts = liabilities or equity, positive amounts = assets
+6. For long-term loans:
+   - If balance is negative: section = "Balance Sheet", subsection = "nonCurrentLiabilities"
+   - If balance is positive: section = "Balance Sheet", subsection = "nonCurrentAssets"
+7. For accumulated depreciation: set sarsItem to "Other non-current assets"
+8. For all other items: set subsection based on the mapping guide structure
+</rules>
 
-Example Response Format:
-[
-  {
-    "accountCode": "1000",
-    "accountName": "Cash at Bank",
-    "section": "${section}",
-    "subsection": "currentAssets",
-    "balance": 50000.00,
-    "sarsItem": "Cash and cash equivalents"
-  }
-]`;
+<output_format>
+Return a JSON object with a single "accounts" key containing an array of mapped accounts:
+{
+  "accounts": [
+    {
+      "accountCode": "1000",
+      "accountName": "Cash at Bank",
+      "section": "${section}",
+      "subsection": "currentAssets",
+      "balance": 50000.00,
+      "sarsItem": "Cash and cash equivalents"
+    }
+  ]
+}
+</output_format>`;
 }
 
 function parseLLMResponse(llmResponse: string | null) {
   try {
     if (!llmResponse) throw new Error('Empty response from LLM');
     
-    // Clean the response to find the JSON array
-    const cleaned = llmResponse.trim();
-    const startIndex = cleaned.indexOf('[');
-    const endIndex = cleaned.lastIndexOf(']');
+    // Parse the JSON object response
+    const parsed = JSON.parse(llmResponse.trim());
     
-    if (startIndex === -1 || endIndex === -1) {
-      console.error('Invalid response format. Full response:', llmResponse);
-      throw new Error('No JSON array found in the LLM response');
-    }
-
-    const jsonString = cleaned.slice(startIndex, endIndex + 1);
-    const parsed = JSON.parse(jsonString);
+    // Extract the accounts array from the response
+    const accounts = parsed.accounts || parsed;
     
     // Validate the structure
-    if (!Array.isArray(parsed)) {
-      throw new Error('Response is not an array');
+    if (!Array.isArray(accounts)) {
+      throw new Error('Response does not contain an array of accounts');
     }
 
     // Validate each object in the array
-    parsed.forEach((item, index) => {
+    accounts.forEach((item, index) => {
       if (!item.accountCode || !item.accountName || !item.section || 
           !item.subsection || typeof item.balance !== 'number' || !item.sarsItem) {
         throw new Error(`Invalid object structure at index ${index}: ${JSON.stringify(item)}`);
       }
     });
 
-    return parsed;
+    return accounts;
   } catch (error) {
     console.error('Error parsing LLM response:', error);
     console.error('Raw response:', llmResponse);

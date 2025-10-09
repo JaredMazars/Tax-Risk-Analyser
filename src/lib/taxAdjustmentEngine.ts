@@ -190,30 +190,37 @@ export class TaxAdjustmentEngine {
     mappedAccounts: MappedAccountData[],
     ruleSuggestions: TaxAdjustmentSuggestion[]
   ): Promise<TaxAdjustmentSuggestion[]> {
-    const prompt = `You are a South African tax expert analyzing financial statements for tax computation purposes.
+    const prompt = `<task>
+Review and enhance tax adjustment suggestions for South African corporate income tax computation (IT14).
+</task>
 
-Mapped Accounts:
+<mapped_accounts>
 ${JSON.stringify(mappedAccounts, null, 2)}
+</mapped_accounts>
 
-Preliminary Tax Adjustment Suggestions:
+<preliminary_suggestions>
 ${JSON.stringify(ruleSuggestions, null, 2)}
+</preliminary_suggestions>
 
-Tasks:
+<requirements>
 1. Review the preliminary suggestions and assess their validity
 2. Suggest additional adjustments that may have been missed
-3. Provide more detailed reasoning and relevant SARS sections
+3. Provide detailed reasoning with specific SARS section references
 4. Identify any potential issues or areas requiring manual review
+5. Ensure all amounts and calculations are accurate
+</requirements>
 
-Return a JSON array of tax adjustment suggestions with the following structure:
+<output_format>
+Return a JSON object with the following structure:
 {
   "suggestions": [
     {
       "type": "DEBIT" | "CREDIT" | "ALLOWANCE",
       "description": "Clear description",
       "amount": number,
-      "sarsSection": "Relevant section",
-      "confidenceScore": 0-1,
-      "reasoning": "Detailed explanation",
+      "sarsSection": "Relevant section (e.g., s11(e), s23, s18A)",
+      "confidenceScore": 0.0 to 1.0,
+      "reasoning": "Detailed explanation with tax law references",
       "calculationDetails": {
         "method": "method_name",
         "inputs": {}
@@ -221,22 +228,31 @@ Return a JSON array of tax adjustment suggestions with the following structure:
     }
   ],
   "additionalNotes": "Any important observations or warnings"
-}`;
+}
+</output_format>`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are an expert South African tax consultant specializing in corporate income tax and IT14 computations. Always reference specific sections of the Income Tax Act.',
+          content: `You are an expert South African tax consultant specializing in corporate income tax and IT14 computations.
+
+<instructions>
+- Always reference specific sections of the Income Tax Act (e.g., s11, s23, s18A)
+- Apply current South African tax law accurately
+- Consider both deductions and adjustments required for tax computation
+- Provide clear, actionable reasoning for each adjustment
+- Flag any areas requiring additional professional judgment
+- Return valid JSON in the specified format only
+</instructions>`,
         },
         {
           role: 'user',
           content: prompt,
         },
       ],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
+      response_format: { type: 'json_object' }
     });
 
     const result = JSON.parse(completion.choices[0].message.content || '{}');

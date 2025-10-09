@@ -141,36 +141,53 @@ export class DocumentExtractor {
       // In production, use pdf-parse or similar library first
       // For now, we'll use a text extraction approach with GPT-4
 
-      const prompt = `Extract and structure the following tax-related information from this PDF document:
-${context ? `Context: ${context}` : ''}
+      const prompt = `<task>
+Extract and structure tax-related information from this PDF document for South African tax compliance.
+</task>
 
-Please identify:
+${context ? `<context>\n${context}\n</context>\n` : ''}
+
+<extraction_requirements>
 1. Document type (e.g., depreciation schedule, interest calculation, donation receipt, etc.)
 2. Key financial figures and their meanings
 3. Dates and periods
 4. Any tax-relevant information
+</extraction_requirements>
 
-Return structured JSON with:
-- documentType
-- summary (brief description)
-- structuredData (all extracted fields)
-- confidence (0-1)
-- warnings (array of potential issues)`;
+<output_format>
+Return a JSON object with the following structure:
+{
+  "documentType": "string - specific type of document",
+  "summary": "string - brief description of document contents",
+  "structuredData": {
+    "all": "extracted fields as key-value pairs"
+  },
+  "confidence": 0.0 to 1.0,
+  "warnings": ["array", "of", "potential issues or manual review needs"]
+}
+</output_format>`;
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-5-mini',
         messages: [
           {
             role: 'system',
-            content: 'You are a tax document analyzer specializing in South African tax documents.',
+            content: `You are an expert tax document analyzer specializing in South African tax documents.
+
+<instructions>
+- Extract all relevant financial and tax information accurately
+- Identify document types based on content and structure
+- Flag any ambiguities or areas requiring manual review
+- Provide confidence scores based on data clarity
+- Always return valid JSON in the specified format
+</instructions>`,
           },
           {
             role: 'user',
             content: prompt,
           },
         ],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
+        response_format: { type: 'json_object' }
       });
 
       const result = JSON.parse(completion.choices[0].message.content || '{}');
@@ -237,41 +254,47 @@ Return structured JSON with:
     confidence: number;
     warnings: string[];
   }> {
-    const prompt = `Analyze this ${sourceType} data and extract tax-relevant information:
+    const prompt = `<task>
+Analyze this ${sourceType} data and extract tax-relevant information for South African tax compliance.
+</task>
 
-${context ? `Context: This document is related to ${context}\n\n` : ''}
+${context ? `<context>\nThis document is related to ${context}\n</context>\n\n` : ''}
 
-Data:
+<source_data>
 ${rawData.substring(0, 8000)} ${rawData.length > 8000 ? '...(truncated)' : ''}
+</source_data>
 
-Extract and structure the following based on document type:
+<extraction_requirements>
+Based on document type, extract the following:
 
-For DEPRECIATION SCHEDULES:
+DEPRECIATION SCHEDULES:
 - Asset descriptions and categories
 - Acquisition dates and costs
 - Depreciation rates and methods
 - Accumulated depreciation
 - Book values
 
-For INTEREST CALCULATIONS:
+INTEREST CALCULATIONS:
 - Loan/debt details
 - Interest rates
 - Calculation periods
 - Total interest amounts
 
-For DONATION RECEIPTS:
+DONATION RECEIPTS:
 - Donor and recipient details
 - Donation amounts
 - Dates
 - s18A compliance information
 
-For FOREIGN INCOME:
+FOREIGN INCOME:
 - Source country
 - Income type
 - Amounts (foreign and ZAR)
 - Tax paid abroad
 - Relevant DTAs
+</extraction_requirements>
 
+<output_format>
 Return JSON with:
 {
   "summary": "Brief description of document contents",
@@ -279,25 +302,34 @@ Return JSON with:
     "documentType": "specific type",
     "keyFields": {...extracted fields...}
   },
-  "confidence": 0-1 (how confident in extraction),
+  "confidence": 0.0 to 1.0 (how confident in extraction),
   "warnings": ["any issues or manual review needed"]
-}`;
+}
+</output_format>`;
 
     try {
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-5-mini',
         messages: [
           {
             role: 'system',
-            content: 'You are an expert at extracting structured data from financial and tax documents. Always return valid JSON.',
+            content: `You are an expert at extracting structured data from financial and tax documents.
+
+<instructions>
+- Identify the document type accurately
+- Extract all relevant fields based on document type
+- Preserve numerical accuracy
+- Flag any ambiguities or missing information
+- Always return valid JSON in the specified format
+- Never include explanatory text outside the JSON structure
+</instructions>`,
           },
           {
             role: 'user',
             content: prompt,
           },
         ],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
+        response_format: { type: 'json_object' }
       });
 
       const result = JSON.parse(completion.choices[0].message.content || '{}');
