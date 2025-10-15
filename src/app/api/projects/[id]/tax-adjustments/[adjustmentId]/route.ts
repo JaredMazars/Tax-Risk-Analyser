@@ -9,9 +9,10 @@ const prisma = new PrismaClient();
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; adjustmentId: string } }
+  context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    const params = await context.params;
     const adjustmentId = parseInt(params.adjustmentId);
 
     const adjustment = await prisma.taxAdjustment.findUnique({
@@ -64,9 +65,10 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; adjustmentId: string } }
+  context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    const params = await context.params;
     const adjustmentId = parseInt(params.adjustmentId);
     const body = await request.json();
 
@@ -140,9 +142,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; adjustmentId: string } }
+  context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    const params = await context.params;
     const adjustmentId = parseInt(params.adjustmentId);
 
     // Delete associated documents first

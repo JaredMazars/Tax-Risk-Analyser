@@ -1,36 +1,39 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { determineSectionAndSubsection } from '@/app/api/map/route';
+import { handleApiError } from '@/lib/errorHandler';
+import { parseProjectId, successResponse } from '@/lib/apiUtils';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
+    const projectId = parseProjectId(params.id);
+    
     const mappedAccounts = await prisma.mappedAccount.findMany({
       where: {
-        projectId: parseInt(params.id),
+        projectId,
       },
       orderBy: {
         accountCode: 'asc',
       },
     });
 
-    return NextResponse.json(mappedAccounts);
+    return NextResponse.json(successResponse(mappedAccounts));
   } catch (error) {
-    console.error('Error fetching mapped accounts:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch mapped accounts' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Get Mapped Accounts');
   }
 }
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
+    const projectId = parseProjectId(params.id);
     const data = await request.json();
     
     // If sarsItem and balance are provided, determine section and subsection
@@ -46,16 +49,12 @@ export async function POST(
     const mappedAccount = await prisma.mappedAccount.create({
       data: {
         ...data,
-        projectId: parseInt(params.id),
+        projectId,
       },
     });
 
-    return NextResponse.json(mappedAccount);
+    return NextResponse.json(successResponse(mappedAccount), { status: 201 });
   } catch (error) {
-    console.error('Error creating mapped account:', error);
-    return NextResponse.json(
-      { error: 'Failed to create mapped account' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Create Mapped Account');
   }
 } 

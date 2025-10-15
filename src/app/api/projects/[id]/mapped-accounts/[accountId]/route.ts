@@ -4,9 +4,10 @@ import { determineSectionAndSubsection } from '@/app/api/map/route';
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string; accountId: string } }
+  context: { params: Promise<{ id: string; accountId: string }> }
 ) {
   try {
+    const params = await context.params;
     const data = await request.json();
     
     // If sarsItem is being updated, recalculate section and subsection

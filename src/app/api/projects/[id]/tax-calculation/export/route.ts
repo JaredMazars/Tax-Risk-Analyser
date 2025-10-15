@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { ExcelExporter } from '@/lib/exporters/excelExporter';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/errorHandler';
+import { parseProjectId } from '@/lib/apiUtils';
+import type { TaxExportData } from '@/types/api';
 
 /**
  * GET /api/projects/[id]/tax-calculation/export?format=excel
@@ -10,10 +11,11 @@ const prisma = new PrismaClient();
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = parseInt(params.id);
+    const params = await context.params;
+    const projectId = parseProjectId(params.id);
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') || 'excel';
 
@@ -23,10 +25,7 @@ export async function GET(
     });
 
     if (!project) {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Project not found', ErrorCodes.NOT_FOUND);
     }
 
     // Fetch approved/modified adjustments
@@ -64,12 +63,12 @@ export async function GET(
     const taxableIncome = accountingProfit + totalDebits - totalCredits + totalAllowances;
     const taxLiability = Math.max(0, taxableIncome) * 0.27;
 
-    const exportData = {
+    const exportData: TaxExportData = {
       projectName: project.name,
       accountingProfit,
       adjustments: adjustments.map(adj => ({
         id: adj.id,
-        type: adj.type,
+        type: adj.type as 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT',
         description: adj.description,
         amount: adj.amount,
         status: adj.status,
@@ -86,40 +85,27 @@ export async function GET(
         return exportToExcel(exportData);
       
       case 'pdf':
-        return NextResponse.json(
-          { error: 'PDF export not yet implemented' },
-          { status: 501 }
-        );
+        throw new AppError(501, 'PDF export not yet implemented', ErrorCodes.VALIDATION_ERROR);
       
       case 'xml':
-        return NextResponse.json(
-          { error: 'XML export not yet implemented' },
-          { status: 501 }
-        );
+        throw new AppError(501, 'XML export not yet implemented', ErrorCodes.VALIDATION_ERROR);
       
       default:
-        return NextResponse.json(
-          { error: `Unsupported format: ${format}` },
-          { status: 400 }
-        );
+        throw new AppError(400, `Unsupported format: ${format}`, ErrorCodes.VALIDATION_ERROR);
     }
   } catch (error) {
-    console.error('Export error:', error);
-    return NextResponse.json(
-      { error: 'Failed to export tax calculation' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Tax Calculation Export');
   }
 }
 
 /**
  * Export to Excel format
  */
-function exportToExcel(data: any): NextResponse {
+function exportToExcel(data: TaxExportData): NextResponse {
   const buffer = ExcelExporter.exportTaxComputation(data);
   const fileName = ExcelExporter.generateFileName(data.projectName);
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${fileName}"`,

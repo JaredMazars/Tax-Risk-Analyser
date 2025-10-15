@@ -10,10 +10,11 @@ const prisma = new PrismaClient();
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; adjustmentId: string } }
+  { params }: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
-    const adjustmentId = parseInt(params.adjustmentId);
+    const resolvedParams = await params;
+    const adjustmentId = parseInt(resolvedParams.adjustmentId);
     const body = await request.json();
     const { documentId, context } = body;
 
@@ -126,9 +127,10 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; adjustmentId: string } }
+  context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    const params = await context.params;
     const adjustmentId = parseInt(params.adjustmentId);
 
     const documents = await prisma.adjustmentDocument.findMany({

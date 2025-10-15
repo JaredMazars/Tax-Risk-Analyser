@@ -10,9 +10,10 @@ const prisma = new PrismaClient();
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const projectId = parseInt(params.id);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -48,9 +49,10 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const projectId = parseInt(params.id);
     const body = await request.json();
 
@@ -114,9 +116,10 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const projectId = parseInt(params.id);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');

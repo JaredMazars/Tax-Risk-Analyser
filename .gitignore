@@ -41,3 +41,10 @@ next-env.d.ts
 
 # ... existing entries ...
 prisma/dev.db
+
+# logs
+logs/
+*.log
+
+# uploads
+uploads/

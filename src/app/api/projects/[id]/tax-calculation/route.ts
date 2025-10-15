@@ -9,9 +9,10 @@ interface TaxAdjustment {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     // Get the project's income statement data (only income statement accounts)
     const mappedAccounts = await prisma.mappedAccount.findMany({
       where: {

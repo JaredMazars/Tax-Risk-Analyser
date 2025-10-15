@@ -306,8 +306,10 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
         if (!response.ok) {
           throw new Error('Failed to fetch mapped data');
         }
-        const data = await response.json();
-        setMappedData(data);
+        const result = await response.json();
+        // Handle new response format with success wrapper
+        const data = result.success ? result.data : result;
+        setMappedData(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -333,8 +335,9 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
       }
 
       // Refresh data
-      const updatedData = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
-      setMappedData(updatedData);
+      const result = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
+      const updatedData = result.success ? result.data : result;
+      setMappedData(Array.isArray(updatedData) ? updatedData : []);
     } catch (error) {
       console.error('Error updating mapping:', error);
       throw error;

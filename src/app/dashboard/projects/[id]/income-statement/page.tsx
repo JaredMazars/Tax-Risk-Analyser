@@ -152,13 +152,15 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
         if (!response.ok) {
           throw new Error('Failed to fetch mapped data');
         }
-        const data = await response.json();
+        const result = await response.json();
+        // Handle new response format with success wrapper
+        const data = result.success ? result.data : result;
         // Filter only Income Statement items
-        const incomeStatementItems = data.filter((item: { sarsItem: string }) => {
+        const incomeStatementItems = Array.isArray(data) ? data.filter((item: { sarsItem: string }) => {
           return Object.values(mappingGuide.incomeStatement).flat().some(
             guide => guide.sarsItem === item.sarsItem
           );
-        });
+        }) : [];
         setMappedData(incomeStatementItems);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -186,13 +188,14 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
       }
 
       // Refresh data
-      const updatedData = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
+      const result = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
+      const updatedData = result.success ? result.data : result;
       // Filter only Income Statement items
-      const incomeStatementItems = updatedData.filter((item: { sarsItem: string }) => {
+      const incomeStatementItems = Array.isArray(updatedData) ? updatedData.filter((item: { sarsItem: string }) => {
         return Object.values(mappingGuide.incomeStatement).flat().some(
           guide => guide.sarsItem === item.sarsItem
         );
-      });
+      }) : [];
       setMappedData(incomeStatementItems);
     } catch (error) {
       console.error('Error updating mapping:', error);

@@ -88,22 +88,26 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       // Fetch project details
       const projectResponse = await fetch(`/api/projects/${params.id}`);
       if (projectResponse.ok) {
-        const projectData = await projectResponse.json();
+        const result = await projectResponse.json();
+        const projectData = result.success ? result.data : result;
         setProjectName(projectData.name);
       }
 
       // Fetch trial balance
       const trialBalanceResponse = await fetch(`/api/projects/${params.id}/trial-balance`);
       if (trialBalanceResponse.ok) {
-        const data = await trialBalanceResponse.json();
+        const result = await trialBalanceResponse.json();
+        // Handle new response format with success wrapper
+        const data = result.success ? result.data : result;
         setTrialBalanceData(data);
       }
 
       // Fetch mapped accounts for balance sheet and income statement
       const mappedResponse = await fetch(`/api/projects/${params.id}/mapped-accounts`);
       if (mappedResponse.ok) {
-        const data = await mappedResponse.json();
-        setMappedData(data);
+        const result = await mappedResponse.json();
+        const data = result.success ? result.data : result;
+        setMappedData(Array.isArray(data) ? data : []);
       }
 
       // Fetch tax calculation data
@@ -116,8 +120,9 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       // Fetch tax adjustments
       const adjustmentsResponse = await fetch(`/api/projects/${params.id}/tax-adjustments`);
       if (adjustmentsResponse.ok) {
-        const data = await adjustmentsResponse.json();
-        setAdjustments(data);
+        const result = await adjustmentsResponse.json();
+        const data = result.success ? result.data : result;
+        setAdjustments(Array.isArray(data) ? data : []);
       }
 
       setError(null);

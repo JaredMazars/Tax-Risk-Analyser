@@ -85,10 +85,13 @@ export default function DashboardPage() {
         : '/api/projects';
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch projects');
-      const data = await response.json();
-      setProjects(data);
+      const result = await response.json();
+      // Handle new response format with success wrapper
+      const data = result.success ? result.data : result;
+      setProjects(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching projects:', error);
+      setProjects([]);
     }
   };
 

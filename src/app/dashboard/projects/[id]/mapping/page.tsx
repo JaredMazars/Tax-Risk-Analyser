@@ -393,8 +393,10 @@ export default function MappingPage({ params }: { params: { id: string } }) {
         if (!response.ok) {
           throw new Error('Failed to fetch mapped data');
         }
-        const data = await response.json();
-        setMappedData(data);
+        const result = await response.json();
+        // Handle new response format with success wrapper
+        const data = result.success ? result.data : result;
+        setMappedData(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -424,8 +426,9 @@ export default function MappingPage({ params }: { params: { id: string } }) {
       }
 
       // Refresh data
-      const updatedData = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
-      setMappedData(updatedData);
+      const result = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
+      const updatedData = result.success ? result.data : result;
+      setMappedData(Array.isArray(updatedData) ? updatedData : []);
     } catch (error) {
       console.error('Error updating mapping:', error);
       throw error;
@@ -498,8 +501,9 @@ export default function MappingPage({ params }: { params: { id: string } }) {
         await new Promise(resolve => setTimeout(resolve, 800));
 
         // Refresh data
-        const updatedData = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
-        setMappedData(updatedData);
+        const result = await fetch(`/api/projects/${params.id}/mapped-accounts`).then(res => res.json());
+        const updatedData = result.success ? result.data : result;
+        setMappedData(Array.isArray(updatedData) ? updatedData : []);
       } else {
         throw new Error('No data received from server');
       }
@@ -686,9 +690,9 @@ export default function MappingPage({ params }: { params: { id: string } }) {
                   <div>
                     <p className="font-semibold text-blue-900 mb-1">Required Columns:</p>
                     <ul className="list-disc list-inside text-blue-800 space-y-0.5 ml-2">
-                      <li><span className="font-medium">Account Code</span> (e.g., "1000", "2000")</li>
-                      <li><span className="font-medium">Account Name</span> (e.g., "Cash at Bank")</li>
-                      <li><span className="font-medium">Section</span> (must be "Balance Sheet" or "Income Statement")</li>
+                      <li><span className="font-medium">Account Code</span> (e.g., &quot;1000&quot;, &quot;2000&quot;)</li>
+                      <li><span className="font-medium">Account Name</span> (e.g., &quot;Cash at Bank&quot;)</li>
+                      <li><span className="font-medium">Section</span> (must be &quot;Balance Sheet&quot; or &quot;Income Statement&quot;)</li>
                       <li><span className="font-medium">Balance</span> (current year numeric values)</li>
                       <li><span className="font-medium">Prior Year Balance</span> (prior year numeric values for comparative reporting)</li>
                     </ul>

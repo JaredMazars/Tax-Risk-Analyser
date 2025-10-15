@@ -10,9 +10,10 @@ const prisma = new PrismaClient();
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const projectId = parseInt(params.id);
     const body = await request.json();
     const { useAI = true, autoSave = false } = body;
@@ -48,10 +49,16 @@ export async function POST(
     });
 
     // Generate suggestions using the tax adjustment engine
+    // Convert null to undefined for sarsSection
+    const existingAdjustmentsFormatted = existingAdjustments.map(adj => ({
+      ...adj,
+      sarsSection: adj.sarsSection ?? undefined
+    }));
+    
     const suggestions = await TaxAdjustmentEngine.analyzeMappedAccounts(
       mappedAccounts,
       useAI,
-      existingAdjustments
+      existingAdjustmentsFormatted
     );
 
     // Optionally save suggestions to database
@@ -123,9 +130,10 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const projectId = parseInt(params.id);
 
     const suggestions = await prisma.taxAdjustment.findMany({

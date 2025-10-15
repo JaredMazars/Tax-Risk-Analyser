@@ -20,6 +20,7 @@ interface TaxAdjustment {
   notes?: string;
   confidenceScore?: number;
   createdAt?: string;
+  status?: string;
 }
 
 interface ReportData {
@@ -314,7 +315,6 @@ function transformMappedDataToBalanceSheet(mappedData: MappedAccount[]) {
     if (!acc[key]) {
       acc[key] = {
         sarsItem: key,
-        subsection: item.subsection,
         amount: 0,
         priorYearAmount: 0,
         mappedAccounts: []
@@ -325,29 +325,45 @@ function transformMappedDataToBalanceSheet(mappedData: MappedAccount[]) {
     acc[key].priorYearAmount += item.priorYearBalance;
     acc[key].mappedAccounts.push(item);
     return acc;
-  }, {} as Record<string, { sarsItem: string; subsection: string; amount: number; priorYearAmount: number; mappedAccounts: MappedAccount[] }>);
+  }, {} as Record<string, { sarsItem: string; amount: number; priorYearAmount: number; mappedAccounts: MappedAccount[] }>);
 
   Object.values(aggregatedBalances).forEach(item => {
-    const { sarsItem, subsection, amount, priorYearAmount, mappedAccounts } = item;
+    const { sarsItem, amount, priorYearAmount, mappedAccounts } = item;
+    // Determine subsection from sarsItem - this is a simplified categorization
+    let subsection = 'currentAssets'; // default
+    const sarsLower = sarsItem.toLowerCase();
+    
+    if (sarsLower.includes('non-current asset') || sarsLower.includes('fixed asset') || sarsLower.includes('intangible')) {
+      subsection = 'nonCurrentAssets';
+    } else if (sarsLower.includes('current asset') || sarsLower.includes('inventory') || sarsLower.includes('receivable') || sarsLower.includes('cash')) {
+      subsection = 'currentAssets';
+    } else if (sarsLower.includes('capital') || sarsLower.includes('reserve') || sarsLower.includes('equity')) {
+      subsection = amount >= 0 ? 'capitalAndReservesCreditBalances' : 'capitalAndReservesDebitBalances';
+    } else if (sarsLower.includes('non-current liabilit') || sarsLower.includes('long-term')) {
+      subsection = 'nonCurrentLiabilities';
+    } else if (sarsLower.includes('current liabilit') || sarsLower.includes('payable')) {
+      subsection = 'currentLiabilities';
+    }
+    
     const data = { amount, priorYearAmount, subsection, mappedAccounts };
 
-    switch (subsection.toLowerCase()) {
-      case 'noncurrentassets':
+    switch (subsection) {
+      case 'nonCurrentAssets':
         balanceSheet.nonCurrentAssets[sarsItem] = data;
         break;
-      case 'currentassets':
+      case 'currentAssets':
         balanceSheet.currentAssets[sarsItem] = data;
         break;
-      case 'capitalandreservescreditbalances':
+      case 'capitalAndReservesCreditBalances':
         balanceSheet.capitalAndReservesCreditBalances[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
         break;
-      case 'capitalandreservesdebitbalances':
+      case 'capitalAndReservesDebitBalances':
         balanceSheet.capitalAndReservesDebitBalances[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
         break;
-      case 'noncurrentliabilities':
+      case 'nonCurrentLiabilities':
         balanceSheet.nonCurrentLiabilities[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
         break;
-      case 'currentliabilities':
+      case 'currentLiabilities':
         balanceSheet.currentLiabilities[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
         break;
     }
@@ -372,7 +388,15 @@ function addIncomeStatementToPDF(doc: jsPDF, data: ReportData['incomeStatement']
   const aggregatedData = incomeStatementItems.reduce((acc, item) => {
     const key = item.sarsItem;
     if (!acc[key]) {
-      acc[key] = { current: 0, prior: 0, subsection: item.subsection };
+      // Determine subsection from sarsItem
+      let subsection = 'grossProfitOrLoss'; // default
+      const sarsLower = item.sarsItem.toLowerCase();
+      if (sarsLower.includes('income') || sarsLower.includes('revenue') || sarsLower.includes('sales')) {
+        subsection = 'incomeItemsCreditAmounts';
+      } else if (sarsLower.includes('dividend') || sarsLower.includes('interest received')) {
+        subsection = 'incomeItemsOnlyCreditAmounts';
+      }
+      acc[key] = { current: 0, prior: 0, subsection };
     }
     acc[key].current += item.balance;
     acc[key].prior += item.priorYearBalance;

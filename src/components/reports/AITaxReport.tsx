@@ -167,6 +167,11 @@ export default function AITaxReport({ projectId, onReportLoaded }: AITaxReportPr
     );
   }
 
+  // Should never reach here without a report, but TypeScript needs the check
+  if (!report) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with regenerate button */}

@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { taxAdjustmentsGuide, type TaxAdjustmentDefinition } from './taxAdjustmentsGuide';
+import { withRetryAndCircuitBreaker, RetryPresets } from './retryUtils';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -151,7 +152,7 @@ export class TaxAdjustmentEngine {
 
       // Calculate amount based on calculation type
       let amount = Math.abs(account.balance);
-      let calculationMethod = definition.name.toLowerCase().replace(/\s+/g, '_');
+      const calculationMethod = definition.name.toLowerCase().replace(/\s+/g, '_');
 
       if (definition.calculationType === 'excess' && definition.name.includes('Donations')) {
         // Special handling for donation limit
@@ -291,12 +292,15 @@ Return a JSON object with the following structure:
 }
 </output_format>`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are an expert South African tax consultant specializing in corporate income tax and IT14 computations.
+    // Use retry logic with circuit breaker for OpenAI API calls
+    const completion = await withRetryAndCircuitBreaker(
+      'openai-tax-suggestions',
+      () => openai.chat.completions.create({
+        model: 'gpt-5-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert South African tax consultant specializing in corporate income tax and IT14 computations.
 
 <instructions>
 - CRITICAL: Review the existing_adjustments list and DO NOT create duplicates
@@ -321,14 +325,18 @@ Return a JSON object with the following structure:
 - Flag any areas requiring additional professional judgment (requiresManualReview in guide)
 - Return valid JSON in the specified format only
 </instructions>`,
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      response_format: { type: 'json_object' }
-    });
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        response_format: { type: 'json_object' }
+      }),
+      RetryPresets.AI_API,
+      undefined,
+      'Tax Adjustment AI Enhancement'
+    );
 
     const result = JSON.parse(completion.choices[0].message.content || '{}');
     return result.suggestions || ruleSuggestions;

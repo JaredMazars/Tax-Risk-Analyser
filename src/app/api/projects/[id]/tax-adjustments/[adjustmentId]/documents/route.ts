@@ -10,11 +10,12 @@ const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); 
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; adjustmentId: string } }
+  { params }: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
-    const projectId = parseInt(params.id);
-    const adjustmentId = parseInt(params.adjustmentId);
+    const resolvedParams = await params;
+    const projectId = parseInt(resolvedParams.id);
+    const adjustmentId = parseInt(resolvedParams.adjustmentId);
 
     // Parse multipart form data
     const formData = await request.formData();
@@ -99,9 +100,10 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; adjustmentId: string } }
+  context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    const params = await context.params;
     const adjustmentId = parseInt(params.adjustmentId);
 
     const documents = await prisma.adjustmentDocument.findMany({
