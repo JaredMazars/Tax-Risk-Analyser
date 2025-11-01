@@ -77,7 +77,7 @@ export default function TaxCalculationReport({
                 )}
               </div>
               <div className="col-span-3 text-right px-2">
-                <div className="tabular-nums font-bold text-sm">
+                <div className="tabular-nums font-bold text-sm text-gray-900">
                   {formatAmount(Math.abs(adj.amount))}
                 </div>
                 {adj.createdAt && (

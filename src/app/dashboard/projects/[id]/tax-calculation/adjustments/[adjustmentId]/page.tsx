@@ -245,7 +245,7 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
                     onChange={(e) =>
                       setFormData({ ...formData, type: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg"
                   >
                     <option value="DEBIT">Debit (Add Back)</option>
                     <option value="CREDIT">Credit (Deduct)</option>
@@ -263,7 +263,7 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
                       setFormData({ ...formData, description: e.target.value })
                     }
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg"
                   />
                 </div>
 
@@ -277,7 +277,7 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
                     onChange={(e) =>
                       setFormData({ ...formData, amount: parseFloat(e.target.value) })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg"
                   />
                 </div>
 
@@ -292,7 +292,7 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
                       setFormData({ ...formData, sarsSection: e.target.value })
                     }
                     placeholder="e.g., s23(g)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg"
                   />
                 </div>
 
@@ -306,7 +306,7 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
                       setFormData({ ...formData, notes: e.target.value })
                     }
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg"
                   />
                 </div>
 

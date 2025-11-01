@@ -146,7 +146,7 @@ export default function BalanceSheetReport({ mappedData, printMode = false }: Ba
   const renderSection = (items: [string, { amount: number; priorYearAmount: number }][]) => {
     return items.filter(([, data]) => data.amount !== 0 || data.priorYearAmount !== 0).map(([sarsItem, data]) => (
       <div key={sarsItem} className="grid grid-cols-12 border-b border-gray-100 hover:bg-gray-50">
-        <div className="col-span-7 pl-6 py-1.5 text-xs">{sarsItem}</div>
+        <div className="col-span-7 pl-6 py-1.5 text-xs text-gray-900">{sarsItem}</div>
         <div className={`col-span-2 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${data.amount < 0 ? 'text-red-600' : 'text-gray-900'}`}>
           {data.amount !== 0 && (data.amount < 0 
             ? `(${formatAmount(Math.abs(data.amount))})` 

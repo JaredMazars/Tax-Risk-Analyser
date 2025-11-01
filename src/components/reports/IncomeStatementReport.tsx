@@ -74,8 +74,8 @@ export default function IncomeStatementReport({ mappedData, printMode = false }:
   const renderSection = (items: [string, { current: number; prior: number }][]) => {
     return items.map(([sarsItem, data]) => (
       <div key={sarsItem} className="grid grid-cols-12 border-b border-gray-100">
-        <div className="col-span-7 pl-4 py-1.5 text-xs">{sarsItem}</div>
-        <div className="col-span-2 text-right px-3 py-1.5 tabular-nums font-medium text-xs">
+        <div className="col-span-7 pl-4 py-1.5 text-xs text-gray-900">{sarsItem}</div>
+        <div className="col-span-2 text-right px-3 py-1.5 tabular-nums font-medium text-xs text-gray-900">
           {formatAmount(Math.abs(data.current))}
         </div>
         <div className="col-span-3 text-right px-3 py-1.5 tabular-nums font-medium text-xs text-gray-600">
