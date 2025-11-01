@@ -171,10 +171,10 @@ export default function TaxCalculationPage({ params }: TaxCalculationProps) {
                       {adj.sarsSection}
                     </span>
                   )}
-                  <span>{adj.description}</span>
+                  <span className="text-gray-900">{adj.description}</span>
                 </div>
               </div>
-              <div className="col-span-3 text-right px-3 tabular-nums font-medium">
+              <div className="col-span-3 text-right px-3 tabular-nums font-medium text-gray-900">
                 {formatAmount(Math.abs(adj.amount))}
               </div>
             </div>
@@ -215,6 +215,29 @@ export default function TaxCalculationPage({ params }: TaxCalculationProps) {
           </div>
         </div>
 
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-3 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-100 text-xs font-medium">Total Adjustments</p>
+              <p className="text-xl font-bold mt-1">{formatAmount(totalDebits - totalCredits - totalAllowances + totalRecoupments)}</p>
+              <div className="flex gap-2 mt-1 text-xs text-orange-100">
+                <span>{debitAdjustments.length} Debit</span>
+                <span>•</span>
+                <span>{creditAdjustments.length} Credit</span>
+                <span>•</span>
+                <span>{allowanceAdjustments.length} Allow</span>
+                <span>•</span>
+                <span>{recoupmentAdjustments.length} Recoup</span>
+              </div>
+            </div>
+            <div className="bg-orange-400 bg-opacity-30 rounded-full p-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-3 text-white">
           <div className="flex items-center justify-between">
             <div>
@@ -238,29 +261,6 @@ export default function TaxCalculationPage({ params }: TaxCalculationProps) {
             <div className="bg-green-400 bg-opacity-30 rounded-full p-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-3 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-100 text-xs font-medium">Adjustments</p>
-              <p className="text-xl font-bold mt-1">{approvedAdjustments.length}</p>
-              <div className="flex gap-2 mt-1 text-xs text-orange-100">
-                <span>{debitAdjustments.length} Debit</span>
-                <span>•</span>
-                <span>{creditAdjustments.length} Credit</span>
-                <span>•</span>
-                <span>{allowanceAdjustments.length} Allow</span>
-                <span>•</span>
-                <span>{recoupmentAdjustments.length} Recoup</span>
-              </div>
-            </div>
-            <div className="bg-orange-400 bg-opacity-30 rounded-full p-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
           </div>

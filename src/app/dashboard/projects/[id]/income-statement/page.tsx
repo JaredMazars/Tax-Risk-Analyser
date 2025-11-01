@@ -243,9 +243,9 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
                 <ChevronRightIcon 
                   className={`h-3.5 w-3.5 text-gray-500 group-hover:text-blue-600 transition-all duration-200 ${expandedItems[sarsItem] ? 'rotate-90' : ''}`}
                 />
-                <span className="group-hover:text-blue-900 text-xs">{sarsItem}</span>
+                <span className="text-gray-900 group-hover:text-blue-900 text-xs">{sarsItem}</span>
               </div>
-              <div className="col-span-2 text-right px-3 py-1.5 tabular-nums font-medium text-xs">
+              <div className="col-span-2 text-right px-3 py-1.5 tabular-nums font-medium text-xs text-gray-900">
                 {formatAmount(Math.abs(balance))}
               </div>
               <div className="col-span-3 text-right px-3 py-1.5 tabular-nums font-medium text-xs text-gray-600">

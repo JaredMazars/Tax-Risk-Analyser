@@ -219,7 +219,7 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
                 <ChevronRightIcon 
                   className={`h-3.5 w-3.5 mr-2 text-gray-500 group-hover:text-blue-600 transition-all duration-200 ${expandedItems[item.sarsItem] ? 'rotate-90' : ''}`}
                 />
-                <span className="group-hover:text-blue-900">{item.sarsItem}</span>
+                <span className="text-gray-900 group-hover:text-blue-900">{item.sarsItem}</span>
               </div>
               <div className={`col-span-2 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.amount < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                 {item.amount !== 0 && (item.amount < 0 

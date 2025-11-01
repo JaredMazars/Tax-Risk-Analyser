@@ -330,20 +330,20 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
               <div className="space-y-3">
                 <div>
                   <span className="text-sm text-gray-600">Type:</span>
-                  <p className="font-medium">{adjustment.type}</p>
+                  <p className="font-medium text-gray-900">{adjustment.type}</p>
                 </div>
                 <div>
                   <span className="text-sm text-gray-600">Description:</span>
-                  <p className="font-medium">{adjustment.description}</p>
+                  <p className="font-medium text-gray-900">{adjustment.description}</p>
                 </div>
               <div>
                 <span className="text-sm text-gray-600">Amount:</span>
-                <p className="text-lg font-bold">{formatAmount(adjustment.amount)}</p>
+                <p className="text-lg font-bold text-gray-900">{formatAmount(adjustment.amount)}</p>
               </div>
                 {adjustment.sarsSection && (
                   <div>
                     <span className="text-sm text-gray-600">SARS Section:</span>
-                    <p className="font-medium">{adjustment.sarsSection}</p>
+                    <p className="font-medium text-gray-900">{adjustment.sarsSection}</p>
                   </div>
                 )}
                 {adjustment.notes && (
@@ -471,20 +471,20 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
               {adjustment.confidenceScore && (
                 <div>
                   <span className="text-gray-600">AI Confidence:</span>
-                  <p className="font-medium">
+                  <p className="font-medium text-gray-900">
                     {Math.round(adjustment.confidenceScore * 100)}%
                   </p>
                 </div>
               )}
               <div>
                 <span className="text-gray-600">Created:</span>
-                <p className="font-medium">
+                <p className="font-medium text-gray-900">
                   {new Date(adjustment.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <div>
                 <span className="text-gray-600">Updated:</span>
-                <p className="font-medium">
+                <p className="font-medium text-gray-900">
                   {new Date(adjustment.updatedAt).toLocaleDateString()}
                 </p>
               </div>
