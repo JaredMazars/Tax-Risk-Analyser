@@ -152,7 +152,7 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
 
       if (!response.ok) throw new Error('Failed to delete adjustment');
 
-      router.push(`/dashboard/projects/${params.id}/tax-calculation/adjustments`);
+      router.push(`/dashboard/projects/${params.id}?tab=tax-calculation`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete');
     }
@@ -185,13 +185,13 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
         <div className="flex items-center justify-between">
         <div>
           <button
-            onClick={() => router.push(`/dashboard/projects/${params.id}/tax-calculation/adjustments`)}
+            onClick={() => router.push(`/dashboard/projects/${params.id}?tab=tax-calculation`)}
             className="text-blue-600 hover:text-blue-800 mb-1 flex items-center gap-1 text-sm"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Adjustments
+            Back to Tax Calculation
           </button>
           <h1 className="text-xl font-bold text-gray-900">
             Tax Adjustment Details

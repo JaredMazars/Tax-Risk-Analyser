@@ -202,6 +202,18 @@ interface MappingTableProps {
 
 function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
   const [updatingRow, setUpdatingRow] = useState<number | null>(null);
+  const [columnWidths, setColumnWidths] = useState({
+    code: 6,
+    accountName: 14,
+    section: 11,
+    subsection: 13,
+    currentYear: 9,
+    priorYear: 9,
+    sarsItem: 38
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [startX, setStartX] = useState(0);
+  const [startWidth, setStartWidth] = useState(0);
 
   const handleMappingChange = async (accountId: number, newSarsItem: string, newSection: string, newSubsection: string) => {
     try {
@@ -212,31 +224,122 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent, columnKey: string) => {
+    e.preventDefault();
+    setResizingColumn(columnKey);
+    setStartX(e.clientX);
+    setStartWidth(columnWidths[columnKey as keyof typeof columnWidths]);
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - startX;
+      const tableWidth = document.querySelector('table')?.offsetWidth || 1000;
+      const diffPercent = (diff / tableWidth) * 100;
+      const newWidth = Math.max(5, startWidth + diffPercent); // Minimum 5%
+      
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn]: newWidth
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [resizingColumn, startX, startWidth]);
+
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full divide-y divide-gray-200 table-fixed">
         <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0">
           <tr>
-            <th scope="col" className="w-[7%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th 
+              scope="col" 
+              style={{ width: `${columnWidths.code}%` }}
+              className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+            >
               Code
+              <div 
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                onMouseDown={(e) => handleMouseDown(e, 'code')}
+              />
             </th>
-            <th scope="col" className="w-[15%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th 
+              scope="col" 
+              style={{ width: `${columnWidths.accountName}%` }}
+              className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+            >
               Account Name
+              <div 
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                onMouseDown={(e) => handleMouseDown(e, 'accountName')}
+              />
             </th>
-            <th scope="col" className="w-[9%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th 
+              scope="col" 
+              style={{ width: `${columnWidths.section}%` }}
+              className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+            >
               Section
+              <div 
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                onMouseDown={(e) => handleMouseDown(e, 'section')}
+              />
             </th>
-            <th scope="col" className="w-[12%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th 
+              scope="col" 
+              style={{ width: `${columnWidths.subsection}%` }}
+              className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+            >
               Subsection
+              <div 
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                onMouseDown={(e) => handleMouseDown(e, 'subsection')}
+              />
             </th>
-            <th scope="col" className="w-[9%] px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th 
+              scope="col" 
+              style={{ width: `${columnWidths.currentYear}%` }}
+              className="relative px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+            >
               Current Year
+              <div 
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                onMouseDown={(e) => handleMouseDown(e, 'currentYear')}
+              />
             </th>
-            <th scope="col" className="w-[9%] px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th 
+              scope="col" 
+              style={{ width: `${columnWidths.priorYear}%` }}
+              className="relative px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+            >
               Prior Year
+              <div 
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                onMouseDown={(e) => handleMouseDown(e, 'priorYear')}
+              />
             </th>
-            <th scope="col" className="w-[39%] px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+            <th 
+              scope="col" 
+              style={{ width: `${columnWidths.sarsItem}%` }}
+              className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+            >
               SARS Item
             </th>
           </tr>
