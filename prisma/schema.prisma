@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
@@ -19,6 +19,7 @@ model Project {
   taxAdjustments TaxAdjustment[]
   adjustmentDocuments AdjustmentDocument[]
   aiTaxReports  AITaxReport[]
+  users         ProjectUser[]
 }
 
 model MappedAccount {
@@ -74,8 +75,8 @@ model AdjustmentDocument {
   extractionError String? // Error message if extraction failed
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  project         Project  @relation(fields: [projectId], references: [id])
-  taxAdjustment   TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id])
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  taxAdjustment   TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([projectId])
   @@index([taxAdjustmentId])
@@ -95,5 +96,72 @@ model AITaxReport {
   updatedAt         DateTime @updatedAt
   project           Project  @relation(fields: [projectId], references: [id])
 
+  @@index([projectId])
+}
+
+// Authentication Models for Azure AD / NextAuth.js
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("USER") // USER, ADMIN
+  accounts      Account[]
+  sessions      Session[]
+  projects      ProjectUser[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Project-level access control
+model ProjectUser {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  userId    String
+  role      String   @default("VIEWER") // OWNER, EDITOR, VIEWER
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
   @@index([projectId])
 }

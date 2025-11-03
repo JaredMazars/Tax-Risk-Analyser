@@ -6,6 +6,11 @@ import { validateEnvVariables } from './errorHandler';
 const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
   'OPENAI_API_KEY',
+  'NEXTAUTH_SECRET',
+  'NEXTAUTH_URL',
+  'AZURE_AD_CLIENT_ID',
+  'AZURE_AD_CLIENT_SECRET',
+  'AZURE_AD_TENANT_ID',
 ];
 
 /**
@@ -16,6 +21,7 @@ const OPTIONAL_ENV_VARS = {
   MAX_FILE_UPLOAD_SIZE: '10485760', // 10MB
   RATE_LIMIT_MAX_REQUESTS: '10',
   RATE_LIMIT_WINDOW_MS: '60000', // 1 minute
+  AZURE_STORAGE_CONTAINER_NAME: 'adjustment-documents',
 } as const;
 
 /**
@@ -46,10 +52,15 @@ export function getEnvVar(key: string, defaultValue?: string): string {
  * Get required environment variable or throw error
  * @param key - Environment variable key
  * @returns Environment variable value
- * @throws Error if variable is not set
+ * @throws Error if variable is not set (except during build)
  */
 export function getRequiredEnvVar(key: string): string {
   const value = process.env[key];
+  
+  // During build, return empty string if not set (will validate at runtime)
+  if (!value && process.env.NEXT_PHASE === 'phase-production-build') {
+    return '';
+  }
   
   if (!value) {
     throw new Error(`Missing required environment variable: ${key}`);
@@ -133,6 +144,22 @@ export const env = {
   // OpenAI
   openaiApiKey: getRequiredEnvVar('OPENAI_API_KEY'),
   
+  // NextAuth
+  nextAuthSecret: getRequiredEnvVar('NEXTAUTH_SECRET'),
+  nextAuthUrl: getRequiredEnvVar('NEXTAUTH_URL'),
+  
+  // Azure AD
+  azureAdClientId: getRequiredEnvVar('AZURE_AD_CLIENT_ID'),
+  azureAdClientSecret: getRequiredEnvVar('AZURE_AD_CLIENT_SECRET'),
+  azureAdTenantId: getRequiredEnvVar('AZURE_AD_TENANT_ID'),
+  
+  // Azure Blob Storage (optional - falls back to local storage if not set)
+  azureStorageConnectionString: getEnvVar('AZURE_STORAGE_CONNECTION_STRING'),
+  azureStorageContainerName: getEnvVar(
+    'AZURE_STORAGE_CONTAINER_NAME',
+    OPTIONAL_ENV_VARS.AZURE_STORAGE_CONTAINER_NAME
+  ),
+  
   // File uploads
   maxFileUploadSize: getEnvVarAsNumber(
     'MAX_FILE_UPLOAD_SIZE',
@@ -149,6 +176,10 @@ export const env = {
     parseInt(OPTIONAL_ENV_VARS.RATE_LIMIT_WINDOW_MS, 10)
   ),
 } as const;
+
+
+
+
 
 
 

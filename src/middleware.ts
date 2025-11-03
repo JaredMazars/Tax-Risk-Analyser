@@ -1,0 +1,55 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { verifySession } from '@/lib/auth';
+
+export async function middleware(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+
+  // Skip authentication check for auth routes
+  if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
+  // Skip auth check for other public routes
+  if (
+    pathname.startsWith('/auth') ||
+    pathname === '/' ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api/health')
+  ) {
+    return NextResponse.next();
+  }
+
+  // Check authentication for protected routes
+  const sessionToken = req.cookies.get('session')?.value;
+  const session = sessionToken ? await verifySession(sessionToken) : null;
+  const isLoggedIn = !!session;
+
+  // Dashboard routes
+  const isDashboard = pathname.startsWith('/dashboard');
+
+  // API routes (except health check and auth)
+  const isApiRoute =
+    pathname.startsWith('/api') && 
+    !pathname.startsWith('/api/health') &&
+    !pathname.startsWith('/api/auth');
+
+  // Require authentication for dashboard
+  if (isDashboard && !isLoggedIn) {
+    const redirectUrl = new URL('/auth/signin', req.url);
+    redirectUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Require authentication for API routes
+  if (isApiRoute && !isLoggedIn) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};
+

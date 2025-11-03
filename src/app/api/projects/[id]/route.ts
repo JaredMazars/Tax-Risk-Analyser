@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseProjectId, successResponse } from '@/lib/apiUtils';
 import { handleApiError } from '@/lib/errorHandler';
+import { getCurrentUser, checkProjectAccess } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -16,6 +23,9 @@ export async function GET(
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
 
+    // Check project access (any role can view)
+    await checkProjectAccess(user.id, projectId);
+
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {
@@ -23,6 +33,17 @@ export async function GET(
           select: {
             mappings: true,
             taxAdjustments: true,
+          },
+        },
+        users: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -46,6 +67,12 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -53,6 +80,9 @@ export async function PUT(
     
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
+
+    // Check project access (requires EDITOR role or higher)
+    await checkProjectAccess(user.id, projectId, 'EDITOR');
 
     const body = await request.json();
     const { name, description } = body;
@@ -83,6 +113,12 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -90,6 +126,9 @@ export async function PATCH(
     
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
+
+    // Check project access (requires OWNER role)
+    await checkProjectAccess(user.id, projectId, 'OWNER');
 
     const body = await request.json();
     const { action } = body;
@@ -121,6 +160,12 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -128,6 +173,9 @@ export async function DELETE(
     
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
+
+    // Check project access (requires OWNER role)
+    await checkProjectAccess(user.id, projectId, 'OWNER');
 
     // Archive the project instead of deleting
     const project = await prisma.project.update({

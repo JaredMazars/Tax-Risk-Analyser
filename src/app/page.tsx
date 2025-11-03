@@ -1,9 +1,9 @@
-'use client';
-
 import Link from 'next/link';
 import { ArrowRightIcon, DocumentCheckIcon, ChartBarIcon, SparklesIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { getSession } from '@/lib/auth';
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await getSession();
   const features = [
     {
       icon: DocumentCheckIcon,
@@ -39,13 +39,23 @@ export default function LandingPage() {
               </div>
               <span className="text-2xl font-bold text-gray-900">Mapper</span>
             </div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md"
-            >
-              Go to Dashboard
-              <ArrowRightIcon className="ml-2 -mr-1 h-4 w-4" />
-            </Link>
+            {session ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md"
+              >
+                Go to Dashboard
+                <ArrowRightIcon className="ml-2 -mr-1 h-4 w-4" />
+              </Link>
+            ) : (
+              <Link
+                href="/auth/signin"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md"
+              >
+                Sign In
+                <ArrowRightIcon className="ml-2 -mr-1 h-4 w-4" />
+              </Link>
+            )}
           </div>
         </nav>
 
@@ -60,13 +70,23 @@ export default function LandingPage() {
               Streamline your South African corporate tax computations with intelligent automation and AI-powered insights.
             </p>
             <div className="mt-10 flex justify-center gap-4">
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center px-8 py-4 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-              >
-                Get Started
-                <ArrowRightIcon className="ml-2 -mr-1 h-5 w-5" />
-              </Link>
+              {session ? (
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center px-8 py-4 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                >
+                  Go to Dashboard
+                  <ArrowRightIcon className="ml-2 -mr-1 h-5 w-5" />
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/signin"
+                  className="inline-flex items-center px-8 py-4 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                >
+                  Get Started
+                  <ArrowRightIcon className="ml-2 -mr-1 h-5 w-5" />
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -112,13 +132,23 @@ export default function LandingPage() {
               <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
                 Start using Mapper today and transform how you handle tax computations.
               </p>
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-white bg-transparent hover:bg-white hover:text-blue-600 transition-all duration-200 shadow-lg"
-              >
-                Start Your First Project
-                <ArrowRightIcon className="ml-2 -mr-1 h-5 w-5" />
-              </Link>
+              {session ? (
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-white bg-transparent hover:bg-white hover:text-blue-600 transition-all duration-200 shadow-lg"
+                >
+                  Go to Dashboard
+                  <ArrowRightIcon className="ml-2 -mr-1 h-5 w-5" />
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/signin"
+                  className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-white bg-transparent hover:bg-white hover:text-blue-600 transition-all duration-200 shadow-lg"
+                >
+                  Sign In to Get Started
+                  <ArrowRightIcon className="ml-2 -mr-1 h-5 w-5" />
+                </Link>
+              )}
             </div>
           </div>
         </div>

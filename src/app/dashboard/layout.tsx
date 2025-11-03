@@ -1,10 +1,20 @@
 import Link from 'next/link';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import UserMenu from '@/components/UserMenu';
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getCurrentUser();
+
+  // This should be caught by middleware, but as a fallback
+  if (!user) {
+    redirect('/auth/signin');
+  }
+
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Navigation Header */}
@@ -17,6 +27,8 @@ export default function DashboardLayout({
               </div>
               <span className="text-xl font-bold text-gray-900">Mapper</span>
             </Link>
+            
+            <UserMenu user={user} />
           </div>
         </div>
       </header>

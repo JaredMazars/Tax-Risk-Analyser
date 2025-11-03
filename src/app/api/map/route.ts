@@ -185,13 +185,15 @@ Do not include any explanation, commentary, or text outside the JSON array.
         });
         
         await prisma.$transaction(async (tx) => {
+          // Delete existing mapped accounts for this project
           await tx.mappedAccount.deleteMany({
             where: { projectId }
           });
 
-          for (const item of enrichedResults) {
-            await tx.mappedAccount.create({
-              data: {
+          // Use createMany for better performance and to avoid transaction timeout
+          if (enrichedResults.length > 0) {
+            await tx.mappedAccount.createMany({
+              data: enrichedResults.map(item => ({
                 projectId,
                 accountCode: item.accountCode.toString(),
                 accountName: item.accountName,
@@ -200,9 +202,12 @@ Do not include any explanation, commentary, or text outside the JSON array.
                 balance: item.balance,
                 priorYearBalance: item.priorYearBalance || 0,
                 sarsItem: item.sarsItem
-              }
+              }))
             });
           }
+        }, {
+          maxWait: 10000, // Maximum wait time to acquire a connection (10 seconds)
+          timeout: 30000, // Maximum time for the transaction to complete (30 seconds)
         });
         sendProgress(4, 'complete', 'All accounts saved successfully');
 
@@ -438,10 +443,10 @@ Do not include any explanation, commentary, or text outside the JSON array.
         sarsItem: item.sarsItem
       })));
 
-      // Insert new mapped accounts one by one
-      for (const item of enrichedResults) {
-        await tx.mappedAccount.create({
-          data: {
+      // Use createMany for better performance and to avoid transaction timeout
+      if (enrichedResults.length > 0) {
+        await tx.mappedAccount.createMany({
+          data: enrichedResults.map(item => ({
             projectId,
             accountCode: item.accountCode.toString(),
             accountName: item.accountName,
@@ -450,9 +455,12 @@ Do not include any explanation, commentary, or text outside the JSON array.
             balance: item.balance,
             priorYearBalance: item.priorYearBalance || 0,
             sarsItem: item.sarsItem
-          }
+          }))
         });
       }
+    }, {
+      maxWait: 10000, // Maximum wait time to acquire a connection (10 seconds)
+      timeout: 30000, // Maximum time for the transaction to complete (30 seconds)
     });
 
     return NextResponse.json(enrichedResults);

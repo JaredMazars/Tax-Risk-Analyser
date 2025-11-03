@@ -2,6 +2,12 @@ import OpenAI from 'openai';
 import * as XLSX from 'xlsx';
 import { promises as fs } from 'fs';
 import path from 'path';
+import {
+  uploadFile as uploadToBlob,
+  downloadFile as downloadFromBlob,
+  deleteFile as deleteFromBlob,
+  isBlobStorageConfigured,
+} from './blobStorage';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -17,45 +23,64 @@ export interface ExtractedData {
 
 export class DocumentExtractor {
   private static uploadDir = path.join(process.cwd(), 'uploads', 'adjustments');
+  private static useBlobStorage = isBlobStorageConfigured();
 
   /**
-   * Initialize upload directory
+   * Initialize upload directory (fallback for local storage)
    */
   static async init() {
-    try {
-      await fs.mkdir(this.uploadDir, { recursive: true });
-    } catch (error) {
-      console.error('Failed to create upload directory:', error);
+    if (!this.useBlobStorage) {
+      try {
+        await fs.mkdir(this.uploadDir, { recursive: true });
+      } catch (error) {
+        console.error('Failed to create upload directory:', error);
+      }
     }
   }
 
   /**
-   * Save uploaded file to disk
+   * Save uploaded file (to blob storage or local disk)
    */
   static async saveFile(
     file: File | Buffer,
     fileName: string,
     projectId: number
   ): Promise<string> {
-    await this.init();
-    
-    const projectDir = path.join(this.uploadDir, projectId.toString());
-    await fs.mkdir(projectDir, { recursive: true });
+    const buffer =
+      file instanceof Buffer
+        ? file
+        : Buffer.from(await (file as File).arrayBuffer());
 
-    const timestamp = Date.now();
-    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filePath = path.join(projectDir, `${timestamp}_${sanitizedFileName}`);
-
-    if (file instanceof Buffer) {
-      await fs.writeFile(filePath, file);
+    if (this.useBlobStorage) {
+      // Upload to Azure Blob Storage
+      return await uploadToBlob(buffer, fileName, projectId);
     } else {
-      // For File objects (browser)
-      const fileObj = file as File;
-      const buffer = Buffer.from(await fileObj.arrayBuffer());
-      await fs.writeFile(filePath, buffer);
-    }
+      // Fallback to local file system
+      await this.init();
+      const projectDir = path.join(this.uploadDir, projectId.toString());
+      await fs.mkdir(projectDir, { recursive: true });
 
-    return filePath;
+      const timestamp = Date.now();
+      const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = path.join(
+        projectDir,
+        `${timestamp}_${sanitizedFileName}`
+      );
+
+      await fs.writeFile(filePath, buffer);
+      return filePath;
+    }
+  }
+
+  /**
+   * Get file buffer (from blob storage or local disk)
+   */
+  private static async getFileBuffer(filePath: string): Promise<Buffer> {
+    if (this.useBlobStorage) {
+      return await downloadFromBlob(filePath);
+    } else {
+      return await fs.readFile(filePath);
+    }
   }
 
   /**
@@ -93,7 +118,7 @@ export class DocumentExtractor {
     context?: string
   ): Promise<ExtractedData> {
     try {
-      const fileBuffer = await fs.readFile(filePath);
+      const fileBuffer = await this.getFileBuffer(filePath);
       const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
       
       // Extract all sheets
@@ -135,7 +160,7 @@ export class DocumentExtractor {
   ): Promise<ExtractedData> {
     try {
       // Read PDF as buffer and convert to base64 for OpenAI Vision
-      const fileBuffer = await fs.readFile(filePath);
+      const fileBuffer = await this.getFileBuffer(filePath);
       const base64PDF = fileBuffer.toString('base64');
 
       // Note: OpenAI doesn't directly support PDF in vision API
@@ -214,7 +239,8 @@ Return a JSON object with the following structure:
     context?: string
   ): Promise<ExtractedData> {
     try {
-      const fileContent = await fs.readFile(filePath, 'utf-8');
+      const fileBuffer = await this.getFileBuffer(filePath);
+      const fileContent = fileBuffer.toString('utf-8');
       const lines = fileContent.split('\n');
       
       // Parse CSV (simple implementation)
@@ -382,24 +408,33 @@ Return JSON with:
   }
 
   /**
-   * Delete a file
+   * Delete a file (from blob storage or local disk)
    */
   static async deleteFile(filePath: string): Promise<void> {
     try {
-      await fs.unlink(filePath);
+      if (this.useBlobStorage) {
+        await deleteFromBlob(filePath);
+      } else {
+        await fs.unlink(filePath);
+      }
     } catch (error) {
       console.error('Failed to delete file:', error);
     }
   }
 
   /**
-   * Get file info
+   * Get file info (local storage only)
    */
   static async getFileInfo(filePath: string): Promise<{
     size: number;
     created: Date;
     modified: Date;
   }> {
+    if (this.useBlobStorage) {
+      throw new Error(
+        'File info not available for blob storage. Use blob metadata instead.'
+      );
+    }
     const stats = await fs.stat(filePath);
     return {
       size: stats.size,
