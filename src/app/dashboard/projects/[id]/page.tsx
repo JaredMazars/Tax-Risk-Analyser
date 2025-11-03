@@ -33,8 +33,8 @@ function Tab({ selected, children, onClick, icon: Icon }: TabProps) {
       onClick={onClick}
       className={`flex items-center space-x-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
         selected
-          ? 'border-blue-600 text-blue-600'
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          ? 'border-forvis-blue-600 text-forvis-blue-600'
+          : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
       }`}
     >
       <Icon className="h-4 w-4" />
@@ -119,13 +119,13 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Project Information */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Project Information</h2>
+      <div className="card overflow-hidden">
+        <div className="px-4 py-2 border-b border-forvis-gray-200 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-forvis-gray-900">Project Information</h2>
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"
             >
               <PencilIcon className="h-3.5 w-3.5 mr-1.5" />
               Edit
@@ -136,24 +136,24 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
           {isEditing ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                   Project Name
                 </label>
                 <input
                   type="text"
                   value={editData.name}
                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                  className="input-field"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                   Description
                 </label>
                 <textarea
                   value={editData.description}
                   onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                  className="input-field"
                   rows={3}
                 />
               </div>
@@ -163,14 +163,14 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                     setIsEditing(false);
                     setEditData({ name: project.name, description: project.description || '' });
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -179,23 +179,23 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
           ) : (
             <dl className="space-y-4">
               <div>
-                <dt className="text-sm font-medium text-gray-500">Name</dt>
-                <dd className="mt-1 text-sm text-gray-900">{project.name}</dd>
+                <dt className="text-sm font-medium text-forvis-gray-600">Name</dt>
+                <dd className="mt-1 text-sm text-forvis-gray-900">{project.name}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">Description</dt>
-                <dd className="mt-1 text-sm text-gray-900">
+                <dt className="text-sm font-medium text-forvis-gray-600">Description</dt>
+                <dd className="mt-1 text-sm text-forvis-gray-900">
                   {project.description || 'No description provided'}
                 </dd>
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Created</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formatDate(project.createdAt)}</dd>
+                  <dt className="text-sm font-medium text-forvis-gray-600">Created</dt>
+                  <dd className="mt-1 text-sm text-forvis-gray-900">{formatDate(project.createdAt)}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{formatDate(project.updatedAt)}</dd>
+                  <dt className="text-sm font-medium text-forvis-gray-600">Last Updated</dt>
+                  <dd className="mt-1 text-sm text-forvis-gray-900">{formatDate(project.updatedAt)}</dd>
                 </div>
               </div>
             </dl>
@@ -204,21 +204,21 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
       </div>
 
       {/* Project Statistics */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-4 py-2 border-b border-gray-200">
-          <h2 className="text-base font-semibold text-gray-900">Project Statistics</h2>
+      <div className="card overflow-hidden">
+        <div className="px-4 py-2 border-b border-forvis-gray-200">
+          <h2 className="text-base font-semibold text-forvis-gray-900">Project Statistics</h2>
         </div>
         <div className="px-4 py-3">
           <dl className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 rounded-lg p-3">
-              <dt className="text-xs font-medium text-blue-900">Mapped Accounts</dt>
-              <dd className="mt-1 text-xl font-semibold text-blue-600">
+            <div className="bg-forvis-blue-50 rounded-lg p-3 border border-forvis-blue-100">
+              <dt className="text-xs font-medium text-forvis-blue-800">Mapped Accounts</dt>
+              <dd className="mt-1 text-xl font-semibold text-forvis-blue-600">
                 {project._count.mappings}
               </dd>
             </div>
-            <div className="bg-purple-50 rounded-lg p-3">
-              <dt className="text-xs font-medium text-purple-900">Tax Adjustments</dt>
-              <dd className="mt-1 text-xl font-semibold text-purple-600">
+            <div className="bg-forvis-blue-100 rounded-lg p-3 border border-forvis-blue-200">
+              <dt className="text-xs font-medium text-forvis-blue-900">Tax Adjustments</dt>
+              <dd className="mt-1 text-xl font-semibold text-forvis-blue-700">
                 {project._count.taxAdjustments}
               </dd>
             </div>
@@ -227,21 +227,21 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-white rounded-lg border border-red-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-red-200 overflow-hidden shadow-corporate">
         <div className="px-4 py-2 border-b border-red-200 bg-red-50">
           <h2 className="text-base font-semibold text-red-900">Danger Zone</h2>
         </div>
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xs font-medium text-gray-900">Archive this project</h3>
-              <p className="text-xs text-gray-600 mt-1">
+              <h3 className="text-xs font-medium text-forvis-gray-900">Archive this project</h3>
+              <p className="text-xs text-forvis-gray-600 mt-1">
                 Once archived, this project will be hidden from your dashboard. You can restore it later.
               </p>
             </div>
             <button
               onClick={() => setShowDeleteModal(true)}
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100"
+              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100 transition-colors"
             >
               <ArchiveBoxIcon className="h-3.5 w-3.5 mr-1.5" />
               Archive
@@ -253,9 +253,9 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-4 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-3 text-gray-900">Archive Project</h2>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="bg-white rounded-lg shadow-corporate-lg p-4 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-3 text-forvis-gray-900">Archive Project</h2>
+            <p className="text-sm text-forvis-gray-700 mb-4">
               Are you sure you want to archive <span className="font-semibold">{project.name}</span>? 
               This will hide the project from your main view.
             </p>
@@ -263,14 +263,14 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
               <button
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
-                className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg"
+                className="btn-secondary text-xs"
               >
                 Cancel
               </button>
               <button
                 onClick={handleArchive}
                 disabled={isSubmitting}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-corporate"
               >
                 {isSubmitting ? 'Archiving...' : 'Archive Project'}
               </button>
@@ -336,33 +336,33 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-forvis-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
-          <Link href="/dashboard" className="hover:text-gray-900 transition-colors">
+        <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
+          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Projects
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
-          <span className="text-gray-900 font-medium">{project?.name}</span>
+          <span className="text-forvis-gray-900 font-medium">{project?.name}</span>
         </nav>
 
         {/* Project Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 overflow-hidden">
+        <div className="card-hover mb-4 overflow-hidden">
           <div className="px-4 py-3">
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1>
+                <h1 className="text-2xl font-bold text-forvis-gray-900">{project?.name}</h1>
                 {project?.description && (
-                  <p className="mt-1 text-sm text-gray-600">{project.description}</p>
+                  <p className="mt-1 text-sm text-forvis-gray-700">{project.description}</p>
                 )}
-                <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                <div className="mt-2 flex items-center space-x-4 text-xs text-forvis-gray-600">
                   <span>{project?._count.mappings} accounts mapped</span>
                   <span>{project?._count.taxAdjustments} adjustments</span>
                   <span>Updated {project && new Date(project.updatedAt).toLocaleDateString()}</span>
@@ -372,7 +372,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           </div>
 
           {/* Tabs */}
-          <div className="border-t border-gray-200">
+          <div className="border-t border-forvis-gray-200">
             <nav className="flex space-x-6 px-4" aria-label="Tabs">
               <Tab
                 onClick={() => setActiveTab('mapping')}

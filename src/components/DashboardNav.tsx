@@ -74,9 +74,18 @@ export default function DashboardNav() {
   };
 
   return (
-    <nav className="bg-forvis-blue-500 shadow-md" ref={menuRef}>
+    <nav 
+      className="w-full bg-forvis-blue-600 shadow-lg border-b-2 border-forvis-blue-800" 
+      style={{ 
+        minHeight: '48px',
+        backgroundColor: '#25488A',
+        position: 'relative',
+        zIndex: 40
+      }} 
+      ref={menuRef}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-12">
+        <div className="flex items-center h-12 space-x-1">
           {navItems.map((item) => {
             const isActive = item.href === pathname;
             
@@ -85,11 +94,12 @@ export default function DashboardNav() {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`flex items-center px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`flex items-center px-4 py-3 text-sm font-semibold transition-colors ${
                     isActive
-                      ? 'text-white bg-forvis-blue-700'
-                      : 'text-white hover:bg-forvis-blue-600'
+                      ? 'text-white bg-forvis-blue-800'
+                      : 'text-white hover:bg-forvis-blue-700'
                   }`}
+                  style={{ color: 'white' }}
                 >
                   {item.label}
                 </Link>
@@ -100,11 +110,12 @@ export default function DashboardNav() {
               <div key={item.label} className="relative">
                 <button
                   onClick={() => toggleMenu(item.label)}
-                  className={`flex items-center px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`flex items-center px-4 py-3 text-sm font-semibold transition-colors ${
                     openMenu === item.label
-                      ? 'text-white bg-forvis-blue-700'
-                      : 'text-white hover:bg-forvis-blue-600'
+                      ? 'text-white bg-forvis-blue-800'
+                      : 'text-white hover:bg-forvis-blue-700'
                   }`}
+                  style={{ color: 'white' }}
                 >
                   {item.label}
                   <ChevronDownIcon

@@ -57,11 +57,11 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isExporting}
-        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+        className="px-5 py-2.5 text-sm font-semibold bg-white text-forvis-blue-900 rounded-lg hover:bg-forvis-blue-50 transition-colors disabled:bg-forvis-gray-400 disabled:cursor-not-allowed flex items-center gap-2 shadow-corporate hover:shadow-corporate-md border-2 border-forvis-blue-300 whitespace-nowrap"
       >
         {isExporting ? (
           <>
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-forvis-blue-600"></div>
             Exporting...
           </>
         ) : (
@@ -93,11 +93,11 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           ></div>
-          <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
-            <div className="py-1">
+          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-corporate-lg border-2 border-forvis-blue-300 z-20">
+            <div className="py-2">
               <button
                 onClick={() => handleExport('excel')}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                className="w-full text-left px-4 py-3 hover:bg-forvis-blue-50 flex items-center gap-3 transition-colors"
               >
                 <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -108,15 +108,15 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
                   />
                 </svg>
                 <div>
-                  <p className="font-medium text-gray-900">Excel Workbook</p>
-                  <p className="text-xs text-gray-500">Multi-sheet with formulas</p>
+                  <p className="font-semibold text-forvis-gray-900">Excel Workbook</p>
+                  <p className="text-xs text-forvis-gray-600">Multi-sheet with formulas</p>
                 </div>
               </button>
 
               <button
                 onClick={() => handleExport('pdf')}
                 disabled={true}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3 opacity-50 cursor-not-allowed"
+                className="w-full text-left px-4 py-3 hover:bg-forvis-gray-50 flex items-center gap-3 opacity-50 cursor-not-allowed"
               >
                 <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -127,17 +127,17 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
                   />
                 </svg>
                 <div>
-                  <p className="font-medium text-gray-900">PDF Document</p>
-                  <p className="text-xs text-gray-500">Coming soon</p>
+                  <p className="font-semibold text-forvis-gray-900">PDF Document</p>
+                  <p className="text-xs text-forvis-gray-600">Coming soon</p>
                 </div>
               </button>
 
               <button
                 onClick={() => handleExport('xml')}
                 disabled={true}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3 opacity-50 cursor-not-allowed"
+                className="w-full text-left px-4 py-3 hover:bg-forvis-gray-50 flex items-center gap-3 opacity-50 cursor-not-allowed"
               >
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-forvis-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -146,8 +146,8 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
                   />
                 </svg>
                 <div>
-                  <p className="font-medium text-gray-900">eFiling XML</p>
-                  <p className="text-xs text-gray-500">Coming soon</p>
+                  <p className="font-semibold text-forvis-gray-900">eFiling XML</p>
+                  <p className="text-xs text-forvis-gray-600">Coming soon</p>
                 </div>
               </button>
             </div>

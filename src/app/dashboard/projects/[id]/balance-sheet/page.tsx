@@ -92,21 +92,21 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        className="w-full rounded-md border-0 py-1 pl-2 pr-8 text-left text-xs text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-md border-0 py-1 pl-2 pr-8 text-left text-xs text-forvis-gray-900 shadow-sm ring-1 ring-inset ring-forvis-gray-300 focus:ring-2 focus:ring-inset focus:ring-forvis-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className="block truncate">{selectedLabel}</span>
         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5">
-          <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+          <svg className="h-4 w-4 text-forvis-gray-400" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
         </span>
       </button>
       {isOpen && (
         <div className="absolute left-0 z-10 mt-1 w-[400px] bg-white shadow-lg ring-1 ring-black ring-opacity-5 rounded-md focus:outline-none">
-          <div className="sticky top-0 z-30 bg-white border-b border-gray-200">
+          <div className="sticky top-0 z-30 bg-white border-b border-forvis-gray-200">
             <div className="p-2">
-              <div className="text-sm font-medium text-gray-900">Select SARS Item</div>
-              <div className="text-xs text-gray-500 mt-0.5">Balance Sheet Items</div>
+              <div className="text-sm font-medium text-forvis-gray-900">Select SARS Item</div>
+              <div className="text-xs text-forvis-gray-600 mt-0.5">Balance Sheet Items</div>
               <div className="mt-2 relative">
                 <input
                   ref={searchInputRef}
@@ -114,9 +114,9 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search items..."
-                  className="w-full rounded-md border-0 py-1 pl-7 pr-2 text-xs text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600"
+                  className="w-full rounded-md border-0 py-1 pl-7 pr-2 text-xs text-forvis-gray-900 ring-1 ring-inset ring-forvis-gray-300 placeholder:text-forvis-gray-400 focus:ring-2 focus:ring-inset focus:ring-forvis-blue-600"
                 />
-                <svg className="absolute left-2 top-1.5 h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-2 top-1.5 h-3.5 w-3.5 text-forvis-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -192,14 +192,20 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
     <div>
       {/* Section header */}
       {title && (
-        <div className="grid grid-cols-12 border-b border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100">
-          <div className="col-span-7 font-bold px-3 py-1.5 text-sm text-gray-900">{title}</div>
-          <div className={`col-span-2 text-right px-3 py-1.5 text-xs tabular-nums font-bold ${isNegative ? 'text-red-600' : 'text-gray-900'}`}>
+        <div 
+          className="grid grid-cols-12 border-b-2 shadow-sm"
+          style={{ 
+            background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
+            borderColor: '#25488A'
+          }}
+        >
+          <div className="col-span-7 font-bold px-3 py-2 text-sm text-white">{title}</div>
+          <div className={`col-span-2 text-right px-3 py-2 text-xs tabular-nums font-bold ${isNegative ? 'text-red-200' : 'text-white'}`}>
             {isNegative 
               ? `(${formatAmount(Math.abs(totalAmount))})` 
               : formatAmount(totalAmount)}
           </div>
-          <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-bold ${totalPriorYearAmount < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+          <div className={`col-span-3 text-right px-3 py-2 text-xs tabular-nums font-bold ${totalPriorYearAmount < 0 ? 'text-red-200' : 'text-white'}`}>
             {totalPriorYearAmount < 0 
               ? `(${formatAmount(Math.abs(totalPriorYearAmount))})` 
               : formatAmount(totalPriorYearAmount)}
@@ -208,25 +214,25 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
       )}
 
       {/* SARS Items */}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-forvis-gray-100">
         {nonZeroItems.map((item, index) => (
           <div key={index} className="group">
             <div 
-              className="grid grid-cols-12 cursor-pointer hover:bg-blue-50 transition-colors duration-150"
+              className="grid grid-cols-12 cursor-pointer hover:bg-forvis-blue-50 transition-colors duration-150"
               onClick={() => toggleItem(item.sarsItem)}
             >
               <div className="col-span-7 pl-6 py-1.5 text-xs flex items-center">
                 <ChevronRightIcon 
-                  className={`h-3.5 w-3.5 mr-2 text-gray-500 group-hover:text-blue-600 transition-all duration-200 ${expandedItems[item.sarsItem] ? 'rotate-90' : ''}`}
+                  className={`h-3.5 w-3.5 mr-2 text-forvis-gray-500 group-hover:text-forvis-blue-600 transition-all duration-200 ${expandedItems[item.sarsItem] ? 'rotate-90' : ''}`}
                 />
-                <span className="text-gray-900 group-hover:text-blue-900">{item.sarsItem}</span>
+                <span className="text-forvis-gray-900 group-hover:text-forvis-blue-900">{item.sarsItem}</span>
               </div>
-              <div className={`col-span-2 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.amount < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+              <div className={`col-span-2 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.amount < 0 ? 'text-red-600' : 'text-forvis-gray-900'}`}>
                 {item.amount !== 0 && (item.amount < 0 
                   ? `(${formatAmount(Math.abs(item.amount))})` 
                   : formatAmount(item.amount))}
               </div>
-              <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.priorYearAmount < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+              <div className={`col-span-3 text-right px-3 py-1.5 text-xs tabular-nums font-medium ${item.priorYearAmount < 0 ? 'text-red-600' : 'text-forvis-gray-600'}`}>
                 {item.priorYearAmount !== 0 && (item.priorYearAmount < 0 
                   ? `(${formatAmount(Math.abs(item.priorYearAmount))})` 
                   : formatAmount(item.priorYearAmount))}
@@ -235,25 +241,25 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
 
             {/* Expanded account details */}
             {expandedItems[item.sarsItem] && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-b border-blue-200">
-                <div className="px-3 py-1 border-b border-blue-300 bg-gradient-to-r from-blue-100 to-indigo-100">
-                  <div className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Mapped Accounts</div>
+              <div className="bg-gradient-to-r from-forvis-blue-50 to-forvis-blue-100 border-t border-b border-forvis-blue-200">
+                <div className="px-3 py-1 border-b border-forvis-blue-300 bg-forvis-blue-100">
+                  <div className="text-xs font-semibold text-forvis-blue-900 uppercase tracking-wide">Mapped Accounts</div>
                 </div>
                 {item.mappedAccounts.map((account, accIndex) => (
                   <div 
                     key={account.id} 
-                    className={`grid grid-cols-12 px-6 py-1.5 text-xs hover:bg-blue-100 border-b border-blue-100 last:border-b-0 transition-colors duration-150 ${
-                      accIndex % 2 === 0 ? 'bg-white bg-opacity-40' : 'bg-blue-50 bg-opacity-60'
+                    className={`grid grid-cols-12 px-6 py-1.5 text-xs hover:bg-forvis-blue-100 border-b border-forvis-blue-100 last:border-b-0 transition-colors duration-150 ${
+                      accIndex % 2 === 0 ? 'bg-white bg-opacity-40' : 'bg-forvis-blue-50 bg-opacity-60'
                     }`}
                   >
-                    <div className="col-span-1 text-gray-600 font-medium">{account.accountCode}</div>
+                    <div className="col-span-1 text-forvis-gray-600 font-medium">{account.accountCode}</div>
                     <div className="col-span-3">
-                      <div className="text-gray-900 font-medium">{account.accountName}</div>
+                      <div className="text-forvis-gray-900 font-medium">{account.accountName}</div>
                     </div>
                     <div className="col-span-3">
                       {updatingAccount === account.id ? (
-                        <div className="flex items-center gap-2 text-blue-600">
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                        <div className="flex items-center gap-2 text-forvis-blue-600">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-forvis-blue-600"></div>
                           <span className="text-xs">Updating...</span>
                         </div>
                       ) : (
@@ -266,12 +272,12 @@ function BalanceSheetSection({ title, items, onMappingUpdate }: BalanceSheetSect
                         />
                       )}
                     </div>
-                    <div className={`col-span-2 text-right tabular-nums font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    <div className={`col-span-2 text-right tabular-nums font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-forvis-gray-900'}`}>
                       {account.balance < 0 
                         ? `(${formatAmount(Math.abs(account.balance))})` 
                         : formatAmount(account.balance)}
                     </div>
-                    <div className={`col-span-3 text-right tabular-nums font-semibold ${account.priorYearBalance < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                    <div className={`col-span-3 text-right tabular-nums font-semibold ${account.priorYearBalance < 0 ? 'text-red-600' : 'text-forvis-gray-600'}`}>
                       {account.priorYearBalance < 0 
                         ? `(${formatAmount(Math.abs(account.priorYearBalance))})` 
                         : formatAmount(account.priorYearBalance)}
@@ -464,7 +470,7 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
     </div>;
   }
 
@@ -532,13 +538,16 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
     <div className="space-y-4">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-3 text-white">
+        <div 
+          className="rounded-lg shadow-corporate p-3 text-white"
+          style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-xs font-medium">Total Assets</p>
+              <p className="text-xs font-medium opacity-90">Total Assets</p>
               <p className="text-xl font-bold mt-1">{formatAmount(totalAssets)}</p>
             </div>
-            <div className="bg-blue-400 bg-opacity-30 rounded-full p-2">
+            <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
@@ -546,13 +555,16 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-3 text-white">
+        <div 
+          className="rounded-lg shadow-corporate p-3 text-white"
+          style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-xs font-medium">Total Equity</p>
+              <p className="text-xs font-medium opacity-90">Total Equity</p>
               <p className="text-xl font-bold mt-1">{formatAmount(totalCapitalAndReserves)}</p>
             </div>
-            <div className="bg-purple-400 bg-opacity-30 rounded-full p-2">
+            <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(37, 72, 138, 0.5)' }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -560,13 +572,16 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-3 text-white">
+        <div 
+          className="rounded-lg shadow-corporate p-3 text-white"
+          style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-orange-100 text-xs font-medium">Total Liabilities</p>
+              <p className="text-xs font-medium opacity-90">Total Liabilities</p>
               <p className="text-xl font-bold mt-1">{formatAmount(totalLiabilities)}</p>
             </div>
-            <div className="bg-orange-400 bg-opacity-30 rounded-full p-2">
+            <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(19, 36, 69, 0.5)' }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
@@ -576,31 +591,31 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
       </div>
 
       {/* Main Balance Sheet Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg shadow-corporate border border-forvis-gray-200 p-4">
         <div className="space-y-3">
           {/* Header with Controls */}
-          <div className="border-b border-gray-400 pb-2">
+          <div className="border-b border-forvis-gray-400 pb-2">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-gray-900">Balance Sheet</h1>
-                <span className="text-xs text-gray-500">Financial Year End</span>
+                <h1 className="text-xl font-bold text-forvis-gray-900">Balance Sheet</h1>
+                <span className="text-xs text-forvis-gray-500">Financial Year End</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={expandAll}
-                  className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-150"
+                  className="px-2 py-1 text-xs font-medium text-forvis-blue-700 bg-forvis-blue-50 hover:bg-forvis-blue-100 rounded-lg transition-colors duration-150 shadow-corporate"
                 >
                   Expand All
                 </button>
                 <button
                   onClick={collapseAll}
-                  className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-150"
+                  className="px-2 py-1 text-xs font-medium text-forvis-gray-700 bg-forvis-gray-100 hover:bg-forvis-gray-200 rounded-lg transition-colors duration-150 shadow-corporate"
                 >
                   Collapse All
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-12 text-xs font-semibold text-gray-600">
+            <div className="grid grid-cols-12 text-xs font-semibold text-forvis-gray-600">
               <div className="col-span-7"></div>
               <div className="col-span-2 text-right px-3">Current Year (R)</div>
               <div className="col-span-3 text-right px-3">Prior Year (R)</div>
@@ -608,21 +623,22 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           </div>
 
       {/* ASSETS SECTION */}
-      <div className="border border-blue-200 rounded-lg overflow-hidden">
+      <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
         <button
           onClick={() => toggleSection('assets')}
-          className="w-full grid grid-cols-12 bg-gradient-to-r from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 transition-colors duration-150 py-2"
+          className="w-full grid grid-cols-12 py-2 transition-opacity duration-150 hover:opacity-90"
+          style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
         >
           <div className="col-span-7 flex items-center gap-2 px-3">
             <ChevronRightIcon 
-              className={`h-4 w-4 text-blue-700 transition-transform duration-200 ${expandedSections.assets ? 'rotate-90' : ''}`}
+              className={`h-4 w-4 text-white transition-transform duration-200 ${expandedSections.assets ? 'rotate-90' : ''}`}
             />
-            <span className="font-bold text-base text-blue-900">ASSETS</span>
+            <span className="font-bold text-base text-white">ASSETS</span>
           </div>
-          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
+          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
             {formatAmount(totalAssets)}
           </div>
-          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-700">
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
             {formatAmount(totalPriorYearAssets)}
           </div>
         </button>
@@ -660,12 +676,18 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
             />
 
             {/* Total Assets */}
-            <div className="grid grid-cols-12 border-t border-blue-300 bg-blue-50 py-1.5">
-              <div className="col-span-7 font-bold px-3 text-sm text-blue-900">TOTAL ASSETS</div>
-              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-blue-900">
+            <div 
+              className="grid grid-cols-12 border-t-2 py-2 shadow-md"
+              style={{ 
+                background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+                borderColor: '#1C3667'
+              }}
+            >
+              <div className="col-span-7 font-bold px-3 text-base text-white">TOTAL ASSETS</div>
+              <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalAssets)}
               </div>
-              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-blue-700">
+              <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalPriorYearAssets)}
               </div>
             </div>
@@ -674,21 +696,22 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
       </div>
 
       {/* EQUITY & RESERVES SECTION */}
-      <div className="border border-purple-200 rounded-lg overflow-hidden">
+      <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
         <button
           onClick={() => toggleSection('capitalReserves')}
-          className="w-full grid grid-cols-12 bg-gradient-to-r from-purple-100 to-purple-200 hover:from-purple-200 hover:to-purple-300 transition-colors duration-150 py-2"
+          className="w-full grid grid-cols-12 py-2 transition-opacity duration-150 hover:opacity-90"
+          style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
         >
           <div className="col-span-7 flex items-center gap-2 px-3">
             <ChevronRightIcon 
-              className={`h-4 w-4 text-purple-700 transition-transform duration-200 ${expandedSections.capitalReserves ? 'rotate-90' : ''}`}
+              className={`h-4 w-4 text-white transition-transform duration-200 ${expandedSections.capitalReserves ? 'rotate-90' : ''}`}
             />
-            <span className="font-bold text-base text-purple-900">EQUITY & RESERVES</span>
+            <span className="font-bold text-base text-white">EQUITY & RESERVES</span>
           </div>
-          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-purple-900">
+          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
             {formatAmount(totalCapitalAndReserves)}
           </div>
-          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-purple-700">
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
             {formatAmount(totalPriorYearCapitalAndReserves)}
           </div>
         </button>
@@ -696,8 +719,14 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
         {expandedSections.capitalReserves && (
           <div className="bg-white">
             {/* Capital and Reserves */}
-            <div className="grid grid-cols-12 bg-gradient-to-r from-purple-50 to-purple-100 border-b border-purple-200">
-              <div className="col-span-7 font-semibold px-4 py-2 text-purple-900">Capital and Reserves</div>
+            <div 
+              className="grid grid-cols-12 border-b-2 shadow-sm"
+              style={{ 
+                background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
+                borderColor: '#25488A'
+              }}
+            >
+              <div className="col-span-7 font-bold px-4 py-2 text-sm text-white">Capital and Reserves</div>
               <div className="col-span-2"></div>
               <div className="col-span-3"></div>
             </div>
@@ -717,33 +746,45 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
             />
 
             {/* Current Year Net Profit */}
-            <div className="grid grid-cols-12 bg-purple-50">
+            <div className="grid grid-cols-12 bg-forvis-blue-50">
               <div className="col-span-7 pl-8 py-2 text-sm flex items-center">
                 <ChevronRightIcon className="h-4 w-4 mr-2 opacity-0" />
-                <span className="font-medium text-purple-900">Current Year Net Profit</span>
+                <span className="font-medium text-forvis-blue-900">Current Year Net Profit</span>
               </div>
-              <div className="col-span-2 text-right px-4 tabular-nums text-sm font-medium text-purple-900">
+              <div className="col-span-2 text-right px-4 tabular-nums text-sm font-medium text-forvis-blue-900">
                 {formatAmount(-currentYearProfitLoss)}
               </div>
-              <div className="col-span-3 text-right px-4 tabular-nums text-sm font-medium text-purple-700">
+              <div className="col-span-3 text-right px-4 tabular-nums text-sm font-medium text-forvis-blue-700">
                 {formatAmount(-priorYearProfitLoss)}
               </div>
             </div>
 
             {/* Total Capital and Reserves */}
-            <div className="grid grid-cols-12 border-t border-purple-200 bg-purple-50">
-              <div className="col-span-7 pl-4 py-2 font-semibold text-purple-900">Total Capital and Reserves</div>
-              <div className="col-span-2 text-right px-4 tabular-nums font-semibold text-purple-900">
+            <div 
+              className="grid grid-cols-12 border-t-2 shadow-md"
+              style={{ 
+                background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+                borderColor: '#1C3667'
+              }}
+            >
+              <div className="col-span-7 pl-4 py-2 font-bold text-sm text-white">Total Capital and Reserves</div>
+              <div className="col-span-2 text-right px-4 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalCapitalAndReserves)}
               </div>
-              <div className="col-span-3 text-right px-4 tabular-nums font-semibold text-purple-700">
+              <div className="col-span-3 text-right px-4 tabular-nums font-bold text-sm text-white">
                 {formatAmount(totalPriorYearCapitalAndReserves)}
               </div>
             </div>
 
             {/* Debit Balances */}
-            <div className="grid grid-cols-12 bg-gradient-to-r from-purple-50 to-purple-100 border-t-2 border-purple-300">
-              <div className="col-span-7 font-semibold px-4 py-2 text-purple-900">Debit balances</div>
+            <div 
+              className="grid grid-cols-12 border-t-2 border-b-2 shadow-sm"
+              style={{ 
+                background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
+                borderColor: '#25488A'
+              }}
+            >
+              <div className="col-span-7 font-bold px-4 py-2 text-sm text-white">Debit balances</div>
               <div className="col-span-2"></div>
               <div className="col-span-3"></div>
             </div>
@@ -766,21 +807,22 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
       </div>
 
       {/* LIABILITIES SECTION */}
-      <div className="border border-orange-200 rounded-lg overflow-hidden">
+      <div className="border-2 rounded-lg overflow-hidden shadow-sm" style={{ borderColor: '#25488A' }}>
         <button
           onClick={() => toggleSection('liabilities')}
-          className="w-full grid grid-cols-12 bg-gradient-to-r from-orange-100 to-orange-200 hover:from-orange-200 hover:to-orange-300 transition-colors duration-150 py-2"
+          className="w-full grid grid-cols-12 py-2 transition-opacity duration-150 hover:opacity-90"
+          style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
         >
           <div className="col-span-7 flex items-center gap-2 px-3">
             <ChevronRightIcon 
-              className={`h-4 w-4 text-orange-700 transition-transform duration-200 ${expandedSections.liabilities ? 'rotate-90' : ''}`}
+              className={`h-4 w-4 text-white transition-transform duration-200 ${expandedSections.liabilities ? 'rotate-90' : ''}`}
             />
-            <span className="font-bold text-base text-orange-900">LIABILITIES</span>
+            <span className="font-bold text-base text-white">LIABILITIES</span>
           </div>
-          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-orange-900">
+          <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
             {formatAmount(totalLiabilities)}
           </div>
-          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-orange-700">
+          <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
             {formatAmount(totalPriorYearLiabilities)}
           </div>
         </button>
@@ -788,8 +830,14 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
         {expandedSections.liabilities && (
           <div className="bg-white">
             {/* Non-Current Liabilities */}
-            <div className="grid grid-cols-12 bg-gradient-to-r from-orange-50 to-orange-100 border-b border-orange-200">
-              <div className="col-span-7 font-semibold px-4 py-2 text-orange-900">Non-Current Liabilities</div>
+            <div 
+              className="grid grid-cols-12 border-b-2 shadow-sm"
+              style={{ 
+                background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
+                borderColor: '#25488A'
+              }}
+            >
+              <div className="col-span-7 font-bold px-4 py-2 text-sm text-white">Non-Current Liabilities</div>
               <div className="col-span-2"></div>
               <div className="col-span-3"></div>
             </div>
@@ -809,8 +857,14 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
             />
 
             {/* Current Liabilities */}
-            <div className="grid grid-cols-12 bg-gradient-to-r from-orange-50 to-orange-100 border-t-2 border-orange-300">
-              <div className="col-span-7 font-semibold px-4 py-2 text-orange-900">Current Liabilities</div>
+            <div 
+              className="grid grid-cols-12 border-t-2 border-b-2 shadow-sm"
+              style={{ 
+                background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
+                borderColor: '#25488A'
+              }}
+            >
+              <div className="col-span-7 font-bold px-4 py-2 text-sm text-white">Current Liabilities</div>
               <div className="col-span-2"></div>
               <div className="col-span-3"></div>
             </div>
@@ -833,33 +887,47 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
       </div>
 
       {/* Total Reserves & Liabilities */}
-      <div className="grid grid-cols-12 border border-gray-400 bg-gray-100 rounded-lg py-2">
-        <div className="col-span-7 font-bold px-3 text-sm text-gray-900">TOTAL EQUITY & LIABILITIES</div>
-        <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-gray-900">
+      <div 
+        className="grid grid-cols-12 border-2 rounded-lg py-2 shadow-md"
+        style={{ 
+          background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+          borderColor: '#1C3667'
+        }}
+      >
+        <div className="col-span-7 font-bold px-3 text-base text-white">TOTAL EQUITY & LIABILITIES</div>
+        <div className="col-span-2 text-right px-3 tabular-nums font-bold text-sm text-white">
           {formatAmount(totalReservesAndLiabilities)}
         </div>
-        <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-gray-600">
+        <div className="col-span-3 text-right px-3 tabular-nums font-bold text-sm text-white">
           {formatAmount(totalPriorYearReservesAndLiabilities)}
         </div>
       </div>
 
       {/* Check row */}
-      <div className={`grid grid-cols-12 rounded-lg py-1.5 ${
-        Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
-          ? 'bg-green-50 border border-green-300' 
-          : 'bg-red-50 border border-red-300'
-      }`}>
-        <div className="col-span-7 pl-3 text-xs font-medium text-gray-700">Balance Check (should be zero)</div>
+      <div 
+        className={`grid grid-cols-12 rounded-lg py-1.5 border ${
+          Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
+            ? 'bg-forvis-gray-50 border-forvis-gray-300' 
+            : 'bg-red-50 border-red-300'
+        }`}
+      >
+        <div className={`col-span-7 pl-3 text-xs font-medium ${
+          Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
+            ? 'text-forvis-gray-600' 
+            : 'text-red-700'
+        }`}>
+          Balance Check (should be zero)
+        </div>
         <div className={`col-span-2 text-right px-3 text-xs tabular-nums font-semibold ${
           Math.abs(totalAssets - totalReservesAndLiabilities) < 0.01 
-            ? 'text-green-700' 
+            ? 'text-forvis-gray-700' 
             : 'text-red-700'
         }`}>
           {formatAmount(totalAssets - totalReservesAndLiabilities)}
         </div>
         <div className={`col-span-3 text-right px-3 text-xs tabular-nums font-semibold ${
           Math.abs(totalPriorYearAssets - totalPriorYearReservesAndLiabilities) < 0.01 
-            ? 'text-green-700' 
+            ? 'text-forvis-gray-600' 
             : 'text-red-700'
         }`}>
           {formatAmount(totalPriorYearAssets - totalPriorYearReservesAndLiabilities)}

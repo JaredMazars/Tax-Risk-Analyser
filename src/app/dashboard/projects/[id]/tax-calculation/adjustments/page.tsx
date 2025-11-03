@@ -117,17 +117,17 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
     
     switch (status) {
       case 'SUGGESTED':
-        return `${baseClasses} bg-yellow-100 text-yellow-800`;
+        return `${baseClasses} bg-forvis-blue-100 text-forvis-blue-800`;
       case 'APPROVED':
         return `${baseClasses} bg-green-100 text-green-800`;
       case 'MODIFIED':
-        return `${baseClasses} bg-blue-100 text-blue-800`;
+        return `${baseClasses} bg-forvis-blue-200 text-forvis-blue-900`;
       case 'REJECTED':
-        return `${baseClasses} bg-red-100 text-red-800`;
+        return `${baseClasses} bg-forvis-gray-200 text-forvis-gray-800`;
       case 'ARCHIVED':
-        return `${baseClasses} bg-gray-100 text-gray-800`;
+        return `${baseClasses} bg-forvis-gray-100 text-forvis-gray-600`;
       default:
-        return `${baseClasses} bg-gray-100 text-gray-600`;
+        return `${baseClasses} bg-forvis-gray-100 text-forvis-gray-600`;
     }
   };
 
@@ -136,20 +136,20 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
     
     switch (type) {
       case 'DEBIT':
-        return `${baseClasses} bg-orange-100 text-orange-800`;
+        return `${baseClasses} bg-forvis-blue-100 text-forvis-blue-800 border border-forvis-blue-200`;
       case 'CREDIT':
-        return `${baseClasses} bg-green-100 text-green-800`;
+        return `${baseClasses} bg-forvis-blue-50 text-forvis-blue-900 border border-forvis-blue-200`;
       case 'ALLOWANCE':
-        return `${baseClasses} bg-blue-100 text-blue-800`;
+        return `${baseClasses} bg-forvis-blue-200 text-forvis-blue-900 border border-forvis-blue-300`;
       default:
-        return `${baseClasses} bg-gray-100 text-gray-600`;
+        return `${baseClasses} bg-forvis-gray-100 text-forvis-gray-600`;
     }
   };
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
       </div>
     );
   }
@@ -162,21 +162,21 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
         <div>
           <button
             onClick={() => router.push(`/dashboard/projects/${params.id}?tab=tax-calculation`)}
-            className="text-blue-600 hover:text-blue-800 mb-1 flex items-center gap-1 text-sm"
+            className="text-forvis-blue-600 hover:text-forvis-blue-800 mb-1 flex items-center gap-1 text-sm font-semibold"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Back to Tax Calculation
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Tax Adjustments</h1>
-          <p className="text-gray-600 text-sm mt-0.5">
+          <h1 className="text-xl font-bold text-forvis-gray-900">Tax Adjustments</h1>
+          <p className="text-forvis-gray-600 text-sm mt-0.5">
             Manage all tax adjustments for this project
           </p>
         </div>
         <button
           onClick={() => router.push(`/dashboard/projects/${params.id}/tax-calculation/adjustments/new`)}
-          className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-md"
+          className="px-3 py-1.5 text-sm bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 transition-colors flex items-center gap-2 shadow-corporate hover:shadow-corporate-md"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -195,32 +195,32 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <button
           onClick={() => setStatusFilter('ALL')}
-          className={`p-2 rounded-lg border-2 transition-all ${
+          className={`p-2 rounded-lg border-2 transition-all shadow-corporate ${
             statusFilter === 'ALL'
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-200 bg-white hover:border-gray-300'
+              ? 'border-forvis-blue-500 bg-forvis-blue-50'
+              : 'border-forvis-gray-200 bg-white hover:border-forvis-blue-300'
           }`}
         >
-          <p className="text-xs text-gray-600 font-medium">Total</p>
-          <p className="text-xl font-bold text-gray-900">{stats.total}</p>
+          <p className="text-xs text-forvis-gray-600 font-medium">Total</p>
+          <p className="text-xl font-bold text-forvis-gray-900">{stats.total}</p>
         </button>
         <button
           onClick={() => setStatusFilter('SUGGESTED')}
-          className={`p-2 rounded-lg border-2 transition-all ${
+          className={`p-2 rounded-lg border-2 transition-all shadow-corporate ${
             statusFilter === 'SUGGESTED'
-              ? 'border-yellow-500 bg-yellow-50'
-              : 'border-gray-200 bg-white hover:border-gray-300'
+              ? 'border-forvis-blue-500 bg-forvis-blue-50'
+              : 'border-forvis-gray-200 bg-white hover:border-forvis-blue-300'
           }`}
         >
-          <p className="text-xs text-yellow-700 font-medium">Suggested</p>
-          <p className="text-xl font-bold text-yellow-800">{stats.suggested}</p>
+          <p className="text-xs text-forvis-blue-700 font-medium">Suggested</p>
+          <p className="text-xl font-bold text-forvis-blue-800">{stats.suggested}</p>
         </button>
         <button
           onClick={() => setStatusFilter('APPROVED')}
-          className={`p-2 rounded-lg border-2 transition-all ${
+          className={`p-2 rounded-lg border-2 transition-all shadow-corporate ${
             statusFilter === 'APPROVED'
               ? 'border-green-500 bg-green-50'
-              : 'border-gray-200 bg-white hover:border-gray-300'
+              : 'border-forvis-gray-200 bg-white hover:border-forvis-blue-300'
           }`}
         >
           <p className="text-xs text-green-700 font-medium">Approved</p>
@@ -228,36 +228,36 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
         </button>
         <button
           onClick={() => setStatusFilter('MODIFIED')}
-          className={`p-2 rounded-lg border-2 transition-all ${
+          className={`p-2 rounded-lg border-2 transition-all shadow-corporate ${
             statusFilter === 'MODIFIED'
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-200 bg-white hover:border-gray-300'
+              ? 'border-forvis-blue-500 bg-forvis-blue-50'
+              : 'border-forvis-gray-200 bg-white hover:border-forvis-blue-300'
           }`}
         >
-          <p className="text-xs text-blue-700 font-medium">Modified</p>
-          <p className="text-xl font-bold text-blue-800">{stats.modified}</p>
+          <p className="text-xs text-forvis-blue-700 font-medium">Modified</p>
+          <p className="text-xl font-bold text-forvis-blue-800">{stats.modified}</p>
         </button>
         <button
           onClick={() => setStatusFilter('REJECTED')}
-          className={`p-2 rounded-lg border-2 transition-all ${
+          className={`p-2 rounded-lg border-2 transition-all shadow-corporate ${
             statusFilter === 'REJECTED'
-              ? 'border-red-500 bg-red-50'
-              : 'border-gray-200 bg-white hover:border-gray-300'
+              ? 'border-forvis-gray-500 bg-forvis-gray-100'
+              : 'border-forvis-gray-200 bg-white hover:border-forvis-blue-300'
           }`}
         >
-          <p className="text-xs text-red-700 font-medium">Rejected</p>
-          <p className="text-xl font-bold text-red-800">{stats.rejected}</p>
+          <p className="text-xs text-forvis-gray-700 font-medium">Rejected</p>
+          <p className="text-xl font-bold text-forvis-gray-800">{stats.rejected}</p>
         </button>
         <button
           onClick={() => setStatusFilter('ARCHIVED')}
-          className={`p-2 rounded-lg border-2 transition-all ${
+          className={`p-2 rounded-lg border-2 transition-all shadow-corporate ${
             statusFilter === 'ARCHIVED'
-              ? 'border-gray-500 bg-gray-50'
-              : 'border-gray-200 bg-white hover:border-gray-300'
+              ? 'border-forvis-gray-500 bg-forvis-gray-50'
+              : 'border-forvis-gray-200 bg-white hover:border-forvis-blue-300'
           }`}
         >
-          <p className="text-xs text-gray-700 font-medium">Archived</p>
-          <p className="text-xl font-bold text-gray-800">{stats.archived}</p>
+          <p className="text-xs text-forvis-gray-700 font-medium">Archived</p>
+          <p className="text-xl font-bold text-forvis-gray-800">{stats.archived}</p>
         </button>
       </div>
 
@@ -268,10 +268,10 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
           placeholder="Search adjustments..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-3 py-2 pl-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-3 py-2 pl-9 text-sm border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 shadow-corporate"
         />
         <svg
-          className="absolute left-3 top-2.5 w-4 h-4 text-gray-400"
+          className="absolute left-3 top-2.5 w-4 h-4 text-forvis-gray-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -287,9 +287,9 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
 
       {/* Adjustments List */}
       {filteredAdjustments.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-8 text-center">
+        <div className="bg-white border border-forvis-gray-200 rounded-lg shadow-corporate p-8 text-center">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-forvis-gray-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -301,8 +301,8 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No adjustments found</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No adjustments found</h3>
+          <p className="mt-1 text-sm text-forvis-gray-500">
             {searchTerm || statusFilter !== 'ALL'
               ? 'Try adjusting your filters'
               : 'Get started by creating a new adjustment'}
@@ -310,43 +310,43 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
           {!searchTerm && statusFilter === 'ALL' && (
             <button
               onClick={() => router.push(`/dashboard/projects/${params.id}/tax-calculation/adjustments/new`)}
-              className="mt-4 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="mt-4 px-3 py-2 text-sm bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 shadow-corporate"
             >
               Create First Adjustment
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white border border-forvis-gray-200 rounded-lg shadow-corporate overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-forvis-gray-200">
+              <thead className="bg-forvis-blue-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                     Description
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                     SARS Section
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-forvis-gray-200">
                 {filteredAdjustments.map((adjustment) => (
                   <tr
                     key={adjustment.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-forvis-blue-50 cursor-pointer transition-colors"
                     onClick={() =>
                       router.push(
                         `/dashboard/projects/${params.id}/tax-calculation/adjustments/${adjustment.id}`
@@ -354,11 +354,11 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
                   }
                   >
                     <td className="px-4 py-3">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-forvis-gray-900">
                         {adjustment.description}
                       </div>
                       {adjustment.confidenceScore && (
-                        <div className="text-xs text-gray-500 mt-0.5">
+                        <div className="text-xs text-forvis-blue-600 mt-0.5 font-medium">
                           AI Confidence: {Math.round(adjustment.confidenceScore * 100)}%
                         </div>
                       )}
@@ -369,7 +369,7 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-gray-900 tabular-nums">
+                      <div className="text-sm font-semibold text-forvis-gray-900 tabular-nums">
                         {formatAmount(Math.abs(adjustment.amount))}
                       </div>
                     </td>
@@ -379,7 +379,7 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-forvis-gray-600">
                         {adjustment.sarsSection || '-'}
                       </div>
                     </td>
@@ -392,7 +392,7 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
                                 e.stopPropagation();
                                 handleStatusChange(adjustment.id, 'APPROVED');
                               }}
-                              className="text-green-600 hover:text-green-900"
+                              className="text-green-600 hover:text-green-900 transition-colors"
                               title="Approve"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +404,7 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
                                 e.stopPropagation();
                                 handleStatusChange(adjustment.id, 'REJECTED');
                               }}
-                              className="text-red-600 hover:text-red-900"
+                              className="text-forvis-gray-500 hover:text-forvis-gray-700 transition-colors"
                               title="Reject"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -420,7 +420,7 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
                               `/dashboard/projects/${params.id}/tax-calculation/adjustments/${adjustment.id}`
                             );
                           }}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-forvis-blue-600 hover:text-forvis-blue-900 transition-colors"
                           title="Edit"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -437,7 +437,7 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
                             e.stopPropagation();
                             handleDelete(adjustment.id);
                           }}
-                          className="text-gray-400 hover:text-red-600"
+                          className="text-forvis-gray-400 hover:text-red-600 transition-colors"
                           title="Delete"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

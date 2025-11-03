@@ -199,7 +199,7 @@ export default function ReportingPage({ params }: ReportingPageProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
       </div>
     );
   }
@@ -262,10 +262,10 @@ export default function ReportingPage({ params }: ReportingPageProps) {
   return (
     <div className="space-y-4">
       {/* Action Bar */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg shadow-corporate border border-forvis-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-gray-900 mb-3">Select Reports for PDF Export</h2>
+            <h2 className="text-base font-semibold text-forvis-gray-900 mb-3">Select Reports for PDF Export</h2>
             <div className="flex flex-wrap gap-4">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -274,9 +274,9 @@ export default function ReportingPage({ params }: ReportingPageProps) {
                   onChange={(e) =>
                     setSelectedReports({ ...selectedReports, trialBalance: e.target.checked })
                   }
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-forvis-gray-300 text-forvis-blue-600 focus:ring-forvis-blue-500"
                 />
-                <span className="text-sm text-gray-700">Trial Balance</span>
+                <span className="text-sm text-forvis-gray-700">Trial Balance</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -285,9 +285,9 @@ export default function ReportingPage({ params }: ReportingPageProps) {
                   onChange={(e) =>
                     setSelectedReports({ ...selectedReports, balanceSheet: e.target.checked })
                   }
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-forvis-gray-300 text-forvis-blue-600 focus:ring-forvis-blue-500"
                 />
-                <span className="text-sm text-gray-700">Balance Sheet</span>
+                <span className="text-sm text-forvis-gray-700">Balance Sheet</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -296,9 +296,9 @@ export default function ReportingPage({ params }: ReportingPageProps) {
                   onChange={(e) =>
                     setSelectedReports({ ...selectedReports, incomeStatement: e.target.checked })
                   }
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-forvis-gray-300 text-forvis-blue-600 focus:ring-forvis-blue-500"
                 />
-                <span className="text-sm text-gray-700">Income Statement</span>
+                <span className="text-sm text-forvis-gray-700">Income Statement</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -307,9 +307,9 @@ export default function ReportingPage({ params }: ReportingPageProps) {
                   onChange={(e) =>
                     setSelectedReports({ ...selectedReports, taxCalculation: e.target.checked })
                   }
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-forvis-gray-300 text-forvis-blue-600 focus:ring-forvis-blue-500"
                 />
-                <span className="text-sm text-gray-700">Tax Calculation</span>
+                <span className="text-sm text-forvis-gray-700">Tax Calculation</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -319,9 +319,9 @@ export default function ReportingPage({ params }: ReportingPageProps) {
                     setSelectedReports({ ...selectedReports, aiReport: e.target.checked })
                   }
                   disabled={!aiReportData}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  className="rounded border-forvis-gray-300 text-forvis-blue-600 focus:ring-forvis-blue-500 disabled:opacity-50"
                 />
-                <span className={`text-sm ${aiReportData ? 'text-gray-700' : 'text-gray-400'}`}>
+                <span className={`text-sm ${aiReportData ? 'text-forvis-gray-700' : 'text-forvis-gray-400'}`}>
                   AI Tax Report {!aiReportData && '(Generate first)'}
                 </span>
               </label>
@@ -329,13 +329,13 @@ export default function ReportingPage({ params }: ReportingPageProps) {
             <div className="flex gap-2 mt-3">
               <button
                 onClick={handleSelectAll}
-                className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-forvis-blue-700 bg-forvis-blue-50 hover:bg-forvis-blue-100 rounded-lg transition-colors shadow-corporate"
               >
                 Select All
               </button>
               <button
                 onClick={handleDeselectAll}
-                className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-forvis-gray-700 bg-forvis-gray-100 hover:bg-forvis-gray-200 rounded-lg transition-colors shadow-corporate"
               >
                 Deselect All
               </button>
@@ -345,7 +345,7 @@ export default function ReportingPage({ params }: ReportingPageProps) {
             <button
               onClick={handleExportPDF}
               disabled={isExporting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              className="px-4 py-2 bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 disabled:bg-forvis-gray-400 flex items-center gap-2 shadow-corporate hover:shadow-corporate-md transition-all"
             >
               {isExporting ? (
                 <>
@@ -364,8 +364,8 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200">
+      <div className="bg-white rounded-lg shadow-corporate border border-forvis-gray-200 overflow-hidden">
+        <div className="border-b border-forvis-gray-200">
           <nav className="flex space-x-4 px-4" aria-label="Tabs">
             {tabs.map((tab) => (
               <button
@@ -373,8 +373,8 @@ export default function ReportingPage({ params }: ReportingPageProps) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-forvis-blue-600 text-forvis-blue-600'
+                    : 'border-transparent text-forvis-gray-500 hover:text-forvis-gray-700 hover:border-forvis-gray-300'
                 }`}
               >
                 {tab.name}

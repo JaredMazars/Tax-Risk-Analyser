@@ -405,35 +405,35 @@ export default function DashboardPage() {
           key={project.id}
           className={`group rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border ${
             project.archived 
-              ? 'bg-gray-50 border-gray-300 opacity-75' 
-              : 'bg-white border-gray-200'
+              ? 'bg-forvis-gray-50 border-forvis-gray-300 opacity-75' 
+              : 'bg-white border-forvis-gray-200'
           }`}
         >
           <Link href={`/dashboard/projects/${project.id}`} className="block p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  project.archived ? 'bg-gray-200' : 'bg-blue-100'
+                  project.archived ? 'bg-forvis-gray-200' : 'bg-forvis-blue-100'
                 }`}>
                   <FolderIcon className={`h-5 w-5 ${
-                    project.archived ? 'text-gray-500' : 'text-blue-600'
+                    project.archived ? 'text-forvis-gray-500' : 'text-forvis-blue-600'
                   }`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
                     <h3 className={`text-base font-semibold truncate ${
-                      project.archived ? 'text-gray-600' : 'text-gray-900'
+                      project.archived ? 'text-forvis-gray-600' : 'text-forvis-gray-900'
                     }`}>
                       {project.name}
                     </h3>
                     {project.archived && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
                         Archived
                       </span>
                     )}
                   </div>
                   {project.description && (
-                    <p className="text-sm text-gray-600 truncate mt-0.5">
+                    <p className="text-sm text-forvis-gray-600 truncate mt-0.5">
                       {project.description}
                     </p>
                   )}
@@ -441,13 +441,13 @@ export default function DashboardPage() {
               </div>
               
               <div className="flex items-center space-x-8 ml-4">
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-forvis-gray-600">
                   <span className="font-medium">{project._count.mappings}</span> accounts
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-forvis-gray-600">
                   <span className="font-medium">{project._count.taxAdjustments}</span> adjustments
                 </div>
-                <div className="text-sm text-gray-400 w-24">
+                <div className="text-sm text-forvis-gray-500 w-24">
                   {formatDate(project.updatedAt)}
                 </div>
                 
@@ -458,16 +458,16 @@ export default function DashboardPage() {
                       e.stopPropagation();
                       setOpenDropdown(openDropdown === project.id ? null : project.id);
                     }}
-                    className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="p-1 rounded-lg hover:bg-forvis-gray-100 transition-colors"
                   >
-                    <EllipsisVerticalIcon className="h-5 w-5 text-gray-400" />
+                    <EllipsisVerticalIcon className="h-5 w-5 text-forvis-gray-400" />
                   </button>
                   
                   {openDropdown === project.id && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 py-1 z-10">
                       <button
                         onClick={(e) => handleEditClick(project, e)}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                        className="w-full text-left px-4 py-2 text-sm text-forvis-gray-700 hover:bg-forvis-gray-50 flex items-center space-x-2"
                       >
                         <PencilIcon className="h-4 w-4" />
                         <span>Edit Project</span>
@@ -639,29 +639,29 @@ export default function DashboardPage() {
         {/* Edit Project Modal */}
         {showEditModal && selectedProject && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">Edit Project</h2>
+            <div className="bg-white rounded-xl shadow-corporate-lg p-6 w-full max-w-md">
+              <h2 className="text-2xl font-bold mb-6 text-forvis-gray-900">Edit Project</h2>
               <form onSubmit={handleEditSubmit}>
                 <div className="mb-5">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                     Project Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={editProject.name}
                     onChange={(e) => setEditProject({ ...editProject, name: e.target.value })}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    className="input-field"
                     required
                   />
                 </div>
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                     Description
                   </label>
                   <textarea
                     value={editProject.description}
                     onChange={(e) => setEditProject({ ...editProject, description: e.target.value })}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    className="input-field"
                     rows={3}
                   />
                 </div>
@@ -669,14 +669,14 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                    className="btn-secondary"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -689,9 +689,9 @@ export default function DashboardPage() {
         {/* Delete Confirmation Modal */}
         {showDeleteModal && selectedProject && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900">Archive Project</h2>
-              <p className="text-gray-600 mb-6">
+            <div className="bg-white rounded-xl shadow-corporate-lg p-6 w-full max-w-md">
+              <h2 className="text-2xl font-bold mb-4 text-forvis-gray-900">Archive Project</h2>
+              <p className="text-forvis-gray-700 mb-6">
                 Are you sure you want to archive <span className="font-semibold">{selectedProject.name}</span>? 
                 This will hide the project from your main view, but you can restore it later.
               </p>
@@ -699,14 +699,14 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteConfirm}
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-corporate"
                 >
                   {isSubmitting ? 'Archiving...' : 'Archive Project'}
                 </button>
@@ -718,9 +718,9 @@ export default function DashboardPage() {
         {/* Restore Confirmation Modal */}
         {showRestoreModal && selectedProject && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900">Restore Project</h2>
-              <p className="text-gray-600 mb-6">
+            <div className="bg-white rounded-xl shadow-corporate-lg p-6 w-full max-w-md">
+              <h2 className="text-2xl font-bold mb-4 text-forvis-gray-900">Restore Project</h2>
+              <p className="text-forvis-gray-700 mb-6">
                 Are you sure you want to restore <span className="font-semibold">{selectedProject.name}</span>? 
                 This will make the project active and visible in your main project list.
               </p>
@@ -728,14 +728,14 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowRestoreModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleRestoreConfirm}
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-corporate"
                 >
                   {isSubmitting ? 'Restoring...' : 'Restore Project'}
                 </button>
@@ -747,10 +747,10 @@ export default function DashboardPage() {
         {/* Permanent Delete Confirmation Modal */}
         {showPermanentDeleteModal && selectedProject && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <div className="bg-white rounded-xl shadow-corporate-lg p-6 w-full max-w-md">
               <h2 className="text-2xl font-bold mb-4 text-red-600">Delete Project Permanently</h2>
               <div className="mb-6">
-                <p className="text-gray-600 mb-3">
+                <p className="text-forvis-gray-700 mb-3">
                   Are you sure you want to permanently delete <span className="font-semibold">{selectedProject.name}</span>?
                 </p>
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -764,14 +764,14 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowPermanentDeleteModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handlePermanentDeleteConfirm}
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-corporate"
                 >
                   {isSubmitting ? 'Deleting...' : 'Delete Permanently'}
                 </button>

@@ -101,21 +101,21 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        className="w-full rounded-md border-0 py-1 pl-2 pr-8 text-left text-xs text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-md border-0 py-1 pl-2 pr-8 text-left text-xs text-forvis-gray-900 shadow-sm ring-1 ring-inset ring-forvis-gray-300 focus:ring-2 focus:ring-inset focus:ring-forvis-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className="block truncate">{selectedLabel}</span>
         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5">
-          <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+          <svg className="h-4 w-4 text-forvis-gray-400" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
         </span>
       </button>
       {isOpen && (
         <div className="absolute left-0 z-10 mt-1 w-[400px] bg-white shadow-lg ring-1 ring-black ring-opacity-5 rounded-md focus:outline-none">
-          <div className="sticky top-0 z-30 bg-white border-b border-gray-200">
+          <div className="sticky top-0 z-30 bg-white border-b border-forvis-gray-200">
             <div className="p-2">
-              <div className="text-sm font-medium text-gray-900">Select SARS Item</div>
-              <div className="text-xs text-gray-500 mt-0.5">All Available Items</div>
+              <div className="text-sm font-medium text-forvis-gray-900">Select SARS Item</div>
+              <div className="text-xs text-forvis-gray-600 mt-0.5">All Available Items</div>
               <div className="mt-2 relative">
                 <input
                   ref={searchInputRef}
@@ -123,16 +123,16 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search items..."
-                  className="w-full rounded-md border-0 py-1 pl-7 pr-2 text-xs text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600"
+                  className="w-full rounded-md border-0 py-1 pl-7 pr-2 text-xs text-forvis-gray-900 ring-1 ring-inset ring-forvis-gray-300 placeholder:text-forvis-gray-400 focus:ring-2 focus:ring-inset focus:ring-forvis-blue-600"
                 />
-                <svg className="absolute left-2 top-1.5 h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-2 top-1.5 h-3.5 w-3.5 text-forvis-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-1.5 text-forvis-gray-400 hover:text-forvis-gray-600"
                   >
                     <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -147,19 +147,19 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
             {Object.entries(filteredSectionItems).length > 0 ? (
               Object.entries(filteredSectionItems).map(([mainSection, sectionData]) => (
                 <div key={mainSection}>
-                  <div className="sticky top-0 z-20 bg-blue-50 px-2 py-1 border-b border-gray-200 shadow-sm">
-                    <div className="text-xs font-bold text-blue-900">
+                  <div className="sticky top-0 z-20 bg-forvis-blue-50 px-2 py-1 border-b border-forvis-gray-200 shadow-sm">
+                    <div className="text-xs font-bold text-forvis-blue-900">
                       {mainSection}
                     </div>
                   </div>
                   {Object.entries(sectionData).map(([subsection, items]) => (
                     <div key={subsection} className="relative">
-                      <div className="sticky top-6 z-10 bg-gray-50 px-2 py-1 border-b border-gray-200">
-                        <div className="text-xs font-medium text-gray-900">
+                      <div className="sticky top-6 z-10 bg-forvis-gray-50 px-2 py-1 border-b border-forvis-gray-200">
+                        <div className="text-xs font-medium text-forvis-gray-900">
                           {subsectionDisplayNames[subsection] || subsection}
                         </div>
                       </div>
-                      <div className="flex flex-col divide-y divide-gray-100">
+                      <div className="flex flex-col divide-y divide-forvis-gray-100">
                         {items.map((item: SarsItem) => (
                           <button
                             key={item.sarsItem}
@@ -169,10 +169,10 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
                               setIsOpen(false);
                               setSearchTerm('');
                             }}
-                            className={`w-full px-2 py-1.5 text-left text-xs hover:bg-gray-50 focus:bg-gray-50 focus:outline-none ${
+                            className={`w-full px-2 py-1.5 text-left text-xs hover:bg-forvis-gray-50 focus:bg-forvis-gray-50 focus:outline-none ${
                               value === item.sarsItem
-                                ? 'bg-blue-50 text-blue-900 font-medium'
-                                : 'text-gray-700'
+                                ? 'bg-forvis-blue-50 text-forvis-blue-900 font-medium'
+                                : 'text-forvis-gray-700'
                             }`}
                           >
                             {item.sarsItem}
@@ -184,7 +184,7 @@ function CustomSelect({ value, onChange, disabled }: CustomSelectProps) {
                 </div>
               ))
             ) : (
-              <div className="p-2 text-center text-xs text-gray-500">
+              <div className="p-2 text-center text-xs text-forvis-gray-600">
                 No items match your search
               </div>
             )}
@@ -266,124 +266,124 @@ function MappingTable({ mappedData, onMappingUpdate }: MappingTableProps) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full divide-y divide-gray-200 table-fixed">
-        <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0">
+      <table className="w-full divide-y divide-forvis-gray-200 table-fixed">
+        <thead className="bg-forvis-gray-50 sticky top-0">
           <tr>
             <th 
               scope="col" 
               style={{ width: `${columnWidths.code}%` }}
-              className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+              className="relative px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
             >
               Code
               <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
                 onMouseDown={(e) => handleMouseDown(e, 'code')}
               />
             </th>
             <th 
               scope="col" 
               style={{ width: `${columnWidths.accountName}%` }}
-              className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+              className="relative px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
             >
               Account Name
               <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
                 onMouseDown={(e) => handleMouseDown(e, 'accountName')}
               />
             </th>
             <th 
               scope="col" 
               style={{ width: `${columnWidths.section}%` }}
-              className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+              className="relative px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
             >
               Section
               <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
                 onMouseDown={(e) => handleMouseDown(e, 'section')}
               />
             </th>
             <th 
               scope="col" 
               style={{ width: `${columnWidths.subsection}%` }}
-              className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+              className="relative px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
             >
               Subsection
               <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
                 onMouseDown={(e) => handleMouseDown(e, 'subsection')}
               />
             </th>
             <th 
               scope="col" 
               style={{ width: `${columnWidths.currentYear}%` }}
-              className="relative px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+              className="relative px-2 py-1.5 text-right text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
             >
               Current Year
               <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
                 onMouseDown={(e) => handleMouseDown(e, 'currentYear')}
               />
             </th>
             <th 
               scope="col" 
               style={{ width: `${columnWidths.priorYear}%` }}
-              className="relative px-2 py-1.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+              className="relative px-2 py-1.5 text-right text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
             >
               Prior Year
               <div 
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-forvis-blue-500 active:bg-forvis-blue-600"
                 onMouseDown={(e) => handleMouseDown(e, 'priorYear')}
               />
             </th>
             <th 
               scope="col" 
               style={{ width: `${columnWidths.sarsItem}%` }}
-              className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300"
+              className="px-2 py-1.5 text-left text-xs font-semibold text-forvis-gray-700 uppercase tracking-wider border-b border-forvis-gray-300"
             >
               SARS Item
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white divide-y divide-forvis-gray-200">
           {mappedData.map((item, index) => (
             <tr 
               key={item.id} 
               className={`transition-colors duration-150 ${
-                index % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'
+                index % 2 === 0 ? 'bg-white hover:bg-forvis-blue-50' : 'bg-forvis-gray-50 hover:bg-forvis-blue-50'
               }`}
             >
-              <td className="px-2 py-1 whitespace-nowrap text-xs font-medium text-gray-900">
+              <td className="px-2 py-1 whitespace-nowrap text-xs font-medium text-forvis-gray-900">
                 {item.accountCode}
               </td>
-              <td className="px-2 py-1 text-xs text-gray-900 truncate" title={item.accountName}>
+              <td className="px-2 py-1 text-xs text-forvis-gray-900 truncate" title={item.accountName}>
                 {item.accountName}
               </td>
-              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
+              <td className="px-2 py-1 whitespace-nowrap text-xs text-forvis-gray-700">
                 <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
                   item.section.toLowerCase() === 'balance sheet' 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-green-100 text-green-800'
+                    ? 'bg-forvis-blue-100 text-forvis-blue-800' 
+                    : 'bg-forvis-blue-100 text-forvis-blue-800'
                 }`}>
                   {item.section}
                 </span>
               </td>
-              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-700 truncate" title={subsectionDisplayNames[item.subsection] || item.subsection}>
+              <td className="px-2 py-1 whitespace-nowrap text-xs text-forvis-gray-700 truncate" title={subsectionDisplayNames[item.subsection] || item.subsection}>
                 {subsectionDisplayNames[item.subsection] || item.subsection}
               </td>
               <td className={`px-2 py-1 whitespace-nowrap text-xs text-right tabular-nums font-medium ${
-                item.balance < 0 ? 'text-red-600' : 'text-gray-900'
+                item.balance < 0 ? 'text-red-600' : 'text-forvis-gray-900'
               }`}>
                 {item.balance < 0 ? `(${formatAmount(Math.abs(item.balance))})` : formatAmount(item.balance)}
               </td>
               <td className={`px-2 py-1 whitespace-nowrap text-xs text-right tabular-nums font-medium ${
-                item.priorYearBalance < 0 ? 'text-red-600' : 'text-gray-600'
+                item.priorYearBalance < 0 ? 'text-red-600' : 'text-forvis-gray-600'
               }`}>
                 {item.priorYearBalance < 0 ? `(${formatAmount(Math.abs(item.priorYearBalance))})` : formatAmount(item.priorYearBalance)}
               </td>
-              <td className="px-2 py-1 whitespace-nowrap text-xs text-gray-900">
+              <td className="px-2 py-1 whitespace-nowrap text-xs text-forvis-gray-900">
                 {updatingRow === item.id ? (
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                  <div className="flex items-center gap-2 text-forvis-blue-600">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-forvis-blue-600"></div>
                     <span>Updating...</span>
                   </div>
                 ) : (
@@ -656,7 +656,7 @@ export default function MappingPage({ params }: { params: { id: string } }) {
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
     </div>;
   }
 
@@ -680,13 +680,16 @@ export default function MappingPage({ params }: { params: { id: string } }) {
       <div className="space-y-4">
         {/* Stats Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-3 text-white">
+        <div 
+          className="rounded-lg p-3 shadow-corporate text-white"
+          style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-xs font-medium">Total Accounts</p>
-              <p className="text-xl font-bold mt-1">{totalAccounts}</p>
+              <p className="text-xs font-medium opacity-90">Total Accounts</p>
+              <p className="text-2xl font-bold mt-1">{totalAccounts}</p>
             </div>
-            <div className="bg-blue-400 bg-opacity-30 rounded-full p-2">
+            <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -694,19 +697,22 @@ export default function MappingPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-3 text-white">
+        <div 
+          className="rounded-lg p-3 shadow-corporate text-white"
+          style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-xs font-medium">Completion Rate</p>
-              <p className="text-xl font-bold mt-1">{completionPercentage}%</p>
+              <p className="text-xs font-medium opacity-90">Completion Rate</p>
+              <p className="text-2xl font-bold mt-1">{completionPercentage}%</p>
             </div>
-            <div className="bg-green-400 bg-opacity-30 rounded-full p-2">
+            <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(37, 72, 138, 0.5)' }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
-          <div className="mt-2 bg-green-400 bg-opacity-30 rounded-full h-1.5">
+          <div className="mt-2 rounded-full h-1.5" style={{ backgroundColor: 'rgba(28, 54, 103, 0.3)' }}>
             <div 
               className="bg-white h-1.5 rounded-full transition-all duration-500"
               style={{ width: `${completionPercentage}%` }}
@@ -714,13 +720,16 @@ export default function MappingPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-3 text-white">
+        <div 
+          className="rounded-lg p-3 shadow-corporate text-white"
+          style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-xs font-medium">Balance Sheet</p>
-              <p className="text-xl font-bold mt-1">{balanceSheetAccounts}</p>
+              <p className="text-xs font-medium opacity-90">Balance Sheet</p>
+              <p className="text-2xl font-bold mt-1">{balanceSheetAccounts}</p>
             </div>
-            <div className="bg-purple-400 bg-opacity-30 rounded-full p-2">
+            <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(19, 36, 69, 0.5)' }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
@@ -728,13 +737,16 @@ export default function MappingPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-3 text-white">
+        <div 
+          className="rounded-lg p-3 shadow-corporate text-white"
+          style={{ background: 'linear-gradient(to bottom right, #1C3667, #132445)' }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-orange-100 text-xs font-medium">Income Statement</p>
-              <p className="text-xl font-bold mt-1">{incomeStatementAccounts}</p>
+              <p className="text-xs font-medium opacity-90">Income Statement</p>
+              <p className="text-2xl font-bold mt-1">{incomeStatementAccounts}</p>
             </div>
-            <div className="bg-orange-400 bg-opacity-30 rounded-full p-2">
+            <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(10, 18, 34, 0.5)' }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -744,14 +756,14 @@ export default function MappingPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Actions and Upload Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-forvis-gray-200 overflow-hidden">
         <div className="p-4 space-y-4">
           {/* Action Bar */}
-          <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-            <h2 className="text-base font-semibold text-gray-900">Account Mapping</h2>
+          <div className="flex justify-between items-center pb-2 border-b border-forvis-gray-200">
+            <h2 className="text-base font-semibold text-forvis-gray-900">Account Mapping</h2>
             <a
               href={`/dashboard/projects/${params.id}/tax-calculation/adjustments`}
-              className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-xs shadow-md hover:shadow-lg"
+              className="btn-primary text-xs px-3 py-1.5 flex items-center gap-2"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -765,15 +777,15 @@ export default function MappingPage({ params }: { params: { id: string } }) {
             <div className="space-y-2">
               <div className="flex items-center gap-2 justify-between">
                 <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-forvis-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <h3 className="text-sm font-semibold text-gray-900">Upload Trial Balance</h3>
+                  <h3 className="text-sm font-semibold text-forvis-gray-900">Upload Trial Balance</h3>
                 </div>
                 <a
                   href="/trial-balance-template.xlsx"
                   download="trial-balance-template.xlsx"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-forvis-blue-600 bg-forvis-blue-50 rounded-md hover:bg-forvis-blue-100 transition-colors"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -784,16 +796,16 @@ export default function MappingPage({ params }: { params: { id: string } }) {
               
               {/* File Format Guidance */}
               <details className="group">
-                <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                <summary className="cursor-pointer text-xs text-forvis-blue-600 hover:text-forvis-blue-700 font-medium flex items-center gap-1">
                   <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                   File Format Requirements
                 </summary>
-                <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-200 text-xs space-y-2">
+                <div className="mt-2 p-3 bg-forvis-blue-50 rounded-md border border-forvis-blue-200 text-xs space-y-2">
                   <div>
-                    <p className="font-semibold text-blue-900 mb-1">Required Columns:</p>
-                    <ul className="list-disc list-inside text-blue-800 space-y-0.5 ml-2">
+                    <p className="font-semibold text-forvis-gray-900 mb-1">Required Columns:</p>
+                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-0.5 ml-2">
                       <li><span className="font-medium">Account Code</span> (e.g., &quot;1000&quot;, &quot;2000&quot;)</li>
                       <li><span className="font-medium">Account Name</span> (e.g., &quot;Cash at Bank&quot;)</li>
                       <li><span className="font-medium">Section</span> (must be &quot;Balance Sheet&quot; or &quot;Income Statement&quot;)</li>
@@ -802,15 +814,15 @@ export default function MappingPage({ params }: { params: { id: string } }) {
                     </ul>
                   </div>
                   <div>
-                    <p className="font-semibold text-blue-900 mb-1">Balance Conventions:</p>
-                    <ul className="list-disc list-inside text-blue-800 space-y-0.5 ml-2">
+                    <p className="font-semibold text-forvis-gray-900 mb-1">Balance Conventions:</p>
+                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-0.5 ml-2">
                       <li><span className="font-medium">Income Statement:</span> Negative = income, Positive = expenses</li>
                       <li><span className="font-medium">Balance Sheet:</span> Negative = liabilities/equity, Positive = assets</li>
                     </ul>
                   </div>
                   <div>
-                    <p className="font-semibold text-blue-900 mb-1">File Requirements:</p>
-                    <ul className="list-disc list-inside text-blue-800 space-y-0.5 ml-2">
+                    <p className="font-semibold text-forvis-gray-900 mb-1">File Requirements:</p>
+                    <ul className="list-disc list-inside text-forvis-gray-700 space-y-0.5 ml-2">
                       <li>Formats: Excel (.xlsx, .xls) or CSV (.csv)</li>
                       <li>System reads the first sheet only</li>
                       <li>Headers must be in the first row</li>
@@ -819,13 +831,13 @@ export default function MappingPage({ params }: { params: { id: string } }) {
                 </div>
               </details>
 
-              <div className="flex justify-center px-4 pt-3 pb-4 border-2 border-blue-300 border-dashed rounded-lg bg-blue-50 transition-all duration-200 ease-in-out hover:bg-blue-100 hover:border-blue-400">
+              <div className="flex justify-center px-4 pt-3 pb-4 border-2 border-forvis-blue-300 border-dashed rounded-lg bg-forvis-blue-50 transition-all duration-200 ease-in-out hover:bg-forvis-blue-100 hover:border-forvis-blue-400">
                 <div className="space-y-1 text-center">
-                  <svg className="mx-auto h-8 w-8 text-blue-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                  <svg className="mx-auto h-8 w-8 text-forvis-blue-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                     <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <div className="flex text-xs text-gray-700 justify-center">
-                    <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-semibold text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                  <div className="flex text-xs text-forvis-gray-700 justify-center">
+                    <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-semibold text-forvis-blue-600 hover:text-forvis-blue-700 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-forvis-blue-500">
                       <span>{isUploading ? 'Uploading...' : 'Upload a file'}</span>
                       <input 
                         id="file-upload" 
@@ -839,7 +851,7 @@ export default function MappingPage({ params }: { params: { id: string } }) {
                     </label>
                     <p className="pl-1">or drag and drop</p>
                   </div>
-                  <p className="text-xs text-gray-600 font-medium">Excel or CSV files</p>
+                  <p className="text-xs text-forvis-gray-600 font-medium">Excel or CSV files</p>
                 </div>
               </div>
             </div>
@@ -847,15 +859,15 @@ export default function MappingPage({ params }: { params: { id: string } }) {
             {/* Download Section */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-forvis-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <h3 className="text-sm font-semibold text-gray-900">Download Data</h3>
+                <h3 className="text-sm font-semibold text-forvis-gray-900">Download Data</h3>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={downloadJson}
-                  className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-forvis-gray-300 shadow-sm text-xs font-medium rounded-lg text-forvis-gray-700 bg-white hover:bg-forvis-gray-50 hover:border-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-all duration-200 ease-in-out"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -864,7 +876,7 @@ export default function MappingPage({ params }: { params: { id: string } }) {
                 </button>
                 <button
                   onClick={downloadExcel}
-                  className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out"
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-forvis-gray-300 shadow-sm text-xs font-medium rounded-lg text-forvis-gray-700 bg-white hover:bg-forvis-gray-50 hover:border-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forvis-blue-500 transition-all duration-200 ease-in-out"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -876,32 +888,32 @@ export default function MappingPage({ params }: { params: { id: string } }) {
           </div>
 
           {/* Financial Totals */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-gray-200">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-forvis-gray-200">
+            <div className="bg-forvis-blue-50 rounded-lg p-3 border border-forvis-blue-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-medium text-blue-900 mb-1">Balance Sheet Total</h3>
-                  <p className={`text-xl font-bold tabular-nums ${totals.balanceSheet < 0 ? 'text-red-600' : 'text-blue-900'}`}>
+                  <h3 className="text-xs font-medium text-forvis-gray-700 mb-1">Balance Sheet Total</h3>
+                  <p className={`text-xl font-bold tabular-nums ${totals.balanceSheet < 0 ? 'text-red-600' : 'text-forvis-blue-700'}`}>
                     {totals.balanceSheet < 0 ? `(${formatAmount(Math.abs(totals.balanceSheet))})` : formatAmount(totals.balanceSheet)}
                   </p>
                 </div>
-                <div className="bg-blue-200 bg-opacity-50 rounded-full p-2">
-                  <svg className="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-forvis-blue-100 rounded-full p-2">
+                  <svg className="w-5 h-5 text-forvis-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200 shadow-sm">
+            <div className="bg-forvis-blue-50 rounded-lg p-3 border border-forvis-blue-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-medium text-green-900 mb-1">Income Statement Total</h3>
-                  <p className={`text-xl font-bold tabular-nums ${totals.incomeStatement < 0 ? 'text-red-600' : 'text-green-900'}`}>
+                  <h3 className="text-xs font-medium text-forvis-gray-700 mb-1">Income Statement Total</h3>
+                  <p className={`text-xl font-bold tabular-nums ${totals.incomeStatement < 0 ? 'text-red-600' : 'text-forvis-blue-700'}`}>
                     {totals.incomeStatement < 0 ? `(${formatAmount(Math.abs(totals.incomeStatement))})` : formatAmount(totals.incomeStatement)}
                   </p>
                 </div>
-                <div className="bg-green-200 bg-opacity-50 rounded-full p-2">
-                  <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-forvis-blue-100 rounded-full p-2">
+                  <svg className="w-5 h-5 text-forvis-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
@@ -912,18 +924,18 @@ export default function MappingPage({ params }: { params: { id: string } }) {
           {/* Mapping Table */}
           {mappedData.length > 0 ? (
             <div className="pt-3">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Account Details</h3>
-              <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+              <h3 className="text-sm font-semibold text-forvis-gray-900 mb-2">Account Details</h3>
+              <div className="rounded-lg border border-forvis-gray-200 overflow-hidden shadow-sm">
                 <MappingTable mappedData={mappedData} onMappingUpdate={handleMappingUpdate} />
               </div>
             </div>
           ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-center py-12 bg-forvis-gray-50 rounded-lg border-2 border-dashed border-forvis-gray-300">
+              <svg className="mx-auto h-12 w-12 text-forvis-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="mt-3 text-base font-medium text-gray-900">No data available</h3>
-              <p className="mt-1 text-xs text-gray-500">Get started by uploading a trial balance file.</p>
+              <h3 className="mt-3 text-base font-medium text-forvis-gray-900">No data available</h3>
+              <p className="mt-1 text-xs text-forvis-gray-600">Get started by uploading a trial balance file.</p>
             </div>
           )}
         </div>

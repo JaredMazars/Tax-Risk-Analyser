@@ -42,7 +42,9 @@ export default async function DashboardLayout({
       </header>
 
       {/* Navigation Bar */}
-      <DashboardNav />
+      <div style={{ backgroundColor: '#25488A', minHeight: '48px' }}>
+        <DashboardNav />
+      </div>
       
       {/* Main Content */}
       <main className="py-6">
