@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { HealthCheckResult } from '@/types/api';
+import { logError } from '@/lib/logger';
 
 /**
  * GET /api/health
@@ -32,7 +33,7 @@ export async function GET() {
       latency: dbLatency,
     };
   } catch (error) {
-    console.error('Database health check failed:', error);
+    logError('Database health check failed', error);
     healthCheck.services.database = {
       status: 'down',
       message: 'Database connection failed',

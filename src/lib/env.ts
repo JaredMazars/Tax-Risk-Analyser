@@ -31,9 +31,10 @@ const OPTIONAL_ENV_VARS = {
 export function validateEnvironment(): void {
   try {
     validateEnvVariables(REQUIRED_ENV_VARS);
-    console.log('✓ Environment variables validated successfully');
+    // Environment validation successful - logger may not be initialized yet
+    // so we skip logging here to avoid circular dependencies
   } catch (error) {
-    console.error('✗ Environment validation failed:', error);
+    // Re-throw without logging to avoid circular dependency with logger
     throw error;
   }
 }

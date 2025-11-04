@@ -14,9 +14,12 @@ const msalConfig = {
 const pca = new ConfidentialClientApplication(msalConfig);
 const cryptoProvider = new CryptoProvider();
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || 'your-secret-key-change-this'
-);
+// Ensure NEXTAUTH_SECRET is set - fail fast if not configured
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET environment variable is not set. Please configure it in your .env file.');
+}
+
+const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
 export interface SessionUser {
   id: string;

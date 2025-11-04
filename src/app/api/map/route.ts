@@ -3,6 +3,7 @@ import { read, utils } from 'xlsx';
 import OpenAI from 'openai';
 import { mappingGuide } from '@/lib/mappingGuide';
 import { prisma } from '@/lib/prisma';
+import { logInfo, logError, logWarn } from '@/lib/logger';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -33,7 +34,7 @@ export function determineSectionAndSubsection(sarsItem: string, balance: number)
   }
 
   // Fallback for unmapped items - map to appropriate "Other" category
-  console.warn(`Unmapped sarsItem: "${sarsItem}" with balance ${balance}. Mapping to "Other" category.`);
+  logWarn(`Unmapped sarsItem: "${sarsItem}" with balance ${balance}. Mapping to "Other" category.`);
   
   // For Balance Sheet items, determine based on balance
   if (balance > 0) {
@@ -238,12 +239,12 @@ Do not include any explanation, commentary, or text outside the JSON array.
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('=== Starting POST /api/map ===');
+    logInfo('Starting POST /api/map');
     const formData = await request.formData();
     const trialBalanceFile = formData.get('trialBalance') as File;
     const projectIdStr = formData.get('projectId') as string;
     const streamProgress = formData.get('stream') === 'true';
-    console.log('Project ID:', projectIdStr, 'Stream:', streamProgress);
+    logInfo('Processing mapping request', { projectId: projectIdStr, stream: streamProgress });
 
     if (!trialBalanceFile) {
       return NextResponse.json(
@@ -306,9 +307,9 @@ export async function POST(request: NextRequest) {
     );
 
     // Process Income Statement first
-    console.log('Processing Income Statement with', incomeStatementData.length, 'rows');
+    logInfo('Processing Income Statement', { rowCount: incomeStatementData.length });
     const incomeStatementPrompt = generatePrompt(incomeStatementData as Record<string, unknown>[], mappingGuide.incomeStatement, 'Income Statement');
-    console.log('Calling OpenAI API for Income Statement...');
+    logInfo('Calling OpenAI API for Income Statement');
     let incomeStatementCompletion;
     try {
       incomeStatementCompletion = await openai.chat.completions.create({
@@ -350,8 +351,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
         response_format: { type: "json_object" }
       });
     } catch (apiError: any) {
-      console.error('OpenAI API Error for Income Statement:', apiError);
-      console.error('Error details:', {
+      logError('OpenAI API Error for Income Statement', apiError, {
         message: apiError.message,
         status: apiError.status,
         code: apiError.code,
@@ -360,14 +360,14 @@ Do not include any explanation, commentary, or text outside the JSON array.
       throw new Error(`OpenAI API Error: ${apiError.message || apiError}`);
     }
 
-    console.log('Income Statement Response:', incomeStatementCompletion.choices[0].message.content);
+    logInfo('Income Statement mapping completed', { accountCount: incomeStatementCompletion.choices[0].message.content?.length || 0 });
     const incomeStatementMapped = parseLLMResponse(incomeStatementCompletion.choices[0].message.content);
-    console.log('Income Statement Mapped:', incomeStatementMapped);
+    logInfo('Income Statement accounts mapped', { count: incomeStatementMapped.length });
 
     // Process Balance Sheet
-    console.log('Processing Balance Sheet with', balanceSheetData.length, 'rows');
+    logInfo('Processing Balance Sheet', { rowCount: balanceSheetData.length });
     const balanceSheetPrompt = generatePrompt(balanceSheetData as Record<string, unknown>[], mappingGuide.balanceSheet, 'Balance Sheet');
-    console.log('Calling OpenAI API for Balance Sheet...');
+    logInfo('Calling OpenAI API for Balance Sheet');
     const balanceSheetCompletion = await openai.chat.completions.create({
       messages: [
         {
@@ -407,9 +407,9 @@ Do not include any explanation, commentary, or text outside the JSON array.
       response_format: { type: "json_object" }
     });
 
-    console.log('Balance Sheet Response:', balanceSheetCompletion.choices[0].message.content);
+    logInfo('Balance Sheet mapping completed', { accountCount: balanceSheetCompletion.choices[0].message.content?.length || 0 });
     const balanceSheetMapped = parseLLMResponse(balanceSheetCompletion.choices[0].message.content);
-    console.log('Balance Sheet Mapped:', balanceSheetMapped);
+    logInfo('Balance Sheet accounts mapped', { count: balanceSheetMapped.length });
 
     // Combine results
     const combinedResults = [...incomeStatementMapped, ...balanceSheetMapped];
@@ -432,16 +432,10 @@ Do not include any explanation, commentary, or text outside the JSON array.
       });
 
       // Log the data we're about to insert
-      console.log('Data to insert:', enrichedResults.map(item => ({
-        projectId,
-        accountCode: item.accountCode.toString(),
-        accountName: item.accountName,
-        section: item.section,
-        subsection: item.subsection,
-        balance: item.balance,
-        priorYearBalance: item.priorYearBalance || 0,
-        sarsItem: item.sarsItem
-      })));
+      logInfo('Inserting mapped accounts to database', { 
+        projectId, 
+        accountCount: enrichedResults.length 
+      });
 
       // Use createMany for better performance and to avoid transaction timeout
       if (enrichedResults.length > 0) {
@@ -466,10 +460,9 @@ Do not include any explanation, commentary, or text outside the JSON array.
     return NextResponse.json(enrichedResults);
 
   } catch (error) {
-    console.error('Error processing files:', error);
-    console.error('Error stack:', (error as Error).stack);
+    logError('Error processing files', error);
     return NextResponse.json(
-      { error: 'Error processing files: ' + (error as Error).message, stack: (error as Error).stack },
+      { error: 'Error processing files: ' + (error as Error).message },
       { status: 500 }
     );
   }
@@ -550,8 +543,7 @@ function parseLLMResponse(llmResponse: string | null) {
 
     return accounts;
   } catch (error) {
-    console.error('Error parsing LLM response:', error);
-    console.error('Raw response:', llmResponse);
+    logError('Error parsing LLM response', error, { rawResponse: llmResponse?.substring(0, 500) });
     throw new Error('Failed to parse the mapping result: ' + (error as Error).message);
   }
 } 
