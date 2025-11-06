@@ -213,8 +213,8 @@ export default function ReportingPage({ params }: ReportingPageProps) {
     <div className="space-y-4">
       {/* Action Bar */}
       <div className="bg-white rounded-lg shadow-corporate border border-forvis-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="flex-1">
             <h2 className="text-base font-semibold text-forvis-gray-900 mb-3">Select Reports for PDF Export</h2>
             <div className="flex flex-wrap gap-4">
               <label className="flex items-center space-x-2 cursor-pointer">
@@ -291,11 +291,11 @@ export default function ReportingPage({ params }: ReportingPageProps) {
               </button>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex-shrink-0">
             <button
               onClick={handleExportPDF}
               disabled={isExporting}
-              className="px-4 py-2 bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 disabled:bg-forvis-gray-400 flex items-center gap-2 shadow-corporate hover:shadow-corporate-md transition-all"
+              className="w-full lg:w-auto px-6 py-3 bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 disabled:bg-forvis-gray-400 flex items-center justify-center gap-2 shadow-corporate hover:shadow-corporate-md transition-all"
             >
               {isExporting ? (
                 <>

@@ -159,8 +159,8 @@ function addTrialBalanceToPDF(doc: jsPDF, data: ReportData['trialBalance']) {
       formatAmount(Math.abs(data.totals.priorYear))
     ]],
     theme: 'grid',
-    headStyles: { fillColor: [71, 85, 105], fontSize: 9 },
-    footStyles: { fillColor: [229, 231, 235], textColor: [0, 0, 0], fontStyle: 'bold' },
+    headStyles: { fillColor: [91, 147, 215], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
+    footStyles: { fillColor: [46, 90, 172], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
     styles: { fontSize: 8, cellPadding: 2 },
     columnStyles: {
       0: { cellWidth: 20 },
@@ -480,7 +480,7 @@ function addIncomeStatementToPDF(doc: jsPDF, data: ReportData['incomeStatement']
     head: [['Description', 'Current Year (R)', 'Prior Year (R)']],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [71, 85, 105], fontSize: 9, fontStyle: 'bold' },
+    headStyles: { fillColor: [46, 90, 172], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
     styles: { fontSize: 8, cellPadding: 2 },
     columnStyles: {
       0: { cellWidth: 100 },
@@ -607,7 +607,7 @@ function addTaxCalculationToPDF(doc: jsPDF, data: ReportData['taxCalculation']) 
     head: [['Description', 'Amount (R)', 'Notes']],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [71, 85, 105], fontSize: 9, fontStyle: 'bold' },
+    headStyles: { fillColor: [46, 90, 172], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
     styles: { fontSize: 7, cellPadding: 2, lineColor: [200, 200, 200] },
     columnStyles: {
       0: { cellWidth: 110 },
@@ -670,7 +670,7 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
   checkPageBreak(20);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setFillColor(99, 102, 241); // Indigo
+  doc.setFillColor(91, 147, 215); // Brand blue
   doc.rect(marginLeft, y - 6, maxWidth, 10, 'F');
   doc.setTextColor(255, 255, 255);
   doc.text('EXECUTIVE SUMMARY', marginLeft + 3, y);
@@ -684,7 +684,7 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
   checkPageBreak(20);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setFillColor(239, 68, 68); // Red
+  doc.setFillColor(37, 72, 138); // Brand dark blue
   doc.rect(marginLeft, y - 6, maxWidth, 10, 'F');
   doc.setTextColor(255, 255, 255);
   doc.text(`RISK ANALYSIS (${data.risks.length} risks identified)`, marginLeft + 3, y);
@@ -703,13 +703,13 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
     let severityColor: [number, number, number];
     switch (risk.severity) {
       case 'high':
-        severityColor = [239, 68, 68]; // Red
+        severityColor = [28, 54, 103]; // Brand darkest blue
         break;
       case 'medium':
-        severityColor = [234, 179, 8]; // Yellow
+        severityColor = [46, 90, 172]; // Brand medium blue
         break;
       case 'low':
-        severityColor = [59, 130, 246]; // Blue
+        severityColor = [91, 147, 215]; // Brand light blue
         break;
     }
     
@@ -739,11 +739,11 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
     // Recommendation
     y += 2;
     checkPageBreak(15);
-    doc.setFillColor(219, 234, 254); // Light blue
+    doc.setFillColor(245, 248, 252); // Light brand blue
     doc.rect(marginLeft + 2, y - 3, maxWidth - 4, 4, 'F');
     doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 64, 175); // Dark blue
+    doc.setTextColor(28, 54, 103); // Brand darkest blue
     doc.text('RECOMMENDATION:', marginLeft + 4, y);
     doc.setTextColor(0, 0, 0);
     y += 5;
@@ -766,7 +766,7 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
   checkPageBreak(20);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setFillColor(234, 179, 8); // Yellow
+  doc.setFillColor(28, 54, 103); // Brand darkest blue
   doc.rect(marginLeft, y - 6, maxWidth, 10, 'F');
   doc.setTextColor(255, 255, 255);
   doc.text(`TAX-SENSITIVE ITEMS (${data.taxSensitiveItems.length} items)`, marginLeft + 3, y);
@@ -776,7 +776,7 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
   data.taxSensitiveItems.forEach((item, idx) => {
     checkPageBreak(25);
     
-    doc.setFillColor(254, 249, 195); // Light yellow
+    doc.setFillColor(245, 248, 252); // Light brand blue
     doc.rect(marginLeft, y - 3, maxWidth, 3, 'F');
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
@@ -810,7 +810,7 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
   checkPageBreak(20);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setFillColor(107, 114, 128); // Gray
+  doc.setFillColor(91, 147, 215); // Brand blue
   doc.rect(marginLeft, y - 6, maxWidth, 10, 'F');
   doc.setTextColor(255, 255, 255);
   doc.text('DETAILED FINDINGS', marginLeft + 3, y);
@@ -824,7 +824,7 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
   checkPageBreak(20);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setFillColor(34, 197, 94); // Green
+  doc.setFillColor(46, 90, 172); // Brand medium blue
   doc.rect(marginLeft, y - 6, maxWidth, 10, 'F');
   doc.setTextColor(255, 255, 255);
   doc.text(`RECOMMENDATIONS (${data.recommendations.length} items)`, marginLeft + 3, y);
@@ -835,11 +835,11 @@ function addAITaxReportToPDF(doc: jsPDF, data: AITaxReportData) {
     checkPageBreak(15);
     
     // Number badge
-    doc.setFillColor(220, 252, 231); // Light green
+    doc.setFillColor(232, 237, 245); // Light brand blue
     doc.circle(marginLeft + 3, y - 2, 3, 'F');
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(22, 163, 74); // Green
+    doc.setTextColor(46, 90, 172); // Brand medium blue
     doc.text((idx + 1).toString(), marginLeft + 3, y, { align: 'center' });
     doc.setTextColor(0, 0, 0);
     

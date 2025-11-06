@@ -123,23 +123,23 @@ KEY FIGURES REFERENCE - USE THESE EXACT AMOUNTS IN YOUR ANALYSIS
 =================================================================================
 
 FINANCIAL POSITION:
-- Total Assets: R${this.formatAmount(data.balanceSheet.totalAssets)} (${data.balanceSheet.totalAssets})
-- Total Equity: R${this.formatAmount(data.balanceSheet.totalEquity)} (${data.balanceSheet.totalEquity})
-- Total Liabilities: R${this.formatAmount(data.balanceSheet.totalLiabilities)} (${data.balanceSheet.totalLiabilities})
+- Total Assets: R${this.formatAmount(data.balanceSheet.totalAssets)}
+- Total Equity: R${this.formatAmount(data.balanceSheet.totalEquity)}
+- Total Liabilities: R${this.formatAmount(data.balanceSheet.totalLiabilities)}
 
 INCOME STATEMENT:
-- Revenue: R${this.formatAmount(data.incomeStatement.totalRevenue)} (${data.incomeStatement.totalRevenue})
-- Expenses: R${this.formatAmount(data.incomeStatement.totalExpenses)} (${data.incomeStatement.totalExpenses})
-- Net Profit (Accounting): R${this.formatAmount(data.incomeStatement.netProfit)} (${data.incomeStatement.netProfit})
+- Revenue: R${this.formatAmount(data.incomeStatement.totalRevenue)}
+- Expenses: R${this.formatAmount(data.incomeStatement.totalExpenses)}
+- Net Profit (Accounting): R${this.formatAmount(data.incomeStatement.netProfit)}
 
 TAX COMPUTATION SUMMARY:
-- Accounting Profit: R${this.formatAmount(data.taxCalculation.accountingProfit)} (${data.taxCalculation.accountingProfit})
-- Total Debit Adjustments: R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)} (${data.taxCalculation.totalDebitAdjustments})
-- Total Credit Adjustments: R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)} (${data.taxCalculation.totalCreditAdjustments})
-- Total Allowances: R${this.formatAmount(data.taxCalculation.totalAllowances)} (${data.taxCalculation.totalAllowances})
-- Total Recoupments: R${this.formatAmount(data.taxCalculation.totalRecoupments)} (${data.taxCalculation.totalRecoupments})
-- TAXABLE INCOME: R${this.formatAmount(data.taxCalculation.taxableIncome)} (${data.taxCalculation.taxableIncome})
-- TAX LIABILITY (27%): R${this.formatAmount(data.taxCalculation.taxLiability)} (${data.taxCalculation.taxLiability})
+- Accounting Profit: R${this.formatAmount(data.taxCalculation.accountingProfit)}
+- Total Debit Adjustments: R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)}
+- Total Credit Adjustments: R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)}
+- Total Allowances: R${this.formatAmount(data.taxCalculation.totalAllowances)}
+- Total Recoupments: R${this.formatAmount(data.taxCalculation.totalRecoupments)}
+- TAXABLE INCOME: R${this.formatAmount(data.taxCalculation.taxableIncome)}
+- TAX LIABILITY (27%): R${this.formatAmount(data.taxCalculation.taxLiability)}
 
 =================================================================================
 TAX CALCULATION VERIFICATION TABLE
@@ -161,7 +161,7 @@ ADJUSTMENTS BY CATEGORY
 DEBIT ADJUSTMENTS (${debitAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)}):
 ${debitAdjustments.length > 0 ? debitAdjustments.map((adj, idx) => `
 ${idx + 1}. ${adj.description}
-   Amount: R${this.formatAmount(Math.abs(adj.amount))} (${Math.abs(adj.amount)})
+   Amount: R${this.formatAmount(Math.abs(adj.amount))}
    ${adj.sarsSection ? `SARS Section: ${adj.sarsSection}` : ''}
    ${adj.notes ? `Notes: ${adj.notes}` : ''}
    ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
@@ -170,7 +170,7 @@ ${idx + 1}. ${adj.description}
 CREDIT ADJUSTMENTS (${creditAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)}):
 ${creditAdjustments.length > 0 ? creditAdjustments.map((adj, idx) => `
 ${idx + 1}. ${adj.description}
-   Amount: R${this.formatAmount(Math.abs(adj.amount))} (${Math.abs(adj.amount)})
+   Amount: R${this.formatAmount(Math.abs(adj.amount))}
    ${adj.sarsSection ? `SARS Section: ${adj.sarsSection}` : ''}
    ${adj.notes ? `Notes: ${adj.notes}` : ''}
    ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
@@ -179,7 +179,7 @@ ${idx + 1}. ${adj.description}
 ALLOWANCES (${allowanceAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalAllowances)}):
 ${allowanceAdjustments.length > 0 ? allowanceAdjustments.map((adj, idx) => `
 ${idx + 1}. ${adj.description}
-   Amount: R${this.formatAmount(Math.abs(adj.amount))} (${Math.abs(adj.amount)})
+   Amount: R${this.formatAmount(Math.abs(adj.amount))}
    ${adj.sarsSection ? `SARS Section: ${adj.sarsSection}` : ''}
    ${adj.notes ? `Notes: ${adj.notes}` : ''}
    ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
@@ -188,7 +188,7 @@ ${idx + 1}. ${adj.description}
 RECOUPMENTS (${recoupmentAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalRecoupments)}):
 ${recoupmentAdjustments.length > 0 ? recoupmentAdjustments.map((adj, idx) => `
 ${idx + 1}. ${adj.description}
-   Amount: R${this.formatAmount(Math.abs(adj.amount))} (${Math.abs(adj.amount)})
+   Amount: R${this.formatAmount(Math.abs(adj.amount))}
    ${adj.sarsSection ? `SARS Section: ${adj.sarsSection}` : ''}
    ${adj.notes ? `Notes: ${adj.notes}` : ''}
    ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
@@ -240,7 +240,7 @@ Please provide a comprehensive tax analysis report in the following JSON format:
 
 IMPORTANT REQUIREMENTS:
 - You MUST use the EXACT figures provided in the KEY FIGURES REFERENCE section
-- When citing amounts, always use the exact numbers from the data provided - DO NOT recalculate
+- When citing amounts, always reference the properly formatted amounts with R prefix - DO NOT include unformatted numbers
 - All calculations have been verified - your role is to analyze, not recalculate
 - Identify at least 5-10 risks across different severity levels
 - Highlight 8-15 tax-sensitive items that require attention
@@ -250,7 +250,7 @@ IMPORTANT REQUIREMENTS:
 - Consider South African tax law, including allowances (s11-13), recoupments (s8), and general deductions
 - Flag any adjustments with low confidence scores or missing documentation
 - Consider timing issues, provisional tax implications, and SARS audit risks
-- The taxable income of R${this.formatAmount(data.taxCalculation.taxableIncome)} and tax liability of R${this.formatAmount(data.taxCalculation.taxLiability)} are pre-calculated and must be used as-is`;
+- The taxable income and tax liability figures are pre-calculated and must be used as-is`;
   }
 
   /**
