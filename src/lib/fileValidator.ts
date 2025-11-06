@@ -64,8 +64,8 @@ async function checkMagicBytes(filePath: string): Promise<string | null> {
     const stream = createReadStream(filePath, { start: 0, end: 7 });
     const chunks: Buffer[] = [];
     
-    stream.on('data', (chunk: Buffer) => {
-      chunks.push(chunk);
+    stream.on('data', (chunk: string | Buffer) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     });
     
     stream.on('end', () => {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { determineSectionAndSubsection } from '@/app/api/map/route';
+import { determineSectionAndSubsection } from '@/lib/sectionMapper';
 
 export async function PATCH(
   request: Request,

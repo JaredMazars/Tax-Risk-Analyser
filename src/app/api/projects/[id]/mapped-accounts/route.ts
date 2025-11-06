@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { determineSectionAndSubsection } from '@/app/api/map/route';
+import { determineSectionAndSubsection } from '@/lib/sectionMapper';
 import { handleApiError } from '@/lib/errorHandler';
 import { parseProjectId, successResponse } from '@/lib/apiUtils';
 
