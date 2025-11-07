@@ -22,6 +22,8 @@ AZURE_OPENAI_API_KEY=your-azure-api-key-here
 4. Copy **KEY 1** or **KEY 2**
 5. Add it to your `.env.local` file
 
+**Note:** You no longer need `OPENAI_API_KEY` - only `AZURE_OPENAI_API_KEY` is required now.
+
 ### Configuration Details
 
 - **Endpoint:** `https://walte-mflcntql-swedencentral.cognitiveservices.azure.com/`

@@ -5,7 +5,7 @@ import { validateEnvVariables } from './errorHandler';
  */
 const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
-  'OPENAI_API_KEY',
+  'AZURE_OPENAI_API_KEY',
   'NEXTAUTH_SECRET',
   'NEXTAUTH_URL',
   'AZURE_AD_CLIENT_ID',
@@ -22,6 +22,7 @@ const OPTIONAL_ENV_VARS = {
   RATE_LIMIT_MAX_REQUESTS: '10',
   RATE_LIMIT_WINDOW_MS: '60000', // 1 minute
   AZURE_STORAGE_CONTAINER_NAME: 'adjustment-documents',
+  AZURE_OPENAI_DEPLOYMENT: 'gpt-5-mini',
 } as const;
 
 /**
@@ -142,8 +143,12 @@ export const env = {
   // Database
   databaseUrl: getRequiredEnvVar('DATABASE_URL'),
   
-  // OpenAI
-  openaiApiKey: getRequiredEnvVar('OPENAI_API_KEY'),
+  // Azure OpenAI (replaces direct OpenAI)
+  azureOpenAiApiKey: getRequiredEnvVar('AZURE_OPENAI_API_KEY'),
+  azureOpenAiDeployment: getEnvVar(
+    'AZURE_OPENAI_DEPLOYMENT',
+    OPTIONAL_ENV_VARS.AZURE_OPENAI_DEPLOYMENT
+  ),
   
   // NextAuth
   nextAuthSecret: getRequiredEnvVar('NEXTAUTH_SECRET'),
