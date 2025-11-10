@@ -63,6 +63,7 @@ export async function handleCallback(code: string, redirectUri: string) {
 
   const email = response.account.username;
   const name = response.account.name || response.account.username;
+  const userId = response.account.homeAccountId || response.account.localAccountId;
 
   // Find or create user in database
   let dbUser = await prisma.user.findUnique({
@@ -73,6 +74,7 @@ export async function handleCallback(code: string, redirectUri: string) {
     // Create new user in database
     dbUser = await prisma.user.create({
       data: {
+        id: userId,
         email,
         name,
         role: 'USER', // Default role
@@ -101,8 +103,10 @@ export async function createSession(user: SessionUser): Promise<string> {
 
   // Store session in database
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
+  const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   await prisma.session.create({
     data: {
+      id: sessionId,
       sessionToken: token,
       userId: user.id,
       expires: expiresAt,
@@ -119,7 +123,7 @@ export async function getSessionFromDatabase(token: string): Promise<any | null>
   try {
     const session = await prisma.session.findUnique({
       where: { sessionToken: token },
-      include: { user: true },
+      include: { User: true },
     });
 
     // Check if session exists and hasn't expired
@@ -168,6 +172,9 @@ export async function verifySession(token: string): Promise<Session | null> {
       return null;
     }
 
+    // Return the verified payload which contains the user info
+    // The dbSession.User contains the database user record, but we use the JWT payload
+    // which already has the user information embedded
     return verified.payload as unknown as Session;
   } catch (error) {
     return null;
@@ -197,24 +204,126 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 }
 
 /**
- * Check if user has access to a project (placeholder - implement with database check)
+ * Role hierarchy levels - higher number = more permissions
+ */
+const ROLE_HIERARCHY = {
+  VIEWER: 1,
+  EDITOR: 2,
+  REVIEWER: 3,
+  ADMIN: 4,
+} as const;
+
+/**
+ * Check if a role has sufficient permissions
+ */
+function hasRolePermission(userRole: string, requiredRole: string): boolean {
+  const userLevel = ROLE_HIERARCHY[userRole as keyof typeof ROLE_HIERARCHY] || 0;
+  const requiredLevel = ROLE_HIERARCHY[requiredRole as keyof typeof ROLE_HIERARCHY] || 0;
+  return userLevel >= requiredLevel;
+}
+
+/**
+ * Check if user has access to a project with optional role requirement
  */
 export async function checkProjectAccess(
   userId: string,
   projectId: number,
   requiredRole?: string
 ): Promise<boolean> {
-  // TODO: Implement actual project access check with database
-  // For now, return true to allow access
-  return true;
+  try {
+    // Get user's project membership
+    const projectUser = await prisma.projectUser.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
+      },
+    });
+
+    // User not on project
+    if (!projectUser) {
+      return false;
+    }
+
+    // If no specific role required, any membership is sufficient
+    if (!requiredRole) {
+      return true;
+    }
+
+    // Check role hierarchy
+    return hasRolePermission(projectUser.role, requiredRole);
+  } catch (error) {
+    console.error('Error checking project access:', error);
+    return false;
+  }
 }
 
 /**
- * Require admin access (placeholder - implement with database check)
+ * Get user's role on a project
  */
-export async function requireAdmin(): Promise<boolean> {
-  // TODO: Implement actual admin check with database
-  return true;
+export async function getUserProjectRole(
+  userId: string,
+  projectId: number
+): Promise<string | null> {
+  try {
+    const projectUser = await prisma.projectUser.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
+      },
+    });
+
+    return projectUser?.role || null;
+  } catch (error) {
+    console.error('Error getting user project role:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if user is a system admin
+ */
+export async function isSystemAdmin(userId: string): Promise<boolean> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    return user?.role === 'ADMIN';
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+}
+
+/**
+ * Require admin access - throws error if not admin
+ */
+export async function requireAdmin(userId: string): Promise<void> {
+  const isAdmin = await isSystemAdmin(userId);
+  
+  if (!isAdmin) {
+    throw new Error('Admin access required');
+  }
+}
+
+/**
+ * Require specific project role - throws error if insufficient permissions
+ */
+export async function requireProjectRole(
+  userId: string,
+  projectId: number,
+  requiredRole: string
+): Promise<void> {
+  const hasAccess = await checkProjectAccess(userId, projectId, requiredRole);
+  
+  if (!hasAccess) {
+    throw new Error(`Insufficient permissions. Required role: ${requiredRole}`);
+  }
 }
 
 /**
@@ -246,9 +355,9 @@ export async function getUserProjects(userId: string): Promise<any[]> {
   const projectUsers = await prisma.projectUser.findMany({
     where: { userId },
     include: {
-      project: true,
+      Project: true,
     },
   });
 
-  return projectUsers.map(pu => pu.project);
+  return projectUsers.map(pu => pu.Project);
 }

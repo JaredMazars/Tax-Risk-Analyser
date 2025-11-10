@@ -5,12 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   ChevronDownIcon,
-  HomeIcon,
-  CalculatorIcon,
-  BookOpenIcon,
-  LinkIcon,
-  Cog6ToothIcon,
-  AcademicCapIcon
+  BuildingOfficeIcon,
+  UserGroupIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 
 interface NavItem {
@@ -26,32 +23,21 @@ export default function DashboardNav() {
 
   const navItems: NavItem[] = [
     {
-      label: 'Home',
+      label: 'Projects',
       href: '/dashboard',
     },
     {
-      label: 'Tax Applications',
+      label: 'Clients',
+      href: '/dashboard/clients',
+    },
+    {
+      label: 'Admin',
       items: [
-        { 
-          label: 'Mapper', 
-          href: '/dashboard', 
-          description: 'Tax computation and mapping tool' 
+        {
+          label: 'User Management',
+          href: '/dashboard/admin/users',
+          description: 'Manage users and permissions',
         },
-        // Placeholder for future tax applications
-      ],
-    },
-    {
-      label: 'Quick Links',
-      items: [
-        { label: 'Resources', href: '#', description: 'Access tax resources' },
-        { label: 'Templates', href: '#', description: 'Download templates' },
-      ],
-    },
-    {
-      label: 'Learning',
-      items: [
-        { label: 'Training Videos', href: '#', description: 'Watch tutorials' },
-        { label: 'Documentation', href: '#', description: 'Read guides' },
       ],
     },
   ];

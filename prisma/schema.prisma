@@ -7,119 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Project {
-  id            Int             @id @default(autoincrement())
-  name          String
-  description   String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  status        String          @default("ACTIVE")
-  archived      Boolean         @default(false)
-  mappings      MappedAccount[]
-  taxAdjustments TaxAdjustment[]
-  adjustmentDocuments AdjustmentDocument[]
-  aiTaxReports  AITaxReport[]
-  users         ProjectUser[]
-}
-
-model MappedAccount {
-  id          Int      @id @default(autoincrement())
-  accountCode String
-  accountName String
-  section     String
-  subsection  String
-  balance     Float
-  priorYearBalance Float @default(0)
-  sarsItem    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  projectId   Int
-  project     Project  @relation(fields: [projectId], references: [id])
-
-  @@index([projectId])
-  @@index([projectId, accountCode])
-  @@index([projectId, section])
-}
-
-model TaxAdjustment {
-  id          Int      @id @default(autoincrement())
-  projectId   Int
-  type        String   // DEBIT, CREDIT, ALLOWANCE, or RECOUPMENT
-  description String
-  amount      Float
-  status      String   @default("SUGGESTED") // SUGGESTED, APPROVED, REJECTED, MODIFIED
-  sourceDocuments String? // JSON array of document references
-  extractedData String? // JSON object of LLM-extracted information
-  calculationDetails String? // JSON object of calculation breakdown
-  notes       String? // Analyst comments
-  sarsSection String? // Relevant SARS tax act section
-  confidenceScore Float? // AI confidence score (0-1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  project     Project  @relation(fields: [projectId], references: [id])
-  documents   AdjustmentDocument[]
-
-  @@index([projectId])
-  @@index([status])
-  @@index([createdAt])
-  @@index([status, projectId])
-}
-
-model AdjustmentDocument {
-  id              Int      @id @default(autoincrement())
-  projectId       Int
-  taxAdjustmentId Int?
-  fileName        String
-  fileType        String // PDF, EXCEL, etc.
-  fileSize        Int // Size in bytes
-  filePath        String // Storage path
-  uploadedBy      String? // User identifier
-  extractionStatus String @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
-  extractedData   String? // JSON object of extracted data
-  extractionError String? // Error message if extraction failed
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  taxAdjustment   TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-
-  @@index([projectId])
-  @@index([taxAdjustmentId])
-  @@index([extractionStatus])
-  @@index([extractionStatus, projectId])
-}
-
-model AITaxReport {
-  id                Int      @id @default(autoincrement())
-  projectId         Int
-  executiveSummary  String   @db.NVarChar(Max)
-  risks             String   @db.NVarChar(Max) // JSON array of risk objects
-  taxSensitiveItems String   @db.NVarChar(Max) // JSON array of tax-sensitive item objects
-  detailedFindings  String   @db.NVarChar(Max)
-  recommendations   String   @db.NVarChar(Max) // JSON array of recommendation strings
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  project           Project  @relation(fields: [projectId], references: [id])
-
-  @@index([projectId])
-}
-
-// Authentication Models for Azure AD / NextAuth.js
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("USER") // USER, ADMIN
-  accounts      Account[]
-  sessions      Session[]
-  projects      ProjectUser[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
 model Account {
-  id                String  @id @default(cuid())
+  id                String  @id
   userId            String
   type              String
   provider          String
@@ -131,20 +20,181 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
 
+model AdjustmentDocument {
+  id               Int            @id @default(autoincrement())
+  projectId        Int
+  taxAdjustmentId  Int?
+  fileName         String
+  fileType         String
+  fileSize         Int
+  filePath         String
+  uploadedBy       String?
+  extractionStatus String         @default("PENDING")
+  extractedData    String?
+  extractionError  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  Project          Project        @relation(fields: [projectId], references: [id], onUpdate: NoAction)
+  TaxAdjustment    TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id], onUpdate: NoAction)
+
+  @@index([extractionStatus])
+  @@index([extractionStatus, projectId])
+  @@index([projectId])
+  @@index([taxAdjustmentId])
+}
+
+model AITaxReport {
+  id                Int      @id @default(autoincrement())
+  projectId         Int
+  executiveSummary  String   @db.NVarChar(Max)
+  risks             String   @db.NVarChar(Max)
+  taxSensitiveItems String   @db.NVarChar(Max)
+  detailedFindings  String   @db.NVarChar(Max)
+  recommendations   String   @db.NVarChar(Max)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  Project           Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+}
+
+model Client {
+  id                 Int       @id @default(autoincrement())
+  clientCode         String?   @unique
+  name               String
+  registrationNumber String?
+  taxNumber          String?
+  industry           String?
+  legalEntityType    String?
+  jurisdiction       String?
+  taxRegime          String?
+  financialYearEnd   String?
+  baseCurrency       String?   @default("ZAR")
+  primaryContact     String?
+  email              String?
+  phone              String?
+  address            String?   @db.NVarChar(Max)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  Project            Project[]
+
+  @@index([name])
+  @@index([clientCode])
+}
+
+model MappedAccount {
+  id               Int      @id @default(autoincrement())
+  accountCode      String
+  accountName      String
+  section          String
+  subsection       String
+  balance          Float
+  priorYearBalance Float    @default(0)
+  sarsItem         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  projectId        Int
+  Project          Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId, accountCode])
+  @@index([projectId])
+  @@index([projectId, section])
+}
+
+model Project {
+  id                 Int                  @id @default(autoincrement())
+  name               String
+  description        String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  status             String               @default("ACTIVE")
+  archived           Boolean              @default(false)
+  assessmentYear     String?
+  clientId           Int?
+  projectType        String               @default("TAX_CALCULATION")
+  submissionDeadline DateTime?
+  taxPeriodEnd       DateTime?
+  taxPeriodStart     DateTime?
+  taxYear            Int?
+  AdjustmentDocument AdjustmentDocument[]
+  AITaxReport        AITaxReport[]
+  MappedAccount      MappedAccount[]
+  Client             Client?              @relation(fields: [clientId], references: [id])
+  ProjectUser        ProjectUser[]
+  TaxAdjustment      TaxAdjustment[]
+
+  @@index([clientId])
+  @@index([projectType])
+  @@index([status])
+  @@index([taxYear])
+}
+
+model ProjectUser {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  userId    String
+  role      String   @default("VIEWER")
+  createdAt DateTime @default(now())
+  Project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
 model Session {
-  id           String   @id @default(cuid())
+  id           String   @id
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model TaxAdjustment {
+  id                 Int                  @id @default(autoincrement())
+  projectId          Int
+  type               String
+  description        String
+  amount             Float
+  status             String               @default("SUGGESTED")
+  sourceDocuments    String?
+  extractedData      String?
+  calculationDetails String?
+  notes              String?
+  sarsSection        String?
+  confidenceScore    Float?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  AdjustmentDocument AdjustmentDocument[]
+  Project            Project              @relation(fields: [projectId], references: [id])
+
+  @@index([createdAt])
+  @@index([projectId])
+  @@index([status])
+  @@index([status, projectId])
+}
+
+model User {
+  id            String        @id
+  name          String?
+  email         String        @unique
+  emailVerified DateTime?
+  image         String?
+  role          String        @default("USER")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  Account       Account[]
+  ProjectUser   ProjectUser[]
+  Session       Session[]
 }
 
 model VerificationToken {
@@ -153,19 +203,4 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-// Project-level access control
-model ProjectUser {
-  id        Int      @id @default(autoincrement())
-  projectId Int
-  userId    String
-  role      String   @default("VIEWER") // OWNER, EDITOR, VIEWER
-  createdAt DateTime @default(now())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, userId])
-  @@index([userId])
-  @@index([projectId])
 }

@@ -1,0 +1,187 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/errorHandler';
+import { updateClientSchema } from '@/lib/validation';
+import { successResponse } from '@/lib/apiUtils';
+import { getCurrentUser } from '@/lib/auth';
+import { z } from 'zod';
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const params = await context.params;
+    const clientId = parseInt(params.id);
+
+    if (isNaN(clientId)) {
+      return NextResponse.json(
+        { error: 'Invalid client ID' },
+        { status: 400 }
+      );
+    }
+
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      include: {
+        Project: {
+          where: { archived: false },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            projectType: true,
+            taxYear: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        _count: {
+          select: {
+            Project: true,
+          },
+        },
+      },
+    });
+
+    if (!client) {
+      return NextResponse.json(
+        { error: 'Client not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(successResponse(client));
+  } catch (error) {
+    return handleApiError(error, 'Get Client');
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const params = await context.params;
+    const clientId = parseInt(params.id);
+
+    if (isNaN(clientId)) {
+      return NextResponse.json(
+        { error: 'Invalid client ID' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    
+    // Validate request body
+    const validatedData = updateClientSchema.parse(body);
+
+    // Check if client exists
+    const existingClient = await prisma.client.findUnique({
+      where: { id: clientId },
+    });
+
+    if (!existingClient) {
+      return NextResponse.json(
+        { error: 'Client not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update client
+    const client = await prisma.client.update({
+      where: { id: clientId },
+      data: validatedData,
+    });
+
+    return NextResponse.json(successResponse(client));
+  } catch (error) {
+    // Handle Zod validation errors
+    if (error instanceof z.ZodError) {
+      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+      return handleApiError(
+        new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
+        'Update Client'
+      );
+    }
+    
+    return handleApiError(error, 'Update Client');
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const params = await context.params;
+    const clientId = parseInt(params.id);
+
+    if (isNaN(clientId)) {
+      return NextResponse.json(
+        { error: 'Invalid client ID' },
+        { status: 400 }
+      );
+    }
+
+    // Check if client exists
+    const existingClient = await prisma.client.findUnique({
+      where: { id: clientId },
+      include: {
+        _count: {
+          select: {
+            Project: true,
+          },
+        },
+      },
+    });
+
+    if (!existingClient) {
+      return NextResponse.json(
+        { error: 'Client not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if client has projects
+    if (existingClient._count.Project > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete client with existing projects. Please reassign or delete projects first.' },
+        { status: 400 }
+      );
+    }
+
+    // Delete client
+    await prisma.client.delete({
+      where: { id: clientId },
+    });
+
+    return NextResponse.json(
+      successResponse({ message: 'Client deleted successfully' })
+    );
+  } catch (error) {
+    return handleApiError(error, 'Delete Client');
+  }
+}
+

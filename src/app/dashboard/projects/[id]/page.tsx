@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ProjectType } from '@/types';
 import { 
   ChevronRightIcon,
   TableCellsIcon,
@@ -12,7 +13,8 @@ import {
   PencilIcon,
   ArchiveBoxIcon,
   ArrowDownTrayIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import BalanceSheetPage from './balance-sheet/page';
 import IncomeStatementPage from './income-statement/page';
@@ -20,6 +22,13 @@ import MappingPage from './mapping/page';
 import TaxCalculationPage from './tax-calculation/page';
 import ReportingPage from './reporting/page';
 import { useProject } from '@/hooks/useProjectData';
+import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/projectUtils';
+import { ClientSelector } from '@/components/ClientSelector';
+import { ProjectTypeSelector } from '@/components/ProjectTypeSelector';
+import { TaxYearInput } from '@/components/TaxYearInput';
+import { ProjectUserList } from '@/components/UserManagement/ProjectUserList';
+import { UserSearchModal } from '@/components/UserManagement/UserSearchModal';
+import { ProjectUser, ProjectRole } from '@/types';
 
 interface TabProps {
   selected: boolean;
@@ -48,12 +57,24 @@ interface ProjectData {
   id: number;
   name: string;
   description?: string;
+  projectType: string | ProjectType;
+  taxYear?: number | null;
+  taxPeriodStart?: Date | string | null;
+  taxPeriodEnd?: Date | string | null;
+  assessmentYear?: string | null;
+  submissionDeadline?: Date | string | null;
+  clientId?: number | null;
+  client?: {
+    id: number;
+    name: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
   _count: {
     mappings: number;
     taxAdjustments: number;
   };
+  users?: any[];
 }
 
 interface SettingsTabProps {
@@ -66,7 +87,14 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: project.name,
-    description: project.description || ''
+    description: project.description || '',
+    clientId: project.clientId || null,
+    projectType: project.projectType as ProjectType,
+    taxYear: project.taxYear || new Date().getFullYear(),
+    taxPeriodStart: project.taxPeriodStart ? new Date(project.taxPeriodStart) : null,
+    taxPeriodEnd: project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null,
+    assessmentYear: project.assessmentYear || '',
+    submissionDeadline: project.submissionDeadline ? new Date(project.submissionDeadline) : null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -158,11 +186,50 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                   rows={3}
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+                  Client
+                </label>
+                <ClientSelector
+                  value={editData.clientId}
+                  onChange={(clientId) => setEditData({ ...editData, clientId })}
+                  allowCreate={true}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+                  Project Type
+                </label>
+                <ProjectTypeSelector
+                  value={editData.projectType}
+                  onChange={(projectType) => setEditData({ ...editData, projectType })}
+                />
+              </div>
+              <div>
+                <TaxYearInput
+                  taxYear={editData.taxYear}
+                  taxPeriodStart={editData.taxPeriodStart}
+                  taxPeriodEnd={editData.taxPeriodEnd}
+                  assessmentYear={editData.assessmentYear}
+                  submissionDeadline={editData.submissionDeadline}
+                  onChange={(field, value) => setEditData({ ...editData, [field]: value })}
+                />
+              </div>
               <div className="flex justify-end space-x-3 pt-2">
                 <button
                   onClick={() => {
                     setIsEditing(false);
-                    setEditData({ name: project.name, description: project.description || '' });
+                    setEditData({
+                      name: project.name,
+                      description: project.description || '',
+                      clientId: project.clientId || null,
+                      projectType: project.projectType as ProjectType,
+                      taxYear: project.taxYear || new Date().getFullYear(),
+                      taxPeriodStart: project.taxPeriodStart ? new Date(project.taxPeriodStart) : null,
+                      taxPeriodEnd: project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null,
+                      assessmentYear: project.assessmentYear || '',
+                      submissionDeadline: project.submissionDeadline ? new Date(project.submissionDeadline) : null,
+                    });
                   }}
                   className="btn-secondary"
                 >
@@ -287,6 +354,13 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('mapping');
   const { data: project, isLoading, refetch: fetchProject } = useProject(params.id);
+  
+  // Team management state
+  const [projectUsers, setProjectUsers] = useState<ProjectUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [currentUserRole, setCurrentUserRole] = useState<ProjectRole>('VIEWER' as ProjectRole);
 
   // Handle tab query parameter
   useEffect(() => {
@@ -295,6 +369,50 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  // Fetch users when team tab is active
+  useEffect(() => {
+    if (activeTab === 'team') {
+      fetchProjectUsers();
+      fetchCurrentUserRole();
+    }
+  }, [activeTab, params.id]);
+
+  const fetchProjectUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await fetch(`/api/projects/${params.id}/users`);
+      const data = await response.json();
+      if (data.success) {
+        setProjectUsers(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchCurrentUserRole = async () => {
+    try {
+      const response = await fetch(`/api/projects/${params.id}`);
+      const data = await response.json();
+      if (data.success && data.data.users) {
+        // Get current user from session
+        const sessionResponse = await fetch('/api/auth/session');
+        const sessionData = await sessionResponse.json();
+        if (sessionData.user) {
+          const currentUser = data.data.users.find((u: any) => u.userId === sessionData.user.id);
+          if (currentUser) {
+            setCurrentUserId(sessionData.user.id);
+            setCurrentUserRole(currentUser.role);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch current user role:', error);
+    }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -308,6 +426,56 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         return <TaxCalculationPage params={params} />;
       case 'reporting':
         return <ReportingPage params={params} />;
+      case 'team':
+        return (
+          <div className="p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-forvis-gray-900">Team Members</h2>
+                  <p className="text-sm text-forvis-gray-600 mt-1">Manage project access and roles</p>
+                </div>
+
+                {currentUserRole === 'ADMIN' && (
+                  <button
+                    onClick={() => setShowAddUserModal(true)}
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700 transition-colors shadow-corporate"
+                  >
+                    <UsersIcon className="h-5 w-5 mr-2" />
+                    Add User
+                  </button>
+                )}
+              </div>
+
+              {loadingUsers ? (
+                <div className="animate-pulse space-y-4">
+                  <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                  <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                  <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                </div>
+              ) : (
+                <ProjectUserList
+                  projectId={parseInt(params.id)}
+                  users={projectUsers}
+                  currentUserId={currentUserId}
+                  currentUserRole={currentUserRole}
+                  onUserRemoved={fetchProjectUsers}
+                  onRoleChanged={fetchProjectUsers}
+                />
+              )}
+
+              <UserSearchModal
+                projectId={parseInt(params.id)}
+                isOpen={showAddUserModal}
+                onClose={() => setShowAddUserModal(false)}
+                onUserAdded={() => {
+                  fetchProjectUsers();
+                  setShowAddUserModal(false);
+                }}
+              />
+            </div>
+          </div>
+        );
       case 'settings':
         return project ? <SettingsTab project={project} onUpdate={fetchProject} /> : null;
       default:
@@ -332,6 +500,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             Projects
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
+          {project?.client && (
+            <>
+              <Link 
+                href={`/dashboard/clients/${project.client.id}`} 
+                className="hover:text-forvis-gray-900 transition-colors"
+              >
+                {project.client.name}
+              </Link>
+              <ChevronRightIcon className="h-4 w-4" />
+            </>
+          )}
           <span className="text-forvis-gray-900 font-medium">{project?.name}</span>
         </nav>
 
@@ -339,15 +518,56 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         <div className="card-hover mb-4 overflow-hidden">
           <div className="px-4 py-3">
             <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-forvis-gray-900">{project?.name}</h1>
+              <div className="flex-1">
+                <div className="flex items-center space-x-3 mb-2">
+                  <h1 className="text-2xl font-bold text-forvis-gray-900">{project?.name}</h1>
+                  {project && (
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getProjectTypeColor(project.projectType)}`}>
+                      {formatProjectType(project.projectType)}
+                    </span>
+                  )}
+                </div>
+                
+                {project?.client && (
+                  <Link 
+                    href={`/dashboard/clients/${project.client.id}`}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {project.client.name}
+                  </Link>
+                )}
+                
                 {project?.description && (
                   <p className="mt-1 text-sm text-forvis-gray-700">{project.description}</p>
                 )}
-                <div className="mt-2 flex items-center space-x-4 text-xs text-forvis-gray-600">
-                  <span>{project?._count.mappings} accounts mapped</span>
+                
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-forvis-gray-600">
+                  {project?.taxYear && (
+                    <div className="flex items-center">
+                      <span className="font-medium text-forvis-gray-700">Tax Year:</span>
+                      <span className="ml-1">{project.taxYear}</span>
+                    </div>
+                  )}
+                  {project?.taxPeriodStart && project?.taxPeriodEnd && (
+                    <div className="flex items-center">
+                      <span className="font-medium text-forvis-gray-700">Period:</span>
+                      <span className="ml-1">
+                        {formatDate(project.taxPeriodStart)} - {formatDate(project.taxPeriodEnd)}
+                      </span>
+                    </div>
+                  )}
+                  {project?.submissionDeadline && (
+                    <div className="flex items-center">
+                      <span className="font-medium text-forvis-gray-700">Due:</span>
+                      <span className="ml-1">{formatDate(project.submissionDeadline)}</span>
+                    </div>
+                  )}
+                  <span>•</span>
+                  <span>{project?._count.mappings} accounts</span>
                   <span>{project?._count.taxAdjustments} adjustments</span>
-                  <span>Updated {project && new Date(project.updatedAt).toLocaleDateString()}</span>
+                  {project?.users && (
+                    <span>{project.users.length} team members</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -390,6 +610,13 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 icon={ClipboardDocumentListIcon}
               >
                 Reporting
+              </Tab>
+              <Tab
+                onClick={() => setActiveTab('team')}
+                selected={activeTab === 'team'}
+                icon={UsersIcon}
+              >
+                Team
               </Tab>
               <Tab
                 onClick={() => setActiveTab('settings')}

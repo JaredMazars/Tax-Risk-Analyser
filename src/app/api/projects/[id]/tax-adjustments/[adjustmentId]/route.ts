@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { parseAdjustmentId, getTaxAdjustmentOrThrow, successResponse } from '@/lib/apiUtils';
+import { parseAdjustmentId, parseProjectId, getTaxAdjustmentOrThrow, successResponse } from '@/lib/apiUtils';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/errorHandler';
+import { getCurrentUser, checkProjectAccess } from '@/lib/auth';
 
 /**
  * GET /api/projects/[id]/tax-adjustments/[adjustmentId]
@@ -12,17 +13,30 @@ export async function GET(
   context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
     }
     
     const params = await context.params;
+    const projectId = parseProjectId(params?.id);
     const adjustmentId = parseAdjustmentId(params?.adjustmentId);
+    
+    // Check project access (any role can view)
+    const hasAccess = await checkProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const adjustment = await getTaxAdjustmentOrThrow(adjustmentId, {
-      documents: true,
-      project: {
+      AdjustmentDocument: true,
+      Project: {
         select: {
           id: true,
           name: true,
@@ -59,12 +73,19 @@ export async function PATCH(
   context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
     }
     
     const params = await context.params;
+    const projectId = parseProjectId(params?.id);
     const adjustmentId = parseAdjustmentId(params?.adjustmentId);
     const body = await request.json();
 
@@ -79,6 +100,23 @@ export async function PATCH(
       extractedData,
       confidenceScore,
     } = body;
+    
+    // Check if status is being changed to APPROVED or REJECTED - requires REVIEWER role
+    if (status && (status === 'APPROVED' || status === 'REJECTED')) {
+      const hasAccess = await checkProjectAccess(user.id, projectId, 'REVIEWER');
+      if (!hasAccess) {
+        return NextResponse.json(
+          { error: 'Only reviewers can approve or reject tax adjustments' },
+          { status: 403 }
+        );
+      }
+    } else {
+      // Other edits require EDITOR role or higher
+      const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     // Build update data object
     const updateData: any = {};
@@ -107,7 +145,7 @@ export async function PATCH(
       where: { id: adjustmentId },
       data: updateData,
       include: {
-        documents: true,
+        AdjustmentDocument: true,
       },
     });
 
@@ -137,13 +175,26 @@ export async function DELETE(
   context: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
     }
     
     const params = await context.params;
+    const projectId = parseProjectId(params?.id);
     const adjustmentId = parseAdjustmentId(params?.adjustmentId);
+    
+    // Check project access (requires EDITOR role or higher)
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Delete associated documents first
     await prisma.adjustmentDocument.deleteMany({

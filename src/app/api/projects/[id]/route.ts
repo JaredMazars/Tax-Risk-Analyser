@@ -32,21 +32,29 @@ export async function GET(
         id: true,
         name: true,
         description: true,
+        projectType: true,
+        taxYear: true,
+        taxPeriodStart: true,
+        taxPeriodEnd: true,
+        assessmentYear: true,
+        submissionDeadline: true,
+        clientId: true,
+        Client: true,
         createdAt: true,
         updatedAt: true,
         status: true,
         archived: true,
         _count: {
           select: {
-            mappings: true,
-            taxAdjustments: true,
+            MappedAccount: true,
+            TaxAdjustment: true,
           },
         },
-        users: {
+        ProjectUser: {
           select: {
             id: true,
             role: true,
-            user: {
+            User: {
               select: {
                 id: true,
                 name: true,
@@ -94,20 +102,57 @@ export async function PUT(
     await checkProjectAccess(user.id, projectId, 'EDITOR');
 
     const body = await request.json();
-    const { name, description } = body;
 
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        { error: 'Project name is required' },
-        { status: 400 }
-      );
+    // Build update data object
+    const updateData: any = {};
+    
+    if (body.name !== undefined) {
+      if (!body.name || !body.name.trim()) {
+        return NextResponse.json(
+          { error: 'Project name is required' },
+          { status: 400 }
+        );
+      }
+      updateData.name = body.name.trim();
+    }
+    
+    if (body.description !== undefined) {
+      updateData.description = body.description?.trim() || null;
+    }
+    
+    if (body.projectType !== undefined) {
+      updateData.projectType = body.projectType;
+    }
+    
+    if (body.taxYear !== undefined) {
+      updateData.taxYear = body.taxYear;
+    }
+    
+    if (body.taxPeriodStart !== undefined) {
+      updateData.taxPeriodStart = body.taxPeriodStart ? new Date(body.taxPeriodStart) : null;
+    }
+    
+    if (body.taxPeriodEnd !== undefined) {
+      updateData.taxPeriodEnd = body.taxPeriodEnd ? new Date(body.taxPeriodEnd) : null;
+    }
+    
+    if (body.assessmentYear !== undefined) {
+      updateData.assessmentYear = body.assessmentYear;
+    }
+    
+    if (body.submissionDeadline !== undefined) {
+      updateData.submissionDeadline = body.submissionDeadline ? new Date(body.submissionDeadline) : null;
+    }
+    
+    if (body.clientId !== undefined) {
+      updateData.clientId = body.clientId;
     }
 
     const project = await prisma.project.update({
       where: { id: projectId },
-      data: {
-        name: name.trim(),
-        description: description?.trim() || null,
+      data: updateData,
+      include: {
+        Client: true,
       },
     });
 
@@ -136,8 +181,8 @@ export async function PATCH(
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
 
-    // Check project access (requires OWNER role)
-    await checkProjectAccess(user.id, projectId, 'OWNER');
+    // Check project access (requires ADMIN role)
+    await checkProjectAccess(user.id, projectId, 'ADMIN');
 
     const body = await request.json();
     const { action } = body;
@@ -183,8 +228,8 @@ export async function DELETE(
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
 
-    // Check project access (requires OWNER role)
-    await checkProjectAccess(user.id, projectId, 'OWNER');
+    // Check project access (requires ADMIN role)
+    await checkProjectAccess(user.id, projectId, 'ADMIN');
 
     // Archive the project instead of deleting
     const project = await prisma.project.update({

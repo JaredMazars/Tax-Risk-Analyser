@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { TaxAdjustmentEngine } from '@/lib/taxAdjustmentEngine';
 import { parseProjectId, successResponse } from '@/lib/apiUtils';
 import { handleApiError } from '@/lib/errorHandler';
+import { getCurrentUser, checkProjectAccess } from '@/lib/auth';
 
 /**
  * GET /api/projects/[id]/tax-adjustments
@@ -13,6 +14,12 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -20,6 +27,13 @@ export async function GET(
     
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
+    
+    // Check project access (any role can view)
+    const hasAccess = await checkProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
@@ -31,7 +45,7 @@ export async function GET(
     const adjustments = await prisma.taxAdjustment.findMany({
       where,
       include: {
-        documents: {
+        AdjustmentDocument: {
           select: {
             id: true,
             fileName: true,
@@ -60,6 +74,12 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -67,6 +87,13 @@ export async function POST(
     
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
+    
+    // Check project access (requires EDITOR role or higher)
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
     const body = await request.json();
 
     const {
@@ -109,7 +136,7 @@ export async function POST(
         confidenceScore: confidenceScore ? parseFloat(confidenceScore) : null,
       },
       include: {
-        documents: true,
+        AdjustmentDocument: true,
       },
     });
 
@@ -128,6 +155,12 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -135,6 +168,13 @@ export async function DELETE(
     
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
+    
+    // Check project access (requires ADMIN role)
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'ADMIN');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 

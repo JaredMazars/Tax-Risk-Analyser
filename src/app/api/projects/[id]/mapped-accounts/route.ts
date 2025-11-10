@@ -3,12 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { determineSectionAndSubsection } from '@/lib/sectionMapper';
 import { handleApiError } from '@/lib/errorHandler';
 import { parseProjectId, successResponse } from '@/lib/apiUtils';
+import { getCurrentUser, checkProjectAccess } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -16,6 +23,12 @@ export async function GET(
     
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
+    
+    // Check project access (any role can view)
+    const hasAccess = await checkProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     
     const mappedAccounts = await prisma.mappedAccount.findMany({
       where: {
@@ -37,6 +50,12 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Ensure context and params exist
     if (!context || !context.params) {
       throw new Error('Invalid route context');
@@ -44,6 +63,13 @@ export async function POST(
     
     const params = await context.params;
     const projectId = parseProjectId(params?.id);
+    
+    // Check project access (requires EDITOR role or higher)
+    const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
     const data = await request.json();
     
     // If sarsItem and balance are provided, determine section and subsection

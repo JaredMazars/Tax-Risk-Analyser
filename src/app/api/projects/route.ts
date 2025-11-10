@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
           include: {
             _count: {
               select: {
-                mappings: true,
-                taxAdjustments: true,
+                MappedAccount: true,
+                TaxAdjustment: true,
               },
             },
           },
@@ -81,23 +81,31 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const validatedData = createProjectSchema.parse(body);
 
-    // Create project with user as owner
+    // Create project with user as admin
     const project = await prisma.project.create({
       data: {
         name: validatedData.name,
         description: validatedData.description,
+        projectType: validatedData.projectType || 'TAX_CALCULATION',
+        taxYear: validatedData.taxYear,
+        taxPeriodStart: validatedData.taxPeriodStart,
+        taxPeriodEnd: validatedData.taxPeriodEnd,
+        assessmentYear: validatedData.assessmentYear,
+        submissionDeadline: validatedData.submissionDeadline,
+        clientId: validatedData.clientId,
         status: 'ACTIVE',
-        users: {
+        ProjectUser: {
           create: {
             userId: user.id,
-            role: 'OWNER',
+            role: 'ADMIN',
           },
         },
       },
       include: {
-        users: {
+        Client: true,
+        ProjectUser: {
           include: {
-            user: {
+            User: {
               select: {
                 id: true,
                 name: true,

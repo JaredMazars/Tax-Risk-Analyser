@@ -1,0 +1,101 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/errorHandler';
+import { createClientSchema } from '@/lib/validation';
+import { successResponse } from '@/lib/apiUtils';
+import { getCurrentUser } from '@/lib/auth';
+import { z } from 'zod';
+
+export async function GET(request: NextRequest) {
+  try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search') || '';
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { clientCode: { contains: search } },
+        { registrationNumber: { contains: search } },
+        { taxNumber: { contains: search } },
+        { email: { contains: search } },
+      ];
+    }
+
+    // Get total count
+    const total = await prisma.client.count({ where });
+
+    // Get clients with project count
+    const clients = await prisma.client.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { name: 'asc' },
+      include: {
+        _count: {
+          select: {
+            Project: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(
+      successResponse({
+        clients,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      })
+    );
+  } catch (error) {
+    return handleApiError(error, 'Get Clients');
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Require authentication
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const body = await request.json();
+    
+    // Validate request body
+    const validatedData = createClientSchema.parse(body);
+
+    // Create client
+    const client = await prisma.client.create({
+      data: validatedData,
+    });
+
+    return NextResponse.json(successResponse(client), { status: 201 });
+  } catch (error) {
+    // Handle Zod validation errors
+    if (error instanceof z.ZodError) {
+      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+      return handleApiError(
+        new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
+        'Create Client'
+      );
+    }
+    
+    return handleApiError(error, 'Create Client');
+  }
+}
+

@@ -4,6 +4,74 @@ import { z } from 'zod';
  * Validation schemas for API requests
  */
 
+// Enums
+export const projectTypeSchema = z.enum(['TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION']);
+export const projectRoleSchema = z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']);
+
+// Client schemas
+export const createClientSchema = z.object({
+  name: z.string()
+    .min(1, 'Client name is required')
+    .max(200, 'Client name must be less than 200 characters')
+    .trim(),
+  clientCode: z.string()
+    .max(50, 'Client code must be less than 50 characters')
+    .optional()
+    .nullable()
+    .transform(val => val?.trim() || null),
+  registrationNumber: z.string()
+    .max(100, 'Registration number must be less than 100 characters')
+    .optional()
+    .nullable(),
+  taxNumber: z.string()
+    .max(100, 'Tax number must be less than 100 characters')
+    .optional()
+    .nullable(),
+  industry: z.string()
+    .max(100, 'Industry must be less than 100 characters')
+    .optional()
+    .nullable(),
+  legalEntityType: z.string()
+    .max(100, 'Legal entity type must be less than 100 characters')
+    .optional()
+    .nullable(),
+  jurisdiction: z.string()
+    .max(100, 'Jurisdiction must be less than 100 characters')
+    .optional()
+    .nullable(),
+  taxRegime: z.string()
+    .max(100, 'Tax regime must be less than 100 characters')
+    .optional()
+    .nullable(),
+  financialYearEnd: z.string()
+    .regex(/^\d{2}-\d{2}$/, 'Financial year end must be in MM-DD format (e.g., 03-31)')
+    .optional()
+    .nullable(),
+  baseCurrency: z.string()
+    .max(10, 'Base currency must be less than 10 characters')
+    .optional()
+    .default('ZAR'),
+  primaryContact: z.string()
+    .max(200, 'Primary contact must be less than 200 characters')
+    .optional()
+    .nullable(),
+  email: z.string()
+    .email('Invalid email address')
+    .max(200, 'Email must be less than 200 characters')
+    .optional()
+    .nullable(),
+  phone: z.string()
+    .max(50, 'Phone must be less than 50 characters')
+    .optional()
+    .nullable(),
+  address: z.string()
+    .max(1000, 'Address must be less than 1000 characters')
+    .optional()
+    .nullable(),
+});
+
+export const updateClientSchema = createClientSchema.partial();
+
 // Project schemas
 export const createProjectSchema = z.object({
   name: z.string()
@@ -14,6 +82,25 @@ export const createProjectSchema = z.object({
     .max(1000, 'Description must be less than 1000 characters')
     .optional()
     .transform(val => val?.trim()),
+  projectType: projectTypeSchema.optional().default('TAX_CALCULATION'),
+  taxYear: z.number()
+    .int('Tax year must be an integer')
+    .min(2000, 'Tax year must be 2000 or later')
+    .max(2100, 'Tax year must be 2100 or earlier')
+    .optional()
+    .nullable(),
+  taxPeriodStart: z.coerce.date().optional().nullable(),
+  taxPeriodEnd: z.coerce.date().optional().nullable(),
+  assessmentYear: z.string()
+    .max(50, 'Assessment year must be less than 50 characters')
+    .optional()
+    .nullable(),
+  submissionDeadline: z.coerce.date().optional().nullable(),
+  clientId: z.number()
+    .int('Client ID must be an integer')
+    .positive('Client ID must be positive')
+    .optional()
+    .nullable(),
 });
 
 export const updateProjectSchema = z.object({
@@ -26,6 +113,36 @@ export const updateProjectSchema = z.object({
     .max(1000, 'Description must be less than 1000 characters')
     .optional()
     .transform(val => val?.trim()),
+  projectType: projectTypeSchema.optional(),
+  taxYear: z.number()
+    .int('Tax year must be an integer')
+    .min(2000, 'Tax year must be 2000 or later')
+    .max(2100, 'Tax year must be 2100 or earlier')
+    .optional()
+    .nullable(),
+  taxPeriodStart: z.coerce.date().optional().nullable(),
+  taxPeriodEnd: z.coerce.date().optional().nullable(),
+  assessmentYear: z.string()
+    .max(50, 'Assessment year must be less than 50 characters')
+    .optional()
+    .nullable(),
+  submissionDeadline: z.coerce.date().optional().nullable(),
+  clientId: z.number()
+    .int('Client ID must be an integer')
+    .positive('Client ID must be positive')
+    .optional()
+    .nullable(),
+});
+
+// Project user management schemas
+export const addProjectUserSchema = z.object({
+  userId: z.string()
+    .min(1, 'User ID is required'),
+  role: projectRoleSchema.optional().default('VIEWER'),
+});
+
+export const updateProjectUserSchema = z.object({
+  role: projectRoleSchema,
 });
 
 // Tax adjustment schemas
@@ -184,6 +301,10 @@ export function formatValidationError(error: z.ZodError): string {
   
   return errors.join('; ');
 }
+
+
+
+
 
 
 

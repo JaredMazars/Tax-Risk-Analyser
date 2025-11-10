@@ -162,12 +162,12 @@ async function extractDocumentAsync(
     // Update the associated tax adjustment with extracted data
     const document = await prisma.adjustmentDocument.findUnique({
       where: { id: documentId },
-      include: { taxAdjustment: true },
+      include: { TaxAdjustment: true },
     });
 
-    if (document?.taxAdjustment) {
-      const currentExtractedData = document.taxAdjustment.extractedData
-        ? JSON.parse(document.taxAdjustment.extractedData)
+    if (document?.TaxAdjustment) {
+      const currentExtractedData = document.TaxAdjustment.extractedData
+        ? JSON.parse(document.TaxAdjustment.extractedData)
         : {};
 
       await prisma.taxAdjustment.update({
