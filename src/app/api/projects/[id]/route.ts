@@ -53,7 +53,9 @@ export async function GET(
         ProjectUser: {
           select: {
             id: true,
+            userId: true,
             role: true,
+            createdAt: true,
             User: {
               select: {
                 id: true,

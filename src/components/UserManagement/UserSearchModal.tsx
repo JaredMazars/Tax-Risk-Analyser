@@ -79,11 +79,11 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-forvis-gray-200 flex justify-between items-center">
+      <div className="bg-white rounded-lg shadow-corporate-lg max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border-2 border-forvis-gray-200">
+        <div className="px-6 py-4 border-b-2 border-forvis-gray-200 flex justify-between items-center" style={{ background: 'linear-gradient(to right, #EBF2FA, #D6E4F5)' }}>
           <div>
-            <h2 className="text-xl font-bold text-forvis-gray-900">Add User to Project</h2>
-            <p className="text-sm text-forvis-gray-600 mt-1">Search for users in your organization</p>
+            <h2 className="text-xl font-bold text-forvis-blue-900">Add User to Project</h2>
+            <p className="text-sm text-forvis-blue-800 mt-1">Search for users in your organization</p>
           </div>
           <button 
             onClick={onClose} 
@@ -97,23 +97,23 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {error && (
-            <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded">
+            <div className="p-4 bg-red-50 border-2 border-red-300 text-red-700 rounded-lg shadow-corporate">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-                <span className="font-medium">{error}</span>
+                <span className="font-semibold">{error}</span>
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-semibold text-forvis-gray-900 mb-2">
+            <label className="block text-sm font-bold text-forvis-gray-900 mb-2">
               Search Active Directory
             </label>
             <div className="flex gap-2">
               <div className="flex-1 relative">
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-forvis-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-forvis-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
@@ -127,13 +127,16 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
                     }
                   }}
                   placeholder="Search by name or email..."
-                  className="w-full pl-10 pr-4 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 shadow-corporate"
                 />
               </div>
               <button
                 onClick={handleSearch}
                 disabled={loading}
-                className="px-6 py-2 bg-gradient-to-r from-forvis-blue-600 to-forvis-blue-700 text-white font-semibold rounded-lg hover:from-forvis-blue-700 hover:to-forvis-blue-800 disabled:from-gray-400 disabled:to-gray-500 transition-all shadow-md"
+                className="px-6 py-2 text-white font-semibold rounded-lg transition-all shadow-corporate hover:shadow-corporate-md"
+                style={{ 
+                  background: loading ? '#ADB5BD' : 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)'
+                }}
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
@@ -150,7 +153,7 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
 
           {searchResults.length > 0 && (
             <div>
-              <label className="block text-sm font-semibold text-forvis-gray-900 mb-3">
+              <label className="block text-sm font-bold text-forvis-gray-900 mb-3">
                 Select User ({searchResults.length} found)
               </label>
               <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -166,14 +169,22 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
                     <div
                       key={user.id}
                       onClick={() => setSelectedUser(user)}
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all shadow-corporate ${
                         selectedUser?.id === user.id
-                          ? 'border-forvis-blue-500 bg-forvis-blue-50 shadow-md'
-                          : 'border-forvis-gray-300 hover:border-forvis-gray-400 hover:bg-forvis-gray-50'
+                          ? 'border-forvis-blue-500 shadow-corporate-md'
+                          : 'border-forvis-gray-300 hover:border-forvis-blue-400'
                       }`}
+                      style={{
+                        background: selectedUser?.id === user.id 
+                          ? 'linear-gradient(135deg, #EBF2FA 0%, #D6E4F5 100%)'
+                          : '#FFFFFF'
+                      }}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forvis-blue-500 to-forvis-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                        <div 
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-corporate"
+                          style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                        >
                           {initials}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -197,38 +208,41 @@ export function UserSearchModal({ projectId, isOpen, onClose, onUserAdded }: Use
           )}
 
           {selectedUser && (
-            <div className="bg-forvis-blue-50 rounded-lg p-4 border-2 border-forvis-blue-200">
-              <label className="block text-sm font-semibold text-forvis-blue-900 mb-3">
+            <div className="rounded-lg p-4 border-2 border-forvis-blue-300 shadow-corporate" style={{ background: 'linear-gradient(135deg, #EBF2FA 0%, #D6E4F5 100%)' }}>
+              <label className="block text-sm font-bold text-forvis-blue-900 mb-3">
                 Assign Role
               </label>
               <select
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value as ProjectRole)}
-                className="w-full px-4 py-3 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent bg-white font-medium"
+                className="w-full px-4 py-3 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 bg-white font-medium shadow-corporate"
               >
                 <option value="VIEWER">👁️ Viewer - Read-only access</option>
                 <option value="EDITOR">✏️ Editor - Can edit data</option>
                 <option value="REVIEWER">✅ Reviewer - Can approve/reject adjustments</option>
                 <option value="ADMIN">⚙️ Admin - Full project control</option>
               </select>
-              <p className="mt-2 text-xs text-forvis-blue-800">
+              <p className="mt-2 text-xs text-forvis-blue-800 font-medium">
                 Choose the appropriate access level for this user
               </p>
             </div>
           )}
         </div>
 
-        <div className="px-6 py-4 bg-forvis-gray-50 border-t border-forvis-gray-200 flex justify-end gap-3">
+        <div className="px-6 py-4 bg-forvis-gray-50 border-t-2 border-forvis-gray-200 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-white text-forvis-gray-700 font-semibold rounded-lg border-2 border-forvis-gray-300 hover:bg-forvis-gray-50 transition-colors"
+            className="px-6 py-2 bg-white text-forvis-gray-700 font-semibold rounded-lg border-2 border-forvis-gray-300 hover:bg-forvis-gray-100 transition-colors shadow-corporate"
           >
             Cancel
           </button>
           <button
             onClick={handleAddUser}
             disabled={!selectedUser}
-            className="px-6 py-2 bg-gradient-to-r from-forvis-blue-600 to-forvis-blue-700 text-white font-semibold rounded-lg hover:from-forvis-blue-700 hover:to-forvis-blue-800 disabled:from-gray-400 disabled:to-gray-500 transition-all shadow-md disabled:shadow-none"
+            className="px-6 py-2 text-white font-semibold rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:shadow-none"
+            style={{ 
+              background: !selectedUser ? '#ADB5BD' : 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)'
+            }}
           >
             Add User to Project
           </button>

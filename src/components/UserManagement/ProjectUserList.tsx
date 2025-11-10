@@ -107,12 +107,15 @@ export function ProjectUserList({
             <div
               key={projectUser.id}
               onClick={() => setSelectedUser(projectUser)}
-              className="bg-white border-2 border-forvis-gray-200 rounded-lg p-4 hover:border-forvis-blue-500 hover:shadow-md transition-all cursor-pointer"
+              className="bg-white border-2 border-forvis-gray-200 rounded-lg p-4 hover:border-forvis-blue-500 hover:shadow-corporate-md transition-all cursor-pointer shadow-corporate"
             >
               <div className="flex items-start gap-3">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-forvis-blue-500 to-forvis-blue-700 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                  <div 
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-corporate"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  >
                     {getInitials(user?.name, user?.email)}
                   </div>
                 </div>
@@ -149,10 +152,10 @@ export function ProjectUserList({
       </div>
 
       {users.length === 0 && (
-        <div className="text-center py-12 bg-forvis-gray-50 rounded-lg border-2 border-dashed border-forvis-gray-300">
+        <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-forvis-gray-300 shadow-corporate">
           <UserCircleIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-3" />
-          <p className="text-forvis-gray-600 font-medium">No team members yet</p>
-          <p className="text-sm text-forvis-gray-500 mt-1">Add users to start collaborating on this project</p>
+          <p className="text-forvis-gray-700 font-semibold">No team members yet</p>
+          <p className="text-sm text-forvis-gray-600 mt-1">Add users to start collaborating on this project</p>
         </div>
       )}
 
@@ -161,10 +164,10 @@ export function ProjectUserList({
         const user = (selectedUser as any).User || (selectedUser as any).user;
         return (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+            <div className="bg-white rounded-lg shadow-corporate-lg max-w-2xl w-full border-2 border-forvis-gray-200">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-forvis-gray-200 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-forvis-gray-900">Team Member Details</h2>
+              <div className="px-6 py-4 border-b-2 border-forvis-gray-200 flex items-center justify-between" style={{ background: 'linear-gradient(to right, #EBF2FA, #D6E4F5)' }}>
+                <h2 className="text-xl font-bold text-forvis-blue-900">Team Member Details</h2>
                 <button
                   onClick={() => setSelectedUser(null)}
                   className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
@@ -177,7 +180,10 @@ export function ProjectUserList({
               <div className="p-6 space-y-6">
                 {/* User Header */}
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-forvis-blue-500 to-forvis-blue-700 flex items-center justify-center text-white font-bold text-3xl shadow-lg">
+                  <div 
+                    className="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-3xl shadow-corporate-md"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  >
                     {getInitials(user?.name, user?.email)}
                   </div>
                   <div>
@@ -199,9 +205,9 @@ export function ProjectUserList({
 
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-forvis-gray-50 rounded-lg p-4">
+                  <div className="bg-forvis-gray-50 rounded-lg p-4 border border-forvis-gray-200">
                     <div className="flex items-start gap-3">
-                      <EnvelopeIcon className="w-5 h-5 text-forvis-blue-600 mt-0.5" />
+                      <EnvelopeIcon className="w-5 h-5 text-forvis-blue-500 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-forvis-gray-700">Email</p>
                         <p className="text-sm text-forvis-gray-900 mt-0.5">{user?.email || 'No email'}</p>
@@ -209,9 +215,9 @@ export function ProjectUserList({
                     </div>
                   </div>
 
-                <div className="bg-forvis-gray-50 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <CalendarIcon className="w-5 h-5 text-forvis-blue-600 mt-0.5" />
+                  <div className="bg-forvis-gray-50 rounded-lg p-4 border border-forvis-gray-200">
+                    <div className="flex items-start gap-3">
+                      <CalendarIcon className="w-5 h-5 text-forvis-blue-500 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-forvis-gray-700">Added to Project</p>
                       <p className="text-sm text-forvis-gray-900 mt-0.5">
@@ -225,16 +231,16 @@ export function ProjectUserList({
                   </div>
                 </div>
 
-                <div className="bg-forvis-blue-50 rounded-lg p-4 border border-forvis-blue-200">
-                  <p className="text-sm font-medium text-forvis-blue-900 mb-2">Role Permissions</p>
-                  <p className="text-sm text-forvis-blue-800">{getRoleDescription(selectedUser.role)}</p>
-                </div>
+                  <div className="rounded-lg p-4 border-2 border-forvis-blue-300" style={{ background: 'linear-gradient(135deg, #EBF2FA 0%, #D6E4F5 100%)' }}>
+                    <p className="text-sm font-semibold text-forvis-blue-900 mb-2">Role Permissions</p>
+                    <p className="text-sm text-forvis-blue-800">{getRoleDescription(selectedUser.role)}</p>
+                  </div>
               </div>
 
-              {/* Role Management */}
-              {canManageUsers && selectedUser.userId !== currentUserId && (
-                <div className="border-t border-forvis-gray-200 pt-6">
-                  <h4 className="text-sm font-semibold text-forvis-gray-900 mb-3">Manage Access</h4>
+                {/* Role Management */}
+                {canManageUsers && selectedUser.userId !== currentUserId && (
+                  <div className="border-t-2 border-forvis-gray-200 pt-6">
+                    <h4 className="text-sm font-bold text-forvis-gray-900 mb-3">Manage Access</h4>
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <RoleSelector
@@ -250,7 +256,10 @@ export function ProjectUserList({
                     <button
                       onClick={() => handleRemoveUser(selectedUser.userId)}
                       disabled={removingUserId === selectedUser.userId}
-                      className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:bg-gray-400 transition-colors"
+                      className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:bg-gray-400 transition-colors shadow-corporate hover:shadow-corporate-md"
+                      style={{ 
+                        background: removingUserId === selectedUser.userId ? '#6C757D' : 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)'
+                      }}
                     >
                       {removingUserId === selectedUser.userId ? 'Removing...' : 'Remove from Project'}
                     </button>
@@ -260,10 +269,10 @@ export function ProjectUserList({
             </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 bg-forvis-gray-50 border-t border-forvis-gray-200 flex justify-end">
+              <div className="px-6 py-4 bg-forvis-gray-50 border-t-2 border-forvis-gray-200 flex justify-end">
                 <button
                   onClick={() => setSelectedUser(null)}
-                  className="px-4 py-2 text-sm font-semibold text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"
+                  className="px-4 py-2 text-sm font-semibold text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-100 transition-colors shadow-corporate"
                 >
                   Close
                 </button>

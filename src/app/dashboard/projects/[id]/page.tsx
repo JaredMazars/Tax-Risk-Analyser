@@ -424,15 +424,24 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     try {
       const response = await fetch(`/api/projects/${params.id}`);
       const data = await response.json();
-      if (data.success && data.data.users) {
+      // API returns ProjectUser (capital P and U) from Prisma
+      const projectUsers = data.data?.ProjectUser || data.data?.projectUser || data.data?.users || [];
+      if (data.success && projectUsers.length > 0) {
         // Get current user from session
         const sessionResponse = await fetch('/api/auth/session');
         const sessionData = await sessionResponse.json();
         if (sessionData.user) {
-          const currentUser = data.data.users.find((u: any) => u.userId === sessionData.user.id);
+          const currentUser = projectUsers.find((u: any) => {
+            // Handle both User and user properties
+            const userId = u.User?.id || u.user?.id || u.userId;
+            return userId === sessionData.user.id;
+          });
           if (currentUser) {
             setCurrentUserId(sessionData.user.id);
             setCurrentUserRole(currentUser.role);
+            console.log('Current user role:', currentUser.role);
+          } else {
+            console.warn('Current user not found in project users');
           }
         }
       }
@@ -477,23 +486,41 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       
       case 'team':
         return (
-          <div className="p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-forvis-gray-900">Team Members</h2>
-                  <p className="text-sm text-forvis-gray-600 mt-1">Manage project access and roles</p>
-                </div>
+          <div className="p-6 bg-forvis-gray-50">
+            <div className="max-w-5xl mx-auto">
+              {/* Header Card */}
+              <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6 mb-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold text-forvis-gray-900">Team Members</h2>
+                    <p className="text-sm text-forvis-gray-600 mt-1">
+                      {currentUserRole === 'ADMIN' 
+                        ? 'Manage project access and roles' 
+                        : `View team members • Your role: ${currentUserRole || 'Loading...'}`
+                      }
+                    </p>
+                  </div>
 
-                {currentUserRole === 'ADMIN' && (
-                  <button
-                    onClick={() => setShowAddUserModal(true)}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700 transition-colors shadow-corporate"
-                  >
-                    <UsersIcon className="h-5 w-5 mr-2" />
-                    Add User
-                  </button>
-                )}
+                  {currentUserRole === 'ADMIN' ? (
+                    <button
+                      onClick={() => setShowAddUserModal(true)}
+                      className="inline-flex items-center px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md"
+                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Team Member
+                    </button>
+                  ) : currentUserRole && (
+                    <div className="text-sm text-forvis-gray-600 bg-forvis-gray-100 px-4 py-2 rounded-lg border-2 border-forvis-gray-300 shadow-corporate">
+                      <svg className="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      Only admins can add members
+                    </div>
+                  )}
+                </div>
               </div>
 
               {loadingUsers ? (
