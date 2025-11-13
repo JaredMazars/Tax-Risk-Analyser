@@ -4,6 +4,11 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { addProjectUserSchema } from '@/lib/utils/validation';
 import { parseProjectId, successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
+import { emailService } from '@/lib/services/email/emailService';
+import { notificationService } from '@/lib/services/notifications/notificationService';
+import { createUserAddedNotification } from '@/lib/services/notifications/templates';
+import { NotificationType } from '@/types/notification';
+import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
 
 export async function GET(
@@ -121,6 +126,67 @@ export async function POST(
         },
       },
     });
+
+    // Send email notification (non-blocking)
+    try {
+      // Get project details for email
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true, projectType: true },
+      });
+
+      if (project && projectUser.User) {
+        await emailService.sendUserAddedEmail(
+          projectId,
+          project.name,
+          project.projectType,
+          {
+            id: projectUser.User.id,
+            name: projectUser.User.name,
+            email: projectUser.User.email,
+          },
+          {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          },
+          projectUser.role
+        );
+      }
+    } catch (emailError) {
+      // Log email error but don't fail the request
+      logger.error('Failed to send user added email:', emailError);
+    }
+
+    // Create in-app notification (non-blocking)
+    try {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true },
+      });
+
+      if (project) {
+        const notification = createUserAddedNotification(
+          project.name,
+          projectId,
+          user.name || user.email,
+          projectUser.role
+        );
+
+        await notificationService.createNotification(
+          projectUser.userId,
+          NotificationType.USER_ADDED,
+          notification.title,
+          notification.message,
+          projectId,
+          notification.actionUrl,
+          user.id
+        );
+      }
+    } catch (notificationError) {
+      // Log notification error but don't fail the request
+      logger.error('Failed to create in-app notification:', notificationError);
+    }
 
     return NextResponse.json(successResponse(projectUser), { status: 201 });
   } catch (error) {

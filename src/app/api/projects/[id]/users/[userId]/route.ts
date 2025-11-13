@@ -4,6 +4,11 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { updateProjectUserSchema } from '@/lib/utils/validation';
 import { parseProjectId, successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
+import { emailService } from '@/lib/services/email/emailService';
+import { notificationService } from '@/lib/services/notifications/notificationService';
+import { createUserRemovedNotification } from '@/lib/services/notifications/templates';
+import { NotificationType } from '@/types/notification';
+import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
 
 export async function GET(
@@ -218,6 +223,15 @@ export async function DELETE(
           userId: targetUserId,
         },
       },
+      include: {
+        User: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     if (!existingProjectUser) {
@@ -252,6 +266,12 @@ export async function DELETE(
       }
     }
 
+    // Get project details for email before deletion
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true, projectType: true },
+    });
+
     // Remove user from project
     await prisma.projectUser.delete({
       where: {
@@ -261,6 +281,54 @@ export async function DELETE(
         },
       },
     });
+
+    // Send email notification (non-blocking)
+    try {
+      if (project && existingProjectUser.User) {
+        await emailService.sendUserRemovedEmail(
+          projectId,
+          project.name,
+          project.projectType,
+          {
+            id: existingProjectUser.User.id,
+            name: existingProjectUser.User.name,
+            email: existingProjectUser.User.email,
+          },
+          {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          }
+        );
+      }
+    } catch (emailError) {
+      // Log email error but don't fail the request
+      logger.error('Failed to send user removed email:', emailError);
+    }
+
+    // Create in-app notification (non-blocking)
+    try {
+      if (project && existingProjectUser.User) {
+        const notification = createUserRemovedNotification(
+          project.name,
+          projectId,
+          user.name || user.email
+        );
+
+        await notificationService.createNotification(
+          existingProjectUser.User.id,
+          NotificationType.USER_REMOVED,
+          notification.title,
+          notification.message,
+          projectId,
+          notification.actionUrl,
+          user.id
+        );
+      }
+    } catch (notificationError) {
+      // Log notification error but don't fail the request
+      logger.error('Failed to create in-app notification:', notificationError);
+    }
 
     return NextResponse.json(
       successResponse({ message: 'User removed from project successfully' })

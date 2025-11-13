@@ -245,4 +245,7 @@ export interface FilingStatus {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
-} 
+}
+
+// Re-export notification types
+export * from './notification'; 

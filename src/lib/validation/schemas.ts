@@ -124,6 +124,41 @@ export const UpdateOpinionSectionSchema = z.object({
 }).strict();
 
 /**
+ * Notification Preference schemas
+ */
+export const UpdateNotificationPreferenceSchema = z.object({
+  emailEnabled: z.boolean(),
+}).strict();
+
+export const CreateNotificationPreferenceSchema = z.object({
+  projectId: z.number().int().positive().nullable().optional(),
+  notificationType: z.string().min(1).max(100),
+  emailEnabled: z.boolean().default(true),
+}).strict();
+
+/**
+ * In-App Notification schemas
+ */
+export const UpdateInAppNotificationSchema = z.object({
+  isRead: z.boolean(),
+}).strict();
+
+export const SendUserMessageSchema = z.object({
+  recipientUserId: z.string().min(1),
+  title: z.string().min(1).max(200),
+  message: z.string().min(1).max(1000),
+  projectId: z.number().int().positive().optional(),
+  actionUrl: z.string().max(500).optional(),
+}).strict();
+
+export const NotificationFiltersSchema = z.object({
+  isRead: z.boolean().optional(),
+  projectId: z.number().int().positive().optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+}).strict();
+
+/**
  * Type inference from schemas
  */
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
@@ -133,5 +168,13 @@ export type CreateClientInput = z.infer<typeof CreateClientSchema>;
 export type UpdateTaxAdjustmentInput = z.infer<typeof UpdateTaxAdjustmentSchema>;
 export type CreateTaxAdjustmentInput = z.infer<typeof CreateTaxAdjustmentSchema>;
 export type PaginationInput = z.infer<typeof PaginationSchema>;
+export type UpdateNotificationPreferenceInput = z.infer<typeof UpdateNotificationPreferenceSchema>;
+export type CreateNotificationPreferenceInput = z.infer<typeof CreateNotificationPreferenceSchema>;
+export type UpdateInAppNotificationInput = z.infer<typeof UpdateInAppNotificationSchema>;
+export type SendUserMessageInput = z.infer<typeof SendUserMessageSchema>;
+export type NotificationFiltersInput = z.infer<typeof NotificationFiltersSchema>;
+
+
+
 
 

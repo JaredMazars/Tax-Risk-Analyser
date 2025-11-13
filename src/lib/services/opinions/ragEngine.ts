@@ -20,6 +20,9 @@ interface DocumentChunk {
   fileName: string;
   category: string;
   metadata: string;
+  uploadedDate?: string;
+  author?: string;
+  projectScope?: number;
 }
 
 interface SearchResult {
@@ -135,7 +138,9 @@ export class RAGEngine {
     fileName: string,
     category: string,
     filePath: string,
-    fileType: string
+    fileType: string,
+    author?: string,
+    projectScope?: number
   ): Promise<string> {
     try {
       // Download file from blob storage
@@ -170,9 +175,15 @@ export class RAGEngine {
         embedding: embeddings[index],
         fileName,
         category,
+        uploadedDate: new Date().toISOString(),
+        author,
+        projectScope,
         metadata: JSON.stringify({
           totalChunks: chunks.length,
           fileType,
+          uploadedDate: new Date().toISOString(),
+          author,
+          projectScope,
         }),
       }));
 
@@ -317,6 +328,288 @@ export class RAGEngine {
     } catch (error) {
       logger.error(`Error deleting document ${documentId} from index:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Hybrid search combining vector search and keyword matching
+   */
+  async hybridSearch(
+    query: string,
+    draftId: number,
+    topK: number = 5,
+    category?: string
+  ): Promise<SearchResult[]> {
+    if (!this.searchClient) {
+      logger.info('Azure Search not configured, skipping hybrid search');
+      return [];
+    }
+
+    try {
+      logger.info(`🔍 Hybrid search requested for draftId=${draftId}, query="${query.substring(0, 100)}..."`);
+
+      // Generate embedding for vector search
+      const { embeddings } = await embedMany({
+        model: models.embedding,
+        values: [query],
+      });
+
+      const queryEmbedding = embeddings[0];
+
+      // Build filter
+      let filter = `draftId eq ${draftId}`;
+      if (category) {
+        filter += ` and category eq '${category}'`;
+      }
+
+      // Perform hybrid search (vector + text)
+      const searchResults = await this.searchClient.search(query, {
+        vectorSearchOptions: {
+          queries: [
+            {
+              kind: 'vector',
+              vector: queryEmbedding,
+              kNearestNeighborsCount: topK,
+              fields: ['embedding'],
+            },
+          ],
+        },
+        filter,
+        top: topK,
+        select: ['content', 'fileName', 'category', 'documentId', 'chunkIndex'],
+        queryType: 'semantic', // Enable semantic search
+        semanticSearchOptions: {
+          configurationName: 'default',
+        },
+      });
+
+      const results: SearchResult[] = [];
+      for await (const result of searchResults.results) {
+        results.push({
+          content: result.document.content,
+          fileName: result.document.fileName,
+          category: result.document.category,
+          score: result.score || 0,
+          documentId: result.document.documentId,
+        });
+      }
+
+      logger.info(`✅ Hybrid search found ${results.length} results`);
+      return results;
+    } catch (error) {
+      logger.error('❌ Error performing hybrid search:', error);
+      // Fall back to regular semantic search
+      return this.semanticSearch(query, draftId, topK, category);
+    }
+  }
+
+  /**
+   * Search by date range
+   */
+  async searchByDateRange(
+    query: string,
+    draftId: number,
+    dateFrom: Date,
+    dateTo: Date,
+    topK: number = 5
+  ): Promise<SearchResult[]> {
+    if (!this.searchClient) {
+      logger.info('Azure Search not configured');
+      return [];
+    }
+
+    try {
+      const { embeddings } = await embedMany({
+        model: models.embedding,
+        values: [query],
+      });
+
+      const queryEmbedding = embeddings[0];
+
+      // Build filter with date range
+      const filter = `draftId eq ${draftId} and uploadedDate ge ${dateFrom.toISOString()} and uploadedDate le ${dateTo.toISOString()}`;
+
+      const searchResults = await this.searchClient.search(query, {
+        vectorSearchOptions: {
+          queries: [
+            {
+              kind: 'vector',
+              vector: queryEmbedding,
+              kNearestNeighborsCount: topK,
+              fields: ['embedding'],
+            },
+          ],
+        },
+        filter,
+        top: topK,
+        select: ['content', 'fileName', 'category', 'documentId', 'chunkIndex', 'uploadedDate'],
+      });
+
+      const results: SearchResult[] = [];
+      for await (const result of searchResults.results) {
+        results.push({
+          content: result.document.content,
+          fileName: result.document.fileName,
+          category: result.document.category,
+          score: result.score || 0,
+          documentId: result.document.documentId,
+        });
+      }
+
+      return results;
+    } catch (error) {
+      logger.error('Error performing date range search:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Search by multiple categories
+   */
+  async searchByCategories(
+    query: string,
+    draftId: number,
+    categories: string[],
+    topK: number = 5
+  ): Promise<SearchResult[]> {
+    if (!this.searchClient) {
+      logger.info('Azure Search not configured');
+      return [];
+    }
+
+    try {
+      const { embeddings } = await embedMany({
+        model: models.embedding,
+        values: [query],
+      });
+
+      const queryEmbedding = embeddings[0];
+
+      // Build filter with multiple categories using OR
+      const categoryFilter = categories.map(cat => `category eq '${cat}'`).join(' or ');
+      const filter = `draftId eq ${draftId} and (${categoryFilter})`;
+
+      const searchResults = await this.searchClient.search(query, {
+        vectorSearchOptions: {
+          queries: [
+            {
+              kind: 'vector',
+              vector: queryEmbedding,
+              kNearestNeighborsCount: topK,
+              fields: ['embedding'],
+            },
+          ],
+        },
+        filter,
+        top: topK,
+        select: ['content', 'fileName', 'category', 'documentId', 'chunkIndex'],
+      });
+
+      const results: SearchResult[] = [];
+      for await (const result of searchResults.results) {
+        results.push({
+          content: result.document.content,
+          fileName: result.document.fileName,
+          category: result.document.category,
+          score: result.score || 0,
+          documentId: result.document.documentId,
+        });
+      }
+
+      return results;
+    } catch (error) {
+      logger.error('Error performing category search:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Search with complex filters
+   */
+  async searchWithFilters(
+    query: string,
+    draftId: number,
+    filters: {
+      categories?: string[];
+      dateFrom?: Date;
+      dateTo?: Date;
+      author?: string;
+      projectScope?: number;
+    },
+    topK: number = 5
+  ): Promise<SearchResult[]> {
+    if (!this.searchClient) {
+      logger.info('Azure Search not configured');
+      return [];
+    }
+
+    try {
+      const { embeddings } = await embedMany({
+        model: models.embedding,
+        values: [query],
+      });
+
+      const queryEmbedding = embeddings[0];
+
+      // Build complex filter
+      const filterParts: string[] = [`draftId eq ${draftId}`];
+
+      if (filters.categories && filters.categories.length > 0) {
+        const categoryFilter = filters.categories.map(cat => `category eq '${cat}'`).join(' or ');
+        filterParts.push(`(${categoryFilter})`);
+      }
+
+      if (filters.dateFrom) {
+        filterParts.push(`uploadedDate ge ${filters.dateFrom.toISOString()}`);
+      }
+
+      if (filters.dateTo) {
+        filterParts.push(`uploadedDate le ${filters.dateTo.toISOString()}`);
+      }
+
+      if (filters.author) {
+        filterParts.push(`author eq '${filters.author}'`);
+      }
+
+      if (filters.projectScope) {
+        filterParts.push(`projectScope eq ${filters.projectScope}`);
+      }
+
+      const filter = filterParts.join(' and ');
+
+      logger.info(`🔎 Complex filter search: ${filter}`);
+
+      const searchResults = await this.searchClient.search(query, {
+        vectorSearchOptions: {
+          queries: [
+            {
+              kind: 'vector',
+              vector: queryEmbedding,
+              kNearestNeighborsCount: topK,
+              fields: ['embedding'],
+            },
+          ],
+        },
+        filter,
+        top: topK,
+        select: ['content', 'fileName', 'category', 'documentId', 'chunkIndex'],
+      });
+
+      const results: SearchResult[] = [];
+      for await (const result of searchResults.results) {
+        results.push({
+          content: result.document.content,
+          fileName: result.document.fileName,
+          category: result.document.category,
+          score: result.score || 0,
+          documentId: result.document.documentId,
+        });
+      }
+
+      return results;
+    } catch (error) {
+      logger.error('Error performing filtered search:', error);
+      return [];
     }
   }
 

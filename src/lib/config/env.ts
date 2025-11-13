@@ -23,6 +23,7 @@ const OPTIONAL_ENV_VARS = {
   RATE_LIMIT_WINDOW_MS: '60000', // 1 minute
   AZURE_STORAGE_CONTAINER_NAME: 'adjustment-documents',
   AZURE_OPENAI_DEPLOYMENT: 'gpt-5-mini',
+  AZURE_BING_SEARCH_ENDPOINT: 'https://api.bing.microsoft.com/v7.0/search',
 } as const;
 
 /**
@@ -180,6 +181,17 @@ export const env = {
   rateLimitWindowMs: getEnvVarAsNumber(
     'RATE_LIMIT_WINDOW_MS',
     parseInt(OPTIONAL_ENV_VARS.RATE_LIMIT_WINDOW_MS, 10)
+  ),
+  
+  // Azure Communication Services (Email) - Optional
+  azureCommunicationConnectionString: getEnvVar('AZURE_COMMUNICATION_CONNECTION_STRING'),
+  emailFromAddress: getEnvVar('EMAIL_FROM_ADDRESS'),
+  
+  // Bing Search (optional)
+  azureBingSearchApiKey: getEnvVar('AZURE_BING_SEARCH_API_KEY'),
+  azureBingSearchEndpoint: getEnvVar(
+    'AZURE_BING_SEARCH_ENDPOINT',
+    OPTIONAL_ENV_VARS.AZURE_BING_SEARCH_ENDPOINT
   ),
 } as const;
 

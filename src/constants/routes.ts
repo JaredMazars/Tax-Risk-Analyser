@@ -4,7 +4,12 @@
 
 export const ROUTES = {
   HOME: '/',
-  DASHBOARD: '/dashboard',
+  DASHBOARD: {
+    ROOT: '/dashboard',
+    PROJECTS: '/dashboard',
+    CLIENTS: '/dashboard/clients',
+    NOTIFICATIONS: '/dashboard/notifications',
+  },
   AUTH: {
     SIGNIN: '/auth/signin',
     SIGNOUT: '/auth/signout',
@@ -49,7 +54,17 @@ export const API_ROUTES = {
     LIST: '/api/clients',
     DETAIL: (id: number) => `/api/clients/${id}`,
   },
+  NOTIFICATIONS: {
+    LIST: '/api/notifications',
+    DETAIL: (id: number) => `/api/notifications/${id}`,
+    MARK_ALL_READ: '/api/notifications/mark-all-read',
+    UNREAD_COUNT: '/api/notifications/unread-count',
+    SEND_MESSAGE: '/api/notifications/send-message',
+  },
   MAP: '/api/map',
 } as const;
+
+
+
 
 

@@ -136,6 +136,8 @@ model Project {
   AdministrationDocument AdministrationDocument[]
   ComplianceChecklist    ComplianceChecklist[]
   FilingStatus           FilingStatus[]
+  NotificationPreference NotificationPreference[]
+  InAppNotification      InAppNotification[]
 
   @@index([clientId])
   @@index([projectType])
@@ -196,17 +198,21 @@ model TaxAdjustment {
 }
 
 model User {
-  id            String        @id
-  name          String?
-  email         String        @unique
-  emailVerified DateTime?
-  image         String?
-  role          String        @default("USER")
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  Account       Account[]
-  ProjectUser   ProjectUser[]
-  Session       Session[]
+  id                      String                   @id
+  name                    String?
+  email                   String                   @unique
+  emailVerified           DateTime?
+  image                   String?
+  role                    String                   @default("USER")
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  Account                 Account[]
+  ProjectUser             ProjectUser[]
+  Session                 Session[]
+  NotificationPreference  NotificationPreference[]
+  EmailLog                EmailLog[]
+  NotificationsReceived   InAppNotification[]      @relation("NotificationsReceived")
+  NotificationsSent       InAppNotification[]      @relation("NotificationsSent")
 }
 
 model OpinionDraft {
@@ -397,6 +403,64 @@ model FilingStatus {
   @@index([projectId])
   @@index([status])
   @@index([deadline])
+}
+
+model NotificationPreference {
+  id               Int      @id @default(autoincrement())
+  userId           String
+  projectId        Int?
+  notificationType String
+  emailEnabled     Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  User             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Project          Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId, notificationType])
+  @@index([userId])
+  @@index([projectId])
+}
+
+model EmailLog {
+  id              Int       @id @default(autoincrement())
+  recipientEmail  String
+  recipientUserId String?
+  emailType       String
+  subject         String
+  status          String
+  errorMessage    String?
+  metadata        String?   @db.NVarChar(Max)
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+  User            User?     @relation(fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@index([recipientUserId])
+  @@index([emailType])
+  @@index([status])
+}
+
+model InAppNotification {
+  id         Int       @id @default(autoincrement())
+  userId     String
+  projectId  Int?
+  type       String
+  title      String
+  message    String    @db.NVarChar(Max)
+  actionUrl  String?
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  metadata   String?   @db.NVarChar(Max)
+  fromUserId String?
+  createdAt  DateTime  @default(now())
+  User       User      @relation("NotificationsReceived", fields: [userId], references: [id], onDelete: Cascade)
+  FromUser   User?     @relation("NotificationsSent", fields: [fromUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([fromUserId])
+  @@index([projectId])
+  @@index([createdAt(sort: Desc)])
 }
 
 model VerificationToken {
