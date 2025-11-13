@@ -42,6 +42,7 @@ export interface SearchFilters {
   dateTo?: Date;
   jurisdiction?: string;
   category?: string;
+  categories?: string[];
   limit?: number;
 }
 

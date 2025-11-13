@@ -78,7 +78,10 @@ export function getClientIdentifier(request: NextRequest): string {
   
   if (forwarded) {
     // x-forwarded-for can contain multiple IPs, take the first one
-    return forwarded.split(',')[0].trim();
+    const firstIp = forwarded.split(',')[0];
+    if (firstIp) {
+      return firstIp.trim();
+    }
   }
   
   if (realIp) {

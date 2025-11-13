@@ -204,7 +204,8 @@ export class BingSearchService {
     // Simple heuristic: Look for "v" or "vs" pattern
     const vPattern = /(.+?)\s+v[s]?\s+(.+)/i;
     const match = title.match(vPattern);
-    return match ? title : title.split('|')[0].trim();
+    const splitTitle = title.split('|')[0];
+    return match ? title : (splitTitle ? splitTitle.trim() : title);
   }
 
   /**

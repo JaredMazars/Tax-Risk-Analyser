@@ -223,6 +223,9 @@ export class RAGEngine {
       });
       
       const queryEmbedding = embeddings[0];
+      if (!queryEmbedding) {
+        throw new Error('Failed to generate query embedding');
+      }
       logger.info(`✅ Generated query embedding (${queryEmbedding.length} dimensions)`);
 
       // Build filter for draft and optional category
@@ -264,7 +267,7 @@ export class RAGEngine {
       const uniqueDocs = [...new Set(results.map(r => r.fileName))];
       logger.info(`📄 Unique documents: ${uniqueDocs.join(', ')}`);
       
-      if (results.length > 0) {
+      if (results.length > 0 && results[0]) {
         logger.info(`📊 Top result: ${results[0].fileName} (score: ${results[0].score?.toFixed(4)})`);
       } else {
         logger.warn(`⚠️ No results found! Check if documents are indexed for draftId=${draftId}`);
@@ -355,6 +358,9 @@ export class RAGEngine {
       });
 
       const queryEmbedding = embeddings[0];
+      if (!queryEmbedding) {
+        throw new Error('Failed to generate query embedding');
+      }
 
       // Build filter
       let filter = `draftId eq ${draftId}`;
@@ -425,6 +431,9 @@ export class RAGEngine {
       });
 
       const queryEmbedding = embeddings[0];
+      if (!queryEmbedding) {
+        throw new Error('Failed to generate query embedding');
+      }
 
       // Build filter with date range
       const filter = `draftId eq ${draftId} and uploadedDate ge ${dateFrom.toISOString()} and uploadedDate le ${dateTo.toISOString()}`;
@@ -484,6 +493,9 @@ export class RAGEngine {
       });
 
       const queryEmbedding = embeddings[0];
+      if (!queryEmbedding) {
+        throw new Error('Failed to generate query embedding');
+      }
 
       // Build filter with multiple categories using OR
       const categoryFilter = categories.map(cat => `category eq '${cat}'`).join(' or ');
@@ -550,6 +562,9 @@ export class RAGEngine {
       });
 
       const queryEmbedding = embeddings[0];
+      if (!queryEmbedding) {
+        throw new Error('Failed to generate query embedding');
+      }
 
       // Build complex filter
       const filterParts: string[] = [`draftId eq ${draftId}`];

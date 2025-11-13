@@ -15,7 +15,7 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
   const markAllAsRead = useMarkAllAsRead();
 
   const handleMarkAllAsRead = async () => {
-    await markAllAsRead.mutateAsync();
+    await markAllAsRead.mutateAsync(undefined);
   };
 
   return (

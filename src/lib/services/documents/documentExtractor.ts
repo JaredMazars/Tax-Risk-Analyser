@@ -123,7 +123,9 @@ export class DocumentExtractor {
       const sheets: Record<string, any[][]> = {};
       for (const sheetName of workbook.SheetNames) {
         const worksheet = workbook.Sheets[sheetName];
-        sheets[sheetName] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        if (worksheet) {
+          sheets[sheetName] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        }
       }
 
       // Use AI to interpret the Excel data
@@ -350,7 +352,8 @@ Return JSON with:
    */
   private static inferDocumentType(sheets: Record<string, any[][]>): string {
     const sheetNames = Object.keys(sheets).map(s => s.toLowerCase());
-    const firstSheetData = sheets[Object.keys(sheets)[0]] || [];
+    const firstSheetKey = Object.keys(sheets)[0];
+    const firstSheetData = firstSheetKey ? sheets[firstSheetKey] || [] : [];
     
     // Check for common patterns
     if (sheetNames.some(name => name.includes('depreciation') || name.includes('asset'))) {

@@ -27,7 +27,7 @@ export default function NotificationsPage() {
   const deleteAllRead = useDeleteAllRead();
 
   const handleMarkAllAsRead = async () => {
-    await markAllAsRead.mutateAsync();
+    await markAllAsRead.mutateAsync(undefined);
   };
 
   const handleDeleteAllRead = async () => {

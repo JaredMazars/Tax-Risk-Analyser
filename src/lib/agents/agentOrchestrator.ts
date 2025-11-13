@@ -603,7 +603,7 @@ What would you like me to do?`;
 
     for (const pattern of patterns) {
       const match = message.match(pattern);
-      if (match) return match[1];
+      if (match && match[1]) return match[1];
     }
 
     return message;

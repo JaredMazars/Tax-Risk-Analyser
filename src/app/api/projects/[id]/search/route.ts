@@ -54,7 +54,6 @@ export async function GET(
 
     const filters: SearchFilters = {
       category,
-      categories,
       dateFrom,
       dateTo,
       limit,

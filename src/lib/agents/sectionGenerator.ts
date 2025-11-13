@@ -175,7 +175,10 @@ export class SectionGenerator {
     });
 
     // Update state with the answer
-    state.questions[state.currentQuestionIndex].answer = answer;
+    const currentQuestion = state.questions[state.currentQuestionIndex];
+    if (currentQuestion) {
+      currentQuestion.answer = answer;
+    }
     state.currentQuestionIndex += 1;
 
     // Search documents with updated context (after each answer)
@@ -324,7 +327,7 @@ export class SectionGenerator {
       custom: `I'll help you create the "${customTitle}" section.${docContext} What information or analysis should this section contain?`,
     };
 
-    return prompts[sectionType.toLowerCase()] || prompts.custom;
+    return prompts[sectionType.toLowerCase()] || prompts.custom || 'What information would you like to include in this section?';
   }
 
   /**

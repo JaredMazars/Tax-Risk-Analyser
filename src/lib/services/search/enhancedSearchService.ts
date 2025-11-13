@@ -81,7 +81,6 @@ export class EnhancedSearchService {
               categories: filters.categories,
               dateFrom: filters.dateFrom,
               dateTo: filters.dateTo,
-              category: filters.category,
             },
             filters.limit || 10
           );
