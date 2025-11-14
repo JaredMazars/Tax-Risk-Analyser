@@ -33,7 +33,7 @@ export default function OpinionPreview({
       const data = await response.json();
       setSections(data.data || []);
     } catch (error) {
-      console.error('Error fetching sections:', error);
+      // Failed to fetch sections
     } finally {
       setIsLoading(false);
     }
@@ -63,7 +63,6 @@ export default function OpinionPreview({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error exporting PDF:', error);
       alert('Failed to export PDF');
     } finally {
       setExporting(false);
@@ -94,7 +93,6 @@ export default function OpinionPreview({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error exporting Word:', error);
       alert('Failed to export Word document');
     } finally {
       setExporting(false);

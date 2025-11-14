@@ -60,11 +60,9 @@ export default function UserMenu({ user }: UserMenuProps) {
         // Redirect to home page
         window.location.href = '/';
       } else {
-        console.error('Logout failed');
         setIsLoggingOut(false);
       }
     } catch (error) {
-      console.error('Error during logout:', error);
       setIsLoggingOut(false);
     }
   };

@@ -1,4 +1,4 @@
-import { validateEnvVariables } from '../errorHandler';
+import { validateEnvVariables } from '../utils/errorHandler';
 
 /**
  * Required environment variables

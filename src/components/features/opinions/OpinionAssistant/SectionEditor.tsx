@@ -86,7 +86,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       const data = await response.json();
       setSections(data.data || []);
     } catch (error) {
-      console.error('Error fetching sections:', error);
       setError('Failed to load sections');
     } finally {
       setIsLoading(false);
@@ -131,7 +130,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       setCurrentQuestion(data.question);
       setIsAnswering(false); // Enable the textarea for user input
     } catch (error: any) {
-      console.error('Error starting section:', error);
       setError(error.message || 'Failed to start section');
       setIsAnswering(false);
     }
@@ -175,7 +173,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
         setUserAnswer('');
       }
     } catch (error: any) {
-      console.error('Error submitting answer:', error);
       setError(error.message || 'Failed to submit answer');
     } finally {
       setIsAnswering(false);
@@ -216,7 +213,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       setCurrentQuestion('');
       setUserAnswer('');
     } catch (error: any) {
-      console.error('Error generating content:', error);
       setError(error.message || 'Failed to generate section');
     } finally {
       setIsGenerating(false);
@@ -283,7 +279,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
           }
         }
       } catch (error) {
-        console.error('Error refreshing context:', error);
         // Non-fatal error, document will be available on next answer
       }
       
@@ -294,7 +289,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       }, 2000);
 
     } catch (error: any) {
-      console.error('Error uploading document:', error);
       setError(error.message || 'Failed to upload document');
       setIsUploadingDoc(false);
       setUploadProgress('');
@@ -334,7 +328,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
 
       await fetchSections();
     } catch (error: any) {
-      console.error('Error regenerating section:', error);
       setError(error.message || 'Failed to regenerate section');
     } finally {
       setIsLoading(false);
@@ -369,7 +362,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
       await fetchSections();
       setEditingSection(null);
     } catch (error) {
-      console.error('Error updating section:', error);
       setError('Failed to update section');
     }
   };
@@ -387,7 +379,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
 
       await fetchSections();
     } catch (error) {
-      console.error('Error deleting section:', error);
       setError('Failed to delete section');
     }
   };
@@ -424,7 +415,6 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
 
       await fetchSections();
     } catch (error) {
-      console.error('Error reordering sections:', error);
       setError('Failed to reorder sections');
     }
   };

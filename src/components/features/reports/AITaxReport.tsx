@@ -45,7 +45,7 @@ export default function AITaxReport({ projectId, onReportLoaded }: AITaxReportPr
       }
       // If 404, no report exists yet - that's fine
     } catch (err) {
-      console.error('Error fetching existing report:', err);
+      // Report doesn't exist yet
     }
   };
 

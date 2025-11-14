@@ -66,7 +66,7 @@ export function SendMessageModal({
           setSearchResults(result.data || []);
         }
       } catch (error) {
-        console.error('Error searching users:', error);
+        // Search failed silently
       } finally {
         setIsSearching(false);
       }

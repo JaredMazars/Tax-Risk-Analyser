@@ -1,14 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { AITaxReportGenerator, ProjectTaxData } from '@/lib/services/opinions/aiTaxReportGenerator';
+import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
 export const maxDuration = 90; // 90 seconds timeout for AI generation
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Apply rate limiting for AI operations
+    enforceRateLimit(request, RateLimitPresets.AI_ENDPOINTS);
+    
     const params = await context.params;
     const projectId = parseInt(params.id);
 
@@ -44,10 +48,13 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Apply rate limiting for AI operations
+    enforceRateLimit(request, RateLimitPresets.AI_ENDPOINTS);
+    
     const params = await context.params;
     const projectId = parseInt(params.id);
 

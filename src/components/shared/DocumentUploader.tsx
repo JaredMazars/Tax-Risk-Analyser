@@ -103,7 +103,6 @@ export default function DocumentUploader({
         fileInputRef.current.value = '';
       }
     } catch (error) {
-      console.error('Upload error:', error);
       onUploadError?.(error instanceof Error ? error.message : 'Upload failed');
     } finally {
       setIsUploading(false);

@@ -1,46 +1,52 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    './src/**/*.{js,ts,jsx,tsx,mdx}',
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
       colors: {
-        blue: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        // Forvis Mazars color palette
+        forvis: {
+          blue: {
+            50: '#EBF2FA',
+            100: '#D6E4F5',
+            200: '#ADC9EB',
+            300: '#84AEE1',
+            400: '#5B93D7',
+            500: '#2E5AAC', // Primary Forvis Mazars Blue
+            600: '#25488A',
+            700: '#1C3667',
+            800: '#132445',
+            900: '#0A1222',
+          },
+          gray: {
+            50: '#F8F9FA',
+            100: '#F1F3F5',
+            200: '#E9ECEF',
+            300: '#DEE2E6',
+            400: '#CED4DA',
+            500: '#ADB5BD',
+            600: '#6C757D',
+            700: '#495057',
+            800: '#343A40',
+            900: '#212529',
+          },
         },
-        indigo: {
-          50: '#eef2ff',
-          600: '#4f46e5',
-          700: '#4338ca',
-        },
-        gray: {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-          300: '#d1d5db',
-          400: '#9ca3af',
-          500: '#6b7280',
-          600: '#4b5563',
-          700: '#374151',
-          900: '#111827',
-        },
-        red: {
-          50: '#fef2f2',
-          400: '#f87171',
-          700: '#b91c1c',
-        },
-        green: {
-          600: '#16a34a',
-          700: '#15803d',
-        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+      },
+      boxShadow: {
+        'corporate': '0 1px 3px 0 rgba(46, 90, 172, 0.1), 0 1px 2px 0 rgba(46, 90, 172, 0.06)',
+        'corporate-md': '0 4px 6px -1px rgba(46, 90, 172, 0.1), 0 2px 4px -1px rgba(46, 90, 172, 0.06)',
+        'corporate-lg': '0 10px 15px -3px rgba(46, 90, 172, 0.1), 0 4px 6px -2px rgba(46, 90, 172, 0.05)',
       },
     },
   },
   plugins: [],
-}; 
+};

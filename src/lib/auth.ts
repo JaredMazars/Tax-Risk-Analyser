@@ -1,6 +1,7 @@
 import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { randomBytes } from 'crypto';
 import { prisma } from './db/prisma';
 
 const msalConfig = {
@@ -103,7 +104,7 @@ export async function createSession(user: SessionUser): Promise<string> {
 
   // Store session in database
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
-  const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  const sessionId = `sess_${randomBytes(16).toString('hex')}`;
   await prisma.session.create({
     data: {
       id: sessionId,
@@ -270,7 +271,6 @@ export async function checkProjectAccess(
     // Check role hierarchy
     return hasRolePermission(projectUser.role, requiredRole);
   } catch (error) {
-    console.error('Error checking project access:', error);
     return false;
   }
 }
@@ -294,7 +294,6 @@ export async function getUserProjectRole(
 
     return projectUser?.role || null;
   } catch (error) {
-    console.error('Error getting user project role:', error);
     return null;
   }
 }
@@ -311,7 +310,6 @@ export async function isSystemAdmin(userId: string): Promise<boolean> {
 
     return user?.role === 'ADMIN';
   } catch (error) {
-    console.error('Error checking admin status:', error);
     return false;
   }
 }

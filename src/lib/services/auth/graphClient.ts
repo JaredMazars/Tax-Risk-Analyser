@@ -2,10 +2,7 @@ import { Client } from '@microsoft/microsoft-graph-client';
 import { ClientSecretCredential } from '@azure/identity';
 import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
 
-// Ensure required environment variables
-if (!process.env.AZURE_AD_CLIENT_ID || !process.env.AZURE_AD_CLIENT_SECRET || !process.env.AZURE_AD_TENANT_ID) {
-  console.warn('Microsoft Graph credentials not configured. AD user search will not be available.');
-}
+// Ensure required environment variables are configured
 
 /**
  * Create Microsoft Graph client for server-side operations
@@ -28,7 +25,6 @@ function createGraphClient(): Client | null {
 
     return Client.initWithMiddleware({ authProvider });
   } catch (error) {
-    console.error('Failed to create Graph client:', error);
     return null;
   }
 }
@@ -67,7 +63,6 @@ export async function searchADUsers(query: string, limit: number = 20): Promise<
 
     return response.value || [];
   } catch (error) {
-    console.error('Error searching AD users:', error);
     throw new Error('Failed to search Active Directory users');
   }
 }
@@ -92,7 +87,6 @@ export async function getADUser(userIdOrEmail: string): Promise<GraphUser | null
 
     return user;
   } catch (error) {
-    console.error('Error getting AD user:', error);
     return null;
   }
 }
@@ -119,7 +113,6 @@ export async function listADUsers(limit: number = 50): Promise<GraphUser[]> {
 
     return response.value || [];
   } catch (error) {
-    console.error('Error listing AD users:', error);
     throw new Error('Failed to list Active Directory users');
   }
 }

@@ -169,7 +169,6 @@ export async function validateFile(
         };
       }
     } catch (error) {
-      console.error('Error checking magic bytes:', error);
       // Continue anyway - this is an extra security check
     }
   }

@@ -45,7 +45,6 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Export error:', error);
       alert(error instanceof Error ? error.message : 'Export failed');
     } finally {
       setIsExporting(false);

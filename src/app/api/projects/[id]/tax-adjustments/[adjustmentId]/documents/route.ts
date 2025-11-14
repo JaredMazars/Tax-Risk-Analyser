@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
+import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); // 10MB default
 
@@ -13,6 +14,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
+    // Apply rate limiting for file uploads
+    enforceRateLimit(request, RateLimitPresets.FILE_UPLOADS);
+    
     const resolvedParams = await params;
     const projectId = parseInt(resolvedParams.id);
     const adjustmentId = parseInt(resolvedParams.adjustmentId);

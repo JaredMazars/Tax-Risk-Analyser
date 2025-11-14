@@ -1,7 +1,6 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
-
 # Forvis Mazars Styling Guide
 
 Professional, corporate styling consistent with Forvis Mazars brand guidelines and existing application patterns.

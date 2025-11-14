@@ -1,5 +1,5 @@
 import { prisma } from '../db/prisma';
-import { AppError, ErrorCodes } from '../errorHandler';
+import { AppError, ErrorCodes } from './errorHandler';
 
 /**
  * Common utility functions for API routes

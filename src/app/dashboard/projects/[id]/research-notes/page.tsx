@@ -40,7 +40,6 @@ export default function ResearchNotesPage({ params }: ResearchNotesPageProps) {
       const data = await response.json();
       setNotes(data.data || []);
     } catch (error) {
-      console.error('Error fetching notes:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch notes');
     } finally {
       setIsLoading(false);

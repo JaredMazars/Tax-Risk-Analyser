@@ -61,16 +61,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    console.log('[DEBUG] Creating project with user:', JSON.stringify(user));
-    
     // Check if user exists in database
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
     });
-    console.log('[DEBUG] User found in database:', !!dbUser);
     
     if (!dbUser) {
-      console.error('[ERROR] User not found in database. User ID from session:', user.id);
       return NextResponse.json({ 
         error: 'User not found in database. Please log out and log back in.' 
       }, { status: 400 });

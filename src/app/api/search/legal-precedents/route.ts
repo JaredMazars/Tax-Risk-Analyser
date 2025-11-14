@@ -4,6 +4,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { bingSearchService } from '@/lib/services/search/bingSearchService';
 import { logger } from '@/lib/utils/logger';
+import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 
 /**
  * GET /api/search/legal-precedents
@@ -11,6 +12,9 @@ import { logger } from '@/lib/utils/logger';
  */
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting for search operations
+    enforceRateLimit(request, RateLimitPresets.STANDARD);
+    
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

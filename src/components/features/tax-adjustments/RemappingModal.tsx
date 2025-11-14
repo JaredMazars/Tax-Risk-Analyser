@@ -237,7 +237,6 @@ export default function RemappingModal({ isOpen, onClose, mappedData, onMappingU
         onClose();
       }, 500);
     } catch (error) {
-      console.error('Error remapping accounts:', error);
       alert('Error remapping accounts. Please try again.');
     } finally {
       setIsRemapping(false);

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { AppError, ErrorCodes } from '../errorHandler';
+import { AppError, ErrorCodes } from './errorHandler';
 import { env } from '../config/env';
 
 /**

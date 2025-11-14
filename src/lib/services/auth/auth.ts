@@ -270,7 +270,6 @@ export async function checkProjectAccess(
     // Check role hierarchy
     return hasRolePermission(projectUser.role, requiredRole);
   } catch (error) {
-    console.error('Error checking project access:', error);
     return false;
   }
 }
@@ -294,7 +293,6 @@ export async function getUserProjectRole(
 
     return projectUser?.role || null;
   } catch (error) {
-    console.error('Error getting user project role:', error);
     return null;
   }
 }
@@ -311,7 +309,6 @@ export async function isSystemAdmin(userId: string): Promise<boolean> {
 
     return user?.role === 'ADMIN';
   } catch (error) {
-    console.error('Error checking admin status:', error);
     return false;
   }
 }

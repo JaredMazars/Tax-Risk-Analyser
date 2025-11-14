@@ -50,7 +50,6 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
       const data = await response.json();
       setMessages(data.data || []);
     } catch (error) {
-      console.error('Error fetching messages:', error);
       setError('Failed to load chat history');
     }
   };
@@ -86,7 +85,6 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
         data.data.assistantMessage,
       ]);
     } catch (error) {
-      console.error('Error sending message:', error);
       setError('Failed to send message. Please try again.');
     } finally {
       setIsLoading(false);

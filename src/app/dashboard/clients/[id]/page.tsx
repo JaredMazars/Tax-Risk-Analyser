@@ -59,7 +59,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         projects: clientData.projects || [],
       });
     } catch (error) {
-      console.error('Error fetching client:', error);
+      // Failed to fetch client
     } finally {
       setIsLoading(false);
     }

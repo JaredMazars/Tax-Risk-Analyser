@@ -27,7 +27,7 @@ export function ClientSelector({ value, onChange, allowCreate = false }: ClientS
         setClients(data.data.clients);
       }
     } catch (error) {
-      console.error('Failed to fetch clients:', error);
+      // Failed to fetch clients
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export function ClientSelector({ value, onChange, allowCreate = false }: ClientS
         setNewClientName('');
       }
     } catch (error) {
-      console.error('Failed to create client:', error);
+      // Failed to create client
     }
   };
 

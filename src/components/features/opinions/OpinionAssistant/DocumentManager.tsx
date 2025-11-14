@@ -59,7 +59,6 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
       const data = await response.json();
       setDocuments(data.data || []);
     } catch (error) {
-      console.error('Error fetching documents:', error);
       if (!silent) setError('Failed to load documents');
     } finally {
       if (!silent) setIsLoading(false);
@@ -127,7 +126,6 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
 
       await fetchDocuments();
     } catch (error: any) {
-      console.error('Error uploading document:', error);
       setError(error.message || 'Failed to upload document');
     } finally {
       setUploading(false);
@@ -147,7 +145,6 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
 
       await fetchDocuments();
     } catch (error) {
-      console.error('Error deleting document:', error);
       setError('Failed to delete document');
     }
   };

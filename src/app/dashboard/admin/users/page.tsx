@@ -98,7 +98,6 @@ export default function UserManagementPage() {
         setError('Failed to load users');
       }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
       setError('An error occurred while loading users. Please try again.');
     } finally {
       setLoading(false);
@@ -116,7 +115,7 @@ export default function UserManagementPage() {
         setAdSearchResults(data.data);
       }
     } catch (error) {
-      console.error('Failed to search AD:', error);
+      // Failed to search AD
     } finally {
       setAdLoading(false);
     }
@@ -137,7 +136,7 @@ export default function UserManagementPage() {
         setShowDetailModal(false);
       }
     } catch (error) {
-      console.error('Failed to remove user:', error);
+      // Failed to remove user
     }
   };
 
