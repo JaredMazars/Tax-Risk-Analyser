@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   UserGroupIcon, 
   MagnifyingGlassIcon,
@@ -12,7 +12,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { getRoleBadgeColor, formatRole, formatDate } from '@/lib/utils/projectUtils';
 import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
-import { ADUser } from '@/types';
+import { ADUser, ServiceLine, ServiceLineRole } from '@/types';
+import { ServiceLineUser } from '@/types/dto';
+import { SERVICE_LINE_DETAILS } from '@/types/service-line';
 
 interface SystemUser {
   id: string;
@@ -48,6 +50,12 @@ export default function UserManagementPage() {
   const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   
+  // Service Line Access Management
+  const [userServiceLines, setUserServiceLines] = useState<ServiceLineUser[]>([]);
+  const [loadingServiceLines, setLoadingServiceLines] = useState(false);
+  const [showAddServiceLineDropdown, setShowAddServiceLineDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
   // AD Search
   const [adSearchQuery, setAdSearchQuery] = useState('');
   const [adSearchResults, setAdSearchResults] = useState<ADUser[]>([]);
@@ -72,6 +80,20 @@ export default function UserManagementPage() {
       setFilteredUsers(filtered);
     }
   }, [searchTerm, systemUsers, activeTab]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowAddServiceLineDropdown(false);
+      }
+    };
+
+    if (showAddServiceLineDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showAddServiceLineDropdown]);
 
   const fetchSystemUsers = async () => {
     setLoading(true);
@@ -121,6 +143,104 @@ export default function UserManagementPage() {
     }
   };
 
+  const fetchUserServiceLines = async (userId: string) => {
+    setLoadingServiceLines(true);
+    try {
+      const response = await fetch(`/api/admin/service-line-access?userId=${userId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const serviceLines = data.success ? data.data : [];
+        console.log('[Frontend] Fetched service lines:', serviceLines);
+        setUserServiceLines(serviceLines);
+      } else {
+        console.error('Failed to fetch service lines:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Failed to fetch service lines:', error);
+    } finally {
+      setLoadingServiceLines(false);
+    }
+  };
+
+  const handleAddServiceLine = async (serviceLine: ServiceLine, role: ServiceLineRole = ServiceLineRole.USER) => {
+    if (!selectedUser) return;
+
+    try {
+      const response = await fetch('/api/admin/service-line-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          serviceLine,
+          role,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchUserServiceLines(selectedUser.id);
+        setShowAddServiceLineDropdown(false);
+      } else {
+        console.error('Failed to add service line access:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Failed to add service line access:', error);
+    }
+  };
+
+  const handleRemoveServiceLine = async (serviceLineUserId: number) => {
+    if (!selectedUser) return;
+    if (!confirm('Remove this service line access?')) return;
+
+    console.log('[Frontend] Removing service line with id:', serviceLineUserId, 'type:', typeof serviceLineUserId);
+
+    try {
+      const url = `/api/admin/service-line-access?id=${serviceLineUserId}`;
+      console.log('[Frontend] DELETE URL:', url);
+      const response = await fetch(url, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchUserServiceLines(selectedUser.id);
+      } else {
+        console.error('Failed to remove service line access:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Failed to remove service line access:', error);
+    }
+  };
+
+  const handleUpdateServiceLineRole = async (serviceLineUserId: number, newRole: ServiceLineRole) => {
+    if (!selectedUser) return;
+
+    const payload = {
+      id: serviceLineUserId,
+      role: newRole,
+    };
+    console.log('[Frontend] Updating service line role:', payload);
+
+    try {
+      const response = await fetch('/api/admin/service-line-access', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        await fetchUserServiceLines(selectedUser.id);
+      } else {
+        console.error('Failed to update service line role:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Failed to update service line role:', error);
+    }
+  };
+
   const handleRemoveFromAllProjects = async (userId: string) => {
     if (!confirm('Are you sure you want to remove this user from ALL projects?')) {
       return;
@@ -138,6 +258,13 @@ export default function UserManagementPage() {
     } catch (error) {
       // Failed to remove user
     }
+  };
+
+  // Open modal and fetch service lines
+  const handleOpenUserDetail = (user: SystemUser) => {
+    setSelectedUser(user);
+    setShowDetailModal(true);
+    fetchUserServiceLines(user.id);
   };
 
   const unassignedUsers = systemUsers.filter(u => u.projectCount === 0);
@@ -228,10 +355,7 @@ export default function UserManagementPage() {
                   <div
                     key={user.id}
                     className="card card-hover p-6 cursor-pointer"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setShowDetailModal(true);
-                    }}
+                    onClick={() => handleOpenUserDetail(user)}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -432,6 +556,109 @@ export default function UserManagementPage() {
                     <div className="text-sm text-forvis-gray-600">Last Activity</div>
                     <div className="text-sm font-medium text-forvis-gray-900">{formatDate(selectedUser.lastActivity)}</div>
                   </div>
+                </div>
+
+                {/* Service Line Access Section */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-forvis-gray-900">Service Line Access</h3>
+                    <div className="relative" ref={dropdownRef}>
+                      <button
+                        onClick={() => setShowAddServiceLineDropdown(!showAddServiceLineDropdown)}
+                        className="btn-primary text-sm flex items-center"
+                      >
+                        <PlusIcon className="h-4 w-4 mr-1" />
+                        Add Service Line
+                      </button>
+
+                      {showAddServiceLineDropdown && (
+                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                          {Object.values(ServiceLine).map((sl) => {
+                            const alreadyHasAccess = userServiceLines.some(
+                              (usl) => usl.serviceLine === sl
+                            );
+                            const details = SERVICE_LINE_DETAILS[sl];
+                            const Icon = details.icon;
+
+                            return (
+                              <button
+                                key={sl}
+                                onClick={() => handleAddServiceLine(sl)}
+                                disabled={alreadyHasAccess}
+                                className={`w-full px-4 py-3 text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg flex items-center ${
+                                  alreadyHasAccess ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                              >
+                                <Icon className={`h-5 w-5 mr-3 ${details.colorClass}`} />
+                                <div>
+                                  <div className="font-medium text-gray-900">{details.name}</div>
+                                  {alreadyHasAccess && (
+                                    <div className="text-xs text-gray-500">Already has access</div>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {loadingServiceLines ? (
+                    <div className="animate-pulse space-y-2">
+                      <div key="skeleton-1" className="h-16 bg-gray-200 rounded-lg"></div>
+                      <div key="skeleton-2" className="h-16 bg-gray-200 rounded-lg"></div>
+                    </div>
+                  ) : userServiceLines.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                      <p className="text-gray-500">No service line access assigned</p>
+                      <p className="text-sm text-gray-400 mt-1">Click "Add Service Line" to grant access</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {userServiceLines.map((slUser) => {
+                        const details = SERVICE_LINE_DETAILS[slUser.serviceLine as ServiceLine];
+                        const Icon = details.icon;
+                        return (
+                          <div
+                            key={slUser.id}
+                            className={`flex items-center justify-between p-4 border-2 ${details.borderColorClass} ${details.bgColorClass} rounded-lg`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <Icon className={`h-6 w-6 ${details.colorClass}`} />
+                              <div>
+                                <div className="font-medium text-gray-900">{details.name}</div>
+                                <div className="text-sm text-gray-600">{details.description}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <select
+                                value={slUser.role}
+                                onChange={(e) =>
+                                  handleUpdateServiceLineRole(
+                                    slUser.id,
+                                    e.target.value as ServiceLineRole
+                                  )
+                                }
+                                className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              >
+                                <option key="role-user" value={ServiceLineRole.USER}>User</option>
+                                <option key="role-manager" value={ServiceLineRole.MANAGER}>Manager</option>
+                                <option key="role-admin" value={ServiceLineRole.ADMIN}>Admin</option>
+                              </select>
+                              <button
+                                onClick={() => handleRemoveServiceLine(slUser.id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Remove access"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div>

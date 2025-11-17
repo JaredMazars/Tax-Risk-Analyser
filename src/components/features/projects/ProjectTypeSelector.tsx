@@ -1,22 +1,48 @@
 'use client';
 
-import { ProjectType } from '@/types';
+import { ProjectType, ServiceLine } from '@/types';
+import { formatProjectType } from '@/lib/utils/serviceLineUtils';
+import { getProjectTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
 
 interface ProjectTypeSelectorProps {
   value: ProjectType;
   onChange: (type: ProjectType) => void;
+  serviceLine?: ServiceLine | string;
 }
 
-const PROJECT_TYPES = [
-  { value: 'TAX_CALCULATION' as ProjectType, label: 'Tax Calculation', description: 'Calculate tax liability and adjustments' },
-  { value: 'TAX_OPINION' as ProjectType, label: 'Tax Opinion', description: 'Provide tax advice and opinions' },
-  { value: 'TAX_ADMINISTRATION' as ProjectType, label: 'Tax Administration', description: 'Tax compliance and administration' },
-];
+const PROJECT_TYPE_DESCRIPTIONS: Record<ProjectType, string> = {
+  // Tax
+  [ProjectType.TAX_CALCULATION]: 'Calculate tax liability and adjustments',
+  [ProjectType.TAX_OPINION]: 'Provide tax advice and opinions',
+  [ProjectType.TAX_ADMINISTRATION]: 'Tax compliance and administration',
+  // Audit
+  [ProjectType.AUDIT_ENGAGEMENT]: 'Full audit engagement services',
+  [ProjectType.AUDIT_REVIEW]: 'Review and assess audit findings',
+  [ProjectType.AUDIT_REPORT]: 'Prepare audit reports and documentation',
+  // Accounting
+  [ProjectType.FINANCIAL_STATEMENTS]: 'Prepare financial statements',
+  [ProjectType.BOOKKEEPING]: 'Bookkeeping and record keeping',
+  [ProjectType.MANAGEMENT_ACCOUNTS]: 'Management accounting and reporting',
+  // Advisory
+  [ProjectType.ADVISORY_PROJECT]: 'General advisory services',
+  [ProjectType.CONSULTING_ENGAGEMENT]: 'Consulting and strategic advice',
+  [ProjectType.STRATEGY_REVIEW]: 'Strategic review and planning',
+};
 
-export function ProjectTypeSelector({ value, onChange }: ProjectTypeSelectorProps) {
+export function ProjectTypeSelector({ value, onChange, serviceLine }: ProjectTypeSelectorProps) {
+  // Filter project types based on service line
+  const availableTypes = serviceLine
+    ? getProjectTypesForServiceLine(serviceLine as ServiceLine)
+    : Object.values(ProjectType);
+
+  const projectTypes = availableTypes.map(type => ({
+    value: type,
+    label: formatProjectType(type),
+    description: PROJECT_TYPE_DESCRIPTIONS[type] || '',
+  }));
   return (
     <div className="space-y-3">
-      {PROJECT_TYPES.map((type) => (
+      {projectTypes.map((type) => (
         <label
           key={type.value}
           className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${

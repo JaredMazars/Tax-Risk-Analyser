@@ -3,7 +3,7 @@
  * Define the shape of data transferred between client and server
  */
 
-import { ProjectType } from './index';
+import { ProjectType, ServiceLine, ServiceLineRole } from './index';
 
 /**
  * DTO for updating a project
@@ -12,6 +12,7 @@ export interface UpdateProjectDTO {
   name?: string;
   description?: string | null;
   projectType?: ProjectType;
+  serviceLine?: ServiceLine | string;
   taxYear?: number;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;
@@ -27,6 +28,7 @@ export interface CreateProjectDTO {
   name: string;
   description?: string | null;
   projectType: ProjectType;
+  serviceLine: ServiceLine | string;
   taxYear?: number;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;
@@ -138,6 +140,34 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   code?: string;
 }
+
+/**
+ * DTO for service line with stats
+ */
+export interface ServiceLineWithStats {
+  id?: number;
+  serviceLine: ServiceLine | string;
+  role: ServiceLineRole | string;
+  projectCount: number;
+  activeProjectCount: number;
+}
+
+/**
+ * DTO for creating a service line user
+ */
+export interface CreateServiceLineUserDTO {
+  userId: string;
+  serviceLine: ServiceLine | string;
+  role: ServiceLineRole | string;
+}
+
+/**
+ * DTO for updating a service line user
+ */
+export interface UpdateServiceLineUserDTO {
+  role?: ServiceLineRole | string;
+}
+
 
 
 

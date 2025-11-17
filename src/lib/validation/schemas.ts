@@ -10,7 +10,13 @@ import { z } from 'zod';
 export const UpdateProjectSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).nullable().optional(),
-  projectType: z.enum(['TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION']).optional(),
+  projectType: z.enum([
+    'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
+    'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
+    'FINANCIAL_STATEMENTS', 'BOOKKEEPING', 'MANAGEMENT_ACCOUNTS',
+    'ADVISORY_PROJECT', 'CONSULTING_ENGAGEMENT', 'STRATEGY_REVIEW'
+  ]).optional(),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY']).optional(),
   taxYear: z.number().int().min(2000).max(2100).optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
   taxPeriodEnd: z.coerce.date().nullable().optional(),
@@ -22,7 +28,13 @@ export const UpdateProjectSchema = z.object({
 export const CreateProjectSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).nullable().optional(),
-  projectType: z.enum(['TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION']),
+  projectType: z.enum([
+    'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
+    'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
+    'FINANCIAL_STATEMENTS', 'BOOKKEEPING', 'MANAGEMENT_ACCOUNTS',
+    'ADVISORY_PROJECT', 'CONSULTING_ENGAGEMENT', 'STRATEGY_REVIEW'
+  ]),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY']),
   taxYear: z.number().int().min(2000).max(2100).optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
   taxPeriodEnd: z.coerce.date().nullable().optional(),

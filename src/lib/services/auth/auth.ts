@@ -108,9 +108,10 @@ export async function handleCallback(code: string, redirectUri: string) {
     id: dbUser.id,
     email: dbUser.email,
     name: dbUser.name || dbUser.email,
+    role: dbUser.role || 'USER', // Include role from database
   };
 
-  log.info('User authenticated successfully', { userId: user.id, email: user.email });
+  log.info('User authenticated successfully', { userId: user.id, email: user.email, role: user.role });
   
   return user;
 }

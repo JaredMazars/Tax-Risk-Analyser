@@ -7,9 +7,12 @@ import {
   ChevronDownIcon,
   BuildingOfficeIcon,
   UserGroupIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import { NotificationBell } from '@/components/features/notifications/NotificationBell';
+import { useServiceLine } from '@/components/providers/ServiceLineProvider';
+import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 
 interface NavItem {
   label: string;
@@ -21,16 +24,37 @@ export default function DashboardNav() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
+  const { currentServiceLine } = useServiceLine();
 
-  const navItems: NavItem[] = [
+  // Base nav items - always visible
+  const baseNavItems: NavItem[] = [
     {
-      label: 'Projects',
+      label: 'Service Lines',
       href: '/dashboard',
     },
-    {
-      label: 'Clients',
-      href: '/dashboard/clients',
-    },
+  ];
+
+  // Service line specific nav items
+  const serviceLineNavItems: NavItem[] = currentServiceLine
+    ? [
+        {
+          label: 'Projects',
+          href: `/dashboard/${currentServiceLine.toLowerCase()}`,
+        },
+        {
+          label: 'Clients',
+          href: '/dashboard/clients',
+        },
+      ]
+    : [
+        {
+          label: 'Clients',
+          href: '/dashboard/clients',
+        },
+      ];
+
+  // Admin nav items
+  const adminNavItems: NavItem[] = [
     {
       label: 'Admin',
       items: [
@@ -39,9 +63,16 @@ export default function DashboardNav() {
           href: '/dashboard/admin/users',
           description: 'Manage users and permissions',
         },
+        {
+          label: 'Service Line Access',
+          href: '/dashboard/admin/service-lines',
+          description: 'Manage service line permissions',
+        },
       ],
     },
   ];
+
+  const navItems: NavItem[] = [...baseNavItems, ...serviceLineNavItems, ...adminNavItems];
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -76,6 +107,13 @@ export default function DashboardNav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-12">
           <div className="flex items-center space-x-1">
+          {/* Service Line Indicator */}
+          {currentServiceLine && (
+            <div className="flex items-center px-4 py-2 mr-2 bg-forvis-blue-800 rounded text-white text-sm font-semibold">
+              <Squares2X2Icon className="h-4 w-4 mr-2" />
+              {formatServiceLineName(currentServiceLine)}
+            </div>
+          )}
           {navItems.map((item) => {
             const isActive = item.href === pathname;
             

@@ -67,6 +67,7 @@ interface ProjectData {
   name: string;
   description?: string;
   projectType: string | ProjectType;
+  serviceLine: string;
   taxYear?: number | null;
   taxPeriodStart?: Date | string | null;
   taxPeriodEnd?: Date | string | null;
@@ -653,8 +654,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           {/* Tabs */}
           <div className="border-t border-forvis-gray-200">
             <nav className="flex space-x-6 px-4 overflow-x-auto" aria-label="Tabs">
-              {/* Tax Calculation Tabs */}
-              {project?.projectType === 'TAX_CALCULATION' && (
+              {/* Tax Calculation Tabs - Only for TAX service line */}
+              {project?.projectType === 'TAX_CALCULATION' && project?.serviceLine === 'TAX' && (
                 <>
                   <Tab
                     onClick={() => setActiveTab('mapping')}
@@ -694,8 +695,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 </>
               )}
               
-              {/* Tax Opinion Tabs */}
-              {project?.projectType === 'TAX_OPINION' && (
+              {/* Tax Opinion Tabs - Only for TAX service line */}
+              {project?.projectType === 'TAX_OPINION' && project?.serviceLine === 'TAX' && (
                 <>
                   <Tab
                     onClick={() => setActiveTab('opinion-drafting')}
@@ -728,8 +729,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 </>
               )}
               
-              {/* Tax Administration Tabs */}
-              {project?.projectType === 'TAX_ADMINISTRATION' && (
+              {/* Tax Administration Tabs - Only for TAX service line */}
+              {project?.projectType === 'TAX_ADMINISTRATION' && project?.serviceLine === 'TAX' && (
                 <>
                   <Tab
                     onClick={() => setActiveTab('sars-responses')}

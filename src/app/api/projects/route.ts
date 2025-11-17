@@ -4,6 +4,7 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { createProjectSchema } from '@/lib/utils/validation';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser, getUserProjects } from '@/lib/services/auth/auth';
+import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
 import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
@@ -16,14 +17,29 @@ export async function GET(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const includeArchived = searchParams.get('includeArchived') === 'true';
+    const serviceLine = searchParams.get('serviceLine');
+
+    // Get user's accessible service lines
+    const userServiceLines = await getUserServiceLines(user.id);
+    const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
 
     // Get projects user has access to
     const userProjects = await getUserProjects(user.id);
 
+    // Filter by service line access
+    let projects = userProjects.filter(p => 
+      accessibleServiceLines.includes(p.serviceLine)
+    );
+
+    // Filter by specific service line if provided
+    if (serviceLine) {
+      projects = projects.filter(p => p.serviceLine === serviceLine);
+    }
+
     // Filter by archived status if specified
-    const projects = includeArchived
-      ? userProjects
-      : userProjects.filter(p => !p.archived);
+    projects = includeArchived
+      ? projects
+      : projects.filter(p => !p.archived);
 
     // Get counts for each project
     const projectsWithCounts = await Promise.all(
@@ -77,12 +93,26 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const validatedData = createProjectSchema.parse(body);
 
+    // Check if user has access to the service line
+    const userServiceLines = await getUserServiceLines(user.id);
+    const hasAccess = userServiceLines.some(
+      sl => sl.serviceLine === validatedData.serviceLine
+    );
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'You do not have access to this service line' },
+        { status: 403 }
+      );
+    }
+
     // Create project with user as admin
     const project = await prisma.project.create({
       data: {
         name: validatedData.name,
         description: validatedData.description,
         projectType: validatedData.projectType || 'TAX_CALCULATION',
+        serviceLine: validatedData.serviceLine || 'TAX',
         taxYear: validatedData.taxYear,
         taxPeriodStart: validatedData.taxPeriodStart,
         taxPeriodEnd: validatedData.taxPeriodEnd,

@@ -1,0 +1,181 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { 
+  getUserServiceLines,
+  grantServiceLineAccess,
+  revokeServiceLineAccess,
+  updateServiceLineRole,
+  getServiceLineUsers,
+} from '@/lib/services/service-lines/serviceLineService';
+import { successResponse } from '@/lib/utils/apiUtils';
+import { handleApiError } from '@/lib/utils/errorHandler';
+import { ServiceLine, ServiceLineRole } from '@/types';
+
+/**
+ * GET /api/admin/service-line-access
+ * Get all service line access for all users (admin only)
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    console.log('[SERVICE-LINE-ACCESS] GET - Current user:', user ? { id: user.id, email: user.email, role: user.role } : 'null');
+    
+    if (!user) {
+      console.log('[SERVICE-LINE-ACCESS] GET - No user found, returning 401');
+      return NextResponse.json({ error: 'Unauthorized - No session' }, { status: 401 });
+    }
+    
+    if (user.role !== 'ADMIN') {
+      console.log('[SERVICE-LINE-ACCESS] GET - User is not admin:', user.role);
+      return NextResponse.json({ error: 'Unauthorized - Admin role required' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const serviceLine = searchParams.get('serviceLine');
+    const userId = searchParams.get('userId');
+
+    if (serviceLine) {
+      // Get users for a specific service line
+      const users = await getServiceLineUsers(serviceLine);
+      return NextResponse.json(successResponse(users));
+    } else if (userId) {
+      // Get service lines for a specific user
+      const serviceLines = await getUserServiceLines(userId);
+      return NextResponse.json(successResponse(serviceLines));
+    } else {
+      // Get all service line users
+      const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY'];
+      const allData = await Promise.all(
+        allServiceLines.map(async (sl) => ({
+          serviceLine: sl,
+          users: await getServiceLineUsers(sl),
+        }))
+      );
+      return NextResponse.json(successResponse(allData));
+    }
+  } catch (error) {
+    return handleApiError(error, 'GET /api/admin/service-line-access');
+  }
+}
+
+/**
+ * POST /api/admin/service-line-access
+ * Grant user access to a service line (admin only)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { userId, serviceLine, role } = body;
+
+    if (!userId || !serviceLine) {
+      return NextResponse.json(
+        { error: 'userId and serviceLine are required' },
+        { status: 400 }
+      );
+    }
+
+    await grantServiceLineAccess(userId, serviceLine, role || 'USER');
+
+    return NextResponse.json(
+      successResponse({ message: 'Access granted successfully' }),
+      { status: 201 }
+    );
+  } catch (error) {
+    return handleApiError(error, 'POST /api/admin/service-line-access');
+  }
+}
+
+/**
+ * PUT /api/admin/service-line-access
+ * Update user's role in a service line (admin only)
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    console.log('[SERVICE-LINE-ACCESS] PUT - Current user:', user ? { id: user.id, email: user.email, role: user.role } : 'null');
+    
+    if (!user || user.role !== 'ADMIN') {
+      console.log('[SERVICE-LINE-ACCESS] PUT - Auth failed. User role:', user?.role);
+      return NextResponse.json({ error: 'Unauthorized - Admin role required' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    console.log('[SERVICE-LINE-ACCESS] PUT - Body received:', JSON.stringify(body));
+    const { id, role } = body;
+    console.log('[SERVICE-LINE-ACCESS] PUT - Parsed:', { id, role, idType: typeof id });
+
+    if (!id || !role) {
+      console.log('[SERVICE-LINE-ACCESS] PUT - Validation failed:', { id, role });
+      return NextResponse.json(
+        { error: 'id and role are required', received: { id, role } },
+        { status: 400 }
+      );
+    }
+
+    // Update by ServiceLineUser id
+    const { prisma } = await import('@/lib/db/prisma');
+    await prisma.serviceLineUser.update({
+      where: { id },
+      data: { role, updatedAt: new Date() },
+    });
+
+    return NextResponse.json(
+      successResponse({ message: 'Role updated successfully' })
+    );
+  } catch (error) {
+    return handleApiError(error, 'PUT /api/admin/service-line-access');
+  }
+}
+
+/**
+ * DELETE /api/admin/service-line-access
+ * Revoke user access to a service line (admin only)
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const idStr = searchParams.get('id');
+    console.log('[SERVICE-LINE-ACCESS] DELETE - id parameter:', idStr);
+
+    if (!idStr) {
+      return NextResponse.json(
+        { error: 'id is required' },
+        { status: 400 }
+      );
+    }
+
+    const id = parseInt(idStr, 10);
+    console.log('[SERVICE-LINE-ACCESS] DELETE - parsed id:', id, 'isNaN:', isNaN(id));
+
+    if (isNaN(id)) {
+      return NextResponse.json(
+        { error: 'id must be a valid number' },
+        { status: 400 }
+      );
+    }
+
+    // Delete by ServiceLineUser id
+    const { prisma } = await import('@/lib/db/prisma');
+    console.log('[SERVICE-LINE-ACCESS] DELETE - About to delete ServiceLineUser with id:', id);
+    await prisma.serviceLineUser.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(
+      successResponse({ message: 'Access revoked successfully' })
+    );
+  } catch (error) {
+    return handleApiError(error, 'DELETE /api/admin/service-line-access');
+  }
+}
+

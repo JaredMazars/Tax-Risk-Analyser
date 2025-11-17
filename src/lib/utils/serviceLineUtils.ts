@@ -1,0 +1,164 @@
+/**
+ * Service Line Utility Functions
+ */
+
+import { ServiceLine, ProjectType } from '@/types';
+import { SERVICE_LINE_CONFIGS } from '@/types/service-line';
+
+/**
+ * Format project type name for display
+ */
+export function formatProjectType(projectType: ProjectType | string): string {
+  const typeMap: Record<string, string> = {
+    // Tax
+    TAX_CALCULATION: 'Tax Calculation',
+    TAX_OPINION: 'Tax Opinion',
+    TAX_ADMINISTRATION: 'Tax Administration',
+    // Audit
+    AUDIT_ENGAGEMENT: 'Audit Engagement',
+    AUDIT_REVIEW: 'Audit Review',
+    AUDIT_REPORT: 'Audit Report',
+    // Accounting
+    FINANCIAL_STATEMENTS: 'Financial Statements',
+    BOOKKEEPING: 'Bookkeeping',
+    MANAGEMENT_ACCOUNTS: 'Management Accounts',
+    // Advisory
+    ADVISORY_PROJECT: 'Advisory Project',
+    CONSULTING_ENGAGEMENT: 'Consulting Engagement',
+    STRATEGY_REVIEW: 'Strategy Review',
+  };
+
+  return typeMap[projectType] || projectType;
+}
+
+/**
+ * Get color classes for project type badge
+ */
+export function getProjectTypeColor(projectType: ProjectType | string): string {
+  // Determine service line from project type
+  const serviceLine = getServiceLineForProjectType(projectType as ProjectType);
+  
+  if (!serviceLine) {
+    return 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+
+  const colorMap: Record<ServiceLine, string> = {
+    [ServiceLine.TAX]: 'bg-blue-100 text-blue-700 border-blue-200',
+    [ServiceLine.AUDIT]: 'bg-green-100 text-green-700 border-green-200',
+    [ServiceLine.ACCOUNTING]: 'bg-purple-100 text-purple-700 border-purple-200',
+    [ServiceLine.ADVISORY]: 'bg-orange-100 text-orange-700 border-orange-200',
+  };
+
+  return colorMap[serviceLine] || 'bg-gray-100 text-gray-700 border-gray-200';
+}
+
+/**
+ * Get border color classes for project type
+ */
+export function getProjectTypeBorderColor(projectType: ProjectType | string): string {
+  const serviceLine = getServiceLineForProjectType(projectType as ProjectType);
+  
+  if (!serviceLine) {
+    return 'border-gray-200';
+  }
+
+  const colorMap: Record<ServiceLine, string> = {
+    [ServiceLine.TAX]: 'border-blue-200',
+    [ServiceLine.AUDIT]: 'border-green-200',
+    [ServiceLine.ACCOUNTING]: 'border-purple-200',
+    [ServiceLine.ADVISORY]: 'border-orange-200',
+  };
+
+  return colorMap[serviceLine] || 'border-gray-200';
+}
+
+/**
+ * Get service line from project type
+ */
+function getServiceLineForProjectType(projectType: ProjectType): ServiceLine | null {
+  for (const [line, config] of Object.entries(SERVICE_LINE_CONFIGS)) {
+    if (config.projectTypes.includes(projectType)) {
+      return line as ServiceLine;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get color classes for service line
+ */
+export function getServiceLineColor(serviceLine: ServiceLine | string): string {
+  const colorMap: Record<string, string> = {
+    TAX: 'text-blue-600',
+    AUDIT: 'text-green-600',
+    ACCOUNTING: 'text-purple-600',
+    ADVISORY: 'text-orange-600',
+  };
+
+  return colorMap[serviceLine] || 'text-gray-600';
+}
+
+/**
+ * Get background color classes for service line
+ */
+export function getServiceLineBgColor(serviceLine: ServiceLine | string): string {
+  const colorMap: Record<string, string> = {
+    TAX: 'bg-blue-50',
+    AUDIT: 'bg-green-50',
+    ACCOUNTING: 'bg-purple-50',
+    ADVISORY: 'bg-orange-50',
+  };
+
+  return colorMap[serviceLine] || 'bg-gray-50';
+}
+
+/**
+ * Get border color classes for service line
+ */
+export function getServiceLineBorderColor(serviceLine: ServiceLine | string): string {
+  const colorMap: Record<string, string> = {
+    TAX: 'border-blue-200',
+    AUDIT: 'border-green-200',
+    ACCOUNTING: 'border-purple-200',
+    ADVISORY: 'border-orange-200',
+  };
+
+  return colorMap[serviceLine] || 'border-gray-200';
+}
+
+/**
+ * Format service line name for display
+ */
+export function formatServiceLineName(serviceLine: ServiceLine | string): string {
+  const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
+  return config?.name || serviceLine;
+}
+
+/**
+ * Validate service line
+ */
+export function isValidServiceLine(serviceLine: string): serviceLine is ServiceLine {
+  return Object.values(ServiceLine).includes(serviceLine as ServiceLine);
+}
+
+/**
+ * Validate project type for service line
+ */
+export function isValidProjectTypeForServiceLine(
+  projectType: ProjectType | string,
+  serviceLine: ServiceLine | string
+): boolean {
+  const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
+  if (!config) return false;
+  
+  return config.projectTypes.includes(projectType as ProjectType);
+}
+
+/**
+ * Get all project types for a service line
+ */
+export function getProjectTypesForServiceLine(serviceLine: ServiceLine | string): ProjectType[] {
+  const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
+  return config?.projectTypes || [];
+}
+

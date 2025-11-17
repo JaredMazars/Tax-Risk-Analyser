@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { ProjectType } from '@/types';
+import { useState, useEffect } from 'react';
+import { ProjectType, ServiceLine } from '@/types';
 import { ClientSelector } from '../../features/clients/ClientSelector';
 import { ProjectTypeSelector } from './ProjectTypeSelector';
 import { TaxYearInput } from '../../shared/TaxYearInput';
+import { useServiceLine } from '@/components/providers/ServiceLineProvider';
+import { getProjectTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -17,18 +19,41 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [error, setError] = useState('');
+  const { currentServiceLine } = useServiceLine();
   
+  // Get default project type based on service line
+  const getDefaultProjectType = (): ProjectType => {
+    if (currentServiceLine) {
+      const types = getProjectTypesForServiceLine(currentServiceLine);
+      return types[0] || ProjectType.TAX_CALCULATION;
+    }
+    return ProjectType.TAX_CALCULATION;
+  };
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     clientId: null as number | null,
-    projectType: 'TAX_CALCULATION' as ProjectType,
+    projectType: getDefaultProjectType(),
+    serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
     taxYear: new Date().getFullYear(),
     taxPeriodStart: null as Date | null,
     taxPeriodEnd: null as Date | null,
     assessmentYear: '',
     submissionDeadline: null as Date | null,
   });
+
+  // Update service line and project type when current service line changes
+  useEffect(() => {
+    if (currentServiceLine) {
+      const defaultType = getDefaultProjectType();
+      setFormData(prev => ({
+        ...prev,
+        serviceLine: currentServiceLine,
+        projectType: defaultType,
+      }));
+    }
+  }, [currentServiceLine]);
 
   const handleFieldChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -88,11 +113,13 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       const createdProject = result.success ? result.data : result;
       
       // Reset form
+      const defaultType = getDefaultProjectType();
       setFormData({
         name: '',
         description: '',
         clientId: null,
-        projectType: 'TAX_CALCULATION' as ProjectType,
+        projectType: defaultType,
+        serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
         taxYear: new Date().getFullYear(),
         taxPeriodStart: null,
         taxPeriodEnd: null,
@@ -111,11 +138,13 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   };
 
   const handleClose = () => {
+    const defaultType = getDefaultProjectType();
     setFormData({
       name: '',
       description: '',
       clientId: null,
-      projectType: 'TAX_CALCULATION' as ProjectType,
+      projectType: defaultType,
+      serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
       taxYear: new Date().getFullYear(),
       taxPeriodStart: null,
       taxPeriodEnd: null,
@@ -213,6 +242,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                 <ProjectTypeSelector
                   value={formData.projectType}
                   onChange={(type) => handleFieldChange('projectType', type)}
+                  serviceLine={formData.serviceLine}
                 />
               </div>
             </div>

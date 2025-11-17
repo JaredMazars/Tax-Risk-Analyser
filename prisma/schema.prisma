@@ -119,6 +119,7 @@ model Project {
   assessmentYear         String?
   clientId               Int?
   projectType            String                   @default("TAX_CALCULATION")
+  serviceLine            String                   @default("TAX")
   submissionDeadline     DateTime?
   taxPeriodEnd           DateTime?
   taxPeriodStart         DateTime?
@@ -143,6 +144,8 @@ model Project {
   @@index([projectType])
   @@index([status])
   @@index([taxYear])
+  @@index([serviceLine])
+  @@index([serviceLine, status, archived])
   @@index([clientId, status, archived])
   @@index([projectType, taxYear])
   @@index([createdAt(sort: Desc)])
@@ -209,10 +212,25 @@ model User {
   Account                 Account[]
   ProjectUser             ProjectUser[]
   Session                 Session[]
+  ServiceLineUser         ServiceLineUser[]
   NotificationPreference  NotificationPreference[]
   EmailLog                EmailLog[]
   NotificationsReceived   InAppNotification[]      @relation("NotificationsReceived")
   NotificationsSent       InAppNotification[]      @relation("NotificationsSent")
+}
+
+model ServiceLineUser {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  serviceLine String
+  role        String   @default("USER")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serviceLine])
+  @@index([userId])
+  @@index([serviceLine])
 }
 
 model OpinionDraft {

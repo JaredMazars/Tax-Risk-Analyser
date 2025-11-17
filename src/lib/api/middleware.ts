@@ -4,7 +4,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
+import { checkServiceLineAccess } from '@/lib/services/service-lines/serviceLineService';
 import { parseProjectId } from '@/lib/utils/apiUtils';
+import { isValidServiceLine } from '@/lib/utils/serviceLineUtils';
+import { ServiceLine, ServiceLineRole } from '@/types';
 import { AuthenticatedHandler, ProjectHandler, ApiResponse } from './types';
 
 /**
@@ -81,6 +84,54 @@ export function withProjectAccess<TParams extends Record<string, string> & { id:
 }
 
 /**
+ * Middleware to require service line access
+ * Wraps a handler and ensures user has access to the service line
+ */
+export function withServiceLineAccess<TParams extends Record<string, string> & { serviceLine: string }, TResponse>(
+  requiredRole?: ServiceLineRole | string
+) {
+  return (handler: AuthenticatedHandler<TParams, TResponse>) => {
+    return withAuth<TParams, TResponse>(async (request, context) => {
+      try {
+        const serviceLine = context.params.serviceLine;
+
+        // Validate service line
+        if (!isValidServiceLine(serviceLine.toUpperCase())) {
+          return NextResponse.json(
+            { success: false, error: 'Invalid service line' },
+            { status: 400 }
+          );
+        }
+
+        // Check access
+        const hasAccess = await checkServiceLineAccess(
+          context.user.id,
+          serviceLine.toUpperCase(),
+          requiredRole
+        );
+
+        if (!hasAccess) {
+          return NextResponse.json(
+            { success: false, error: 'Access denied to this service line' },
+            { status: 403 }
+          );
+        }
+
+        return handler(request, context);
+      } catch (error) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Internal server error' 
+          },
+          { status: 500 }
+        );
+      }
+    });
+  };
+}
+
+/**
  * Helper to validate request body with Zod schema
  */
 export async function validateBody<T>(
@@ -90,6 +141,7 @@ export async function validateBody<T>(
   const body = await request.json();
   return schema.parse(body);
 }
+
 
 
 

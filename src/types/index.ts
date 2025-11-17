@@ -10,16 +10,43 @@ export interface MappedData {
 }
 
 // Enums matching Prisma schema
+export enum ServiceLine {
+  TAX = 'TAX',
+  AUDIT = 'AUDIT',
+  ACCOUNTING = 'ACCOUNTING',
+  ADVISORY = 'ADVISORY',
+}
+
 export enum ProjectType {
+  // Tax Service Line
   TAX_CALCULATION = 'TAX_CALCULATION',
   TAX_OPINION = 'TAX_OPINION',
   TAX_ADMINISTRATION = 'TAX_ADMINISTRATION',
+  // Audit Service Line
+  AUDIT_ENGAGEMENT = 'AUDIT_ENGAGEMENT',
+  AUDIT_REVIEW = 'AUDIT_REVIEW',
+  AUDIT_REPORT = 'AUDIT_REPORT',
+  // Accounting Service Line
+  FINANCIAL_STATEMENTS = 'FINANCIAL_STATEMENTS',
+  BOOKKEEPING = 'BOOKKEEPING',
+  MANAGEMENT_ACCOUNTS = 'MANAGEMENT_ACCOUNTS',
+  // Advisory Service Line
+  ADVISORY_PROJECT = 'ADVISORY_PROJECT',
+  CONSULTING_ENGAGEMENT = 'CONSULTING_ENGAGEMENT',
+  STRATEGY_REVIEW = 'STRATEGY_REVIEW',
 }
 
 export enum ProjectRole {
   ADMIN = 'ADMIN',
   REVIEWER = 'REVIEWER',
   EDITOR = 'EDITOR',
+  VIEWER = 'VIEWER',
+}
+
+export enum ServiceLineRole {
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
+  USER = 'USER',
   VIEWER = 'VIEWER',
 }
 
@@ -50,6 +77,7 @@ export interface Project {
   name: string;
   description?: string | null;
   projectType: ProjectType;
+  serviceLine: ServiceLine | string;
   taxYear?: number | null;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;
@@ -65,6 +93,22 @@ export interface Project {
   _count?: {
     mappings: number;
     taxAdjustments: number;
+  };
+}
+
+// Service Line User Access
+export interface ServiceLineUser {
+  id: number;
+  userId: string;
+  serviceLine: ServiceLine | string;
+  role: ServiceLineRole | string;
+  createdAt: Date;
+  updatedAt: Date;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+    image?: string | null;
   };
 }
 
