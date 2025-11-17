@@ -4,6 +4,9 @@ import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineSer
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
+// Mark as dynamic since we use cookies for authentication
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/service-lines
  * Get all service lines accessible to the current user

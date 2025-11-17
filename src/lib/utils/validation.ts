@@ -7,6 +7,7 @@ import { z } from 'zod';
 // Enums
 export const projectTypeSchema = z.enum(['TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION']);
 export const projectRoleSchema = z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']);
+export const serviceLineSchema = z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY']);
 
 // Client schemas
 export const createClientSchema = z.object({
@@ -83,6 +84,7 @@ export const createProjectSchema = z.object({
     .optional()
     .transform(val => val?.trim()),
   projectType: projectTypeSchema.optional().default('TAX_CALCULATION'),
+  serviceLine: serviceLineSchema.optional().default('TAX'),
   taxYear: z.number()
     .int('Tax year must be an integer')
     .min(2000, 'Tax year must be 2000 or later')
@@ -114,6 +116,7 @@ export const updateProjectSchema = z.object({
     .optional()
     .transform(val => val?.trim()),
   projectType: projectTypeSchema.optional(),
+  serviceLine: serviceLineSchema.optional(),
   taxYear: z.number()
     .int('Tax year must be an integer')
     .min(2000, 'Tax year must be 2000 or later')

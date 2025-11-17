@@ -419,6 +419,7 @@ export async function getUserProjects(userId: string): Promise<Array<{
   name: string;
   description: string | null;
   projectType: string;
+  serviceLine: string;
   status: string;
   archived: boolean;
   clientId: number | null;

@@ -120,11 +120,8 @@ export function isProjectTypeInServiceLine(
  * Format service line name
  */
 export function formatServiceLineName(serviceLine: ServiceLine | string): string {
-  if (typeof serviceLine === 'string') {
-    const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
-    return config?.name || serviceLine;
-  }
-  return SERVICE_LINE_CONFIGS[serviceLine]?.name || serviceLine;
+  const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
+  return config?.name || serviceLine;
 }
 
 /**

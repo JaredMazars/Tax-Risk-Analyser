@@ -168,6 +168,18 @@ export interface UpdateServiceLineUserDTO {
   role?: ServiceLineRole | string;
 }
 
+/**
+ * Service Line User entity with user details
+ */
+export interface ServiceLineUser {
+  id: number;
+  userId: string;
+  serviceLine: ServiceLine | string;
+  role: ServiceLineRole | string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 
 
 

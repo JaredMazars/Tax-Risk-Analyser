@@ -39,7 +39,7 @@ export default function DashboardHomePage() {
   }
 
   // If user only has access to one service line, redirect automatically
-  if (availableServiceLines.length === 1) {
+  if (availableServiceLines.length === 1 && availableServiceLines[0]) {
     const serviceLine = availableServiceLines[0].serviceLine.toLowerCase();
     router.push(`/dashboard/${serviceLine}`);
     return (

@@ -93,6 +93,8 @@ export default function UserManagementPage() {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
+    
+    return undefined;
   }, [showAddServiceLineDropdown]);
 
   const fetchSystemUsers = async () => {
