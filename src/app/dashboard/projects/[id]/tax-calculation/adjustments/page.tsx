@@ -518,4 +518,3 @@ export default function AdjustmentsListPage({ params }: AdjustmentsListProps) {
     </div>
   );
 }
-

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { AITaxReportGenerator, ProjectTaxData } from '@/lib/services/opinions/aiTaxReportGenerator';
 import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 export const maxDuration = 90; // 90 seconds timeout for AI generation
 
@@ -39,11 +40,7 @@ export async function GET(
 
     return NextResponse.json(reportData);
   } catch (error) {
-    console.error('Error fetching AI tax report:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch AI tax report' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/projects/[id]/ai-tax-report');
   }
 }
 
@@ -227,11 +224,7 @@ export async function POST(
       id: savedReport.id,
     });
   } catch (error) {
-    console.error('Error generating AI tax report:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate AI tax report' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/projects/[id]/ai-tax-report');
   }
 }
 

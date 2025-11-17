@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -14,8 +15,7 @@ export async function GET() {
 
     return NextResponse.json({ user });
   } catch (error) {
-    console.error('Session error:', error);
-    return NextResponse.json({ user: null }, { status: 500 });
+    return handleApiError(error, 'GET /api/auth/session');
   }
 }
 

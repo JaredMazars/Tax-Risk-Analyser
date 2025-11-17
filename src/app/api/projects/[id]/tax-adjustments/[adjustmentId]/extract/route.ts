@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 const prisma = new PrismaClient();
 
@@ -110,14 +111,7 @@ export async function POST(
       throw extractionError;
     }
   } catch (error) {
-    console.error('Error in extraction process:', error);
-    return NextResponse.json(
-      { 
-        error: 'Extraction failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/projects/[id]/tax-adjustments/[adjustmentId]/extract');
   }
 }
 
@@ -157,11 +151,7 @@ export async function GET(
       summary,
     });
   } catch (error) {
-    console.error('Error fetching extraction status:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch extraction status' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/projects/[id]/tax-adjustments/[adjustmentId]/extract');
   }
 }
 

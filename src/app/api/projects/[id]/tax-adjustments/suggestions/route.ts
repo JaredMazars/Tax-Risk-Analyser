@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { TaxAdjustmentEngine } from '@/lib/services/tax/taxAdjustmentEngine';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 const prisma = new PrismaClient();
 
@@ -113,14 +114,7 @@ export async function POST(
       saved: false,
     });
   } catch (error) {
-    console.error('Error generating tax adjustment suggestions:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to generate suggestions',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/projects/[id]/tax-adjustments/suggestions');
   }
 }
 
@@ -151,11 +145,7 @@ export async function GET(
       count: suggestions.length,
     });
   } catch (error) {
-    console.error('Error fetching suggestions:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch suggestions' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/projects/[id]/tax-adjustments/suggestions');
   }
 }
 

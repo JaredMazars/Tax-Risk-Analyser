@@ -77,7 +77,6 @@ export default function ClientsPage() {
       const data = await response.json();
       setClients(data.success ? data.data.clients : []);
     } catch (error) {
-      console.error('Error fetching clients:', error);
       setClients([]);
     } finally {
       setIsLoading(false);
@@ -106,7 +105,6 @@ export default function ClientsPage() {
       setShowModal(false);
       await fetchClients();
     } catch (error) {
-      console.error('Error creating client:', error);
       setError(error instanceof Error ? error.message : 'Failed to create client');
     } finally {
       setIsSubmitting(false);
@@ -138,7 +136,6 @@ export default function ClientsPage() {
       setSelectedClient(null);
       await fetchClients();
     } catch (error) {
-      console.error('Error updating client:', error);
       setError(error instanceof Error ? error.message : 'Failed to update client');
     } finally {
       setIsSubmitting(false);
@@ -161,7 +158,6 @@ export default function ClientsPage() {
       setSelectedClient(null);
       await fetchClients();
     } catch (error) {
-      console.error('Error deleting client:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -614,4 +610,3 @@ export default function ClientsPage() {
     </div>
   );
 }
-

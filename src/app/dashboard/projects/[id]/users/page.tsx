@@ -29,7 +29,6 @@ export default function ProjectUsersPage() {
         setUsers(data.data);
       }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
     } finally {
       setLoading(false);
     }
@@ -50,7 +49,6 @@ export default function ProjectUsersPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch current user:', error);
     }
   };
 
@@ -102,21 +100,3 @@ export default function ProjectUsersPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

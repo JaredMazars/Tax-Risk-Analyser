@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function GET(
   request: NextRequest,
@@ -21,11 +22,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: drafts });
   } catch (error) {
-    console.error('Error fetching opinion drafts:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch opinion drafts' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/projects/[id]/opinion-drafts');
   }
 }
 
@@ -55,11 +52,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, data: draft });
   } catch (error) {
-    console.error('Error creating opinion draft:', error);
-    return NextResponse.json(
-      { error: 'Failed to create opinion draft' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/projects/[id]/opinion-drafts');
   }
 }
 

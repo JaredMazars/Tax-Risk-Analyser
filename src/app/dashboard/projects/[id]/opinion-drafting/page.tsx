@@ -45,7 +45,6 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
         setSelectedDraft(data.data[0]);
       }
     } catch (error) {
-      console.error('Error fetching drafts:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch drafts');
     } finally {
       setIsLoading(false);
@@ -238,4 +237,3 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
     </div>
   );
 }
-

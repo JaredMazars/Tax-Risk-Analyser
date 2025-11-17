@@ -39,7 +39,6 @@ export default function LegalPrecedentsPage({ params }: LegalPrecedentsPageProps
       const data = await response.json();
       setPrecedents(data.data || []);
     } catch (error) {
-      console.error('Error fetching precedents:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch precedents');
     } finally {
       setIsLoading(false);
@@ -331,4 +330,3 @@ export default function LegalPrecedentsPage({ params }: LegalPrecedentsPageProps
     </div>
   );
 }
-

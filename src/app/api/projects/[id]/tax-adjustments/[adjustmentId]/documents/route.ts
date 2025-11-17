@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
 import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+import { handleApiError } from '@/lib/utils/errorHandler';
+import { logger } from '@/lib/utils/logger';
 
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); // 10MB default
 
@@ -90,11 +92,7 @@ export async function POST(
       message: 'Document uploaded successfully. Extraction in progress.',
     }, { status: 201 });
   } catch (error) {
-    console.error('Error uploading document:', error);
-    return NextResponse.json(
-      { error: 'Failed to upload document' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/projects/[id]/tax-adjustments/[adjustmentId]/documents');
   }
 }
 
@@ -123,11 +121,7 @@ export async function GET(
 
     return NextResponse.json(documentsWithParsedData);
   } catch (error) {
-    console.error('Error fetching documents:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch documents' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/projects/[id]/tax-adjustments/[adjustmentId]/documents');
   }
 }
 
@@ -185,7 +179,7 @@ async function extractDocumentAsync(
       });
     }
   } catch (error) {
-    console.error('Extraction error:', error);
+    logger.error('Extraction error', error);
     
     await prisma.adjustmentDocument.update({
       where: { id: documentId },

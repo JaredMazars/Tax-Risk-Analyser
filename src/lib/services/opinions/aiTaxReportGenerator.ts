@@ -78,7 +78,6 @@ CRITICAL: You MUST use ONLY the exact figures provided in the data - NEVER recal
         generatedAt: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('Error generating AI tax report:', error);
       throw new Error('Failed to generate AI tax report. Please try again.');
     }
   }

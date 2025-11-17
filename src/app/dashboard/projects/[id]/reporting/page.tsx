@@ -137,7 +137,6 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Error exporting PDF:', err);
       alert('Failed to export PDF. Please try again.');
     } finally {
       setIsExporting(false);
@@ -341,4 +340,3 @@ export default function ReportingPage({ params }: ReportingPageProps) {
     </div>
   );
 }
-

@@ -33,7 +33,6 @@ export default function FinalOpinionPage({ params }: FinalOpinionPageProps) {
       const final = allDrafts.find((d: OpinionDraft) => d.status === 'FINAL');
       setFinalOpinion(final || null);
     } catch (error) {
-      console.error('Error fetching drafts:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch drafts');
     } finally {
       setIsLoading(false);
@@ -200,4 +199,3 @@ export default function FinalOpinionPage({ params }: FinalOpinionPageProps) {
     </div>
   );
 }
-

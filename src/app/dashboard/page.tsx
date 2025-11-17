@@ -14,12 +14,6 @@ export default function DashboardHomePage() {
     setCurrentServiceLine(null);
   }, [setCurrentServiceLine]);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Dashboard Home - isLoading:', isLoading);
-    console.log('Dashboard Home - availableServiceLines:', availableServiceLines);
-  }, [isLoading, availableServiceLines]);
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">

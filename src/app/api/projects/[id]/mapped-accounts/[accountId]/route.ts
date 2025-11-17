@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function PATCH(
   request: Request,
@@ -48,10 +49,6 @@ export async function PATCH(
 
     return NextResponse.json(mappedAccount);
   } catch (error) {
-    console.error('Error updating mapped account:', error);
-    return NextResponse.json(
-      { error: 'Failed to update mapped account' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'PATCH /api/projects/[id]/mapped-accounts/[accountId]');
   }
 } 

@@ -58,7 +58,7 @@ export class TaxAdjustmentEngine {
         const aiSuggestions = await this.getAIEnhancedSuggestions(mappedAccounts, suggestions, existingAdjustments);
         return aiSuggestions;
       } catch (error) {
-        console.error('AI enhancement failed, returning rule-based suggestions:', error);
+        // AI enhancement failed, return rule-based suggestions
         return suggestions;
       }
     }

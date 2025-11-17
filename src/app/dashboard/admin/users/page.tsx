@@ -152,13 +152,10 @@ export default function UserManagementPage() {
       if (response.ok) {
         const data = await response.json();
         const serviceLines = data.success ? data.data : [];
-        console.log('[Frontend] Fetched service lines:', serviceLines);
         setUserServiceLines(serviceLines);
-      } else {
-        console.error('Failed to fetch service lines:', response.status, await response.text());
       }
     } catch (error) {
-      console.error('Failed to fetch service lines:', error);
+      // Silently handle error
     } finally {
       setLoadingServiceLines(false);
     }
@@ -182,11 +179,9 @@ export default function UserManagementPage() {
       if (response.ok) {
         await fetchUserServiceLines(selectedUser.id);
         setShowAddServiceLineDropdown(false);
-      } else {
-        console.error('Failed to add service line access:', response.status, await response.text());
       }
     } catch (error) {
-      console.error('Failed to add service line access:', error);
+      // Silently handle error
     }
   };
 
@@ -194,11 +189,8 @@ export default function UserManagementPage() {
     if (!selectedUser) return;
     if (!confirm('Remove this service line access?')) return;
 
-    console.log('[Frontend] Removing service line with id:', serviceLineUserId, 'type:', typeof serviceLineUserId);
-
     try {
       const url = `/api/admin/service-line-access?id=${serviceLineUserId}`;
-      console.log('[Frontend] DELETE URL:', url);
       const response = await fetch(url, {
         method: 'DELETE',
         credentials: 'include',
@@ -206,11 +198,9 @@ export default function UserManagementPage() {
 
       if (response.ok) {
         await fetchUserServiceLines(selectedUser.id);
-      } else {
-        console.error('Failed to remove service line access:', response.status, await response.text());
       }
     } catch (error) {
-      console.error('Failed to remove service line access:', error);
+      // Silently handle error
     }
   };
 
@@ -221,7 +211,6 @@ export default function UserManagementPage() {
       id: serviceLineUserId,
       role: newRole,
     };
-    console.log('[Frontend] Updating service line role:', payload);
 
     try {
       const response = await fetch('/api/admin/service-line-access', {
@@ -233,11 +222,9 @@ export default function UserManagementPage() {
 
       if (response.ok) {
         await fetchUserServiceLines(selectedUser.id);
-      } else {
-        console.error('Failed to update service line role:', response.status, await response.text());
       }
     } catch (error) {
-      console.error('Failed to update service line role:', error);
+      // Silently handle error
     }
   };
 
@@ -697,4 +684,3 @@ export default function UserManagementPage() {
     </div>
   );
 }
-

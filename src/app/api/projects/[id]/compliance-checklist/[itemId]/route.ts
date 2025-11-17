@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function PUT(
   request: NextRequest,
@@ -31,11 +32,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: item });
   } catch (error) {
-    console.error('Error updating compliance checklist item:', error);
-    return NextResponse.json(
-      { error: 'Failed to update compliance checklist item' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'PUT /api/projects/[id]/compliance-checklist/[itemId]');
   }
 }
 

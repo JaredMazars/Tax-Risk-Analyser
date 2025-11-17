@@ -18,15 +18,12 @@ import { ServiceLine, ServiceLineRole } from '@/types';
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    console.log('[SERVICE-LINE-ACCESS] GET - Current user:', user ? { id: user.id, email: user.email, role: user.role } : 'null');
     
     if (!user) {
-      console.log('[SERVICE-LINE-ACCESS] GET - No user found, returning 401');
       return NextResponse.json({ error: 'Unauthorized - No session' }, { status: 401 });
     }
     
     if (user.role !== 'ADMIN') {
-      console.log('[SERVICE-LINE-ACCESS] GET - User is not admin:', user.role);
       return NextResponse.json({ error: 'Unauthorized - Admin role required' }, { status: 401 });
     }
 
@@ -97,20 +94,15 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    console.log('[SERVICE-LINE-ACCESS] PUT - Current user:', user ? { id: user.id, email: user.email, role: user.role } : 'null');
     
     if (!user || user.role !== 'ADMIN') {
-      console.log('[SERVICE-LINE-ACCESS] PUT - Auth failed. User role:', user?.role);
       return NextResponse.json({ error: 'Unauthorized - Admin role required' }, { status: 401 });
     }
 
     const body = await request.json();
-    console.log('[SERVICE-LINE-ACCESS] PUT - Body received:', JSON.stringify(body));
     const { id, role } = body;
-    console.log('[SERVICE-LINE-ACCESS] PUT - Parsed:', { id, role, idType: typeof id });
 
     if (!id || !role) {
-      console.log('[SERVICE-LINE-ACCESS] PUT - Validation failed:', { id, role });
       return NextResponse.json(
         { error: 'id and role are required', received: { id, role } },
         { status: 400 }
@@ -145,7 +137,6 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const idStr = searchParams.get('id');
-    console.log('[SERVICE-LINE-ACCESS] DELETE - id parameter:', idStr);
 
     if (!idStr) {
       return NextResponse.json(
@@ -155,7 +146,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     const id = parseInt(idStr, 10);
-    console.log('[SERVICE-LINE-ACCESS] DELETE - parsed id:', id, 'isNaN:', isNaN(id));
 
     if (isNaN(id)) {
       return NextResponse.json(
@@ -166,7 +156,6 @@ export async function DELETE(request: NextRequest) {
 
     // Delete by ServiceLineUser id
     const { prisma } = await import('@/lib/db/prisma');
-    console.log('[SERVICE-LINE-ACCESS] DELETE - About to delete ServiceLineUser with id:', id);
     await prisma.serviceLineUser.delete({
       where: { id },
     });

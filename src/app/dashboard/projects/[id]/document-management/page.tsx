@@ -28,7 +28,6 @@ export default function DocumentManagementPage({ params }: DocumentManagementPag
       const data = await response.json();
       setDocuments(data.data || []);
     } catch (error) {
-      console.error('Error fetching documents:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch documents');
     } finally {
       setIsLoading(false);
@@ -164,4 +163,3 @@ export default function DocumentManagementPage({ params }: DocumentManagementPag
     </div>
   );
 }
-

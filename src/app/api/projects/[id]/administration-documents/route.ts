@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function GET(
   request: NextRequest,
@@ -21,11 +22,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: documents });
   } catch (error) {
-    console.error('Error fetching administration documents:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch administration documents' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/projects/[id]/administration-documents');
   }
 }
 
@@ -58,11 +55,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, data: document });
   } catch (error) {
-    console.error('Error creating administration document:', error);
-    return NextResponse.json(
-      { error: 'Failed to create administration document' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/projects/[id]/administration-documents');
   }
 }
 

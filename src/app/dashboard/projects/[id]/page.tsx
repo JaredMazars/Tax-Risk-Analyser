@@ -123,7 +123,6 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
       setIsEditing(false);
       onUpdate();
     } catch (error) {
-      console.error('Error updating project:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -140,7 +139,6 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
       
       router.push('/dashboard');
     } catch (error) {
-      console.error('Error archiving project:', error);
       setIsSubmitting(false);
     }
   };
@@ -416,7 +414,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         setProjectUsers(data.data);
       }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
     } finally {
       setLoadingUsers(false);
     }
@@ -441,14 +438,11 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           if (currentUser) {
             setCurrentUserId(sessionData.user.id);
             setCurrentUserRole(currentUser.role);
-            console.log('Current user role:', currentUser.role);
           } else {
-            console.warn('Current user not found in project users');
           }
         }
       }
     } catch (error) {
-      console.error('Failed to fetch current user role:', error);
     }
   };
 

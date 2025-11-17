@@ -25,23 +25,16 @@ export function ServiceLineProvider({ children }: { children: ReactNode }) {
     const loadServiceLines = async () => {
       try {
         setIsLoading(true);
-        console.log('Fetching service lines from /api/service-lines...');
         const response = await fetch('/api/service-lines');
-        console.log('Service lines response status:', response.status);
         
         if (response.ok) {
           const result = await response.json();
-          console.log('Service lines result:', result);
           const serviceLines = result.success ? result.data : result;
-          console.log('Available service lines:', serviceLines);
           setAvailableServiceLines(Array.isArray(serviceLines) ? serviceLines : []);
         } else {
-          const errorText = await response.text();
-          console.error('Failed to fetch service lines:', response.status, errorText);
           setAvailableServiceLines([]);
         }
       } catch (error) {
-        console.error('Error loading service lines:', error);
         setAvailableServiceLines([]);
       } finally {
         setIsLoading(false);

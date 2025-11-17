@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function GET(
   request: NextRequest,
@@ -21,11 +22,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: notes });
   } catch (error) {
-    console.error('Error fetching research notes:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch research notes' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/projects/[id]/research-notes');
   }
 }
 
@@ -55,11 +52,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, data: note });
   } catch (error) {
-    console.error('Error creating research note:', error);
-    return NextResponse.json(
-      { error: 'Failed to create research note' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/projects/[id]/research-notes');
   }
 }
 

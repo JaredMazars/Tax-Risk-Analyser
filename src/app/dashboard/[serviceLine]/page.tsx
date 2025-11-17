@@ -130,7 +130,6 @@ export default function ServiceLineWorkspacePage() {
       const data = result.success ? result.data : result;
       setProjects(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching projects:', error);
       setProjects([]);
     }
   };
@@ -142,7 +141,6 @@ export default function ServiceLineWorkspacePage() {
       const data = await response.json();
       setClients(data.success ? data.data.clients : []);
     } catch (error) {
-      console.error('Error fetching clients:', error);
       setClients([]);
     }
   };
@@ -215,7 +213,6 @@ export default function ServiceLineWorkspacePage() {
       setShowEditModal(false);
       await fetchProjects();
     } catch (error) {
-      console.error('Error updating project:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -238,7 +235,6 @@ export default function ServiceLineWorkspacePage() {
       setShowDeleteModal(false);
       await fetchProjects();
     } catch (error) {
-      console.error('Error archiving project:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -265,7 +261,6 @@ export default function ServiceLineWorkspacePage() {
       setShowRestoreModal(false);
       await fetchProjects();
     } catch (error) {
-      console.error('Error restoring project:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -288,7 +283,6 @@ export default function ServiceLineWorkspacePage() {
       setShowPermanentDeleteModal(false);
       await fetchProjects();
     } catch (error) {
-      console.error('Error permanently deleting project:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -564,4 +558,3 @@ export default function ServiceLineWorkspacePage() {
     </div>
   );
 }
-

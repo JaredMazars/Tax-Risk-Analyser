@@ -37,7 +37,6 @@ export default function SarsResponsesPage({ params }: SarsResponsesPageProps) {
       const data = await response.json();
       setResponses(data.data || []);
     } catch (error) {
-      console.error('Error fetching responses:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch responses');
     } finally {
       setIsLoading(false);
@@ -267,4 +266,3 @@ export default function SarsResponsesPage({ params }: SarsResponsesPageProps) {
     </div>
   );
 }
-

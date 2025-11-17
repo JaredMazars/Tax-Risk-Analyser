@@ -7,8 +7,6 @@ import { MappedData } from '@/types';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useMappedAccounts, useUpdateMappedAccount } from '@/hooks/projects/useProjectData';
 import RemappingModal from '@/components/features/tax-adjustments/RemappingModal';
-
-
 const subsectionDisplayNames: Record<string, string> = {
   grossProfitOrLoss: 'Gross Profit/Loss',
   incomeItemsCreditAmounts: 'Income Items (Credit)',
@@ -55,7 +53,6 @@ export default function IncomeStatementPage({ params }: { params: { id: string }
         subsection,
       });
     } catch (error) {
-      console.error('Error updating mapping:', error);
       throw error;
     } finally {
       setUpdatingAccount(null);

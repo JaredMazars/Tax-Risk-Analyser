@@ -175,7 +175,6 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
         subsection,
       });
     } catch (error) {
-      console.error('Error updating mapping:', error);
       throw error;
     }
   };
@@ -272,7 +271,6 @@ export default function BalanceSheetPage({ params }: { params: { id: string } })
           balanceSheet.currentLiabilities[sarsItem] = { ...data, amount: -amount, priorYearAmount: -priorYearAmount };
           break;
         default:
-          console.warn(`Unknown subsection: ${subsection} for SARS item: ${sarsItem}`);
           balanceSheet.currentAssets[sarsItem] = data;
       }
     });

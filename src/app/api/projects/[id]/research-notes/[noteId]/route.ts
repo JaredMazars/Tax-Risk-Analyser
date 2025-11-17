@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function PUT(
   request: NextRequest,
@@ -27,11 +28,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: note });
   } catch (error) {
-    console.error('Error updating research note:', error);
-    return NextResponse.json(
-      { error: 'Failed to update research note' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'PUT /api/projects/[id]/research-notes/[noteId]');
   }
 }
 
@@ -53,11 +50,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting research note:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete research note' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'DELETE /api/projects/[id]/research-notes/[noteId]');
   }
 }
 

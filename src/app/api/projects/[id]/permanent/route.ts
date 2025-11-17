@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * DELETE /api/projects/[id]/permanent
@@ -67,14 +69,10 @@ export async function DELETE(
         message: 'Project permanently deleted successfully'
       });
     } catch (transactionError) {
-      console.error('Error in delete transaction:', transactionError);
+      logger.error('Error in delete transaction', transactionError);
       throw transactionError; // Re-throw to be caught by outer catch block
     }
   } catch (error) {
-    console.error('Error permanently deleting project:', error);
-    return NextResponse.json(
-      { error: 'Failed to permanently delete project' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'DELETE /api/projects/[id]/permanent');
   }
 }

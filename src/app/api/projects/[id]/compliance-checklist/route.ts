@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function GET(
   request: NextRequest,
@@ -24,11 +25,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: items });
   } catch (error) {
-    console.error('Error fetching compliance checklist:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch compliance checklist' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET /api/projects/[id]/compliance-checklist');
   }
 }
 
@@ -60,11 +57,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, data: item });
   } catch (error) {
-    console.error('Error creating compliance checklist item:', error);
-    return NextResponse.json(
-      { error: 'Failed to create compliance checklist item' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/projects/[id]/compliance-checklist');
   }
 }
 

@@ -50,7 +50,6 @@ export default function ServiceLineAdminPage() {
       const result = await response.json();
       setServiceLineData(result.success ? result.data : []);
     } catch (error) {
-      console.error('Error fetching service line data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -63,7 +62,6 @@ export default function ServiceLineAdminPage() {
       const result = await response.json();
       setAllUsers(result.success ? result.data : []);
     } catch (error) {
-      console.error('Error fetching users:', error);
     }
   };
 
@@ -93,19 +91,17 @@ export default function ServiceLineAdminPage() {
       await fetchServiceLineData();
       setShowGrantModal(false);
     } catch (error) {
-      console.error('Error granting access:', error);
       alert('Failed to grant access');
     }
   };
 
-  const handleUpdateRole = async (userId: string, newRole: ServiceLineRole) => {
+  const handleUpdateRole = async (serviceLineUserId: number, newRole: ServiceLineRole) => {
     try {
       const response = await fetch('/api/admin/service-line-access', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
-          serviceLine: selectedServiceLine,
+          id: serviceLineUserId,
           role: newRole,
         }),
       });
@@ -113,7 +109,6 @@ export default function ServiceLineAdminPage() {
       if (!response.ok) throw new Error('Failed to update role');
       await fetchServiceLineData();
     } catch (error) {
-      console.error('Error updating role:', error);
       alert('Failed to update role');
     }
   };
@@ -130,7 +125,6 @@ export default function ServiceLineAdminPage() {
       if (!response.ok) throw new Error('Failed to revoke access');
       await fetchServiceLineData();
     } catch (error) {
-      console.error('Error revoking access:', error);
       alert('Failed to revoke access');
     }
   };
@@ -170,7 +164,7 @@ export default function ServiceLineAdminPage() {
               >
                 {formatServiceLineName(sl)}
                 <span className="ml-2 text-xs">
-                  ({currentUsers.length})
+                  ({serviceLineData.find((data) => data.serviceLine === sl)?.users.length || 0})
                 </span>
               </button>
             ))}
@@ -246,7 +240,7 @@ export default function ServiceLineAdminPage() {
                       <select
                         value={user.role}
                         onChange={(e) =>
-                          handleUpdateRole(user.userId, e.target.value as ServiceLineRole)
+                          handleUpdateRole(user.id, e.target.value as ServiceLineRole)
                         }
                         className="text-sm border border-forvis-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
                       >
@@ -328,4 +322,3 @@ export default function ServiceLineAdminPage() {
     </div>
   );
 }
-

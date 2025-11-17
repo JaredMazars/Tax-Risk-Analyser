@@ -36,7 +36,6 @@ export default function ComplianceChecklistPage({ params }: ComplianceChecklistP
       const data = await response.json();
       setItems(data.data || []);
     } catch (error) {
-      console.error('Error fetching checklist:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch checklist');
     } finally {
       setIsLoading(false);
@@ -326,4 +325,3 @@ export default function ComplianceChecklistPage({ params }: ComplianceChecklistP
     </div>
   );
 }
-

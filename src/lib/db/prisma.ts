@@ -24,7 +24,6 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 if (process.env.DATABASE_URL?.includes('database.windows.net')) {
   // Azure SQL detected - set appropriate timeouts
   prisma.$connect().catch((error) => {
-    console.error('Failed to connect to Azure SQL Database:', error.message);
-    // Don't throw - let individual queries handle retries
+    // Connection error will be handled by individual queries with retry logic
   });
 }

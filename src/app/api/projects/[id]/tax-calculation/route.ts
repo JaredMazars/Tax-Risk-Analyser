@@ -37,8 +37,6 @@ export async function GET(
         sarsItem: true,
       },
     });
-
-    console.log(`Found ${mappedAccounts.length} income statement accounts for project ${projectId}`);
     
     // Calculate net profit from income statement accounts only
     // Note: In accounting, income accounts are credits (negative), expenses are debits (positive)
@@ -46,8 +44,6 @@ export async function GET(
     const rawBalance = mappedAccounts.reduce((sum: number, account: { balance: number }) => 
       sum + account.balance, 0);
     const netProfit = -rawBalance; // Convert credit balance (profit) to positive amount
-
-    console.log(`Calculated net profit: ${netProfit} (raw balance: ${rawBalance})`);
 
     // Get tax adjustments for this project
     const taxAdjustments = await prisma.taxAdjustment.findMany({

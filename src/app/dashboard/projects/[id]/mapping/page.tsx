@@ -362,7 +362,6 @@ export default function MappingPage({ params }: { params: { id: string } }) {
         subsection: newSubsection,
       });
     } catch (error) {
-      console.error('Error updating mapping:', error);
       throw error;
     }
   };
@@ -438,7 +437,6 @@ export default function MappingPage({ params }: { params: { id: string } }) {
         throw new Error('No data received from server');
       }
     } catch (error) {
-      console.error('Error uploading file:', error);
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setIsUploading(false);

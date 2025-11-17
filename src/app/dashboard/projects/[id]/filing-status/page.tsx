@@ -37,7 +37,6 @@ export default function FilingStatusPage({ params }: FilingStatusPageProps) {
       const data = await response.json();
       setFilings(data.data || []);
     } catch (error) {
-      console.error('Error fetching filings:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch filings');
     } finally {
       setIsLoading(false);
@@ -344,4 +343,3 @@ export default function FilingStatusPage({ params }: FilingStatusPageProps) {
     </div>
   );
 }
-

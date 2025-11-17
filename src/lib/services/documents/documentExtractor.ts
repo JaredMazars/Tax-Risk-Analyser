@@ -4,6 +4,7 @@ import { AIExtractionSchema, PDFExtractionSchema } from '../../ai/schemas';
 import * as XLSX from 'xlsx';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { logger } from '../../utils/logger';
 import {
   uploadFile as uploadToBlob,
   downloadFile as downloadFromBlob,
@@ -31,7 +32,7 @@ export class DocumentExtractor {
       try {
         await fs.mkdir(this.uploadDir, { recursive: true });
       } catch (error) {
-        console.error('Failed to create upload directory:', error);
+        logger.error('Failed to create upload directory', error);
       }
     }
   }
@@ -146,7 +147,7 @@ export class DocumentExtractor {
         warnings: aiExtraction.warnings,
       };
     } catch (error) {
-      console.error('Excel extraction error:', error);
+      logger.error('Excel extraction error', error);
       throw new Error(`Failed to extract data from Excel: ${error}`);
     }
   }
@@ -210,7 +211,7 @@ Return a JSON object with the following structure:
       
       return object;
     } catch (error) {
-      console.error('PDF extraction error:', error);
+      logger.error('PDF extraction error', error);
       throw new Error(`Failed to extract data from PDF: ${error}`);
     }
   }
@@ -247,7 +248,7 @@ Return a JSON object with the following structure:
         warnings: aiExtraction.warnings,
       };
     } catch (error) {
-      console.error('CSV extraction error:', error);
+      logger.error('CSV extraction error', error);
       throw new Error(`Failed to extract data from CSV: ${error}`);
     }
   }
@@ -337,7 +338,7 @@ Return JSON with:
       
       return object;
     } catch (error) {
-      console.error('AI extraction error:', error);
+      logger.error('AI extraction error', error);
       return {
         summary: 'Extraction failed',
         structuredData: {},
@@ -388,7 +389,7 @@ Return JSON with:
         await fs.unlink(filePath);
       }
     } catch (error) {
-      console.error('Failed to delete file:', error);
+      logger.error('Failed to delete file', error);
     }
   }
 
