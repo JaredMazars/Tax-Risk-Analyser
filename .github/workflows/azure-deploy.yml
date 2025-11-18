@@ -81,6 +81,9 @@ jobs:
             AZURE_AD_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }}
             AZURE_STORAGE_CONNECTION_STRING=secretref:azure-storage-connection-string
             AZURE_STORAGE_CONTAINER_NAME=adjustment-documents
+            AZURE_SEARCH_ENDPOINT=secretref:azure-search-endpoint
+            AZURE_SEARCH_API_KEY=secretref:azure-search-api-key
+            AZURE_SEARCH_INDEX_NAME=opinion-documents
             NODE_ENV=production
             MAX_FILE_UPLOAD_SIZE=10485760
             RATE_LIMIT_MAX_REQUESTS=10

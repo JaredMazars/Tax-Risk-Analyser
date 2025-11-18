@@ -108,23 +108,60 @@ export async function POST(
       // Use RAG to search documents
       logger.info(`📄 Document query detected: "${message.substring(0, 50)}..."`);
       
-      const searchResult = await ResearchAgent.searchDocuments(draftId, message);
-      
-      if (searchResult.sources.length > 0) {
-        responseText = searchResult.results;
-        sources = searchResult.sources.map((s, idx) => ({
-          documentId: idx,
-          fileName: s.fileName,
-          category: s.category,
-        }));
-      } else {
-        responseText = `I couldn't find specific information about that in the uploaded documents. Please ensure:
+      try {
+        const searchResult = await ResearchAgent.searchDocuments(draftId, message);
+        
+        if (searchResult.sources.length > 0) {
+          responseText = searchResult.results;
+          sources = searchResult.sources.map((s, idx) => ({
+            documentId: idx,
+            fileName: s.fileName,
+            category: s.category,
+          }));
+          logger.info(`✅ Found ${sources.length} source documents for query`);
+        } else {
+          // Check if any documents exist for this draft
+          const documentCount = await prisma.opinionDocument.count({
+            where: { opinionDraftId: draftId }
+          });
+          
+          if (documentCount === 0) {
+            responseText = `No documents have been uploaded yet. Please upload relevant documents in the Documents tab so I can help answer your questions about them.`;
+          } else {
+            // Documents exist but search returned no results
+            // Check if RAG is configured
+            const ragEngine = await import('@/lib/services/opinions/ragEngine').then(m => m.ragEngine);
+            const isRagReady = ragEngine?.isReady();
+            
+            if (!isRagReady) {
+              responseText = `⚠️ **Document Search Unavailable**
+
+Azure AI Search is not configured, so I cannot search the uploaded documents. The ${documentCount} document${documentCount > 1 ? 's have' : ' has'} been uploaded but not indexed for search.
+
+**To enable document search:**
+1. Configure Azure AI Search environment variables
+2. Re-upload the documents for indexing
+
+For now, you can:
+- Ask me general questions about South African tax law
+- Discuss your tax case and I'll provide guidance
+- I can help structure your opinion even without searching documents`;
+            } else {
+              responseText = `I couldn't find specific information about that in the uploaded documents. Please ensure:
 
 1. Documents are uploaded in the Documents tab
-2. Documents show "Ready for AI search" status
+2. Documents show "Ready for AI search" status (vectorized: true)
 3. Your question relates to content in the documents
 
+**Current status:** ${documentCount} document${documentCount > 1 ? 's' : ''} uploaded for this opinion.
+
 You can also ask me general questions about tax law or discuss your case.`;
+            }
+          }
+        }
+      } catch (error) {
+        logger.error('Error searching documents:', error);
+        responseText = `I encountered an error while searching the documents. You can still ask me general questions about tax law or discuss your case.`;
       }
     } else {
       // General discussion - use AI for case discussion and guidance

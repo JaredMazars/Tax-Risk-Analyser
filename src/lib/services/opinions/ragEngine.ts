@@ -48,9 +48,18 @@ export class RAGEngine {
     this.configured = !!searchEndpoint && !!searchApiKey;
     
     if (!this.configured) {
-      logger.warn('Azure Search not configured. RAG features will be disabled.');
+      logger.warn('⚠️ Azure AI Search not configured. Document search in tax opinions will be disabled.');
+      logger.warn('📋 To enable document search, configure these environment variables:');
+      logger.warn('   - AZURE_SEARCH_ENDPOINT: Your Azure AI Search service endpoint');
+      logger.warn('   - AZURE_SEARCH_API_KEY: Your Azure AI Search admin API key');
+      logger.warn('   - AZURE_SEARCH_INDEX_NAME: Index name (optional, defaults to "opinion-documents")');
+      logger.warn('📖 See DEPLOYMENT.md for setup instructions');
       return;
     }
+    
+    logger.info('✅ Azure AI Search configured successfully');
+    logger.info(`📍 Endpoint: ${searchEndpoint}`);
+    logger.info(`📇 Index: ${indexName}`);
     
     this.searchClient = new SearchClient<DocumentChunk>(
       searchEndpoint,
@@ -143,14 +152,18 @@ export class RAGEngine {
     projectScope?: number
   ): Promise<string> {
     try {
+      logger.info(`📄 Starting document indexing: ${fileName} (ID: ${documentId})`);
+      
       // Download file from blob storage
       const buffer = await downloadFile(filePath);
+      logger.info(`✅ Downloaded file from blob storage: ${filePath}`);
       
       // Extract text from document
       const extractedText = await this.extractText(buffer, fileType);
+      logger.info(`✅ Extracted ${extractedText.length} characters from ${fileName}`);
       
       if (!this.searchClient) {
-        logger.info('Azure Search not configured, skipping indexing');
+        logger.warn(`⚠️ Azure Search not configured - document ${fileName} uploaded but not indexed for search`);
         return extractedText;
       }
       
@@ -209,7 +222,8 @@ export class RAGEngine {
     category?: string
   ): Promise<SearchResult[]> {
     if (!this.searchClient) {
-      logger.info('Azure Search not configured, skipping semantic search');
+      logger.warn('⚠️ Azure Search not configured - cannot perform semantic search');
+      logger.warn('📄 Query attempted: ' + query.substring(0, 100) + (query.length > 100 ? '...' : ''));
       return [];
     }
     
@@ -344,7 +358,7 @@ export class RAGEngine {
     category?: string
   ): Promise<SearchResult[]> {
     if (!this.searchClient) {
-      logger.info('Azure Search not configured, skipping hybrid search');
+      logger.warn('⚠️ Azure Search not configured - cannot perform hybrid search');
       return [];
     }
 

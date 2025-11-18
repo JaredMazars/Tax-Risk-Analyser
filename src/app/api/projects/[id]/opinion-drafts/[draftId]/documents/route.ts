@@ -115,8 +115,15 @@ export async function POST(
       },
     });
 
+    // Check if RAG is configured and ready
+    const isRagReady = ragEngine && ragEngine.isReady();
+    let responseMessage = 'Document uploaded successfully.';
+    let warning: string | undefined;
+
     // Index document asynchronously if RAG is configured
-    if (ragEngine && typeof ragEngine.indexDocument === 'function') {
+    if (isRagReady) {
+      responseMessage = 'Document uploaded successfully. Indexing in progress...';
+      
       // Start indexing in background
       ragEngine
         .indexDocument(
@@ -136,17 +143,23 @@ export async function POST(
               vectorized: true,
             },
           });
-          logger.info(`Document ${document.id} indexed successfully`);
+          logger.info(`✅ Document ${document.id} (${file.name}) indexed successfully`);
         })
         .catch((error) => {
-          logger.error(`Failed to index document ${document.id}:`, error);
+          logger.error(`❌ Failed to index document ${document.id} (${file.name}):`, error);
         });
+    } else {
+      // RAG not configured - document uploaded but won't be searchable
+      logger.warn(`⚠️ Document ${document.id} (${file.name}) uploaded but Azure AI Search is not configured - document search disabled`);
+      warning = 'Azure AI Search is not configured. Document uploaded but AI won\'t be able to search it. Configure AZURE_SEARCH_ENDPOINT and AZURE_SEARCH_API_KEY to enable document search.';
     }
 
     return NextResponse.json({
       success: true,
       data: document,
-      message: 'Document uploaded successfully. Indexing in progress...',
+      message: responseMessage,
+      warning,
+      ragEnabled: isRagReady,
     });
   } catch (error) {
     logger.error('Error uploading document:', error);

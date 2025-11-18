@@ -7,7 +7,11 @@
     "build": "prisma generate && next build",
     "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "verify-search": "npx tsx scripts/verify-search-config.ts",
+    "setup-search-index": "npx tsx scripts/setup-search-index.ts",
+    "reindex-documents": "npx tsx scripts/reindex-documents.ts",
+    "diagnose-search": "npx tsx scripts/diagnose-search-issue.ts"
   },
   "dependencies": {
     "@ai-sdk/azure": "^2.0.66",

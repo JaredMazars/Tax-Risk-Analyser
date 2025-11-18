@@ -50,6 +50,11 @@ services:
       AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
       AZURE_STORAGE_CONTAINER_NAME: ${AZURE_STORAGE_CONTAINER_NAME:-adjustment-documents}
       
+      # Azure AI Search (optional - for RAG/document search in tax opinions)
+      AZURE_SEARCH_ENDPOINT: ${AZURE_SEARCH_ENDPOINT}
+      AZURE_SEARCH_API_KEY: ${AZURE_SEARCH_API_KEY}
+      AZURE_SEARCH_INDEX_NAME: ${AZURE_SEARCH_INDEX_NAME:-opinion-documents}
+      
       # App Config
       NODE_ENV: production
       MAX_FILE_UPLOAD_SIZE: 10485760

@@ -211,6 +211,66 @@ The application is configured to handle Azure SQL Database serverless tier cold-
 
 If users experience login timeouts on first access after idle period, they should simply retry the login - the database will be warm on the second attempt.
 
+**Azure AI Search Configuration (Optional)**
+
+Azure AI Search is used for RAG (Retrieval Augmented Generation) to enable document search in tax opinions. If not configured, documents can still be uploaded but the AI won't be able to search or reference them in chat or opinion generation.
+
+Required secrets for Azure AI Search:
+```bash
+# Set Azure Search endpoint secret
+az containerapp secret set \
+  --name mapper-tax-app \
+  --resource-group walter_sandbox \
+  --secrets "azure-search-endpoint=https://your-search-service.search.windows.net"
+
+# Set Azure Search API key secret
+az containerapp secret set \
+  --name mapper-tax-app \
+  --resource-group walter_sandbox \
+  --secrets "azure-search-api-key=your_admin_key_here"
+```
+
+Then reference them in environment variables:
+```bash
+az containerapp update \
+  --name mapper-tax-app \
+  --resource-group walter_sandbox \
+  --set-env-vars "AZURE_SEARCH_ENDPOINT=secretref:azure-search-endpoint" \
+                 "AZURE_SEARCH_API_KEY=secretref:azure-search-api-key" \
+                 "AZURE_SEARCH_INDEX_NAME=opinion-documents"
+```
+
+**Setting up Azure AI Search:**
+
+1. Create an Azure AI Search resource in the Azure Portal
+2. Choose a pricing tier (Basic or higher recommended for production)
+3. Create a search index named `opinion-documents` with the following schema:
+   - Field: `id` (type: String, key: true)
+   - Field: `draftId` (type: Int32, filterable: true)
+   - Field: `documentId` (type: Int32, filterable: true)
+   - Field: `chunkIndex` (type: Int32)
+   - Field: `content` (type: String, searchable: true)
+   - Field: `embedding` (type: Collection(Single), dimensions: 1536, vector search)
+   - Field: `fileName` (type: String, searchable: true, filterable: true)
+   - Field: `category` (type: String, filterable: true)
+   - Field: `metadata` (type: String)
+   - Field: `uploadedDate` (type: DateTimeOffset)
+   - Field: `author` (type: String, filterable: true)
+   - Field: `projectScope` (type: Int32, filterable: true)
+4. Enable vector search with HNSW algorithm
+5. Get the admin API key from the Keys section
+
+**Verification:**
+```bash
+# Check if Azure Search is configured
+az containerapp show \
+  --name mapper-tax-app \
+  --resource-group walter_sandbox \
+  --query "properties.template.containers[0].env[?name=='AZURE_SEARCH_ENDPOINT'].value"
+```
+
+If Azure Search is not configured, you'll see warnings in the application logs when documents are uploaded, and document search features will be disabled.
+
 ### Scaling
 
 The app is configured with:

@@ -24,6 +24,7 @@ const OPTIONAL_ENV_VARS = {
   AZURE_STORAGE_CONTAINER_NAME: 'adjustment-documents',
   AZURE_OPENAI_DEPLOYMENT: 'gpt-5-mini',
   AZURE_BING_SEARCH_ENDPOINT: 'https://api.bing.microsoft.com/v7.0/search',
+  AZURE_SEARCH_INDEX_NAME: 'opinion-documents',
 } as const;
 
 /**
@@ -192,6 +193,14 @@ export const env = {
   azureBingSearchEndpoint: getEnvVar(
     'AZURE_BING_SEARCH_ENDPOINT',
     OPTIONAL_ENV_VARS.AZURE_BING_SEARCH_ENDPOINT
+  ),
+  
+  // Azure AI Search (optional - for RAG/document search in tax opinions)
+  azureSearchEndpoint: getEnvVar('AZURE_SEARCH_ENDPOINT'),
+  azureSearchApiKey: getEnvVar('AZURE_SEARCH_API_KEY'),
+  azureSearchIndexName: getEnvVar(
+    'AZURE_SEARCH_INDEX_NAME',
+    OPTIONAL_ENV_VARS.AZURE_SEARCH_INDEX_NAME
   ),
 } as const;
 
