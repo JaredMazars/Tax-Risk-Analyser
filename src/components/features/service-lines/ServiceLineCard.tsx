@@ -55,35 +55,35 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
   return (
     <Link
       href={`/dashboard/${serviceLine.toLowerCase()}`}
-      className="group block bg-white rounded-lg border border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-shadow duration-200"
+      className="group block bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 hover:border-forvis-blue-500"
     >
       <div className="p-4">
         <div className="flex flex-col h-full">
           {/* Icon and Arrow */}
           <div className="flex items-start justify-between mb-4">
-            <div className={`w-12 h-12 rounded-lg ${bgColor} border ${borderColor} flex items-center justify-center`}>
+            <div className={`w-12 h-12 rounded-lg ${bgColor} border-2 ${borderColor} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
               <Icon className={`h-6 w-6 ${color}`} />
             </div>
-            <ArrowRightIcon className={`h-5 w-5 ${color} opacity-0 group-hover:opacity-100 transition-opacity duration-200`} />
+            <ArrowRightIcon className={`h-5 w-5 text-forvis-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200`} />
           </div>
 
           {/* Title and Description */}
-          <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
+          <h3 className="text-lg font-bold text-forvis-gray-900 mb-2 group-hover:text-forvis-blue-600 transition-colors duration-200">
             {name}
           </h3>
-          <p className="text-sm text-forvis-gray-600 mb-4 flex-grow">
+          <p className="text-xs text-forvis-gray-700 mb-4 flex-grow leading-relaxed">
             {getDescription(serviceLine)}
           </p>
 
           {/* Stats */}
-          <div className="flex items-center justify-between pt-4 border-t border-forvis-gray-200">
+          <div className="flex items-center justify-between pt-4 border-t-2 border-forvis-gray-200">
             <div>
-              <p className="text-2xl font-semibold text-forvis-gray-900">{activeProjectCount}</p>
-              <p className="text-xs text-forvis-gray-600">Active</p>
+              <p className="text-2xl font-bold text-forvis-gray-900">{activeProjectCount}</p>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Active</p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-medium text-forvis-gray-700">{projectCount}</p>
-              <p className="text-xs text-forvis-gray-600">Total</p>
+              <p className="text-xl font-semibold text-forvis-gray-700">{projectCount}</p>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Total</p>
             </div>
           </div>
         </div>
