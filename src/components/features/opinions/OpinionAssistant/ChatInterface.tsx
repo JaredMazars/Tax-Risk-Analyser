@@ -6,6 +6,13 @@ import {
   SparklesIcon,
   DocumentTextIcon,
   ArrowPathIcon,
+  MagnifyingGlassIcon,
+  ScaleIcon,
+  BookOpenIcon,
+  GlobeAltIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { OpinionChatMessage } from '@/types';
 
@@ -24,12 +31,28 @@ interface ChatResponse {
   }>;
 }
 
+interface ResearchResult {
+  title: string;
+  content: string;
+  source: string;
+  url?: string;
+  relevance?: number;
+}
+
 export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<OpinionChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Research tools state
+  const [showResearch, setShowResearch] = useState(true);
+  const [researchQuery, setResearchQuery] = useState('');
+  const [researchType, setResearchType] = useState<'legal' | 'tax' | 'web' | null>(null);
+  const [researchResults, setResearchResults] = useState<ResearchResult[]>([]);
+  const [isResearching, setIsResearching] = useState(false);
+  const [expandedResult, setExpandedResult] = useState<number | null>(null);
 
   // Load chat history
   useEffect(() => {
@@ -108,26 +131,76 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
     }
   };
 
+  const performResearch = async (type: 'legal' | 'tax' | 'web', query: string) => {
+    if (!query.trim()) return;
+    
+    setIsResearching(true);
+    setResearchType(type);
+    setResearchResults([]);
+    setError(null);
+    
+    try {
+      const endpoint = 
+        type === 'legal' ? '/api/search/legal-precedents' :
+        type === 'tax' ? '/api/search/tax-law' :
+        '/api/search/web';
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          query,
+          projectId 
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Research failed');
+      
+      const data = await response.json();
+      setResearchResults(data.data?.results || data.data || []);
+    } catch (error) {
+      setError(`Failed to perform ${type} research. Please try again.`);
+    } finally {
+      setIsResearching(false);
+    }
+  };
+
+  const addResultToChat = (result: ResearchResult) => {
+    const researchContext = `Research finding from ${researchType === 'legal' ? 'Legal Precedents' : researchType === 'tax' ? 'Tax Law' : 'Web Search'}:\n\n${result.title}\n\n${result.content}\n\nSource: ${result.source}`;
+    sendMessage(`Please analyze this research finding: ${researchContext}`);
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">AI Tax Assistant</h3>
-            <p className="text-sm text-gray-600">
-              Ask questions about documents or discuss your tax case
-            </p>
+    <div className="flex h-full">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">AI Tax Assistant</h3>
+              <p className="text-sm text-gray-600">
+                Ask questions about documents or discuss your tax case
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchMessages}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Refresh"
+              >
+                <ArrowPathIcon className="w-5 h-5 text-gray-600" />
+              </button>
+              <button
+                onClick={() => setShowResearch(!showResearch)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title={showResearch ? 'Hide Research' : 'Show Research'}
+              >
+                <MagnifyingGlassIcon className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
           </div>
-          <button
-            onClick={fetchMessages}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Refresh"
-          >
-            <ArrowPathIcon className="w-5 h-5 text-gray-600" />
-          </button>
         </div>
-      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50">
@@ -251,31 +324,188 @@ export default function ChatInterface({ projectId, draftId }: ChatInterfaceProps
         </div>
       )}
 
-      {/* Input */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
-        <div className="flex gap-3">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder="Ask a question about your documents or discuss the tax issue..."
-            rows={2}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={isLoading}
-          />
-          <button
-            onClick={() => sendMessage()}
-            disabled={!input.trim() || isLoading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            <PaperAirplaneIcon className="w-5 h-5" />
-            <span>Send</span>
-          </button>
+        {/* Input */}
+        <div className="bg-white border-t border-gray-200 px-6 py-4">
+          <div className="flex gap-3">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Ask a question about your documents or discuss the tax issue..."
+              rows={2}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isLoading}
+            />
+            <button
+              onClick={() => sendMessage()}
+              disabled={!input.trim() || isLoading}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              <PaperAirplaneIcon className="w-5 h-5" />
+              <span>Send</span>
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Press Enter to send, Shift+Enter for new line
+          </p>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Press Enter to send, Shift+Enter for new line
-        </p>
       </div>
+
+      {/* Research Panel */}
+      {showResearch && (
+        <div className="w-96 border-l border-gray-200 bg-white flex flex-col">
+          {/* Research Header */}
+          <div className="px-4 py-4 border-b border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Research Tools</h3>
+            
+            {/* Research Type Buttons */}
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setResearchType('legal');
+                  setResearchResults([]);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  researchType === 'legal'
+                    ? 'bg-blue-50 text-blue-700 border-2 border-blue-200'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <ScaleIcon className="w-5 h-5" />
+                <span>Legal Precedents</span>
+              </button>
+              <button
+                onClick={() => {
+                  setResearchType('tax');
+                  setResearchResults([]);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  researchType === 'tax'
+                    ? 'bg-blue-50 text-blue-700 border-2 border-blue-200'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <BookOpenIcon className="w-5 h-5" />
+                <span>Tax Law</span>
+              </button>
+              <button
+                onClick={() => {
+                  setResearchType('web');
+                  setResearchResults([]);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  researchType === 'web'
+                    ? 'bg-blue-50 text-blue-700 border-2 border-blue-200'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <GlobeAltIcon className="w-5 h-5" />
+                <span>Web Search</span>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            {researchType && (
+              <div className="mt-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={researchQuery}
+                    onChange={(e) => setResearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && researchType) {
+                        performResearch(researchType, researchQuery);
+                      }
+                    }}
+                    placeholder={`Search ${researchType === 'legal' ? 'legal cases' : researchType === 'tax' ? 'tax law' : 'web'}...`}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => researchType && performResearch(researchType, researchQuery)}
+                    disabled={isResearching || !researchQuery.trim()}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <MagnifyingGlassIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Research Results */}
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            {isResearching && (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            )}
+
+            {!isResearching && researchResults.length === 0 && researchType && (
+              <div className="text-center py-8">
+                <MagnifyingGlassIcon className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600">
+                  {researchQuery ? 'No results found' : 'Enter a search query above'}
+                </p>
+              </div>
+            )}
+
+            {!isResearching && researchResults.length > 0 && (
+              <div className="space-y-3">
+                {researchResults.map((result, idx) => (
+                  <div
+                    key={idx}
+                    className="border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 transition-colors"
+                  >
+                    <button
+                      onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
+                      className="w-full px-3 py-2 text-left bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-gray-900 line-clamp-2">
+                            {result.title}
+                          </h4>
+                          <p className="text-xs text-gray-600 mt-1">{result.source}</p>
+                        </div>
+                        {expandedResult === idx ? (
+                          <ChevronUpIcon className="w-4 h-4 text-gray-500 flex-shrink-0 mt-1" />
+                        ) : (
+                          <ChevronDownIcon className="w-4 h-4 text-gray-500 flex-shrink-0 mt-1" />
+                        )}
+                      </div>
+                    </button>
+                    
+                    {expandedResult === idx && (
+                      <div className="px-3 py-3 bg-white border-t border-gray-200">
+                        <p className="text-xs text-gray-700 mb-3 line-clamp-4">
+                          {result.content}
+                        </p>
+                        {result.url && (
+                          <a
+                            href={result.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-700 mb-3 block"
+                          >
+                            View Source →
+                          </a>
+                        )}
+                        <button
+                          onClick={() => addResultToChat(result)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                        >
+                          <PlusIcon className="w-4 h-4" />
+                          Add to Chat
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

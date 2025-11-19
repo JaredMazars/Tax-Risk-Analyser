@@ -1,8 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { OpinionSection } from '@/types';
+import { 
+  DocumentTextIcon, 
+  ArrowDownTrayIcon, 
+  CheckCircleIcon,
+  ClockIcon,
+  UserIcon,
+} from '@heroicons/react/24/outline';
+import { OpinionSection, OpinionDraft } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
 interface OpinionPreviewProps {
@@ -19,9 +25,13 @@ export default function OpinionPreview({
   const [sections, setSections] = useState<OpinionSection[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [draft, setDraft] = useState<OpinionDraft | null>(null);
+  const [showMarkFinalModal, setShowMarkFinalModal] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     fetchSections();
+    fetchDraft();
   }, [draftId]);
 
   const fetchSections = async () => {
@@ -37,6 +47,64 @@ export default function OpinionPreview({
       // Failed to fetch sections
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchDraft = async () => {
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/opinion-drafts/${draftId}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch draft');
+      const data = await response.json();
+      setDraft(data.data);
+    } catch (error) {
+      // Failed to fetch draft
+    }
+  };
+
+  const handleMarkAsFinal = async () => {
+    setIsUpdatingStatus(true);
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/opinion-drafts/${draftId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'FINAL' }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to mark as final');
+      
+      await fetchDraft();
+      setShowMarkFinalModal(false);
+    } catch (error) {
+      alert('Failed to mark as final');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleMarkAsUnderReview = async () => {
+    setIsUpdatingStatus(true);
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/opinion-drafts/${draftId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'UNDER_REVIEW' }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to mark as under review');
+      
+      await fetchDraft();
+    } catch (error) {
+      alert('Failed to mark as under review');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -132,18 +200,57 @@ export default function OpinionPreview({
     );
   }
 
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      DRAFT: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300', label: 'Draft' },
+      UNDER_REVIEW: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', label: 'Under Review' },
+      FINAL: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', label: 'Final' },
+    };
+    return statusConfig[status as keyof typeof statusConfig] || statusConfig.DRAFT;
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="bg-white border-b-2 border-forvis-blue-600 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-forvis-gray-900">Opinion Preview</h3>
-            <p className="text-sm text-forvis-gray-600">
-              Preview and export your completed opinion
-            </p>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-forvis-gray-900">Opinion Preview</h3>
+              <p className="text-sm text-forvis-gray-600">
+                Preview and export your completed opinion
+              </p>
+            </div>
+            {draft && (
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(draft.status).bg} ${getStatusBadge(draft.status).text} ${getStatusBadge(draft.status).border}`}>
+                {draft.status === 'FINAL' && <CheckCircleIcon className="w-4 h-4 mr-1" />}
+                {getStatusBadge(draft.status).label}
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
+            {draft && draft.status !== 'FINAL' && (
+              <>
+                {draft.status === 'DRAFT' && (
+                  <button
+                    onClick={handleMarkAsUnderReview}
+                    disabled={isUpdatingStatus}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-50 border-2 border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors disabled:opacity-50 text-sm font-semibold"
+                  >
+                    <ClockIcon className="w-5 h-5" />
+                    Mark for Review
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowMarkFinalModal(true)}
+                  disabled={isUpdatingStatus}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border-2 border-green-300 text-green-700 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 text-sm font-semibold"
+                >
+                  <CheckCircleIcon className="w-5 h-5" />
+                  Mark as Final
+                </button>
+              </>
+            )}
             <button
               onClick={exportToPDF}
               disabled={exporting}
@@ -218,8 +325,96 @@ export default function OpinionPreview({
               })}
             </p>
           </div>
+
+          {/* Audit Trail - Only show if status is FINAL */}
+          {draft && draft.status === 'FINAL' && (
+            <div className="mt-8 pt-6 border-t-2 border-forvis-gray-300">
+              <h3 className="text-lg font-bold text-forvis-gray-900 mb-4">Audit Trail</h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                  <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-forvis-gray-900">Opinion Finalized</p>
+                    <p className="text-xs text-forvis-gray-600 mt-1">
+                      Marked as final on {new Date(draft.updatedAt).toLocaleString('en-ZA', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                    {draft.createdBy && (
+                      <p className="text-xs text-forvis-gray-600 mt-1 flex items-center gap-1">
+                        <UserIcon className="w-3 h-3" />
+                        By: {draft.createdBy}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <DocumentTextIcon className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-forvis-gray-900">Version Information</p>
+                    <p className="text-xs text-forvis-gray-600 mt-1">
+                      Version {draft.version} • Created on {new Date(draft.createdAt).toLocaleDateString('en-ZA', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Mark as Final Confirmation Modal */}
+      {showMarkFinalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-forvis-gray-900">
+                    Mark as Final Opinion
+                  </h3>
+                  <p className="text-sm text-forvis-gray-600 mt-1">
+                    Are you sure you want to finalize this opinion?
+                  </p>
+                </div>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Important:</strong> Once marked as final, this opinion will be locked. 
+                  You won't be able to edit sections or change the content. 
+                  Make sure all sections are complete and reviewed.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowMarkFinalModal(false)}
+                  className="px-4 py-2 text-sm font-semibold text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleMarkAsFinal}
+                  disabled={isUpdatingStatus}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {isUpdatingStatus ? 'Processing...' : 'Mark as Final'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,9 +16,6 @@ import {
   ClipboardDocumentListIcon,
   UsersIcon,
   BookOpenIcon,
-  LightBulbIcon,
-  ScaleIcon,
-  CheckCircleIcon,
   EnvelopeIcon,
   FolderIcon,
   ClipboardDocumentCheckIcon,
@@ -369,7 +366,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       case 'TAX_CALCULATION':
         return 'mapping';
       case 'TAX_OPINION':
-        return 'opinion-drafting';
+        return 'tax-opinion';
       case 'TAX_ADMINISTRATION':
         return 'sars-responses';
       default:
@@ -460,15 +457,9 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       case 'reporting':
         return <ReportingPage params={params} />;
       
-      // Tax Opinion tabs
-      case 'opinion-drafting':
+      // Tax Opinion tab (unified)
+      case 'tax-opinion':
         return <OpinionDraftingPage params={params} />;
-      case 'research-notes':
-        return <div className="p-6">Research Notes Page (Coming Soon)</div>;
-      case 'legal-precedents':
-        return <div className="p-6">Legal Precedents Page (Coming Soon)</div>;
-      case 'final-opinion':
-        return <div className="p-6">Final Opinion Page (Coming Soon)</div>;
       
       // Tax Administration tabs (placeholder components - will be created)
       case 'sars-responses':
@@ -689,38 +680,15 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 </>
               )}
               
-              {/* Tax Opinion Tabs - Only for TAX service line */}
+              {/* Tax Opinion Tab - Only for TAX service line */}
               {project?.projectType === 'TAX_OPINION' && (!project?.serviceLine || project?.serviceLine === 'TAX') && (
-                <>
-                  <Tab
-                    onClick={() => setActiveTab('opinion-drafting')}
-                    selected={activeTab === 'opinion-drafting'}
-                    icon={BookOpenIcon}
-                  >
-                    Opinion Drafting
-                  </Tab>
-                  <Tab
-                    onClick={() => setActiveTab('research-notes')}
-                    selected={activeTab === 'research-notes'}
-                    icon={LightBulbIcon}
-                  >
-                    Research Notes
-                  </Tab>
-                  <Tab
-                    onClick={() => setActiveTab('legal-precedents')}
-                    selected={activeTab === 'legal-precedents'}
-                    icon={ScaleIcon}
-                  >
-                    Legal Precedents
-                  </Tab>
-                  <Tab
-                    onClick={() => setActiveTab('final-opinion')}
-                    selected={activeTab === 'final-opinion'}
-                    icon={CheckCircleIcon}
-                  >
-                    Final Opinion
-                  </Tab>
-                </>
+                <Tab
+                  onClick={() => setActiveTab('tax-opinion')}
+                  selected={activeTab === 'tax-opinion'}
+                  icon={BookOpenIcon}
+                >
+                  Tax Opinion
+                </Tab>
               )}
               
               {/* Tax Administration Tabs - Only for TAX service line */}
