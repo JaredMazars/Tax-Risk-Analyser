@@ -14,6 +14,7 @@ import {
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { OpinionSection } from '@/types';
+import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
 interface SectionEditorProps {
   projectId: number;
@@ -577,9 +578,7 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
                   </div>
                   
                   <div className="prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap text-gray-700">
-                      {section.content}
-                    </div>
+                    <MarkdownRenderer content={section.content} />
                   </div>
                 </>
               )}

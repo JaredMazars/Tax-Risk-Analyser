@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateReportingPackPDF } from '@/lib/services/export/serverPdfExporter';
 import { getSession } from '@/lib/services/auth/auth';
+import { logger } from '@/lib/utils/logger';
 
 export async function POST(
     request: NextRequest,
@@ -32,7 +33,7 @@ export async function POST(
             },
         });
     } catch (error) {
-        console.error('Error generating PDF:', error);
+        logger.error('Error generating PDF:', error);
         return NextResponse.json(
             { error: 'Failed to generate PDF' },
             { status: 500 }

@@ -9,7 +9,7 @@ import type { Session, SessionUser } from './types';
 const log = {
   info: (message: string, meta?: any) => {
     if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
-      console.log(`[INFO] ${message}`, meta || '');
+      // console.log(`[INFO] ${message}`, meta || '');
     }
   },
   error: (message: string, error?: any) => {

@@ -48,19 +48,11 @@ export class RAGEngine {
     this.configured = !!searchEndpoint && !!searchApiKey;
     
     if (!this.configured) {
-      logger.warn('⚠️ Azure AI Search not configured. Document search in tax opinions will be disabled.');
-      logger.warn('📋 To enable document search, configure these environment variables:');
-      logger.warn('   - AZURE_SEARCH_ENDPOINT: Your Azure AI Search service endpoint');
-      logger.warn('   - AZURE_SEARCH_API_KEY: Your Azure AI Search admin API key');
-      logger.warn('   - AZURE_SEARCH_INDEX_NAME: Index name (optional, defaults to "opinion-documents")');
-      logger.warn('📖 See DEPLOYMENT.md for setup instructions');
+      // Azure AI Search not configured - document search will be disabled
       return;
     }
     
-    logger.info('✅ Azure AI Search configured successfully');
-    logger.info(`📍 Endpoint: ${searchEndpoint}`);
-    logger.info(`📇 Index: ${indexName}`);
-    
+    // Azure AI Search configured successfully
     this.searchClient = new SearchClient<DocumentChunk>(
       searchEndpoint,
       indexName,

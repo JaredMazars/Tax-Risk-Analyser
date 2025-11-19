@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { OpinionSection } from '@/types';
+import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
 interface OpinionPreviewProps {
   projectId: number;
@@ -201,9 +202,7 @@ export default function OpinionPreview({
                   {index + 1}. {section.title}
                 </h3>
                 <div className="prose prose-sm max-w-none">
-                  <div className="text-forvis-gray-800 leading-relaxed whitespace-pre-wrap">
-                    {section.content}
-                  </div>
+                  <MarkdownRenderer content={section.content} className="text-forvis-gray-800 leading-relaxed" />
                 </div>
               </div>
             ))}

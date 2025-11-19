@@ -10,6 +10,10 @@ import {
   RectangleStackIcon,
   EyeIcon,
   ClockIcon,
+  PencilIcon,
+  TrashIcon,
+  XMarkIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 import ChatInterface from '@/components/features/opinions/OpinionAssistant/ChatInterface';
 import DocumentManager from '@/components/features/opinions/OpinionAssistant/DocumentManager';
@@ -29,6 +33,14 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
   const [selectedDraft, setSelectedDraft] = useState<OpinionDraft | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [error, setError] = useState<string | null>(null);
+  
+  // Rename state
+  const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  
+  // Delete state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [draftToDelete, setDraftToDelete] = useState<OpinionDraft | null>(null);
 
   useEffect(() => {
     fetchDrafts();
@@ -71,6 +83,86 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to create draft');
     }
+  };
+
+  const handleStartRename = (draft: OpinionDraft, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingDraftId(draft.id);
+    setEditingTitle(draft.title);
+  };
+
+  const handleSaveRename = async (draftId: number) => {
+    if (!editingTitle.trim()) {
+      setError('Draft title cannot be empty');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${params.id}/opinion-drafts/${draftId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editingTitle.trim(),
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to rename draft');
+      
+      await fetchDrafts();
+      setEditingDraftId(null);
+      setEditingTitle('');
+      setError(null);
+      
+      // Update selected draft if it was the one renamed
+      if (selectedDraft?.id === draftId) {
+        setSelectedDraft({ ...selectedDraft, title: editingTitle.trim() });
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to rename draft');
+    }
+  };
+
+  const handleCancelRename = () => {
+    setEditingDraftId(null);
+    setEditingTitle('');
+  };
+
+  const handleDeleteClick = (draft: OpinionDraft, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraftToDelete(draft);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!draftToDelete) return;
+
+    try {
+      const response = await fetch(`/api/projects/${params.id}/opinion-drafts/${draftToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete draft');
+
+      // If we deleted the selected draft, select another one
+      if (selectedDraft?.id === draftToDelete.id) {
+        const remainingDrafts = drafts.filter(d => d.id !== draftToDelete.id);
+        setSelectedDraft(remainingDrafts.length > 0 ? remainingDrafts[0] : null);
+      }
+
+      await fetchDrafts();
+      setShowDeleteConfirm(false);
+      setDraftToDelete(null);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to delete draft');
+      setShowDeleteConfirm(false);
+      setDraftToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDraftToDelete(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -139,29 +231,95 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
                 drafts.map((draft) => (
                   <div
                     key={draft.id}
-                    onClick={() => setSelectedDraft(draft)}
-                    className={`p-4 cursor-pointer transition-colors ${
+                    onClick={() => editingDraftId !== draft.id && setSelectedDraft(draft)}
+                    className={`group p-4 transition-colors ${
+                      editingDraftId === draft.id ? '' : 'cursor-pointer'
+                    } ${
                       selectedDraft?.id === draft.id
                         ? 'bg-forvis-blue-50 border-l-4 border-forvis-blue-600'
                         : 'hover:bg-forvis-gray-50'
                     }`}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-forvis-gray-900">{draft.title}</h4>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full border ${getStatusBadge(
-                          draft.status
-                        )}`}
-                      >
-                        {draft.status}
-                      </span>
+                      {editingDraftId === draft.id ? (
+                        <div className="flex-1 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSaveRename(draft.id);
+                              } else if (e.key === 'Escape') {
+                                handleCancelRename();
+                              }
+                            }}
+                            className="flex-1 px-2 py-1 text-sm border border-forvis-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSaveRename(draft.id);
+                            }}
+                            className="p-1 text-green-600 hover:text-green-700"
+                            title="Save"
+                          >
+                            <CheckIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelRename();
+                            }}
+                            className="p-1 text-red-600 hover:text-red-700"
+                            title="Cancel"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex-1 flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-forvis-gray-900 flex-1">
+                              {draft.title}
+                            </h4>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => handleStartRename(draft, e)}
+                                className="p-1 text-forvis-gray-400 hover:text-forvis-blue-600"
+                                title="Rename"
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteClick(draft, e)}
+                                className="p-1 text-forvis-gray-400 hover:text-red-600"
+                                title="Delete"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full border ${getStatusBadge(
+                              draft.status
+                            )}`}
+                          >
+                            {draft.status}
+                          </span>
+                        </>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-forvis-gray-600">
-                      <ClockIcon className="w-4 h-4" />
-                      <span>v{draft.version}</span>
-                      <span>•</span>
-                      <span>{new Date(draft.updatedAt).toLocaleDateString()}</span>
-                    </div>
+                    {editingDraftId !== draft.id && (
+                      <div className="flex items-center gap-2 text-xs text-forvis-gray-600">
+                        <ClockIcon className="w-4 h-4" />
+                        <span>v{draft.version}</span>
+                        <span>•</span>
+                        <span>{new Date(draft.updatedAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -234,6 +392,37 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && draftToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full m-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">
+                Delete Opinion Draft
+              </h3>
+              <p className="text-sm text-forvis-gray-600 mb-4">
+                Are you sure you want to delete "{draftToDelete.title}"? This action cannot be undone.
+                All sections, documents, and chat history associated with this draft will be permanently deleted.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={handleCancelDelete}
+                  className="px-4 py-2 text-sm font-semibold text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteDraft}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
