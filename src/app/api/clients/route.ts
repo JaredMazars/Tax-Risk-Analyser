@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { createClientSchema } from '@/lib/utils/validation';
+import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,19 +14,24 @@ export async function GET(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const skip = (page - 1) * limit;
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+    
+    // Only apply pagination if page or limit params are explicitly provided
+    const usePagination = pageParam !== null || limitParam !== null;
+    const page = parseInt(pageParam || '1');
+    const limit = parseInt(limitParam || '20');
+    const skip = usePagination ? (page - 1) * limit : undefined;
+    const take = usePagination ? limit : undefined;
 
     // Build where clause
     const where: any = {};
     if (search) {
       where.OR = [
-        { name: { contains: search } },
+        { clientNameFull: { contains: search } },
         { clientCode: { contains: search } },
-        { registrationNumber: { contains: search } },
-        { taxNumber: { contains: search } },
-        { email: { contains: search } },
+        { groupDesc: { contains: search } },
+        { industry: { contains: search } },
       ];
     }
 
@@ -39,8 +42,8 @@ export async function GET(request: NextRequest) {
     const clients = await prisma.client.findMany({
       where,
       skip,
-      take: limit,
-      orderBy: { name: 'asc' },
+      take,
+      orderBy: { clientNameFull: 'asc' },
       include: {
         _count: {
           select: {
@@ -55,72 +58,14 @@ export async function GET(request: NextRequest) {
         clients,
         pagination: {
           page,
-          limit,
+          limit: take || total,
           total,
-          totalPages: Math.ceil(total / limit),
+          totalPages: usePagination ? Math.ceil(total / limit) : 1,
         },
       })
     );
   } catch (error) {
     return handleApiError(error, 'Get Clients');
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const body = await request.json();
-    
-    // Validate request body
-    const validatedData = createClientSchema.parse(body);
-
-    // Check for duplicate client code if provided
-    if (validatedData.clientCode) {
-      const existingClient = await prisma.client.findUnique({
-        where: { clientCode: validatedData.clientCode },
-      });
-
-      if (existingClient) {
-        return handleApiError(
-          new AppError(400, `Client code '${validatedData.clientCode}' is already in use`, ErrorCodes.VALIDATION_ERROR),
-          'Create Client'
-        );
-      }
-    }
-
-    // Create client
-    const client = await prisma.client.create({
-      data: validatedData,
-    });
-
-    return NextResponse.json(successResponse(client), { status: 201 });
-  } catch (error) {
-    // Handle Zod validation errors
-    if (error instanceof z.ZodError) {
-      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-      return handleApiError(
-        new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
-        'Create Client'
-      );
-    }
-    
-    // Handle Prisma unique constraint violations
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-      const target = (error as any).meta?.target;
-      if (target && target.includes('clientCode')) {
-        return handleApiError(
-          new AppError(400, 'Client code is already in use', ErrorCodes.VALIDATION_ERROR),
-          'Create Client'
-        );
-      }
-    }
-    
-    return handleApiError(error, 'Create Client');
   }
 }
 

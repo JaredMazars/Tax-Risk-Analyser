@@ -38,20 +38,11 @@ export default function DashboardNav() {
   const serviceLineNavItems: NavItem[] = currentServiceLine
     ? [
         {
-          label: 'Projects',
+          label: 'Clients',
           href: `/dashboard/${currentServiceLine.toLowerCase()}`,
         },
-        {
-          label: 'Clients',
-          href: '/dashboard/clients',
-        },
       ]
-    : [
-        {
-          label: 'Clients',
-          href: '/dashboard/clients',
-        },
-      ];
+    : [];
 
   // Admin nav items
   const adminNavItems: NavItem[] = [

@@ -4,40 +4,27 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { 
-  PlusIcon, 
   MagnifyingGlassIcon,
-  PencilIcon,
-  ArchiveBoxIcon,
-  EllipsisVerticalIcon,
-  FolderIcon,
-  ArrowPathIcon,
-  TrashIcon,
+  BuildingOfficeIcon,
   ArrowLeftIcon,
+  FolderIcon,
 } from '@heroicons/react/24/outline';
-import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
-import { getProjectTypeColor, formatProjectType, getProjectTypeBorderColor } from '@/lib/utils/projectUtils';
 import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 
-interface Project {
+interface Client {
   id: number;
-  name: string;
-  description?: string;
-  projectType: string;
-  serviceLine: string;
-  taxYear?: number | null;
-  clientId?: number | null;
-  client?: {
-    id: number;
-    name: string;
-  } | null;
-  createdAt: string;
-  updatedAt: string;
-  archived: boolean;
+  clientCode: string;
+  clientNameFull: string | null;
+  groupCode: string;
+  groupDesc: string;
+  clientPartner: string;
+  industry: string | null;
+  sector: string | null;
+  active: string;
   _count: {
-    mappings: number;
-    taxAdjustments: number;
+    Project: number;
   };
 }
 
@@ -47,28 +34,12 @@ export default function ServiceLineWorkspacePage() {
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const { setCurrentServiceLine } = useServiceLine();
   
-  const [showModal, setShowModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showRestoreModal, setShowRestoreModal] = useState(false);
-  const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [editProject, setEditProject] = useState({
-    name: '',
-    description: ''
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showArchivedProjects, setShowArchivedProjects] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
-  const [clients, setClients] = useState<Array<{ id: number; name: string }>>([]);
-  const [filters, setFilters] = useState({
-    projectType: '',
-    clientId: '',
-    taxYear: ''
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Validate service line
   useEffect(() => {
@@ -81,349 +52,50 @@ export default function ServiceLineWorkspacePage() {
 
   useEffect(() => {
     if (isValidServiceLine(serviceLine)) {
-      fetchProjects();
       fetchClients();
     }
-  }, [serviceLine, showArchivedProjects]);
+  }, [serviceLine]);
 
   useEffect(() => {
-    const handleClickOutside = () => {
-      setOpenDropdown(null);
-    };
-
-    if (openDropdown !== null) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-    
-    return undefined;
-  }, [openDropdown]);
-
-  useEffect(() => {
-    let filtered = projects.filter(project =>
-      project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.client?.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (filters.projectType) {
-      filtered = filtered.filter(project => project.projectType === filters.projectType);
-    }
-    if (filters.clientId) {
-      filtered = filtered.filter(project => project.clientId?.toString() === filters.clientId);
-    }
-    if (filters.taxYear) {
-      filtered = filtered.filter(project => project.taxYear?.toString() === filters.taxYear);
-    }
-
-    setFilteredProjects(filtered);
-  }, [searchTerm, projects, filters]);
-
-  const fetchProjects = async () => {
-    try {
-      const url = showArchivedProjects 
-        ? `/api/projects?includeArchived=true&serviceLine=${serviceLine}` 
-        : `/api/projects?serviceLine=${serviceLine}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch projects');
-      const result = await response.json();
-      const data = result.success ? result.data : result;
-      setProjects(Array.isArray(data) ? data : []);
-    } catch (error) {
-      setProjects([]);
-    }
-  };
+    const searchLower = searchTerm.toLowerCase().trim();
+    const filtered = searchLower === '' 
+      ? clients 
+      : clients.filter(client =>
+          client.clientNameFull?.toLowerCase().includes(searchLower) ||
+          client.clientCode?.toLowerCase().includes(searchLower) ||
+          client.groupDesc?.toLowerCase().includes(searchLower) ||
+          client.groupCode?.toLowerCase().includes(searchLower) ||
+          client.industry?.toLowerCase().includes(searchLower) ||
+          client.sector?.toLowerCase().includes(searchLower)
+        );
+    setFilteredClients(filtered);
+    setCurrentPage(1); // Reset to first page when search changes
+  }, [searchTerm, clients]);
 
   const fetchClients = async () => {
     try {
       const response = await fetch('/api/clients');
-      if (!response.ok) return;
-      const data = await response.json();
-      setClients(data.success ? data.data.clients : []);
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      const result = await response.json();
+      const data = result.success ? result.data.clients : [];
+      setClients(Array.isArray(data) ? data : []);
     } catch (error) {
       setClients([]);
-    }
-  };
-
-  const handleNewProjectClick = () => {
-    setShowModal(true);
-  };
-
-  const handleEditClick = (project: Project, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedProject(project);
-    setEditProject({ name: project.name, description: project.description || '' });
-    setShowEditModal(true);
-    setOpenDropdown(null);
-  };
-
-  const handleDeleteClick = (project: Project, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedProject(project);
-    setShowDeleteModal(true);
-    setOpenDropdown(null);
-  };
-
-  const handleRestoreClick = (project: Project, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedProject(project);
-    setShowRestoreModal(true);
-    setOpenDropdown(null);
-  };
-
-  const handlePermanentDeleteClick = (project: Project, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedProject(project);
-    setShowPermanentDeleteModal(true);
-    setOpenDropdown(null);
-  };
-
-  const handleProjectCreated = async (project: any) => {
-    setShowModal(false);
-    await fetchProjects();
-    router.push(`/dashboard/${serviceLine.toLowerCase()}/projects/${project.id}`);
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!editProject.name.trim() || !selectedProject) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch(`/api/projects/${selectedProject.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editProject),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update project');
-      }
-
-      setShowEditModal(false);
-      await fetchProjects();
-    } catch (error) {
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
-
-  const handleDeleteConfirm = async () => {
-    if (!selectedProject) return;
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch(`/api/projects/${selectedProject.id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to archive project');
-      }
-
-      setShowDeleteModal(false);
-      await fetchProjects();
-    } catch (error) {
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleRestoreConfirm = async () => {
-    if (!selectedProject) return;
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch(`/api/projects/${selectedProject.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'restore' }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to restore project');
-      }
-
-      setShowRestoreModal(false);
-      await fetchProjects();
-    } catch (error) {
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handlePermanentDeleteConfirm = async () => {
-    if (!selectedProject) return;
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch(`/api/projects/${selectedProject.id}/permanent`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to permanently delete project');
-      }
-
-      setShowPermanentDeleteModal(false);
-      await fetchProjects();
-    } catch (error) {
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
-
-  const renderProjectRow = (project: Project) => (
-    <div
-      key={project.id}
-      className={`group rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border ${
-        project.archived 
-          ? 'bg-forvis-gray-50 border-forvis-gray-300 opacity-75' 
-          : 'bg-white border-forvis-gray-200'
-      }`}
-    >
-      <Link href={`/dashboard/${serviceLine.toLowerCase()}/projects/${project.id}`} className="block p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4 flex-1 min-w-0">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-              project.archived ? 'bg-forvis-gray-200' : 'bg-forvis-blue-100'
-            }`}>
-              <FolderIcon className={`h-5 w-5 ${
-                project.archived ? 'text-forvis-gray-500' : 'text-forvis-blue-600'
-              }`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-1">
-                <h3 className={`text-base font-semibold truncate ${
-                  project.archived ? 'text-forvis-gray-600' : 'text-forvis-gray-900'
-                }`}>
-                  {project.name}
-                </h3>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getProjectTypeColor(project.projectType)}`}>
-                  {formatProjectType(project.projectType)}
-                </span>
-                {project.taxYear && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                    {project.taxYear}
-                  </span>
-                )}
-                {project.archived && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
-                    Archived
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                {project.client && (
-                  <p className="text-sm text-forvis-gray-500 truncate">
-                    {project.client.name}
-                  </p>
-                )}
-                {project.description && (
-                  <>
-                    {project.client && <span className="text-forvis-gray-400">•</span>}
-                    <p className="text-sm text-forvis-gray-600 truncate">
-                      {project.description}
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-8 ml-4">
-            <div className="text-sm text-forvis-gray-600">
-              <span className="font-medium">{project._count.mappings}</span> accounts
-            </div>
-            <div className="text-sm text-forvis-gray-600">
-              <span className="font-medium">{project._count.taxAdjustments}</span> adjustments
-            </div>
-            <div className="text-sm text-forvis-gray-500 w-24">
-              {formatDate(project.updatedAt)}
-            </div>
-            
-            <div className="relative">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setOpenDropdown(openDropdown === project.id ? null : project.id);
-                }}
-                className="p-1 rounded-lg hover:bg-forvis-gray-100 transition-colors"
-              >
-                <EllipsisVerticalIcon className="h-5 w-5 text-forvis-gray-400" />
-              </button>
-              
-              {openDropdown === project.id && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 py-1 z-10">
-                  <button
-                    onClick={(e) => handleEditClick(project, e)}
-                    className="w-full text-left px-4 py-2 text-sm text-forvis-gray-700 hover:bg-forvis-gray-50 flex items-center space-x-2"
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                    <span>Edit Project</span>
-                  </button>
-                  {project.archived ? (
-                    <>
-                      <button
-                        onClick={(e) => handleRestoreClick(project, e)}
-                        className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 flex items-center space-x-2"
-                      >
-                        <ArrowPathIcon className="h-4 w-4" />
-                        <span>Restore Project</span>
-                      </button>
-                      <button
-                        onClick={(e) => handlePermanentDeleteClick(project, e)}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                        <span>Delete Permanently</span>
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={(e) => handleDeleteClick(project, e)}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
-                    >
-                      <ArchiveBoxIcon className="h-4 w-4" />
-                      <span>Archive Project</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Link>
-    </div>
-  );
 
   if (!isValidServiceLine(serviceLine)) {
     return null;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+      </div>
+    );
   }
 
   return (
@@ -443,116 +115,221 @@ export default function ServiceLineWorkspacePage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 space-y-4 sm:space-y-0">
           <div>
             <h1 className="text-3xl font-bold text-forvis-gray-900">
-              {formatServiceLineName(serviceLine)} Projects
+              {formatServiceLineName(serviceLine)} Clients
             </h1>
             <p className="mt-1 text-sm text-forvis-gray-700">
-              Manage your {formatServiceLineName(serviceLine).toLowerCase()} projects
+              Select a client to view their projects and details
             </p>
           </div>
           
-          <button
-            type="button"
-            onClick={handleNewProjectClick}
-            className="btn-primary"
-          >
-            <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-            New Project
-          </button>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-forvis-blue-600">{clients.length}</div>
+            <div className="text-sm text-forvis-gray-600">Total Clients</div>
+          </div>
         </div>
 
-        {/* Search and view controls */}
-        <div className="mb-6 space-y-4">
-          <div className="relative max-w-lg">
+        {/* Search and Filter Bar */}
+        <div className="mb-6 flex gap-4 items-center">
+          <div className="relative flex-1 max-w-md">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
             <input
               type="text"
-              placeholder="Search projects..."
+              placeholder="Search by name, code, group, or industry..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-10"
+              className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
             />
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-forvis-gray-700">Show:</label>
             <select
-              value={filters.projectType}
-              onChange={(e) => setFilters({ ...filters, projectType: e.target.value })}
-              className="px-3 py-2 text-sm border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent bg-white"
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
             >
-              <option value="">All Types</option>
-              {/* Types will be filtered by service line in a moment */}
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
             </select>
-
-            <select
-              value={filters.clientId}
-              onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
-              className="px-3 py-2 text-sm border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent bg-white"
-            >
-              <option value="">All Clients</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id.toString()}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
-
-            {filters.projectType || filters.clientId ? (
-              <button
-                onClick={() => setFilters({ projectType: '', clientId: '', taxYear: '' })}
-                className="px-3 py-2 text-sm text-forvis-gray-700 bg-forvis-gray-100 hover:bg-forvis-gray-200 rounded-lg transition-colors"
-              >
-                Clear Filters
-              </button>
-            ) : null}
-
-            <div className="flex-1"></div>
-            
-            <label className="flex items-center space-x-2 text-sm text-forvis-gray-700 font-medium">
-              <input
-                type="checkbox"
-                checked={showArchivedProjects}
-                onChange={(e) => setShowArchivedProjects(e.target.checked)}
-                className="rounded border-forvis-gray-300 text-forvis-blue-500 focus:ring-forvis-blue-500"
-              />
-              <span>Show archived</span>
-            </label>
           </div>
         </div>
 
-        <CreateProjectModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          onSuccess={handleProjectCreated}
-        />
+        {/* Results count */}
+        {searchTerm && (
+          <div className="mb-4 text-sm text-forvis-gray-600">
+            Found <span className="font-medium">{filteredClients.length}</span> client{filteredClients.length !== 1 ? 's' : ''} matching "{searchTerm}"
+          </div>
+        )}
 
-        {/* Edit, Delete, Restore, Permanent Delete Modals - Same as before */}
-        {/* ... */}
-
-        {/* Projects list */}
-        {filteredProjects.length === 0 ? (
+        {/* Clients List */}
+        {filteredClients.length === 0 ? (
           <div className="card text-center py-12">
-            <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects</h3>
+            <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
             <p className="mt-1 text-sm text-forvis-gray-600">
-              {searchTerm ? 'No projects match your search.' : 'Get started by creating a new project.'}
+              {searchTerm ? 'No clients match your search.' : 'No clients available for this service line.'}
             </p>
-            {!searchTerm && (
-              <div className="mt-6">
-                <button
-                  type="button"
-                  onClick={handleNewProjectClick}
-                  className="btn-primary"
-                >
-                  <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-                  New Project
-                </button>
-              </div>
-            )}
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredProjects.map((project) => renderProjectRow(project))}
-          </div>
+          <>
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full divide-y divide-forvis-gray-200" style={{ tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '30%' }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '6%' }} />
+                  </colgroup>
+                  <thead className="bg-forvis-gray-50">
+                    <tr>
+                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        Client
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        Group
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        Industry
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        Partner
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        Active
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        Projects
+                      </th>
+                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-forvis-gray-200">
+                    {filteredClients
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((client) => (
+                        <tr key={client.id} className="hover:bg-forvis-gray-50 transition-colors">
+                          <td className="px-3 py-2 truncate">
+                            <div className="flex items-center space-x-2 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
+                                <BuildingOfficeIcon className="h-3.5 w-3.5 text-forvis-blue-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-forvis-gray-900 truncate">
+                                  {client.clientNameFull || client.clientCode}
+                                </div>
+                                <div className="text-xs text-forvis-gray-500 truncate">{client.clientCode}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-sm text-forvis-gray-600 truncate" title={client.groupDesc}>
+                            {client.groupDesc}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-forvis-gray-600 truncate" title={client.industry || client.sector || '-'}>
+                            {client.industry || client.sector || '-'}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-forvis-gray-600 text-center truncate" title={client.clientPartner}>
+                            {client.clientPartner}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                              client.active === 'YES' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {client.active === 'YES' ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
+                              {client._count.Project}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <Link
+                              href={`/dashboard/${serviceLine.toLowerCase()}/clients/${client.id}`}
+                              className="text-forvis-blue-600 hover:text-forvis-blue-900 text-xs font-medium"
+                            >
+                              View
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pagination */}
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-forvis-gray-700">
+                Showing <span className="font-medium">{filteredClients.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                <span className="font-medium">
+                  {Math.min(currentPage * itemsPerPage, filteredClients.length)}
+                </span>{' '}
+                of <span className="font-medium">{filteredClients.length}</span> {searchTerm ? 'filtered ' : ''}client{filteredClients.length !== 1 ? 's' : ''}
+              </div>
+              
+              {filteredClients.length > itemsPerPage && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:bg-forvis-gray-100 disabled:text-forvis-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.ceil(filteredClients.length / itemsPerPage) }, (_, i) => i + 1)
+                      .filter(page => {
+                        // Show first page, last page, current page, and 1 page on each side
+                        const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+                        return (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1)
+                        );
+                      })
+                      .map((page, index, array) => {
+                        // Add ellipsis if there's a gap
+                        const prevPage = array[index - 1];
+                        const showEllipsis = prevPage && page - prevPage > 1;
+                        
+                        return (
+                          <div key={page} className="flex items-center">
+                            {showEllipsis && <span className="px-2 text-forvis-gray-500">...</span>}
+                            <button
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                currentPage === page
+                                  ? 'bg-forvis-blue-600 text-white'
+                                  : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredClients.length / itemsPerPage), p + 1))}
+                    disabled={currentPage >= Math.ceil(filteredClients.length / itemsPerPage)}
+                    className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:bg-forvis-gray-100 disabled:text-forvis-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

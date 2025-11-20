@@ -146,7 +146,7 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
       // If we deleted the selected draft, select another one
       if (selectedDraft?.id === draftToDelete.id) {
         const remainingDrafts = drafts.filter(d => d.id !== draftToDelete.id);
-        setSelectedDraft(remainingDrafts.length > 0 ? remainingDrafts[0] : null);
+        setSelectedDraft(remainingDrafts[0] ?? null);
       }
 
       await fetchDrafts();

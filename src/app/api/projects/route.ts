@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { createProjectSchema } from '@/lib/utils/validation';
+import { CreateProjectSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser, getUserProjects } from '@/lib/services/auth/auth';
 import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Validate request body
-    const validatedData = createProjectSchema.parse(body);
+    const validatedData = CreateProjectSchema.parse(body);
 
     // Check if user has access to the service line
     const userServiceLines = await getUserServiceLines(user.id);

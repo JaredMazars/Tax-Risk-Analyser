@@ -44,40 +44,70 @@ export const CreateProjectSchema = z.object({
 }).strict();
 
 /**
+ * Project User Management validation schemas
+ */
+export const AddProjectUserSchema = z.object({
+  userId: z.string().min(1),
+  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).optional().default('VIEWER'),
+}).strict();
+
+export const UpdateProjectUserSchema = z.object({
+  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']),
+}).strict();
+
+/**
  * Client validation schemas
  */
 export const UpdateClientSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  clientCode: z.string().max(50).nullable().optional(),
-  registrationNumber: z.string().max(100).nullable().optional(),
-  taxNumber: z.string().max(100).nullable().optional(),
-  industry: z.string().max(100).nullable().optional(),
-  legalEntityType: z.string().max(100).nullable().optional(),
-  jurisdiction: z.string().max(100).nullable().optional(),
-  taxRegime: z.string().max(100).nullable().optional(),
-  financialYearEnd: z.string().max(50).nullable().optional(),
-  baseCurrency: z.string().max(10).nullable().optional(),
-  primaryContact: z.string().max(200).nullable().optional(),
-  email: z.string().email().nullable().optional(),
-  phone: z.string().max(50).nullable().optional(),
-  address: z.string().max(500).nullable().optional(),
+  // New required fields from external DB
+  clientCode: z.string().max(10).optional(),
+  clientNameFull: z.string().max(255).nullable().optional(),
+  groupCode: z.string().max(10).optional(),
+  groupDesc: z.string().max(150).optional(),
+  clientPartner: z.string().max(10).optional(),
+  clientManager: z.string().max(10).optional(),
+  clientIncharge: z.string().max(10).optional(),
+  active: z.string().max(3).optional(),
+  clientDateOpen: z.coerce.date().nullable().optional(),
+  clientDateTerminate: z.coerce.date().nullable().optional(),
+  industry: z.string().max(255).nullable().optional(),
+  sector: z.string().max(255).nullable().optional(),
+  forvisMazarsIndustry: z.string().max(255).nullable().optional(),
+  forvisMazarsSector: z.string().max(255).nullable().optional(),
+  forvisMazarsSubsector: z.string().max(255).nullable().optional(),
+  clientOCFlag: z.boolean().optional(),
+  clientTaxFlag: z.boolean().nullable().optional(),
+  clientSecFlag: z.boolean().nullable().optional(),
+  creditor: z.boolean().nullable().optional(),
+  rolePlayer: z.boolean().optional(),
+  typeCode: z.string().max(10).optional(),
+  typeDesc: z.string().max(50).optional(),
 }).strict();
 
 export const CreateClientSchema = z.object({
-  name: z.string().min(1).max(200),
-  clientCode: z.string().max(50).nullable().optional(),
-  registrationNumber: z.string().max(100).nullable().optional(),
-  taxNumber: z.string().max(100).nullable().optional(),
-  industry: z.string().max(100).nullable().optional(),
-  legalEntityType: z.string().max(100).nullable().optional(),
-  jurisdiction: z.string().max(100).nullable().optional(),
-  taxRegime: z.string().max(100).nullable().optional(),
-  financialYearEnd: z.string().max(50).nullable().optional(),
-  baseCurrency: z.string().max(10).nullable().optional(),
-  primaryContact: z.string().max(200).nullable().optional(),
-  email: z.string().email().nullable().optional(),
-  phone: z.string().max(50).nullable().optional(),
-  address: z.string().max(500).nullable().optional(),
+  // New required fields from external DB
+  clientCode: z.string().min(1).max(10),
+  clientNameFull: z.string().max(255).nullable().optional(),
+  groupCode: z.string().min(1).max(10),
+  groupDesc: z.string().min(1).max(150),
+  clientPartner: z.string().min(1).max(10),
+  clientManager: z.string().min(1).max(10),
+  clientIncharge: z.string().min(1).max(10),
+  active: z.string().min(1).max(3),
+  clientDateOpen: z.coerce.date().nullable().optional(),
+  clientDateTerminate: z.coerce.date().nullable().optional(),
+  industry: z.string().max(255).nullable().optional(),
+  sector: z.string().max(255).nullable().optional(),
+  forvisMazarsIndustry: z.string().max(255).nullable().optional(),
+  forvisMazarsSector: z.string().max(255).nullable().optional(),
+  forvisMazarsSubsector: z.string().max(255).nullable().optional(),
+  clientOCFlag: z.boolean(),
+  clientTaxFlag: z.boolean().nullable().optional(),
+  clientSecFlag: z.boolean().nullable().optional(),
+  creditor: z.boolean().nullable().optional(),
+  rolePlayer: z.boolean(),
+  typeCode: z.string().min(1).max(10),
+  typeDesc: z.string().min(1).max(50),
 }).strict();
 
 /**

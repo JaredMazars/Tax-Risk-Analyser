@@ -16,6 +16,24 @@ const nextConfig = {
     ],
   },
   
+  // Webpack configuration
+  webpack: (config, { isServer }) => {
+    // Handle Azure SDK packages
+    if (isServer) {
+      // Externalize Azure SDK packages for server-side rendering
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@azure/openai': 'commonjs @azure/openai',
+        '@azure/identity': 'commonjs @azure/identity',
+        '@azure/storage-blob': 'commonjs @azure/storage-blob',
+        '@azure/search-documents': 'commonjs @azure/search-documents',
+        '@azure/msal-node': 'commonjs @azure/msal-node',
+      });
+    }
+    
+    return config;
+  },
+  
   // Security headers
   poweredByHeader: false,
   async headers() {

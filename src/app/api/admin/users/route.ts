@@ -46,7 +46,8 @@ export async function GET(request: NextRequest) {
                 Client: {
                   select: {
                     id: true,
-                    name: true,
+                    clientCode: true,
+                    clientNameFull: true,
                   },
                 },
               },

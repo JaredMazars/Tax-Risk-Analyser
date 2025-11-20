@@ -563,13 +563,13 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             Projects
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
-          {project?.client && (
+          {project?.client && project?.serviceLine && (
             <>
               <Link 
-                href={`/dashboard/clients/${project.client.id}`} 
+                href={`/dashboard/${project.serviceLine.toLowerCase()}/clients/${project.client.id}`} 
                 className="hover:text-forvis-gray-900 transition-colors"
               >
-                {project.client.name}
+                {project.client.clientNameFull || project.client.clientCode}
               </Link>
               <ChevronRightIcon className="h-4 w-4" />
             </>
@@ -591,12 +591,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                   )}
                 </div>
                 
-                {project?.client && (
+                {project?.client && project?.serviceLine && (
                   <Link 
-                    href={`/dashboard/clients/${project.client.id}`}
+                    href={`/dashboard/${project.serviceLine.toLowerCase()}/clients/${project.client.id}`}
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                   >
-                    {project.client.name}
+                    {project.client.clientNameFull || project.client.clientCode}
                   </Link>
                 )}
                 

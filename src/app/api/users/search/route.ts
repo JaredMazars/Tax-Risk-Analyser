@@ -32,10 +32,10 @@ export async function GET(request: NextRequest) {
     const whereClause: any = {};
     
     if (query.trim()) {
-      // Search by name or email (case-insensitive)
+      // Search by name or email (SQL Server uses case-insensitive collation by default)
       whereClause.OR = [
-        { name: { contains: query.trim(), mode: 'insensitive' } },
-        { email: { contains: query.trim(), mode: 'insensitive' } },
+        { name: { contains: query.trim() } },
+        { email: { contains: query.trim() } },
       ];
     }
 

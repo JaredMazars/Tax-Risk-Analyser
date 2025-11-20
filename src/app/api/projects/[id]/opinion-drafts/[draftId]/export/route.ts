@@ -66,7 +66,7 @@ export async function POST(
       // Export as Word document
       const buffer = await WordExporter.exportOpinion(draft.title, sections, {
         projectName: project?.name,
-        clientName: project?.Client?.name,
+        clientName: project?.Client?.clientNameFull || project?.Client?.clientCode,
       });
 
       return new NextResponse(new Uint8Array(buffer), {
@@ -86,7 +86,7 @@ export async function POST(
         sections,
         {
           projectName: project?.name,
-          clientName: project?.Client?.name,
+          clientName: project?.Client?.clientNameFull || project?.Client?.clientCode,
         }
       );
 

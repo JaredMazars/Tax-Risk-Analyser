@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { addProjectUserSchema } from '@/lib/utils/validation';
+import { AddProjectUserSchema } from '@/lib/validation/schemas';
 import { parseProjectId, successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
 import { emailService } from '@/lib/services/email/emailService';
@@ -77,7 +77,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const validatedData = addProjectUserSchema.parse(body);
+    const validatedData = AddProjectUserSchema.parse(body);
 
     // Check if user exists in system
     const targetUser = await prisma.user.findUnique({

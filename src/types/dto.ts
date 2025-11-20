@@ -41,40 +41,59 @@ export interface CreateProjectDTO {
  * DTO for updating a client
  */
 export interface UpdateClientDTO {
-  name?: string;
-  clientCode?: string | null;
-  registrationNumber?: string | null;
-  taxNumber?: string | null;
+  // New fields from external DB
+  clientCode?: string;
+  clientNameFull?: string | null;
+  groupCode?: string;
+  groupDesc?: string;
+  clientPartner?: string;
+  clientManager?: string;
+  clientIncharge?: string;
+  active?: string;
+  clientDateOpen?: Date | null;
+  clientDateTerminate?: Date | null;
+  sector?: string | null;
+  forvisMazarsIndustry?: string | null;
+  forvisMazarsSector?: string | null;
+  forvisMazarsSubsector?: string | null;
+  clientOCFlag?: boolean;
+  clientTaxFlag?: boolean | null;
+  clientSecFlag?: boolean | null;
+  creditor?: boolean | null;
+  rolePlayer?: boolean;
+  typeCode?: string;
+  typeDesc?: string;
   industry?: string | null;
-  legalEntityType?: string | null;
-  jurisdiction?: string | null;
-  taxRegime?: string | null;
-  financialYearEnd?: string | null;
-  baseCurrency?: string | null;
-  primaryContact?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
 }
 
 /**
  * DTO for creating a client
  */
 export interface CreateClientDTO {
-  name: string;
-  clientCode?: string | null;
-  registrationNumber?: string | null;
-  taxNumber?: string | null;
+  // New required fields from external DB
+  clientCode: string;
+  clientNameFull?: string | null;
+  groupCode: string;
+  groupDesc: string;
+  clientPartner: string;
+  clientManager: string;
+  clientIncharge: string;
+  active: string;
+  clientOCFlag: boolean;
+  rolePlayer: boolean;
+  typeCode: string;
+  typeDesc: string;
+  // New optional fields from external DB
+  clientDateOpen?: Date | null;
+  clientDateTerminate?: Date | null;
+  sector?: string | null;
+  forvisMazarsIndustry?: string | null;
+  forvisMazarsSector?: string | null;
+  forvisMazarsSubsector?: string | null;
+  clientTaxFlag?: boolean | null;
+  clientSecFlag?: boolean | null;
+  creditor?: boolean | null;
   industry?: string | null;
-  legalEntityType?: string | null;
-  jurisdiction?: string | null;
-  taxRegime?: string | null;
-  financialYearEnd?: string | null;
-  baseCurrency?: string | null;
-  primaryContact?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
 }
 
 /**

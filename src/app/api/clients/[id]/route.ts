@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { updateClientSchema } from '@/lib/utils/validation';
+import { UpdateClientSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { z } from 'zod';
@@ -108,7 +108,7 @@ export async function PUT(
     const body = await request.json();
     
     // Validate request body
-    const validatedData = updateClientSchema.parse(body);
+    const validatedData = UpdateClientSchema.parse(body);
 
     // Check if client exists
     const existingClient = await prisma.client.findUnique({

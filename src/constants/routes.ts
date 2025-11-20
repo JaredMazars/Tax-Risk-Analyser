@@ -7,7 +7,6 @@ export const ROUTES = {
   DASHBOARD: {
     ROOT: '/dashboard',
     PROJECTS: '/dashboard',
-    CLIENTS: '/dashboard/clients',
     NOTIFICATIONS: '/dashboard/notifications',
   },
   AUTH: {
@@ -25,9 +24,10 @@ export const ROUTES = {
     OPINION_DRAFTING: (id: number) => `/dashboard/projects/${id}/opinion-drafting`,
     USERS: (id: number) => `/dashboard/projects/${id}/users`,
   },
-  CLIENTS: {
-    LIST: '/dashboard/clients',
-    DETAIL: (id: number) => `/dashboard/clients/${id}`,
+  SERVICE_LINE: {
+    CLIENTS: (serviceLine: string) => `/dashboard/${serviceLine.toLowerCase()}`,
+    CLIENT_DETAIL: (serviceLine: string, clientId: number) => 
+      `/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}`,
   },
   ADMIN: {
     USERS: '/dashboard/admin/users',

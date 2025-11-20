@@ -53,20 +53,30 @@ export enum ServiceLineRole {
 // Client/Organization
 export interface Client {
   id: number;
-  clientCode?: string | null;
-  name: string;
-  registrationNumber?: string | null;
-  taxNumber?: string | null;
+  // New required fields from external DB
+  clientCode: string;
+  clientNameFull?: string | null;
+  groupCode: string;
+  groupDesc: string;
+  clientPartner: string;
+  clientManager: string;
+  clientIncharge: string;
+  active: string;
+  clientOCFlag: boolean;
+  rolePlayer: boolean;
+  typeCode: string;
+  typeDesc: string;
+  // New optional fields from external DB
+  clientDateOpen?: Date | null;
+  clientDateTerminate?: Date | null;
+  sector?: string | null;
+  forvisMazarsIndustry?: string | null;
+  forvisMazarsSector?: string | null;
+  forvisMazarsSubsector?: string | null;
+  clientTaxFlag?: boolean | null;
+  clientSecFlag?: boolean | null;
+  creditor?: boolean | null;
   industry?: string | null;
-  legalEntityType?: string | null;
-  jurisdiction?: string | null;
-  taxRegime?: string | null;
-  financialYearEnd?: string | null;
-  baseCurrency?: string | null;
-  primaryContact?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -292,4 +302,7 @@ export interface FilingStatus {
 }
 
 // Re-export notification types
-export * from './notification'; 
+export * from './notification';
+
+// Re-export project stage types
+export * from './project-stages'; 

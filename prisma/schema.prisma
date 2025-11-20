@@ -65,27 +65,39 @@ model AITaxReport {
 }
 
 model Client {
-  id                 Int       @id @default(autoincrement())
-  clientCode         String?   @unique
-  name               String
-  registrationNumber String?
-  taxNumber          String?
-  industry           String?
-  legalEntityType    String?
-  jurisdiction       String?
-  taxRegime          String?
-  financialYearEnd   String?
-  baseCurrency       String?   @default("ZAR")
-  primaryContact     String?
-  email              String?
-  phone              String?
-  address            String?   @db.NVarChar(Max)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  Project            Project[]
+  id                     Int       @id @default(autoincrement())
+  ClientID               String    @ignore @db.UniqueIdentifier
+  clientCode             String    @unique @db.NVarChar(10)
+  clientNameFull         String?   @db.NVarChar(255)
+  groupCode              String    @db.NVarChar(10)
+  groupDesc              String    @db.NVarChar(150)
+  clientPartner          String    @db.NVarChar(10)
+  clientManager          String    @db.NVarChar(10)
+  clientIncharge         String    @db.NVarChar(10)
+  active                 String    @db.VarChar(3)
+  clientDateOpen         DateTime?
+  clientDateTerminate    DateTime?
+  industry               String?   @db.NVarChar(255)
+  sector                 String?   @db.NVarChar(255)
+  forvisMazarsIndustry   String?   @db.NVarChar(255)
+  forvisMazarsSector     String?   @db.NVarChar(255)
+  forvisMazarsSubsector  String?   @db.NVarChar(255)
+  clientOCFlag           Boolean
+  clientTaxFlag          Boolean?
+  clientSecFlag          Boolean?
+  creditor               Boolean?
+  rolePlayer             Boolean
+  typeCode               String    @db.NVarChar(10)
+  typeDesc               String    @db.NVarChar(50)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  Project                Project[]
 
-  @@index([name])
+  @@index([clientNameFull])
   @@index([clientCode])
+  @@index([groupCode])
+  @@index([active])
+  @@index([clientTaxFlag])
 }
 
 model MappedAccount {
