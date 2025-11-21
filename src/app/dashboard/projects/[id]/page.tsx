@@ -29,6 +29,7 @@ import ReportingPage from './reporting/page';
 import OpinionDraftingPage from './opinion-drafting/page';
 import { useProject } from '@/hooks/projects/useProjectData';
 import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
+import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
 import { ProjectTypeSelector } from '@/components/features/projects/ProjectTypeSelector';
 import { TaxYearInput } from '@/components/shared/TaxYearInput';
@@ -560,20 +561,78 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
-            Projects
+            Dashboard
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
-          {project?.client && project?.serviceLine && (
+          
+          {project?.serviceLine && isSharedService(project.serviceLine) ? (
             <>
+              {/* Shared Services breadcrumb */}
               <Link 
-                href={`/dashboard/${project.serviceLine.toLowerCase()}/clients/${project.client.id}`} 
+                href={`/dashboard/${project.serviceLine.toLowerCase()}`} 
                 className="hover:text-forvis-gray-900 transition-colors"
               >
-                {project.client.clientNameFull || project.client.clientCode}
+                {formatServiceLineName(project.serviceLine)}
               </Link>
               <ChevronRightIcon className="h-4 w-4" />
+              
+              {project?.client ? (
+                <>
+                  <Link 
+                    href={`/dashboard/${project.serviceLine.toLowerCase()}/clients`} 
+                    className="hover:text-forvis-gray-900 transition-colors"
+                  >
+                    Client Projects
+                  </Link>
+                  <ChevronRightIcon className="h-4 w-4" />
+                  <Link 
+                    href={`/dashboard/${project.serviceLine.toLowerCase()}/clients/${project.client.id}`} 
+                    className="hover:text-forvis-gray-900 transition-colors"
+                  >
+                    {project.client.clientNameFull || project.client.clientCode}
+                  </Link>
+                  <ChevronRightIcon className="h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  <Link 
+                    href={`/dashboard/${project.serviceLine.toLowerCase()}/internal`} 
+                    className="hover:text-forvis-gray-900 transition-colors"
+                  >
+                    Internal Projects
+                  </Link>
+                  <ChevronRightIcon className="h-4 w-4" />
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Non-shared services breadcrumb */}
+              {project?.serviceLine && (
+                <>
+                  <Link 
+                    href={`/dashboard/${project.serviceLine.toLowerCase()}`} 
+                    className="hover:text-forvis-gray-900 transition-colors"
+                  >
+                    {formatServiceLineName(project.serviceLine)}
+                  </Link>
+                  <ChevronRightIcon className="h-4 w-4" />
+                </>
+              )}
+              {project?.client && (
+                <>
+                  <Link 
+                    href={`/dashboard/${project.serviceLine.toLowerCase()}/clients/${project.client.id}`} 
+                    className="hover:text-forvis-gray-900 transition-colors"
+                  >
+                    {project.client.clientNameFull || project.client.clientCode}
+                  </Link>
+                  <ChevronRightIcon className="h-4 w-4" />
+                </>
+              )}
             </>
           )}
+          
           <span className="text-forvis-gray-900 font-medium">{project?.name}</span>
         </nav>
 

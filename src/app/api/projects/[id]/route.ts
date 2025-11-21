@@ -22,6 +22,15 @@ export async function GET(
     }
     
     const params = await context.params;
+    
+    // Handle "new" route - this is not a valid project ID
+    if (params?.id === 'new') {
+      return NextResponse.json(
+        { error: 'Invalid route - use POST /api/projects to create a new project' },
+        { status: 404 }
+      );
+    }
+    
     const projectId = parseProjectId(params?.id);
 
     // Check project access (any role can view)
@@ -102,6 +111,15 @@ export async function PUT(
     }
     
     const params = await context.params;
+    
+    // Handle "new" route
+    if (params?.id === 'new') {
+      return NextResponse.json(
+        { error: 'Invalid route - use POST /api/projects to create a new project' },
+        { status: 404 }
+      );
+    }
+    
     const projectId = parseProjectId(params?.id);
 
     // Check project access (requires EDITOR role or higher)
@@ -192,6 +210,15 @@ export async function PATCH(
     }
     
     const params = await context.params;
+    
+    // Handle "new" route
+    if (params?.id === 'new') {
+      return NextResponse.json(
+        { error: 'Invalid route - use POST /api/projects to create a new project' },
+        { status: 404 }
+      );
+    }
+    
     const projectId = parseProjectId(params?.id);
 
     // Check project access (requires ADMIN role)
@@ -242,6 +269,15 @@ export async function DELETE(
     }
     
     const params = await context.params;
+    
+    // Handle "new" route
+    if (params?.id === 'new') {
+      return NextResponse.json(
+        { error: 'Invalid route - use POST /api/projects to create a new project' },
+        { status: 404 }
+      );
+    }
+    
     const projectId = parseProjectId(params?.id);
 
     // Check project access (requires ADMIN role)

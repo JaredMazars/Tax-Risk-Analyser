@@ -23,6 +23,15 @@ export async function GET(
     }
     
     const params = await context.params;
+    
+    // Handle "new" route
+    if (params?.id === 'new') {
+      return NextResponse.json(
+        { error: 'Invalid route - project must be created first' },
+        { status: 404 }
+      );
+    }
+    
     const projectId = parseProjectId(params?.id);
 
     // Check project access
@@ -65,6 +74,15 @@ export async function POST(
     }
     
     const params = await context.params;
+    
+    // Handle "new" route
+    if (params?.id === 'new') {
+      return NextResponse.json(
+        { error: 'Invalid route - project must be created first' },
+        { status: 404 }
+      );
+    }
+    
     const projectId = parseProjectId(params?.id);
 
     // Check if user has ADMIN role on project

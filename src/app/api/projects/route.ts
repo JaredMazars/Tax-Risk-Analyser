@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const serviceLine = searchParams.get('serviceLine');
+    const internalOnly = searchParams.get('internalOnly') === 'true';
 
     // Get user's accessible service lines
     const userServiceLines = await getUserServiceLines(user.id);
@@ -35,6 +36,11 @@ export async function GET(request: NextRequest) {
     // Filter by specific service line if provided
     if (serviceLine) {
       projects = projects.filter(p => p.serviceLine === serviceLine);
+    }
+
+    // Filter for internal projects only (no client assigned)
+    if (internalOnly) {
+      projects = projects.filter(p => p.clientId === null);
     }
 
     // Transform _count to match expected format

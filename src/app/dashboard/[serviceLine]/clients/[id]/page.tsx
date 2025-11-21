@@ -17,7 +17,7 @@ import {
 import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
 import { ProjectStageIndicator } from '@/components/features/projects/ProjectStageIndicator';
 import { ProjectStage } from '@/types/project-stages';
-import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine } from '@/types';
 import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
@@ -115,7 +115,10 @@ export default function ServiceLineClientDetailPage() {
           <h2 className="text-2xl font-bold text-gray-900">Client Not Found</h2>
           <p className="mt-2 text-gray-600">The client you're looking for doesn't exist.</p>
           <Link 
-            href={`/dashboard/${serviceLine.toLowerCase()}`} 
+            href={isSharedService(serviceLine) 
+              ? `/dashboard/${serviceLine.toLowerCase()}/clients` 
+              : `/dashboard/${serviceLine.toLowerCase()}`
+            } 
             className="mt-4 inline-block text-blue-600 hover:text-blue-700"
           >
             Back to Clients
@@ -131,16 +134,29 @@ export default function ServiceLineClientDetailPage() {
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
-            Service Lines
+            Dashboard
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {formatServiceLineName(serviceLine)} Clients
+            {formatServiceLineName(serviceLine)}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
+          
+          {isSharedService(serviceLine) && (
+            <>
+              <Link 
+                href={`/dashboard/${serviceLine.toLowerCase()}/clients`} 
+                className="hover:text-forvis-gray-900 transition-colors"
+              >
+                Client Projects
+              </Link>
+              <ChevronRightIcon className="h-4 w-4" />
+            </>
+          )}
+          
           <span className="text-forvis-gray-900 font-medium">{client.clientNameFull || client.clientCode}</span>
         </nav>
 

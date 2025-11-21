@@ -7,15 +7,13 @@ import {
   MagnifyingGlassIcon,
   BuildingOfficeIcon,
   ChevronRightIcon,
-  FolderIcon,
 } from '@heroicons/react/24/outline';
 import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client } from '@/hooks/clients/useClients';
-import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 
-export default function ServiceLineWorkspacePage() {
+export default function ServiceLineClientsPage() {
   const router = useRouter();
   const params = useParams();
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
@@ -25,8 +23,7 @@ export default function ServiceLineWorkspacePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
-  // Fetch clients using React Query hook - only if not a shared service
-  const shouldFetchClients = !isSharedService(serviceLine);
+  // Fetch clients using React Query hook
   const { data: clientsData, isLoading, error } = useClients();
   const clients = clientsData?.clients || [];
 
@@ -63,11 +60,6 @@ export default function ServiceLineWorkspacePage() {
     return null;
   }
 
-  // Show selector for shared services
-  if (isSharedService(serviceLine)) {
-    return <ServiceLineSelector />;
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
@@ -85,9 +77,14 @@ export default function ServiceLineWorkspacePage() {
             Dashboard
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
-          <span className="text-forvis-gray-900 font-medium">
-            {formatServiceLineName(serviceLine)} Clients
-          </span>
+          <Link 
+            href={`/dashboard/${serviceLine.toLowerCase()}`} 
+            className="hover:text-forvis-gray-900 transition-colors"
+          >
+            {formatServiceLineName(serviceLine)}
+          </Link>
+          <ChevronRightIcon className="h-4 w-4" />
+          <span className="text-forvis-gray-900 font-medium">Client Projects</span>
         </nav>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 space-y-4 sm:space-y-0">
@@ -313,3 +310,4 @@ export default function ServiceLineWorkspacePage() {
     </div>
   );
 }
+

@@ -5,8 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 // Query Keys - extend existing projectKeys from useProjectData
 export const projectListKeys = {
   all: ['projects'] as const,
-  list: (serviceLine?: string, includeArchived?: boolean) => 
-    [...projectListKeys.all, 'list', serviceLine, includeArchived] as const,
+  list: (serviceLine?: string, includeArchived?: boolean, internalOnly?: boolean) => 
+    [...projectListKeys.all, 'list', serviceLine, includeArchived, internalOnly] as const,
 };
 
 // Types
@@ -31,13 +31,14 @@ export interface ProjectListItem {
 /**
  * Fetch projects list with optional service line filter
  */
-export function useProjects(serviceLine?: string, includeArchived = false) {
+export function useProjects(serviceLine?: string, includeArchived = false, internalOnly = false) {
   return useQuery<ProjectListItem[]>({
-    queryKey: projectListKeys.list(serviceLine, includeArchived),
+    queryKey: projectListKeys.list(serviceLine, includeArchived, internalOnly),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (serviceLine) params.set('serviceLine', serviceLine);
       if (includeArchived) params.set('includeArchived', 'true');
+      if (internalOnly) params.set('internalOnly', 'true');
       
       const url = `/api/projects${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url);

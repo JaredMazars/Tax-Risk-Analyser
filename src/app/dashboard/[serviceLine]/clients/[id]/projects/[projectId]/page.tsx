@@ -35,7 +35,7 @@ import { ProjectUserList } from '@/components/features/projects/UserManagement/P
 import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
 import { ProjectUser, ProjectRole, Client } from '@/types';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
-import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 
 interface TabProps {
   selected: boolean;
@@ -600,16 +600,29 @@ export default function NestedProjectPage() {
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
-            Service Lines
+            Dashboard
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {formatServiceLineName(serviceLine)} Clients
+            {formatServiceLineName(serviceLine)}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
+          
+          {isSharedService(serviceLine) && (
+            <>
+              <Link 
+                href={`/dashboard/${serviceLine.toLowerCase()}/clients`} 
+                className="hover:text-forvis-gray-900 transition-colors"
+              >
+                Client Projects
+              </Link>
+              <ChevronRightIcon className="h-4 w-4" />
+            </>
+          )}
+          
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}`}
             className="hover:text-forvis-gray-900 transition-colors"
