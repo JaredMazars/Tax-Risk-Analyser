@@ -4,48 +4,76 @@ import { ProjectType, ProjectRole } from '@/types';
  * Get color classes for project type badges
  */
 export function getProjectTypeColor(type: string): string {
-  switch (type) {
-    case 'TAX_CALCULATION':
-      return 'bg-blue-100 text-blue-800 border-blue-200';
-    case 'TAX_OPINION':
-      return 'bg-purple-100 text-purple-800 border-purple-200';
-    case 'TAX_ADMINISTRATION':
-      return 'bg-green-100 text-green-800 border-green-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
+  // Tax types
+  if (type.startsWith('TAX_')) {
+    return 'bg-blue-100 text-blue-800 border-blue-200';
   }
+  // Audit types
+  if (type.startsWith('AUDIT_')) {
+    return 'bg-green-100 text-green-800 border-green-200';
+  }
+  // Accounting types
+  if (type === 'FINANCIAL_STATEMENTS' || type === 'BOOKKEEPING' || type === 'MANAGEMENT_ACCOUNTS') {
+    return 'bg-purple-100 text-purple-800 border-purple-200';
+  }
+  // Advisory types
+  if (type.startsWith('ADVISORY_') || type === 'CONSULTING_ENGAGEMENT' || type === 'STRATEGY_REVIEW') {
+    return 'bg-orange-100 text-orange-800 border-orange-200';
+  }
+  
+  return 'bg-gray-100 text-gray-800 border-gray-200';
 }
 
 /**
  * Get border color for project type
  */
 export function getProjectTypeBorderColor(type: string): string {
-  switch (type) {
-    case 'TAX_CALCULATION':
-      return 'border-blue-500';
-    case 'TAX_OPINION':
-      return 'border-purple-500';
-    case 'TAX_ADMINISTRATION':
-      return 'border-green-500';
-    default:
-      return 'border-gray-300';
+  // Tax types
+  if (type.startsWith('TAX_')) {
+    return 'border-blue-500';
   }
+  // Audit types
+  if (type.startsWith('AUDIT_')) {
+    return 'border-green-500';
+  }
+  // Accounting types
+  if (type === 'FINANCIAL_STATEMENTS' || type === 'BOOKKEEPING' || type === 'MANAGEMENT_ACCOUNTS') {
+    return 'border-purple-500';
+  }
+  // Advisory types
+  if (type.startsWith('ADVISORY_') || type === 'CONSULTING_ENGAGEMENT' || type === 'STRATEGY_REVIEW') {
+    return 'border-orange-500';
+  }
+  
+  return 'border-gray-300';
 }
 
 /**
  * Format project type for display
  */
 export function formatProjectType(type: string): string {
-  switch (type) {
-    case 'TAX_CALCULATION':
-      return 'Tax Calculation';
-    case 'TAX_OPINION':
-      return 'Tax Opinion';
-    case 'TAX_ADMINISTRATION':
-      return 'Tax Administration';
-    default:
-      return type;
-  }
+  const typeMap: Record<string, string> = {
+    // Tax
+    TAX_CALCULATION: 'Tax Calculation',
+    TAX_OPINION: 'Tax Opinion',
+    TAX_ADMINISTRATION: 'Tax Administration',
+    // Audit
+    AUDIT_ENGAGEMENT: 'Audit Engagement',
+    AUDIT_REVIEW: 'Audit Review',
+    AUDIT_REPORT: 'Audit Report',
+    // Accounting
+    FINANCIAL_STATEMENTS: 'Financial Statements',
+    BOOKKEEPING: 'Bookkeeping',
+    MANAGEMENT_ACCOUNTS: 'Management Accounts',
+    // Advisory
+    ADVISORY_PROJECT: 'Advisory Project',
+    CONSULTING_ENGAGEMENT: 'Consulting Engagement',
+    STRATEGY_REVIEW: 'Strategy Review',
+  };
+
+  return typeMap[type] || type.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
 }
 
 /**
@@ -121,12 +149,22 @@ export function formatDateTime(date: Date | string | null | undefined): string {
 
 /**
  * Get project type options for select
+ * @deprecated Use getProjectTypesForServiceLine from serviceLineUtils instead
  */
 export function getProjectTypeOptions() {
   return [
     { value: 'TAX_CALCULATION', label: 'Tax Calculation' },
     { value: 'TAX_OPINION', label: 'Tax Opinion' },
     { value: 'TAX_ADMINISTRATION', label: 'Tax Administration' },
+    { value: 'AUDIT_ENGAGEMENT', label: 'Audit Engagement' },
+    { value: 'AUDIT_REVIEW', label: 'Audit Review' },
+    { value: 'AUDIT_REPORT', label: 'Audit Report' },
+    { value: 'FINANCIAL_STATEMENTS', label: 'Financial Statements' },
+    { value: 'BOOKKEEPING', label: 'Bookkeeping' },
+    { value: 'MANAGEMENT_ACCOUNTS', label: 'Management Accounts' },
+    { value: 'ADVISORY_PROJECT', label: 'Advisory Project' },
+    { value: 'CONSULTING_ENGAGEMENT', label: 'Consulting Engagement' },
+    { value: 'STRATEGY_REVIEW', label: 'Strategy Review' },
   ];
 }
 

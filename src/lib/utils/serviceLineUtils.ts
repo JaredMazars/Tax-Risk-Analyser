@@ -26,6 +26,26 @@ export function formatProjectType(projectType: ProjectType | string): string {
     ADVISORY_PROJECT: 'Advisory Project',
     CONSULTING_ENGAGEMENT: 'Consulting Engagement',
     STRATEGY_REVIEW: 'Strategy Review',
+    // QRM
+    QRM_AUDIT: 'QRM Audit',
+    QRM_COMPLIANCE: 'QRM Compliance',
+    QRM_RISK_ASSESSMENT: 'Risk Assessment',
+    // Business Development
+    BD_CAMPAIGN: 'Marketing Campaign',
+    BD_PROPOSAL: 'Proposal',
+    BD_MARKET_RESEARCH: 'Market Research',
+    // IT
+    IT_IMPLEMENTATION: 'IT Implementation',
+    IT_SUPPORT: 'IT Support',
+    IT_INFRASTRUCTURE: 'IT Infrastructure',
+    // Finance
+    FINANCE_REPORTING: 'Financial Reporting',
+    FINANCE_BUDGETING: 'Budgeting',
+    FINANCE_ANALYSIS: 'Financial Analysis',
+    // HR
+    HR_RECRUITMENT: 'Recruitment',
+    HR_TRAINING: 'Training',
+    HR_POLICY: 'Policy Development',
   };
 
   return typeMap[projectType] || projectType;
@@ -47,6 +67,11 @@ export function getProjectTypeColor(projectType: ProjectType | string): string {
     [ServiceLine.AUDIT]: 'bg-green-100 text-green-700 border-green-200',
     [ServiceLine.ACCOUNTING]: 'bg-purple-100 text-purple-700 border-purple-200',
     [ServiceLine.ADVISORY]: 'bg-orange-100 text-orange-700 border-orange-200',
+    [ServiceLine.QRM]: 'bg-red-100 text-red-700 border-red-200',
+    [ServiceLine.BUSINESS_DEV]: 'bg-teal-100 text-teal-700 border-teal-200',
+    [ServiceLine.IT]: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    [ServiceLine.FINANCE]: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    [ServiceLine.HR]: 'bg-pink-100 text-pink-700 border-pink-200',
   };
 
   return colorMap[serviceLine] || 'bg-gray-100 text-gray-700 border-gray-200';
@@ -67,6 +92,11 @@ export function getProjectTypeBorderColor(projectType: ProjectType | string): st
     [ServiceLine.AUDIT]: 'border-green-200',
     [ServiceLine.ACCOUNTING]: 'border-purple-200',
     [ServiceLine.ADVISORY]: 'border-orange-200',
+    [ServiceLine.QRM]: 'border-red-200',
+    [ServiceLine.BUSINESS_DEV]: 'border-teal-200',
+    [ServiceLine.IT]: 'border-indigo-200',
+    [ServiceLine.FINANCE]: 'border-yellow-200',
+    [ServiceLine.HR]: 'border-pink-200',
   };
 
   return colorMap[serviceLine] || 'border-gray-200';
@@ -93,6 +123,11 @@ export function getServiceLineColor(serviceLine: ServiceLine | string): string {
     AUDIT: 'text-green-600',
     ACCOUNTING: 'text-purple-600',
     ADVISORY: 'text-orange-600',
+    QRM: 'text-red-600',
+    BUSINESS_DEV: 'text-teal-600',
+    IT: 'text-indigo-600',
+    FINANCE: 'text-yellow-600',
+    HR: 'text-pink-600',
   };
 
   return colorMap[serviceLine] || 'text-gray-600';
@@ -107,6 +142,11 @@ export function getServiceLineBgColor(serviceLine: ServiceLine | string): string
     AUDIT: 'bg-green-50',
     ACCOUNTING: 'bg-purple-50',
     ADVISORY: 'bg-orange-50',
+    QRM: 'bg-red-50',
+    BUSINESS_DEV: 'bg-teal-50',
+    IT: 'bg-indigo-50',
+    FINANCE: 'bg-yellow-50',
+    HR: 'bg-pink-50',
   };
 
   return colorMap[serviceLine] || 'bg-gray-50';
@@ -121,6 +161,11 @@ export function getServiceLineBorderColor(serviceLine: ServiceLine | string): st
     AUDIT: 'border-green-200',
     ACCOUNTING: 'border-purple-200',
     ADVISORY: 'border-orange-200',
+    QRM: 'border-red-200',
+    BUSINESS_DEV: 'border-teal-200',
+    IT: 'border-indigo-200',
+    FINANCE: 'border-yellow-200',
+    HR: 'border-pink-200',
   };
 
   return colorMap[serviceLine] || 'border-gray-200';
@@ -160,5 +205,19 @@ export function isValidProjectTypeForServiceLine(
 export function getProjectTypesForServiceLine(serviceLine: ServiceLine | string): ProjectType[] {
   const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
   return config?.projectTypes || [];
+}
+
+/**
+ * Check if a service line is a shared service
+ */
+export function isSharedService(serviceLine: ServiceLine | string): boolean {
+  const sharedServices = [
+    ServiceLine.QRM,
+    ServiceLine.BUSINESS_DEV,
+    ServiceLine.IT,
+    ServiceLine.FINANCE,
+    ServiceLine.HR,
+  ];
+  return sharedServices.includes(serviceLine as ServiceLine);
 }
 

@@ -6,6 +6,11 @@ import {
   ClipboardDocumentCheckIcon,
   CalculatorIcon,
   LightBulbIcon,
+  ShieldCheckIcon,
+  MegaphoneIcon,
+  ComputerDesktopIcon,
+  BanknotesIcon,
+  UserGroupIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { ServiceLine } from '@/types';
@@ -22,6 +27,11 @@ const iconMap = {
   [ServiceLine.AUDIT]: ClipboardDocumentCheckIcon,
   [ServiceLine.ACCOUNTING]: CalculatorIcon,
   [ServiceLine.ADVISORY]: LightBulbIcon,
+  [ServiceLine.QRM]: ShieldCheckIcon,
+  [ServiceLine.BUSINESS_DEV]: MegaphoneIcon,
+  [ServiceLine.IT]: ComputerDesktopIcon,
+  [ServiceLine.FINANCE]: BanknotesIcon,
+  [ServiceLine.HR]: UserGroupIcon,
 };
 
 interface ServiceLineCardProps {
@@ -47,6 +57,16 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
         return 'Financial statements, bookkeeping, and management accounts';
       case ServiceLine.ADVISORY:
         return 'Consulting, strategy, and advisory services';
+      case ServiceLine.QRM:
+        return 'Quality assurance, risk management, and compliance oversight';
+      case ServiceLine.BUSINESS_DEV:
+        return 'Marketing campaigns, proposals, and market research';
+      case ServiceLine.IT:
+        return 'IT implementations, support, and infrastructure management';
+      case ServiceLine.FINANCE:
+        return 'Financial reporting, budgeting, and analysis';
+      case ServiceLine.HR:
+        return 'Recruitment, training, and policy development';
       default:
         return '';
     }

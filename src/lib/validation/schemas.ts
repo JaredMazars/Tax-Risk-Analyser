@@ -14,9 +14,14 @@ export const UpdateProjectSchema = z.object({
     'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
     'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
     'FINANCIAL_STATEMENTS', 'BOOKKEEPING', 'MANAGEMENT_ACCOUNTS',
-    'ADVISORY_PROJECT', 'CONSULTING_ENGAGEMENT', 'STRATEGY_REVIEW'
+    'ADVISORY_PROJECT', 'CONSULTING_ENGAGEMENT', 'STRATEGY_REVIEW',
+    'QRM_AUDIT', 'QRM_COMPLIANCE', 'QRM_RISK_ASSESSMENT',
+    'BD_CAMPAIGN', 'BD_PROPOSAL', 'BD_MARKET_RESEARCH',
+    'IT_IMPLEMENTATION', 'IT_SUPPORT', 'IT_INFRASTRUCTURE',
+    'FINANCE_REPORTING', 'FINANCE_BUDGETING', 'FINANCE_ANALYSIS',
+    'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY'
   ]).optional(),
-  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY']).optional(),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']).optional(),
   taxYear: z.number().int().min(2000).max(2100).optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
   taxPeriodEnd: z.coerce.date().nullable().optional(),
@@ -32,9 +37,14 @@ export const CreateProjectSchema = z.object({
     'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
     'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
     'FINANCIAL_STATEMENTS', 'BOOKKEEPING', 'MANAGEMENT_ACCOUNTS',
-    'ADVISORY_PROJECT', 'CONSULTING_ENGAGEMENT', 'STRATEGY_REVIEW'
+    'ADVISORY_PROJECT', 'CONSULTING_ENGAGEMENT', 'STRATEGY_REVIEW',
+    'QRM_AUDIT', 'QRM_COMPLIANCE', 'QRM_RISK_ASSESSMENT',
+    'BD_CAMPAIGN', 'BD_PROPOSAL', 'BD_MARKET_RESEARCH',
+    'IT_IMPLEMENTATION', 'IT_SUPPORT', 'IT_INFRASTRUCTURE',
+    'FINANCE_REPORTING', 'FINANCE_BUDGETING', 'FINANCE_ANALYSIS',
+    'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY'
   ]),
-  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY']),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']),
   taxYear: z.number().int().min(2000).max(2100).optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
   taxPeriodEnd: z.coerce.date().nullable().optional(),

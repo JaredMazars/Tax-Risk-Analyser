@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ProjectType, ServiceLine } from '@/types';
 import { ClientSelector } from '../../features/clients/ClientSelector';
 import { ProjectTypeSelector } from './ProjectTypeSelector';
-import { TaxYearInput } from '../../shared/TaxYearInput';
+import { ProjectTimelineInput } from '../../shared/ProjectTimelineInput';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { getProjectTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
 
@@ -13,30 +13,33 @@ interface CreateProjectModalProps {
   onClose: () => void;
   onSuccess: (project: any) => void;
   initialClientId?: number | null;
+  initialServiceLine?: ServiceLine | null;
 }
 
-export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId }: CreateProjectModalProps) {
+export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId, initialServiceLine }: CreateProjectModalProps) {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [error, setError] = useState('');
   const { currentServiceLine } = useServiceLine();
   
+  // Use initialServiceLine if provided, otherwise fall back to currentServiceLine
+  const effectiveServiceLine = initialServiceLine || currentServiceLine || ServiceLine.TAX;
+  const isServiceLineLocked = !!initialServiceLine; // Lock when explicitly provided
+  
   // Get default project type based on service line
-  const getDefaultProjectType = (): ProjectType => {
-    if (currentServiceLine) {
-      const types = getProjectTypesForServiceLine(currentServiceLine);
-      return types[0] || ProjectType.TAX_CALCULATION;
-    }
-    return ProjectType.TAX_CALCULATION;
+  const getDefaultProjectType = (serviceLine?: ServiceLine): ProjectType => {
+    const sl = serviceLine || effectiveServiceLine;
+    const types = getProjectTypesForServiceLine(sl);
+    return types[0] || ProjectType.TAX_CALCULATION;
   };
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     clientId: initialClientId || null,
-    projectType: getDefaultProjectType(),
-    serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
+    projectType: getDefaultProjectType(effectiveServiceLine),
+    serviceLine: effectiveServiceLine,
     taxYear: new Date().getFullYear(),
     taxPeriodStart: null as Date | null,
     taxPeriodEnd: null as Date | null,
@@ -51,17 +54,18 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
     }
   }, [initialClientId]);
 
-  // Update service line and project type when current service line changes
+  // Update service line and project type when modal opens or service line changes
   useEffect(() => {
-    if (currentServiceLine) {
-      const defaultType = getDefaultProjectType();
+    if (isOpen) {
+      const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
+      const defaultType = getDefaultProjectType(sl);
       setFormData(prev => ({
         ...prev,
-        serviceLine: currentServiceLine,
+        serviceLine: sl,
         projectType: defaultType,
       }));
     }
-  }, [currentServiceLine]);
+  }, [isOpen, initialServiceLine, currentServiceLine]);
 
   const handleFieldChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -121,13 +125,14 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
       const createdProject = result.success ? result.data : result;
       
       // Reset form
-      const defaultType = getDefaultProjectType();
+      const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
+      const defaultType = getDefaultProjectType(sl);
       setFormData({
         name: '',
         description: '',
         clientId: initialClientId || null,
         projectType: defaultType,
-        serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
+        serviceLine: sl,
         taxYear: new Date().getFullYear(),
         taxPeriodStart: null,
         taxPeriodEnd: null,
@@ -146,13 +151,14 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
   };
 
   const handleClose = () => {
-    const defaultType = getDefaultProjectType();
+    const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
+    const defaultType = getDefaultProjectType(sl);
     setFormData({
       name: '',
       description: '',
       clientId: initialClientId || null,
       projectType: defaultType,
-      serviceLine: (currentServiceLine || ServiceLine.TAX) as ServiceLine,
+      serviceLine: sl,
       taxYear: new Date().getFullYear(),
       taxPeriodStart: null,
       taxPeriodEnd: null,
@@ -171,7 +177,14 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
-          <h2 className="text-2xl font-bold text-gray-900">Create New Project</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900">Create New Project</h2>
+            {isServiceLineLocked && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                {formData.serviceLine}
+              </span>
+            )}
+          </div>
           
           {/* Step Indicator */}
           <div className="flex items-center mt-4 space-x-2">
@@ -183,7 +196,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
           <div className="flex justify-between text-xs text-gray-600 mt-1">
             <span>Basic Info</span>
             <span>Project Type</span>
-            <span>Tax Details</span>
+            <span>Timeline</span>
           </div>
         </div>
 
@@ -267,10 +280,11 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
             </div>
           )}
 
-          {/* Step 3: Tax Details */}
+          {/* Step 3: Timeline */}
           {step === 3 && (
             <div className="space-y-4">
-              <TaxYearInput
+              <ProjectTimelineInput
+                serviceLine={formData.serviceLine}
                 taxYear={formData.taxYear}
                 taxPeriodStart={formData.taxPeriodStart}
                 taxPeriodEnd={formData.taxPeriodEnd}

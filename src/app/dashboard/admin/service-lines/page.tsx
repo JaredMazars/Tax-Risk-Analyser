@@ -9,7 +9,12 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { ServiceLine, ServiceLineRole } from '@/types';
-import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
+import { 
+  useGrantServiceLineAccess,
+  useUpdateServiceLineRole,
+  useRevokeServiceLineAccess,
+} from '@/hooks/service-lines/useServiceLines';
 
 interface ServiceLineUser {
   id: number;
@@ -36,6 +41,11 @@ export default function ServiceLineAdminPage() {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ServiceLineUser | null>(null);
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  
+  // React Query mutations
+  const grantAccessMutation = useGrantServiceLineAccess();
+  const updateRoleMutation = useUpdateServiceLineRole();
+  const revokeAccessMutation = useRevokeServiceLineAccess();
   
   useEffect(() => {
     fetchServiceLineData();
@@ -77,39 +87,28 @@ export default function ServiceLineAdminPage() {
 
   const handleGrantAccess = async (userId: string, role: ServiceLineRole) => {
     try {
-      const response = await fetch('/api/admin/service-line-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          serviceLine: selectedServiceLine,
-          role,
-        }),
+      await grantAccessMutation.mutateAsync({
+        userId,
+        serviceLine: selectedServiceLine,
+        role,
       });
-
-      if (!response.ok) throw new Error('Failed to grant access');
+      // The mutation already invalidates queries, but we'll fetch again to be sure
       await fetchServiceLineData();
       setShowGrantModal(false);
     } catch (error) {
-      alert('Failed to grant access');
+      alert(error instanceof Error ? error.message : 'Failed to grant access');
     }
   };
 
   const handleUpdateRole = async (serviceLineUserId: number, newRole: ServiceLineRole) => {
     try {
-      const response = await fetch('/api/admin/service-line-access', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: serviceLineUserId,
-          role: newRole,
-        }),
+      await updateRoleMutation.mutateAsync({
+        id: serviceLineUserId,
+        role: newRole,
       });
-
-      if (!response.ok) throw new Error('Failed to update role');
       await fetchServiceLineData();
     } catch (error) {
-      alert('Failed to update role');
+      alert(error instanceof Error ? error.message : 'Failed to update role');
     }
   };
 
@@ -117,15 +116,13 @@ export default function ServiceLineAdminPage() {
     if (!confirm('Are you sure you want to revoke access?')) return;
 
     try {
-      const response = await fetch(
-        `/api/admin/service-line-access?userId=${userId}&serviceLine=${selectedServiceLine}`,
-        { method: 'DELETE' }
-      );
-
-      if (!response.ok) throw new Error('Failed to revoke access');
+      await revokeAccessMutation.mutateAsync({
+        userId,
+        serviceLine: selectedServiceLine,
+      });
       await fetchServiceLineData();
     } catch (error) {
-      alert('Failed to revoke access');
+      alert(error instanceof Error ? error.message : 'Failed to revoke access');
     }
   };
 
@@ -151,23 +148,60 @@ export default function ServiceLineAdminPage() {
 
         {/* Service Line Tabs */}
         <div className="bg-white rounded-lg shadow-sm border border-forvis-gray-200 mb-6">
-          <div className="flex space-x-1 p-2">
-            {Object.values(ServiceLine).map((sl) => (
-              <button
-                key={sl}
-                onClick={() => setSelectedServiceLine(sl)}
-                className={`flex-1 px-4 py-3 text-sm font-semibold rounded-lg transition-colors ${
-                  selectedServiceLine === sl
-                    ? 'bg-forvis-blue-600 text-white'
-                    : 'text-forvis-gray-700 hover:bg-forvis-gray-100'
-                }`}
-              >
-                {formatServiceLineName(sl)}
-                <span className="ml-2 text-xs">
-                  ({serviceLineData.find((data) => data.serviceLine === sl)?.users.length || 0})
-                </span>
-              </button>
-            ))}
+          <div className="p-4">
+            {/* Main Service Lines */}
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-forvis-gray-500 uppercase tracking-wider mb-2">
+                Main Service Lines
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {Object.values(ServiceLine)
+                  .filter((sl) => !isSharedService(sl))
+                  .map((sl) => (
+                    <button
+                      key={sl}
+                      onClick={() => setSelectedServiceLine(sl)}
+                      className={`px-4 py-3 text-sm font-semibold rounded-lg transition-colors ${
+                        selectedServiceLine === sl
+                          ? 'bg-forvis-blue-600 text-white'
+                          : 'text-forvis-gray-700 hover:bg-forvis-gray-100 border border-forvis-gray-200'
+                      }`}
+                    >
+                      {formatServiceLineName(sl)}
+                      <span className="ml-2 text-xs">
+                        ({serviceLineData.find((data) => data.serviceLine === sl)?.users.length || 0})
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            {/* Shared Services */}
+            <div>
+              <h3 className="text-xs font-semibold text-forvis-gray-500 uppercase tracking-wider mb-2">
+                Shared Services
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                {Object.values(ServiceLine)
+                  .filter((sl) => isSharedService(sl))
+                  .map((sl) => (
+                    <button
+                      key={sl}
+                      onClick={() => setSelectedServiceLine(sl)}
+                      className={`px-4 py-3 text-sm font-semibold rounded-lg transition-colors ${
+                        selectedServiceLine === sl
+                          ? 'bg-forvis-blue-600 text-white'
+                          : 'text-forvis-gray-700 hover:bg-forvis-gray-100 border border-forvis-gray-200'
+                      }`}
+                    >
+                      {formatServiceLineName(sl)}
+                      <span className="ml-2 text-xs">
+                        ({serviceLineData.find((data) => data.serviceLine === sl)?.users.length || 0})
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </div>
           </div>
         </div>
 

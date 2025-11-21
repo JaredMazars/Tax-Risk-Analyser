@@ -3,46 +3,23 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ServiceLine } from '@/types';
 import { ServiceLineWithStats } from '@/types/dto';
+import { useServiceLines } from '@/hooks/service-lines/useServiceLines';
 
 interface ServiceLineContextType {
   currentServiceLine: ServiceLine | null;
   setCurrentServiceLine: (serviceLine: ServiceLine | null) => void;
   availableServiceLines: ServiceLineWithStats[];
-  setAvailableServiceLines: (serviceLines: ServiceLineWithStats[]) => void;
   isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
+  refetch: () => void;
 }
 
 const ServiceLineContext = createContext<ServiceLineContextType | undefined>(undefined);
 
 export function ServiceLineProvider({ children }: { children: ReactNode }) {
   const [currentServiceLine, setCurrentServiceLine] = useState<ServiceLine | null>(null);
-  const [availableServiceLines, setAvailableServiceLines] = useState<ServiceLineWithStats[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load available service lines on mount
-  useEffect(() => {
-    const loadServiceLines = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/service-lines');
-        
-        if (response.ok) {
-          const result = await response.json();
-          const serviceLines = result.success ? result.data : result;
-          setAvailableServiceLines(Array.isArray(serviceLines) ? serviceLines : []);
-        } else {
-          setAvailableServiceLines([]);
-        }
-      } catch (error) {
-        setAvailableServiceLines([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadServiceLines();
-  }, []);
+  
+  // Use React Query hook for service lines
+  const { data: availableServiceLines = [], isLoading, refetch } = useServiceLines();
 
   // Store current service line in sessionStorage
   useEffect(() => {
@@ -65,9 +42,8 @@ export function ServiceLineProvider({ children }: { children: ReactNode }) {
     currentServiceLine,
     setCurrentServiceLine,
     availableServiceLines,
-    setAvailableServiceLines,
     isLoading,
-    setIsLoading,
+    refetch,
   };
 
   return (

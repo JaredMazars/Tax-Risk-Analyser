@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   ChevronRightIcon,
   BuildingOfficeIcon,
@@ -20,13 +21,15 @@ import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine } from '@/types';
 import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
-import { useClient, type ClientWithProjects } from '@/hooks/clients/useClients';
+import { useClient, clientKeys, type ClientWithProjects } from '@/hooks/clients/useClients';
+import { projectListKeys } from '@/hooks/projects/useProjects';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
   const router = useRouter();
   const clientId = params.id as string;
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
+  const queryClient = useQueryClient();
   
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(ServiceLine.TAX);
@@ -35,7 +38,7 @@ export default function ServiceLineClientDetailPage() {
   const { data: clientData, isLoading, error } = useClient(clientId);
   
   // Transform client data to match expected format
-  const client = useMemo(() => {
+  const client: any = useMemo(() => {
     if (!clientData) return null;
     return {
       ...clientData,
@@ -52,7 +55,7 @@ export default function ServiceLineClientDetailPage() {
 
   // Placeholder function - returns random stage for demo
   const getProjectStage = (projectId: number): ProjectStage => {
-    const stages = [
+    const stages: ProjectStage[] = [
       ProjectStage.DRAFT,
       ProjectStage.IN_PROGRESS,
       ProjectStage.UNDER_REVIEW,
@@ -60,25 +63,32 @@ export default function ServiceLineClientDetailPage() {
       ProjectStage.ARCHIVED,
     ];
     // Simple hash to keep stage consistent per project
-    return stages[projectId % stages.length];
+    const stage = stages[projectId % stages.length];
+    return stage || ProjectStage.DRAFT;
   };
 
   const handleProjectCreated = (project: any) => {
     setShowCreateModal(false);
-    // Navigate to the newly created project within the client context
-    router.push(`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/projects/${project.id}`);
+    // Invalidate client query to refetch and show the new project
+    queryClient.invalidateQueries({ queryKey: clientKeys.detail(clientId) });
+    // Also invalidate projects list so it shows up there too
+    queryClient.invalidateQueries({ queryKey: projectListKeys.all });
+    // Optionally, if the new project is in a different service line tab, switch to it
+    if (project.serviceLine) {
+      setActiveServiceLineTab(project.serviceLine.toUpperCase() as ServiceLine);
+    }
   };
 
   // Get projects for active tab
   const getProjectsForTab = () => {
     if (!client) return [];
-    return client.Project.filter(p => p.serviceLine?.toUpperCase() === activeServiceLineTab.toUpperCase());
+    return client.Project.filter((p: any) => p.serviceLine?.toUpperCase() === activeServiceLineTab.toUpperCase());
   };
 
   // Get project count for each service line
   const getProjectCountByServiceLine = (sl: ServiceLine) => {
     if (!client) return 0;
-    return client.Project.filter(p => p.serviceLine?.toUpperCase() === sl.toUpperCase()).length;
+    return client.Project.filter((p: any) => p.serviceLine?.toUpperCase() === sl.toUpperCase()).length;
   };
 
   const serviceLines = [
@@ -143,6 +153,7 @@ export default function ServiceLineClientDetailPage() {
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleProjectCreated}
           initialClientId={client ? client.id : null}
+          initialServiceLine={serviceLine as ServiceLine}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -273,10 +284,10 @@ export default function ServiceLineClientDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredProjects.map((project) => {
+                    {filteredProjects.map((project: any) => {
                       const projectStage = getProjectStage(project.id);
                       const isAccessible = project.serviceLine?.toUpperCase() === serviceLine.toUpperCase();
-                      const ProjectWrapper = isAccessible ? Link : 'div';
+                      const ProjectWrapper: any = isAccessible ? Link : 'div';
                       
                       return (
                         <ProjectWrapper

@@ -27,6 +27,26 @@ const PROJECT_TYPE_DESCRIPTIONS: Record<ProjectType, string> = {
   [ProjectType.ADVISORY_PROJECT]: 'General advisory services',
   [ProjectType.CONSULTING_ENGAGEMENT]: 'Consulting and strategic advice',
   [ProjectType.STRATEGY_REVIEW]: 'Strategic review and planning',
+  // QRM
+  [ProjectType.QRM_AUDIT]: 'Quality and risk management audit',
+  [ProjectType.QRM_COMPLIANCE]: 'Compliance review and monitoring',
+  [ProjectType.QRM_RISK_ASSESSMENT]: 'Risk assessment and mitigation',
+  // Business Development
+  [ProjectType.BD_CAMPAIGN]: 'Marketing campaign development',
+  [ProjectType.BD_PROPOSAL]: 'Proposal development and management',
+  [ProjectType.BD_MARKET_RESEARCH]: 'Market research and analysis',
+  // IT
+  [ProjectType.IT_IMPLEMENTATION]: 'IT system implementation',
+  [ProjectType.IT_SUPPORT]: 'IT support and maintenance',
+  [ProjectType.IT_INFRASTRUCTURE]: 'Infrastructure planning and setup',
+  // Finance
+  [ProjectType.FINANCE_REPORTING]: 'Financial reporting and analysis',
+  [ProjectType.FINANCE_BUDGETING]: 'Budget planning and management',
+  [ProjectType.FINANCE_ANALYSIS]: 'Financial analysis and forecasting',
+  // HR
+  [ProjectType.HR_RECRUITMENT]: 'Recruitment and hiring',
+  [ProjectType.HR_TRAINING]: 'Training and development',
+  [ProjectType.HR_POLICY]: 'Policy development and implementation',
 };
 
 export function ProjectTypeSelector({ value, onChange, serviceLine }: ProjectTypeSelectorProps) {
