@@ -124,7 +124,7 @@ export async function POST(
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {
-        client: true,
+        Client: true,
       },
     });
 
@@ -132,7 +132,7 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    if (!project.clientId || !project.client) {
+    if (!project.clientId || !project.Client) {
       return NextResponse.json(
         { error: 'Engagement letter is only available for client projects' },
         { status: 400 }
@@ -147,7 +147,7 @@ export async function POST(
     }
 
     // Generate the letter content
-    const letterContent = generateEngagementLetter(project, project.client);
+    const letterContent = generateEngagementLetter(project, project.Client);
 
     // Mark as generated
     await prisma.project.update({

@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { Project } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
+import { projectKeys } from '@/hooks/projects/useProjectData';
 
 interface AcceptanceTabProps {
   project: Project;
@@ -13,6 +15,7 @@ interface AcceptanceTabProps {
 export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: AcceptanceTabProps) {
   const [isApproving, setIsApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const isApproved = project.acceptanceApproved;
   const canApprove = currentUserRole === 'ADMIN' && !isApproved;
@@ -33,6 +36,11 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
         throw new Error(data.error || 'Failed to approve acceptance');
       }
 
+      // Invalidate and refetch the project data
+      await queryClient.invalidateQueries({ 
+        queryKey: projectKeys.detail(project.id.toString()) 
+      });
+      
       onApprovalComplete();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve acceptance');
@@ -172,6 +180,14 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
+                        </dd>
+                      </div>
+                    )}
+                    {project.acceptanceApprovedBy && (
+                      <div>
+                        <dt className="text-sm font-medium text-green-800 inline">Approved by: </dt>
+                        <dd className="text-sm text-green-700 inline">
+                          {project.acceptanceApprovedBy}
                         </dd>
                       </div>
                     )}

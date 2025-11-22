@@ -10,6 +10,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { Project } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
+import { useQueryClient } from '@tanstack/react-query';
+import { projectKeys } from '@/hooks/projects/useProjectData';
 
 interface EngagementLetterTabProps {
   project: Project;
@@ -24,6 +26,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const canManage = ['ADMIN', 'EDITOR'].includes(currentUserRole);
   const isGenerated = project.engagementLetterGenerated || letterContent !== null;
@@ -91,6 +94,11 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
       if (!response.ok) {
         throw new Error(data.error || 'Failed to upload engagement letter');
       }
+
+      // Invalidate and refetch the project data
+      await queryClient.invalidateQueries({ 
+        queryKey: projectKeys.detail(project.id.toString()) 
+      });
 
       setSelectedFile(null);
       if (fileInputRef.current) {

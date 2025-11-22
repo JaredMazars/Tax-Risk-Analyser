@@ -70,7 +70,7 @@ export async function POST(
         acceptanceApprovedAt: new Date(),
       },
       include: {
-        client: true,
+        Client: true,
         ProjectUser: {
           include: {
             User: true,

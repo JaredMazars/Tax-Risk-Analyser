@@ -443,11 +443,17 @@ export default function ClientProjectPage() {
     }
   }, [searchParams, project]);
 
+  // Fetch current user role when project loads
+  useEffect(() => {
+    if (project) {
+      fetchCurrentUserRole();
+    }
+  }, [projectId, project]);
+
   // Fetch users when team tab is active
   useEffect(() => {
     if (activeTab === 'team') {
       fetchProjectUsers();
-      fetchCurrentUserRole();
     }
   }, [activeTab, projectId]);
 

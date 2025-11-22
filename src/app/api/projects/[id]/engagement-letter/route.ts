@@ -112,7 +112,7 @@ export async function POST(
         engagementLetterUploadedAt: new Date(),
       },
       include: {
-        client: true,
+        Client: true,
         ProjectUser: {
           include: {
             User: true,
