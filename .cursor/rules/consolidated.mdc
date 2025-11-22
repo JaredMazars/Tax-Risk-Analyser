@@ -350,7 +350,8 @@ prisma/
 - Check undefined/null before access
 - Use branded types for IDs
 - Type all function parameters and return values
-- Always check the build when you make a change
+- Always check the build when you make a change and correct errors
+- The build should be vissible
 
 **Security**:
 - Validate all input

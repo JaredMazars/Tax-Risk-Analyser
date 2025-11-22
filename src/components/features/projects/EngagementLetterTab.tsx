@@ -128,6 +128,33 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadUploaded = async () => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}/engagement-letter/download`);
+      if (!response.ok) {
+        throw new Error('Failed to download engagement letter');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch?.[1] || 'engagement-letter.pdf';
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download engagement letter');
+    }
+  };
+
   if (!acceptanceApproved) {
     return (
       <div className="p-6 bg-forvis-gray-50 min-h-screen">
@@ -351,11 +378,18 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
                       </div>
                     )}
                     {project.engagementLetterPath && (
-                      <div>
-                        <dt className="text-sm font-medium text-green-800 inline">File: </dt>
-                        <dd className="text-sm text-green-700 inline">
+                      <div className="flex items-center gap-3">
+                        <dt className="text-sm font-medium text-green-800">File: </dt>
+                        <dd className="text-sm text-green-700">
                           {project.engagementLetterPath.split('/').pop()}
                         </dd>
+                        <button
+                          onClick={handleDownloadUploaded}
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 border border-green-700 rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                          Download
+                        </button>
                       </div>
                     )}
                   </dl>

@@ -13,6 +13,7 @@ import {
   UserGroupIcon,
   ClockIcon,
   PlusIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
 import { ProjectStageIndicator } from '@/components/features/projects/ProjectStageIndicator';
@@ -35,6 +36,8 @@ export default function ServiceLineClientDetailPage() {
   const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(ServiceLine.TAX);
   const [projectPage, setProjectPage] = useState(1);
   const [projectLimit] = useState(20);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Fetch client using React Query hook with project pagination
   const { data: clientData, isLoading, isFetching, error } = useClient(clientId, {
@@ -64,6 +67,20 @@ export default function ServiceLineClientDetailPage() {
   // Reset project page when service line tab changes
   useEffect(() => {
     setProjectPage(1);
+  }, [activeServiceLineTab]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reset search when switching tabs
+  useEffect(() => {
+    setSearchTerm('');
+    setDebouncedSearch('');
   }, [activeServiceLineTab]);
 
   // Placeholder function - returns random stage for demo
@@ -111,7 +128,22 @@ export default function ServiceLineClientDetailPage() {
     ServiceLine.ADVISORY,
   ];
 
-  const filteredProjects = getProjectsForTab();
+  // Filter projects by search term
+  const filteredProjects = useMemo(() => {
+    const projects = getProjectsForTab();
+    if (!debouncedSearch) return projects;
+    
+    const searchLower = debouncedSearch.toLowerCase();
+    return projects.filter((project: any) => {
+      return (
+        project.name?.toLowerCase().includes(searchLower) ||
+        project.description?.toLowerCase().includes(searchLower) ||
+        project.projectType?.toLowerCase().includes(searchLower) ||
+        project.taxYear?.toString().includes(searchLower) ||
+        project.status?.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [debouncedSearch, client]);
 
   // Only show full-page loader on initial load, not when switching tabs
   if (isLoading && !client) {
@@ -303,6 +335,26 @@ export default function ServiceLineClientDetailPage() {
                 </nav>
               </div>
 
+              {/* Search Bar */}
+              <div className="px-4 pt-4">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search projects by name, type, tax year, or status..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent text-sm"
+                  />
+                </div>
+                {searchTerm && (
+                  <div className="mt-2 text-sm text-forvis-gray-600">
+                    Found <span className="font-medium">{filteredProjects.length}</span>{' '}
+                    project{filteredProjects.length !== 1 ? 's' : ''} matching "{searchTerm}"
+                  </div>
+                )}
+              </div>
+
               <div className="p-4">
                 {isFetching && !isLoading ? (
                   <div className="text-center py-8">
@@ -312,9 +364,14 @@ export default function ServiceLineClientDetailPage() {
                 ) : filteredProjects.length === 0 ? (
                   <div className="text-center py-8">
                     <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects in {formatServiceLineName(activeServiceLineTab)}</h3>
+                    <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
+                      {searchTerm ? 'No projects found' : `No projects in ${formatServiceLineName(activeServiceLineTab)}`}
+                    </h3>
                     <p className="mt-1 text-sm text-forvis-gray-600">
-                      This client doesn't have any {formatServiceLineName(activeServiceLineTab).toLowerCase()} projects yet.
+                      {searchTerm 
+                        ? `No projects match your search "${searchTerm}".`
+                        : `This client doesn't have any ${formatServiceLineName(activeServiceLineTab).toLowerCase()} projects yet.`
+                      }
                     </p>
                   </div>
                 ) : (
