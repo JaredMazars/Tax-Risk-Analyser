@@ -39,6 +39,10 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Check if team members should be included
+    const { searchParams } = new URL(request.url);
+    const includeTeam = searchParams.get('includeTeam') === 'true';
+
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -85,21 +89,24 @@ export async function GET(
             TaxAdjustment: true,
           },
         },
-        ProjectUser: {
-          select: {
-            id: true,
-            userId: true,
-            role: true,
-            createdAt: true,
-            User: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
+        // Only include team members if requested
+        ...(includeTeam && {
+          ProjectUser: {
+            select: {
+              id: true,
+              userId: true,
+              role: true,
+              createdAt: true,
+              User: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
               },
             },
           },
-        },
+        }),
       },
     });
 

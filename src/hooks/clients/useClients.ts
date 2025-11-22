@@ -60,49 +60,93 @@ interface ClientsResponse {
   };
 }
 
-/**
- * Fetch clients list with optional search and pagination
- */
-export function useClients(searchParams?: {
+export interface UseClientsParams {
   search?: string;
   page?: number;
   limit?: number;
-}) {
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  enabled?: boolean;
+}
+
+/**
+ * Fetch clients list with server-side pagination, search, and sorting
+ */
+export function useClients(params: UseClientsParams = {}) {
+  const {
+    search = '',
+    page = 1,
+    limit = 50,
+    sortBy = 'clientNameFull',
+    sortOrder = 'asc',
+    enabled = true,
+  } = params;
+
   return useQuery<ClientsResponse>({
-    queryKey: clientKeys.list(searchParams),
+    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder }),
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (searchParams?.search) params.set('search', searchParams.search);
-      if (searchParams?.page) params.set('page', searchParams.page.toString());
-      if (searchParams?.limit) params.set('limit', searchParams.limit.toString());
+      const searchParams = new URLSearchParams();
+      if (search) searchParams.set('search', search);
+      searchParams.set('page', page.toString());
+      searchParams.set('limit', limit.toString());
+      searchParams.set('sortBy', sortBy);
+      searchParams.set('sortOrder', sortOrder);
       
-      const url = `/api/clients${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `/api/clients?${searchParams.toString()}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch clients');
       
       const result = await response.json();
       return result.success ? result.data : result;
     },
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes - clients don't change frequently
     gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+    placeholderData: (previousData) => previousData, // Keep previous data while fetching
   });
 }
 
+export interface UseClientParams {
+  projectPage?: number;
+  projectLimit?: number;
+  serviceLine?: string;
+  includeArchived?: boolean;
+  enabled?: boolean;
+}
+
 /**
- * Fetch a single client with projects
+ * Fetch a single client with paginated projects
  */
-export function useClient(clientId: string | number) {
+export function useClient(
+  clientId: string | number,
+  params: UseClientParams = {}
+) {
+  const {
+    projectPage = 1,
+    projectLimit = 20,
+    serviceLine,
+    includeArchived = false,
+    enabled = true,
+  } = params;
+
   return useQuery<ClientWithProjects>({
     queryKey: clientKeys.detail(clientId),
     queryFn: async () => {
-      const response = await fetch(`/api/clients/${clientId}`);
+      const searchParams = new URLSearchParams();
+      searchParams.set('projectPage', projectPage.toString());
+      searchParams.set('projectLimit', projectLimit.toString());
+      if (serviceLine) searchParams.set('serviceLine', serviceLine);
+      if (includeArchived) searchParams.set('includeArchived', 'true');
+
+      const url = `/api/clients/${clientId}?${searchParams.toString()}`;
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch client');
       
       const result = await response.json();
       return result.success ? result.data : result;
     },
-    enabled: !!clientId,
-    staleTime: 3 * 60 * 1000, // 3 minutes - more dynamic with projects
+    enabled: enabled && !!clientId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
     gcTime: 10 * 60 * 1000,
   });
 }

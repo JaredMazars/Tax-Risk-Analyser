@@ -27,21 +27,49 @@ export default function ServiceLineWorkspacePage() {
   
   const [activeTab, setActiveTab] = useState<'clients' | 'projects'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Fetch clients using React Query hook - only if not a shared service
   const shouldFetchClients = !isSharedService(serviceLine);
-  const { data: clientsData, isLoading: isLoadingClients, error: clientsError } = useClients();
+  const { 
+    data: clientsData, 
+    isLoading: isLoadingClients,
+  } = useClients({
+    search: debouncedSearch,
+    page: currentPage,
+    limit: itemsPerPage,
+    enabled: shouldFetchClients && activeTab === 'clients',
+  });
   const clients = clientsData?.clients || [];
+  const clientsPagination = clientsData?.pagination;
 
   // Fetch client projects for the Projects tab
-  const { data: projects = [], isLoading: isLoadingProjects } = useProjects(
+  const { 
+    data: projectsData,
+    isLoading: isLoadingProjects 
+  } = useProjects({
+    search: debouncedSearch,
+    page: currentPage,
+    limit: itemsPerPage,
     serviceLine,
-    false, // includeArchived
-    false, // internalOnly
-    true   // clientProjectsOnly
-  );
+    includeArchived: false,
+    internalOnly: false,
+    clientProjectsOnly: true,
+    enabled: activeTab === 'projects',
+  });
+  const projects = projectsData?.projects || [];
+  const projectsPagination = projectsData?.pagination;
 
   const isLoading = activeTab === 'clients' ? isLoadingClients : isLoadingProjects;
 
@@ -54,40 +82,10 @@ export default function ServiceLineWorkspacePage() {
     }
   }, [serviceLine, router, setCurrentServiceLine]);
 
-  // Client-side filtering with useMemo for performance
-  const filteredClients = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase().trim();
-    if (searchLower === '') return clients;
-    
-    return clients.filter(client =>
-      client.clientNameFull?.toLowerCase().includes(searchLower) ||
-      client.clientCode?.toLowerCase().includes(searchLower) ||
-      client.groupDesc?.toLowerCase().includes(searchLower) ||
-      client.groupCode?.toLowerCase().includes(searchLower) ||
-      client.industry?.toLowerCase().includes(searchLower) ||
-      client.sector?.toLowerCase().includes(searchLower)
-    );
-  }, [searchTerm, clients]);
-
-  // Projects filtering with useMemo for performance
-  const filteredProjects = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase().trim();
-    if (searchLower === '') return projects;
-    
-    return projects.filter(project =>
-      project.name?.toLowerCase().includes(searchLower) ||
-      project.description?.toLowerCase().includes(searchLower) ||
-      project.Client?.clientNameFull?.toLowerCase().includes(searchLower) ||
-      project.Client?.clientCode?.toLowerCase().includes(searchLower) ||
-      project.projectType?.toLowerCase().includes(searchLower) ||
-      (project.taxYear?.toString()?.includes(searchLower) ?? false)
-    );
-  }, [searchTerm, projects]);
-
-  // Reset to first page when search or tab changes
+  // Reset to first page when tab changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeTab]);
+  }, [activeTab]);
 
   if (!isValidServiceLine(serviceLine)) {
     return null;
@@ -106,8 +104,9 @@ export default function ServiceLineWorkspacePage() {
     );
   }
 
-  const currentData = activeTab === 'clients' ? filteredClients : filteredProjects;
-  const totalCount = activeTab === 'clients' ? clients.length : projects.length;
+  const currentData = activeTab === 'clients' ? clients : projects;
+  const pagination = activeTab === 'clients' ? clientsPagination : projectsPagination;
+  const totalCount = pagination?.total || 0;
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
@@ -224,17 +223,17 @@ export default function ServiceLineWorkspacePage() {
         </div>
 
         {/* Results count */}
-        {searchTerm && (
+        {debouncedSearch && pagination && (
           <div className="mb-4 text-sm text-forvis-gray-600">
-            Found <span className="font-medium">{currentData.length}</span>{' '}
-            {activeTab === 'clients' ? 'client' : 'project'}{currentData.length !== 1 ? 's' : ''} matching "{searchTerm}"
+            Found <span className="font-medium">{pagination.total}</span>{' '}
+            {activeTab === 'clients' ? 'client' : 'project'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
           </div>
         )}
 
         {/* Content - Clients or Projects */}
         {activeTab === 'clients' ? (
           /* Clients List */
-          filteredClients.length === 0 ? (
+          clients.length === 0 ? (
             <div className="card text-center py-12">
               <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
@@ -282,9 +281,7 @@ export default function ServiceLineWorkspacePage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-forvis-gray-200">
-                    {filteredClients
-                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                      .map((client) => (
+                    {clients.map((client) => (
                         <tr key={client.id} className="hover:bg-forvis-gray-50 transition-colors">
                           <td className="px-3 py-2 truncate">
                             <div className="flex items-center space-x-2 min-w-0">
@@ -336,16 +333,17 @@ export default function ServiceLineWorkspacePage() {
             </div>
 
             {/* Pagination */}
+            {pagination && (
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-forvis-gray-700">
-                Showing <span className="font-medium">{filteredClients.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
                 <span className="font-medium">
-                  {Math.min(currentPage * itemsPerPage, filteredClients.length)}
+                  {Math.min(currentPage * itemsPerPage, pagination.total)}
                 </span>{' '}
-                of <span className="font-medium">{filteredClients.length}</span> {searchTerm ? 'filtered ' : ''}client{filteredClients.length !== 1 ? 's' : ''}
+                of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}client{pagination.total !== 1 ? 's' : ''}
               </div>
               
-              {filteredClients.length > itemsPerPage && (
+              {pagination.totalPages > 1 && (
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -355,13 +353,12 @@ export default function ServiceLineWorkspacePage() {
                     Previous
                   </button>
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.ceil(filteredClients.length / itemsPerPage) }, (_, i) => i + 1)
+                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
                       .filter(page => {
                         // Show first page, last page, current page, and 1 page on each side
-                        const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
                         return (
                           page === 1 ||
-                          page === totalPages ||
+                          page === pagination.totalPages ||
                           (page >= currentPage - 1 && page <= currentPage + 1)
                         );
                       })
@@ -388,8 +385,8 @@ export default function ServiceLineWorkspacePage() {
                       })}
                   </div>
                   <button
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredClients.length / itemsPerPage), p + 1))}
-                    disabled={currentPage >= Math.ceil(filteredClients.length / itemsPerPage)}
+                    onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                    disabled={currentPage >= pagination.totalPages}
                     className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:bg-forvis-gray-100 disabled:text-forvis-gray-400 disabled:cursor-not-allowed transition-colors"
                   >
                     Next
@@ -397,11 +394,12 @@ export default function ServiceLineWorkspacePage() {
                 </div>
               )}
             </div>
+            )}
           </>
         )
         ) : (
           /* Projects List */
-          filteredProjects.length === 0 ? (
+          projects.length === 0 ? (
             <div className="card text-center py-12">
               <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects</h3>
@@ -440,9 +438,7 @@ export default function ServiceLineWorkspacePage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-forvis-gray-200">
-                      {filteredProjects
-                        .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        .map((project) => (
+                      {projects.map((project) => (
                           <tr key={project.id} className="hover:bg-forvis-gray-50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center space-x-3">
@@ -504,16 +500,17 @@ export default function ServiceLineWorkspacePage() {
               </div>
 
               {/* Pagination */}
+              {pagination && (
               <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-forvis-gray-700">
-                  Showing <span className="font-medium">{filteredProjects.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                  Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
                   <span className="font-medium">
-                    {Math.min(currentPage * itemsPerPage, filteredProjects.length)}
+                    {Math.min(currentPage * itemsPerPage, pagination.total)}
                   </span>{' '}
-                  of <span className="font-medium">{filteredProjects.length}</span> {searchTerm ? 'filtered ' : ''}project{filteredProjects.length !== 1 ? 's' : ''}
+                  of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}project{pagination.total !== 1 ? 's' : ''}
                 </div>
                 
-                {filteredProjects.length > itemsPerPage && (
+                {pagination.totalPages > 1 && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -523,12 +520,11 @@ export default function ServiceLineWorkspacePage() {
                       Previous
                     </button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(filteredProjects.length / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
                           return (
                             page === 1 ||
-                            page === totalPages ||
+                            page === pagination.totalPages ||
                             (page >= currentPage - 1 && page <= currentPage + 1)
                           );
                         })
@@ -554,8 +550,8 @@ export default function ServiceLineWorkspacePage() {
                         })}
                     </div>
                     <button
-                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProjects.length / itemsPerPage), p + 1))}
-                      disabled={currentPage >= Math.ceil(filteredProjects.length / itemsPerPage)}
+                      onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                      disabled={currentPage >= pagination.totalPages}
                       className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:bg-forvis-gray-100 disabled:text-forvis-gray-400 disabled:cursor-not-allowed transition-colors"
                     >
                       Next
@@ -563,6 +559,7 @@ export default function ServiceLineWorkspacePage() {
                   </div>
                 )}
               </div>
+              )}
             </>
           )
         )}

@@ -33,9 +33,15 @@ export default function ServiceLineClientDetailPage() {
   
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(ServiceLine.TAX);
+  const [projectPage, setProjectPage] = useState(1);
+  const [projectLimit] = useState(20);
 
-  // Fetch client using React Query hook
-  const { data: clientData, isLoading, error } = useClient(clientId);
+  // Fetch client using React Query hook with project pagination
+  const { data: clientData, isLoading, error } = useClient(clientId, {
+    projectPage,
+    projectLimit,
+    serviceLine: activeServiceLineTab,
+  });
   
   // Transform client data to match expected format
   const client: any = useMemo(() => {
@@ -45,6 +51,8 @@ export default function ServiceLineClientDetailPage() {
       Project: clientData.projects || [],
     };
   }, [clientData]);
+  
+  const projectPagination = clientData?.projectPagination;
 
   // Update active tab when URL serviceLine changes
   useEffect(() => {
@@ -52,6 +60,11 @@ export default function ServiceLineClientDetailPage() {
       setActiveServiceLineTab(serviceLine as ServiceLine);
     }
   }, [serviceLine]);
+
+  // Reset project page when service line tab changes
+  useEffect(() => {
+    setProjectPage(1);
+  }, [activeServiceLineTab]);
 
   // Placeholder function - returns random stage for demo
   const getProjectStage = (projectId: number): ProjectStage => {

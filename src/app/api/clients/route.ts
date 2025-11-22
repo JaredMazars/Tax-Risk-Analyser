@@ -14,25 +14,33 @@ export async function GET(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    const pageParam = searchParams.get('page');
-    const limitParam = searchParams.get('limit');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100); // Max 100 per page
+    const sortBy = searchParams.get('sortBy') || 'clientNameFull';
+    const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
     
-    // Only apply pagination if page or limit params are explicitly provided
-    const usePagination = pageParam !== null || limitParam !== null;
-    const page = parseInt(pageParam || '1');
-    const limit = parseInt(limitParam || '20');
-    const skip = usePagination ? (page - 1) * limit : undefined;
-    const take = usePagination ? limit : undefined;
+    const skip = (page - 1) * limit;
 
-    // Build where clause
+    // Build where clause with improved search
     const where: any = {};
     if (search) {
       where.OR = [
-        { clientNameFull: { contains: search } },
-        { clientCode: { contains: search } },
-        { groupDesc: { contains: search } },
-        { industry: { contains: search } },
+        { clientNameFull: { contains: search, mode: 'insensitive' } },
+        { clientCode: { contains: search, mode: 'insensitive' } },
+        { groupDesc: { contains: search, mode: 'insensitive' } },
+        { groupCode: { contains: search, mode: 'insensitive' } },
+        { industry: { contains: search, mode: 'insensitive' } },
+        { sector: { contains: search, mode: 'insensitive' } },
       ];
+    }
+
+    // Build orderBy clause
+    const orderBy: any = {};
+    const validSortFields = ['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt'];
+    if (validSortFields.includes(sortBy)) {
+      orderBy[sortBy] = sortOrder;
+    } else {
+      orderBy.clientNameFull = 'asc';
     }
 
     // Get total count
@@ -42,8 +50,8 @@ export async function GET(request: NextRequest) {
     const clients = await prisma.client.findMany({
       where,
       skip,
-      take,
-      orderBy: { clientNameFull: 'asc' },
+      take: limit,
+      orderBy,
       select: {
         id: true,
         clientCode: true,
@@ -73,9 +81,9 @@ export async function GET(request: NextRequest) {
         clients,
         pagination: {
           page,
-          limit: take || total,
+          limit,
           total,
-          totalPages: usePagination ? Math.ceil(total / limit) : 1,
+          totalPages: Math.ceil(total / limit),
         },
       })
     );

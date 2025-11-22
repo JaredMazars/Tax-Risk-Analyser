@@ -96,8 +96,10 @@ model Client {
   @@index([clientNameFull])
   @@index([clientCode])
   @@index([groupCode])
+  @@index([groupDesc])
   @@index([active])
   @@index([clientTaxFlag])
+  @@index([updatedAt(sort: Desc)])
 }
 
 model MappedAccount {
@@ -169,6 +171,9 @@ model Project {
   @@index([clientId, status, archived])
   @@index([projectType, taxYear])
   @@index([createdAt(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
+  @@index([serviceLine, updatedAt(sort: Desc)])
+  @@index([clientId, updatedAt(sort: Desc)])
 }
 
 model ProjectUser {

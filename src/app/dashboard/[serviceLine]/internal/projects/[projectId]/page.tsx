@@ -28,6 +28,7 @@ import TaxCalculationPage from '@/app/dashboard/projects/[id]/tax-calculation/pa
 import ReportingPage from '@/app/dashboard/projects/[id]/reporting/page';
 import OpinionDraftingPage from '@/app/dashboard/projects/[id]/opinion-drafting/page';
 import { useProject } from '@/hooks/projects/useProjectData';
+import { useProjectTeam } from '@/hooks/projects/useProjectTeam';
 import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
 import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
@@ -368,6 +369,13 @@ export default function InternalProjectPage() {
   
   const { data: project, isLoading, refetch: fetchProject } = useProject(projectId);
   
+  // Lazy load team members only when team tab is active
+  const { 
+    data: teamMembers = [],
+    isLoading: loadingTeam,
+    refetch: refetchTeam 
+  } = useProjectTeam(projectId, activeTab === 'team');
+  
   // Set default active tab based on project type
   const getDefaultTab = () => {
     if (!project) return 'team';
@@ -386,8 +394,6 @@ export default function InternalProjectPage() {
   const [activeTab, setActiveTab] = useState(getDefaultTab());
   
   // Team management state
-  const [projectUsers, setProjectUsers] = useState<ProjectUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
   const [currentUserRole, setCurrentUserRole] = useState<ProjectRole>('VIEWER' as ProjectRole);
@@ -403,27 +409,12 @@ export default function InternalProjectPage() {
     }
   }, [searchParams, project]);
 
-  // Fetch users when team tab is active
+  // Fetch current user role when team tab is active
   useEffect(() => {
     if (activeTab === 'team') {
-      fetchProjectUsers();
       fetchCurrentUserRole();
     }
   }, [activeTab, projectId]);
-
-  const fetchProjectUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const response = await fetch(`/api/projects/${projectId}/users`);
-      const data = await response.json();
-      if (data.success) {
-        setProjectUsers(data.data);
-      }
-    } catch (error) {
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
 
   const fetchCurrentUserRole = async () => {
     try {
@@ -518,7 +509,7 @@ export default function InternalProjectPage() {
                 </div>
               </div>
 
-              {loadingUsers ? (
+              {loadingTeam ? (
                 <div className="animate-pulse space-y-4">
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
@@ -527,11 +518,11 @@ export default function InternalProjectPage() {
               ) : (
                 <ProjectUserList
                   projectId={parseInt(projectId)}
-                  users={projectUsers}
+                  users={teamMembers}
                   currentUserId={currentUserId}
                   currentUserRole={currentUserRole}
-                  onUserRemoved={fetchProjectUsers}
-                  onRoleChanged={fetchProjectUsers}
+                  onUserRemoved={refetchTeam}
+                  onRoleChanged={refetchTeam}
                 />
               )}
 
@@ -540,7 +531,7 @@ export default function InternalProjectPage() {
                 isOpen={showAddUserModal}
                 onClose={() => setShowAddUserModal(false)}
                 onUserAdded={() => {
-                  fetchProjectUsers();
+                  refetchTeam();
                   setShowAddUserModal(false);
                 }}
               />

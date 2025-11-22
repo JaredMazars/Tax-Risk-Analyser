@@ -27,12 +27,33 @@ export async function GET(
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    
+    // Pagination params for projects
+    const projectPage = parseInt(searchParams.get('projectPage') || '1');
+    const projectLimit = Math.min(parseInt(searchParams.get('projectLimit') || '20'), 50);
+    const serviceLine = searchParams.get('serviceLine') || undefined;
+    const includeArchived = searchParams.get('includeArchived') === 'true';
+    
+    const projectSkip = (projectPage - 1) * projectLimit;
+
+    // Build project where clause
+    const projectWhere: any = {};
+    if (!includeArchived) {
+      projectWhere.archived = false;
+    }
+    if (serviceLine) {
+      projectWhere.serviceLine = serviceLine;
+    }
+
     const client = await prisma.client.findUnique({
       where: { id: clientId },
       include: {
         Project: {
-          where: { archived: false },
+          where: projectWhere,
           orderBy: { updatedAt: 'desc' },
+          skip: projectSkip,
+          take: projectLimit,
           select: {
             id: true,
             name: true,
@@ -67,6 +88,14 @@ export async function GET(
       );
     }
 
+    // Get total project count with filters
+    const totalProjects = await prisma.project.count({
+      where: {
+        clientId,
+        ...projectWhere,
+      },
+    });
+
     // Transform Project to projects for frontend compatibility
     const { Project, ...clientWithoutProject } = client;
     const responseData = {
@@ -78,6 +107,12 @@ export async function GET(
           taxAdjustments: project._count.TaxAdjustment,
         },
       })),
+      projectPagination: {
+        page: projectPage,
+        limit: projectLimit,
+        total: totalProjects,
+        totalPages: Math.ceil(totalProjects / projectLimit),
+      },
     };
 
     return NextResponse.json(successResponse(responseData));

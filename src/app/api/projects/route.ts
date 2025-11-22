@@ -17,37 +17,107 @@ export async function GET(request: NextRequest) {
     }
     
     const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const search = searchParams.get('search') || '';
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const serviceLine = searchParams.get('serviceLine');
     const internalOnly = searchParams.get('internalOnly') === 'true';
     const clientProjectsOnly = searchParams.get('clientProjectsOnly') === 'true';
+    const sortBy = searchParams.get('sortBy') || 'updatedAt';
+    const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
+
+    const skip = (page - 1) * limit;
 
     // Get user's accessible service lines
     const userServiceLines = await getUserServiceLines(user.id);
     const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
 
-    // Get projects with counts in single optimized query
-    const allProjects = await getProjectsWithCounts(user.id, undefined, includeArchived);
+    // Build where clause for database-level filtering
+    const where: any = {
+      ProjectUser: {
+        some: {
+          userId: user.id,
+        },
+      },
+      serviceLine: {
+        in: accessibleServiceLines,
+      },
+    };
 
-    // Filter by service line access
-    let projects = allProjects.filter(p => 
-      accessibleServiceLines.includes(p.serviceLine)
-    );
+    // Filter by archived status
+    if (!includeArchived) {
+      where.archived = false;
+    }
 
-    // Filter by specific service line if provided
+    // Filter by specific service line
     if (serviceLine) {
-      projects = projects.filter(p => p.serviceLine === serviceLine);
+      where.serviceLine = serviceLine;
     }
 
     // Filter for internal projects only (no client assigned)
     if (internalOnly) {
-      projects = projects.filter(p => p.clientId === null);
+      where.clientId = null;
     }
 
     // Filter for client projects only (has client assigned)
     if (clientProjectsOnly) {
-      projects = projects.filter(p => p.clientId !== null);
+      where.clientId = { not: null };
     }
+
+    // Add search filter
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Build orderBy
+    const orderBy: any = {};
+    const validSortFields = ['name', 'updatedAt', 'createdAt', 'taxYear'];
+    if (validSortFields.includes(sortBy)) {
+      orderBy[sortBy] = sortOrder;
+    } else {
+      orderBy.updatedAt = 'desc';
+    }
+
+    // Get total count
+    const total = await prisma.project.count({ where });
+
+    // Get projects with optimized query
+    const projects = await prisma.project.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        projectType: true,
+        serviceLine: true,
+        status: true,
+        archived: true,
+        clientId: true,
+        taxYear: true,
+        createdAt: true,
+        updatedAt: true,
+        Client: {
+          select: {
+            id: true,
+            clientNameFull: true,
+            clientCode: true,
+          },
+        },
+        _count: {
+          select: {
+            MappedAccount: true,
+            TaxAdjustment: true,
+          },
+        },
+      },
+    });
 
     // Transform _count to match expected format
     const projectsWithCounts = projects.map(project => ({
@@ -58,7 +128,17 @@ export async function GET(request: NextRequest) {
       },
     }));
     
-    return NextResponse.json(successResponse(projectsWithCounts));
+    return NextResponse.json(
+      successResponse({
+        projects: projectsWithCounts,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      })
+    );
   } catch (error) {
     return handleApiError(error, 'Get Projects');
   }
