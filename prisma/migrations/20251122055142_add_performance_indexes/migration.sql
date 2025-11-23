@@ -10,3 +10,4 @@ CREATE NONCLUSTERED INDEX [Project_serviceLine_updatedAt_idx] ON [dbo].[Project]
 CREATE NONCLUSTERED INDEX [Project_clientId_updatedAt_idx] ON [dbo].[Project]([clientId], [updatedAt] DESC);
 
 
+

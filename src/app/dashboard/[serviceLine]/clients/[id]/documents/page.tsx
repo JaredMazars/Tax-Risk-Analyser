@@ -4,9 +4,10 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { ClientDocuments } from '@/components/features/clients/ClientDocuments';
+import { ClientHeader } from '@/components/features/clients/ClientHeader';
 import { useClient } from '@/hooks/clients/useClients';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
 
 function ClientDocumentsContent() {
   const params = useParams();
@@ -22,11 +23,20 @@ function ClientDocumentsContent() {
   const clientId = params.id as string;
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
 
-  // Fetch client for breadcrumb
+  // Fetch client data
   const { data: clientData, isLoading } = useClient(clientId, {
     projectPage: 1,
     projectLimit: 1,
   });
+
+  // Transform client data to match expected format
+  const client: any = useMemo(() => {
+    if (!clientData) return null;
+    return {
+      ...clientData,
+      Project: clientData.projects || [],
+    };
+  }, [clientData]);
 
   if (isLoading) {
     return (
@@ -36,7 +46,18 @@ function ClientDocumentsContent() {
     );
   }
 
-  const clientName = clientData?.clientNameFull || clientData?.clientCode || 'Client';
+  if (!client) {
+    return (
+      <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900">Client Not Found</h2>
+          <p className="mt-2 text-gray-600">The client you're looking for doesn't exist.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const clientName = client.clientNameFull || client.clientCode;
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
@@ -77,16 +98,13 @@ function ClientDocumentsContent() {
           <span className="text-forvis-gray-900 font-medium">Documents</span>
         </nav>
 
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-forvis-gray-900">{clientName}</h1>
-          <p className="mt-2 text-sm text-forvis-gray-600">
-            All documents across all projects for this client
-          </p>
-        </div>
+        {/* Client Header */}
+        <ClientHeader client={client} />
 
         {/* Documents Component */}
-        <ClientDocuments clientId={clientId} />
+        <div className="mt-6">
+          <ClientDocuments clientId={clientId} />
+        </div>
       </div>
     </div>
   );

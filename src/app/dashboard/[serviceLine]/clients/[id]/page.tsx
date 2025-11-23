@@ -423,7 +423,7 @@ export default function ServiceLineClientDetailPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {filteredProjects.map((project: any) => {
                       const projectStage = getProjectStage(project.id);
                       const isAccessible = project.serviceLine?.toUpperCase() === serviceLine.toUpperCase();
@@ -435,39 +435,39 @@ export default function ServiceLineClientDetailPage() {
                           {...(isAccessible ? {
                             href: `/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/projects/${project.id}`,
                           } : {})}
-                          className={`block p-4 border-2 border-forvis-gray-200 rounded-lg transition-all ${
+                          className={`block p-3 border border-forvis-gray-200 rounded-lg transition-all ${
                             isAccessible
-                              ? 'hover:border-forvis-blue-500 hover:shadow-md cursor-pointer'
+                              ? 'hover:border-forvis-blue-500 hover:shadow-sm cursor-pointer'
                               : 'opacity-60 cursor-not-allowed'
                           }`}
                         >
-                          <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-start justify-between mb-2">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-2 mb-2 flex-wrap">
-                                <h3 className="text-base font-semibold text-forvis-gray-900">
+                              <div className="flex items-center space-x-2 mb-1 flex-wrap">
+                                <h3 className="text-sm font-semibold text-forvis-gray-900">
                                   {project.name}
                                 </h3>
-                                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${getProjectTypeColor(project.projectType)}`}>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${getProjectTypeColor(project.projectType)}`}>
                                   {formatProjectType(project.projectType)}
                                 </span>
                                 {project.taxYear && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                                     {project.taxYear}
                                   </span>
                                 )}
                                 {!isAccessible && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
                                     Available in {formatServiceLineName(project.serviceLine)}
                                   </span>
                                 )}
                                 {project.archived && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
                                     Archived
                                   </span>
                                 )}
                               </div>
                               {project.description && (
-                                <p className="text-sm text-forvis-gray-600 mb-2">
+                                <p className="text-xs text-forvis-gray-600 line-clamp-1">
                                   {project.description}
                                 </p>
                               )}
@@ -475,7 +475,7 @@ export default function ServiceLineClientDetailPage() {
                           </div>
                           
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4 text-xs text-forvis-gray-500">
+                            <div className="flex items-center space-x-3 text-xs text-forvis-gray-500">
                               <span className="flex items-center">
                                 <FolderIcon className="h-3.5 w-3.5 mr-1" />
                                 {project._count.mappings} accounts
