@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
 import { 
   getUserServiceLines,
   grantServiceLineAccess,
@@ -11,6 +11,9 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { ServiceLine, ServiceLineRole } from '@/types';
 
+// Force dynamic rendering (uses cookies)
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/service-line-access
  * Get all service line access for all users (admin only)
@@ -20,11 +23,12 @@ export async function GET(request: NextRequest) {
     const user = await getCurrentUser();
     
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized - No session' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    if (user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized - Admin role required' }, { status: 401 });
+    const isAdmin = await isSystemAdmin(user.id);
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -62,8 +66,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'ADMIN') {
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const isAdmin = await isSystemAdmin(user.id);
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -95,8 +105,13 @@ export async function PUT(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized - Admin role required' }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const isAdmin = await isSystemAdmin(user.id);
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -131,8 +146,14 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'ADMIN') {
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const isAdmin = await isSystemAdmin(user.id);
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
