@@ -9,6 +9,7 @@ import {
   ChevronRightIcon,
   FolderIcon,
   ClockIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatProjectType, getProjectTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -25,7 +26,7 @@ export default function ServiceLineWorkspacePage() {
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const { setCurrentServiceLine } = useServiceLine();
   
-  const [activeTab, setActiveTab] = useState<'clients' | 'projects'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'projects' | 'my-projects'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,7 +55,7 @@ export default function ServiceLineWorkspacePage() {
   const clients = clientsData?.clients || [];
   const clientsPagination = clientsData?.pagination;
 
-  // Fetch client projects for the Projects tab
+  // Fetch all client projects for the Projects tab
   const { 
     data: projectsData,
     isLoading: isLoadingProjects,
@@ -67,13 +68,33 @@ export default function ServiceLineWorkspacePage() {
     includeArchived: false,
     internalOnly: false,
     clientProjectsOnly: true,
+    myProjectsOnly: false,
     enabled: !!serviceLine, // Fetch when serviceLine is available, not just when tab is active
   });
   const projects = projectsData?.projects || [];
   const projectsPagination = projectsData?.pagination;
+
+  // Fetch my projects (team member only) for the My Projects tab
+  const { 
+    data: myProjectsData,
+    isLoading: isLoadingMyProjects,
+    isFetching: isFetchingMyProjects
+  } = useProjects({
+    search: debouncedSearch,
+    page: currentPage,
+    limit: itemsPerPage,
+    serviceLine,
+    includeArchived: false,
+    internalOnly: false,
+    clientProjectsOnly: true,
+    myProjectsOnly: true,
+    enabled: !!serviceLine,
+  });
+  const myProjects = myProjectsData?.projects || [];
+  const myProjectsPagination = myProjectsData?.pagination;
   
-  const isLoading = activeTab === 'clients' ? isLoadingClients : isLoadingProjects;
-  const isFetching = activeTab === 'clients' ? false : isFetchingProjects;
+  const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'projects' ? isLoadingProjects : isLoadingMyProjects;
+  const isFetching = activeTab === 'clients' ? false : activeTab === 'projects' ? isFetchingProjects : isFetchingMyProjects;
 
   // Validate service line
   useEffect(() => {
@@ -106,8 +127,8 @@ export default function ServiceLineWorkspacePage() {
     );
   }
 
-  const currentData = activeTab === 'clients' ? clients : projects;
-  const pagination = activeTab === 'clients' ? clientsPagination : projectsPagination;
+  const currentData = activeTab === 'clients' ? clients : activeTab === 'projects' ? projects : myProjects;
+  const pagination = activeTab === 'clients' ? clientsPagination : activeTab === 'projects' ? projectsPagination : myProjectsPagination;
   const totalCount = isFetching && !pagination ? '...' : (pagination?.total ?? 0);
 
   return (
@@ -132,14 +153,16 @@ export default function ServiceLineWorkspacePage() {
             <p className="mt-1 text-sm text-forvis-gray-700">
               {activeTab === 'clients' 
                 ? 'Select a client to view their projects and details'
-                : 'View and manage all client projects'}
+                : activeTab === 'projects'
+                ? 'View and manage all client projects'
+                : 'View projects where you are a team member'}
             </p>
           </div>
           
           <div className="text-right">
             <div className="text-2xl font-bold text-forvis-blue-600">{totalCount}</div>
             <div className="text-sm text-forvis-gray-600">
-              Total {activeTab === 'clients' ? 'Clients' : 'Projects'}
+              Total {activeTab === 'clients' ? 'Clients' : activeTab === 'projects' ? 'Projects' : 'My Projects'}
             </div>
           </div>
         </div>
@@ -184,6 +207,26 @@ export default function ServiceLineWorkspacePage() {
                     : 'bg-forvis-gray-100 text-forvis-gray-600'
                 }`}>
                   {isFetchingProjects && !projectsPagination ? '...' : (projectsPagination?.total ?? 0)}
+                </span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('my-projects')}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'my-projects'
+                  ? 'border-forvis-blue-600 text-forvis-blue-600'
+                  : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <UserGroupIcon className="h-5 w-5" />
+                <span>My Projects</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  activeTab === 'my-projects'
+                    ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                    : 'bg-forvis-gray-100 text-forvis-gray-600'
+                }`}>
+                  {isFetchingMyProjects && !myProjectsPagination ? '...' : (myProjectsPagination?.total ?? 0)}
                 </span>
               </div>
             </button>
@@ -232,7 +275,7 @@ export default function ServiceLineWorkspacePage() {
           </div>
         )}
 
-        {/* Content - Clients or Projects */}
+        {/* Content - Clients, Projects, or My Projects */}
         {activeTab === 'clients' ? (
           /* Clients List */
           clients.length === 0 ? (
@@ -401,12 +444,16 @@ export default function ServiceLineWorkspacePage() {
         )
         ) : (
           /* Projects List */
-          projects.length === 0 ? (
+          (activeTab === 'projects' ? projects : myProjects).length === 0 ? (
             <div className="card text-center py-12">
               <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No projects</h3>
               <p className="mt-1 text-sm text-forvis-gray-600">
-                {searchTerm ? 'No projects match your search.' : 'No client projects available for this service line.'}
+                {searchTerm 
+                  ? 'No projects match your search.' 
+                  : activeTab === 'my-projects'
+                  ? 'You are not a team member on any projects yet.'
+                  : 'No client projects available for this service line.'}
               </p>
             </div>
           ) : (
@@ -440,7 +487,7 @@ export default function ServiceLineWorkspacePage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-forvis-gray-200">
-                      {projects.map((project) => (
+                      {(activeTab === 'projects' ? projects : myProjects).map((project) => (
                           <tr key={project.id} className="hover:bg-forvis-gray-50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center space-x-3">

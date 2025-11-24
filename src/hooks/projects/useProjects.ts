@@ -52,6 +52,7 @@ export interface UseProjectsParams {
   includeArchived?: boolean;
   internalOnly?: boolean;
   clientProjectsOnly?: boolean;
+  myProjectsOnly?: boolean;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   enabled?: boolean;
@@ -69,6 +70,7 @@ export function useProjects(params: UseProjectsParams = {}) {
     includeArchived = false,
     internalOnly = false,
     clientProjectsOnly = false,
+    myProjectsOnly = false,
     sortBy = 'updatedAt',
     sortOrder = 'desc',
     enabled = true,
@@ -83,6 +85,7 @@ export function useProjects(params: UseProjectsParams = {}) {
       includeArchived,
       internalOnly,
       clientProjectsOnly,
+      myProjectsOnly,
       sortBy,
       sortOrder,
     }),
@@ -95,6 +98,7 @@ export function useProjects(params: UseProjectsParams = {}) {
       if (includeArchived) searchParams.set('includeArchived', 'true');
       if (internalOnly) searchParams.set('internalOnly', 'true');
       if (clientProjectsOnly) searchParams.set('clientProjectsOnly', 'true');
+      if (myProjectsOnly) searchParams.set('myProjectsOnly', 'true');
       searchParams.set('sortBy', sortBy);
       searchParams.set('sortOrder', sortOrder);
       

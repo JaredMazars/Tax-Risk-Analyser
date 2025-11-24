@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const serviceLine = searchParams.get('serviceLine');
     const internalOnly = searchParams.get('internalOnly') === 'true';
     const clientProjectsOnly = searchParams.get('clientProjectsOnly') === 'true';
+    const myProjectsOnly = searchParams.get('myProjectsOnly') === 'true';
     const sortBy = searchParams.get('sortBy') || 'updatedAt';
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
 
@@ -37,15 +38,19 @@ export async function GET(request: NextRequest) {
 
     // Build where clause for database-level filtering
     const where: Prisma.ProjectWhereInput = {
-      ProjectUser: {
-        some: {
-          userId: user.id,
-        },
-      },
       serviceLine: {
         in: accessibleServiceLines,
       },
     };
+
+    // Filter by team membership if myProjectsOnly is true
+    if (myProjectsOnly) {
+      where.ProjectUser = {
+        some: {
+          userId: user.id,
+        },
+      };
+    }
 
     // Filter by archived status
     if (!includeArchived) {
