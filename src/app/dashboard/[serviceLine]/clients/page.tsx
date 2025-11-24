@@ -253,11 +253,10 @@ export default function ServiceLineClientsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full divide-y divide-forvis-gray-200" style={{ tableLayout: 'fixed' }}>
                   <colgroup>
-                    <col style={{ width: '30%' }} />
+                    <col style={{ width: '32%' }} />
+                    <col style={{ width: '22%' }} />
                     <col style={{ width: '20%' }} />
-                    <col style={{ width: '18%' }} />
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '12%' }} />
                     <col style={{ width: '8%' }} />
                     <col style={{ width: '6%' }} />
                   </colgroup>
@@ -274,9 +273,6 @@ export default function ServiceLineClientsPage() {
                       </th>
                       <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                         Partner
-                      </th>
-                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
-                        Active
                       </th>
                       <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                         Projects
@@ -302,21 +298,20 @@ export default function ServiceLineClientsPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-sm text-forvis-gray-600 truncate" title={client.groupDesc}>
-                            {client.groupDesc}
+                          <td className="px-3 py-2">
+                            <div className="text-sm text-forvis-gray-600 truncate" title={client.groupDesc}>
+                              {client.groupDesc}
+                            </div>
                           </td>
-                          <td className="px-3 py-2 text-sm text-forvis-gray-600 truncate" title={client.industry || client.sector || '-'}>
-                            {client.industry || client.sector || '-'}
+                          <td className="px-3 py-2">
+                            <div className="text-sm text-forvis-gray-600 truncate" title={client.industry || client.sector || '-'}>
+                              {client.industry || client.sector || '-'}
+                            </div>
                           </td>
-                          <td className="px-3 py-2 text-sm text-forvis-gray-600 text-center truncate" title={client.clientPartner}>
-                            {client.clientPartner}
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                              client.active === 'YES' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {client.active === 'YES' ? 'Yes' : 'No'}
-                            </span>
+                          <td className="px-3 py-2">
+                            <div className="text-sm text-forvis-gray-600 text-center truncate" title={client.clientPartner}>
+                              {client.clientPartner}
+                            </div>
                           </td>
                           <td className="px-3 py-2 text-center">
                             <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
