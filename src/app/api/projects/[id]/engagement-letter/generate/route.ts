@@ -93,11 +93,15 @@ export async function POST(
       useAiAdaptation
     );
 
-    // Mark as generated
+    // Save generated content to database
     await prisma.project.update({
       where: { id: projectId },
       data: {
         engagementLetterGenerated: true,
+        engagementLetterContent: generated.content,
+        engagementLetterTemplateId: finalTemplateId,
+        engagementLetterGeneratedBy: user.id,
+        engagementLetterGeneratedAt: new Date(),
       },
     });
 

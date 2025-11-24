@@ -142,6 +142,10 @@ model Project {
   acceptanceApprovedBy   String?
   acceptanceApprovedAt   DateTime?
   engagementLetterGenerated Boolean               @default(false)
+  engagementLetterContent String?                 @db.NVarChar(Max)
+  engagementLetterTemplateId Int?
+  engagementLetterGeneratedBy String?
+  engagementLetterGeneratedAt DateTime?
   engagementLetterUploaded Boolean                @default(false)
   engagementLetterPath   String?
   engagementLetterUploadedBy String?

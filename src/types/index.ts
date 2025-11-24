@@ -139,6 +139,10 @@ export interface Project {
   acceptanceApprovedBy?: string | null;
   acceptanceApprovedAt?: Date | null;
   engagementLetterGenerated?: boolean;
+  engagementLetterContent?: string | null;
+  engagementLetterTemplateId?: number | null;
+  engagementLetterGeneratedBy?: string | null;
+  engagementLetterGeneratedAt?: Date | null;
   engagementLetterUploaded?: boolean;
   engagementLetterPath?: string | null;
   engagementLetterUploadedBy?: string | null;

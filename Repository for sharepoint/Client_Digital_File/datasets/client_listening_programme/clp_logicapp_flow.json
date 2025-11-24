@@ -1,0 +1,1242 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "ProgressStatus": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varProgressStatus",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {}
+            },
+            "Start_Exporting_Responses": {
+                "type": "Http",
+                "inputs": {
+                    "uri": "https://apimclientlisteningprogramme.azure-api.net/clp/export-responses/",
+                    "method": "POST",
+                    "headers": {
+                        "Ocp-Apim-Subscription-Key": "39f013317ab9478fbbfd4aacd6574e3b",
+                        "Content-Type": "application/json"
+                    },
+                    "queries": {},
+                    "body": {
+                        "format": "json"
+                    }
+                },
+                "runAfter": {
+                    "SurveyResults-copy": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                }
+            },
+            "ProgressId": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varProgressId",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "ProgressStatus": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "PercentComplete": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varPercentComplete",
+                            "type": "float",
+                            "value": 0
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "FileId": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Get_Export_Results": {
+                "type": "ParseJson",
+                "inputs": {
+                    "content": "@body('Start_Exporting_Responses')",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "result": {
+                                "type": "object",
+                                "properties": {
+                                    "progressId": {
+                                        "type": "string"
+                                    },
+                                    "percentComplete": {
+                                        "type": "integer"
+                                    },
+                                    "status": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "meta": {
+                                "type": "object",
+                                "properties": {
+                                    "requestId": {
+                                        "type": "string"
+                                    },
+                                    "httpStatus": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Start_Exporting_Responses": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Set_ProgressId": {
+                "type": "SetVariable",
+                "inputs": {
+                    "name": "varProgressId",
+                    "value": "@body('Get_Export_Results')?['result']?['progressId']"
+                },
+                "runAfter": {
+                    "Get_Export_Results": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "FileId": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varFileId",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "ProgressId": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Get_File": {
+                "type": "Http",
+                "inputs": {
+                    "uri": "https://apimclientlisteningprogramme.azure-api.net/clp/export-responses/@{variables('varFileId')}/file",
+                    "method": "GET",
+                    "headers": {
+                        "Ocp-Apim-Subscription-Key": "39f013317ab9478fbbfd4aacd6574e3b",
+                        "Content-Type": "application/json"
+                    }
+                },
+                "runAfter": {
+                    "Set_File_ID": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "operationOptions": "SuppressWorkflowHeaders",
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                }
+            },
+            "Get_Progress": {
+                "type": "Http",
+                "inputs": {
+                    "uri": "https://apimclientlisteningprogramme.azure-api.net/clp/export-responses/@{variables('varProgressId')}",
+                    "method": "GET",
+                    "headers": {
+                        "Ocp-Apim-Subscription-Key": "39f013317ab9478fbbfd4aacd6574e3b"
+                    }
+                },
+                "runAfter": {
+                    "Set_ProgressId": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "operationOptions": "SuppressWorkflowHeaders",
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "downloadChunkSizeInMB": 5
+                    }
+                }
+            },
+            "Set_File_ID": {
+                "type": "SetVariable",
+                "inputs": {
+                    "name": "varFileId",
+                    "value": "@body('Get_Export_Progress_Info-copy')?['result']?['fileId']"
+                },
+                "runAfter": {
+                    "Get_Export_Progress_Info-copy": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Delay": {
+                "type": "Wait",
+                "inputs": {
+                    "interval": {
+                        "count": 10,
+                        "unit": "Second"
+                    }
+                },
+                "runAfter": {
+                    "Get_Progress": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Get_Progress-copy": {
+                "type": "Http",
+                "inputs": {
+                    "uri": "https://apimclientlisteningprogramme.azure-api.net/clp/export-responses/@{variables('varProgressId')}",
+                    "method": "GET",
+                    "headers": {
+                        "Ocp-Apim-Subscription-Key": "39f013317ab9478fbbfd4aacd6574e3b"
+                    }
+                },
+                "runAfter": {
+                    "Get_Export_Progress_Info": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "operationOptions": "SuppressWorkflowHeaders",
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "downloadChunkSizeInMB": 5
+                    }
+                }
+            },
+            "Get_Export_Progress_Info": {
+                "type": "ParseJson",
+                "inputs": {
+                    "content": "@body('Start_Exporting_Responses')",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "result": {
+                                "type": "object",
+                                "properties": {
+                                    "fileId": {
+                                        "type": "string"
+                                    },
+                                    "percentComplete": {
+                                        "type": "integer"
+                                    },
+                                    "status": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "meta": {
+                                "type": "object",
+                                "properties": {
+                                    "requestId": {
+                                        "type": "string"
+                                    },
+                                    "httpStatus": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Delay": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Get_Export_Progress_Info-copy": {
+                "type": "ParseJson",
+                "inputs": {
+                    "content": "@body('Get_Progress-copy')",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "result": {
+                                "type": "object",
+                                "properties": {
+                                    "fileId": {
+                                        "type": "string"
+                                    },
+                                    "percentComplete": {
+                                        "type": "integer"
+                                    },
+                                    "status": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "meta": {
+                                "type": "object",
+                                "properties": {
+                                    "requestId": {
+                                        "type": "string"
+                                    },
+                                    "httpStatus": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Get_Progress-copy": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Parse_a_document": {
+                "type": "ParseDocument",
+                "inputs": {
+                    "content": "@body('Get_File')"
+                },
+                "runAfter": {
+                    "Get_File": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "SurveyResults": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varSurveyResults",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "PercentComplete": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Set_varSurveyResults": {
+                "type": "SetVariable",
+                "inputs": {
+                    "name": "varSurveyResults",
+                    "value": "@replace(outputs('Parse_a_document')['body']['text'], '2024_South_Africa_Client service review.json', '')"
+                },
+                "runAfter": {
+                    "Parse_a_document": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Parse_JSON": {
+                "type": "ParseJson",
+                "inputs": {
+                    "content": "@variables('varSurveyResults')",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "responses": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "responseId": {
+                                            "type": "string"
+                                        },
+                                        "values": {
+                                            "type": "object",
+                                            "properties": {
+                                                "startDate": {
+                                                    "type": "string"
+                                                },
+                                                "endDate": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "integer"
+                                                },
+                                                "ipAddress": {
+                                                    "type": "string"
+                                                },
+                                                "progress": {
+                                                    "type": "integer"
+                                                },
+                                                "duration": {
+                                                    "type": "integer"
+                                                },
+                                                "finished": {
+                                                    "type": "integer"
+                                                },
+                                                "recordedDate": {
+                                                    "type": "string"
+                                                },
+                                                "_recordId": {
+                                                    "type": "string"
+                                                },
+                                                "locationLatitude": {
+                                                    "type": "string"
+                                                },
+                                                "locationLongitude": {
+                                                    "type": "string"
+                                                },
+                                                "distributionChannel": {
+                                                    "type": "string"
+                                                },
+                                                "userLanguage": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014156": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014153": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "QID1216014151_1": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014151_2": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014151_3": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014151_11": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014151_15": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014151_16": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014154": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014158_NPS_GROUP": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014158": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014146": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014147": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014148": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014157": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014159": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014149_TEXT": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014150_TEXT": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014155": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014152": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "QID1216014161": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "QID1216014145": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "QID1216014151_5": {
+                                                    "type": "integer"
+                                                },
+                                                "QID1216014151_6": {
+                                                    "type": "integer"
+                                                },
+                                                "urn": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        "labels": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "finished": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014145": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "QID1216014146": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014147": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014148": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014151_1": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014151_2": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014151_3": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014151_5": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014151_6": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014151_11": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014151_15": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014151_16": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014152": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "QID1216014153": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "QID1216014154": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014155": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014156": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014157": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014158_NPS_GROUP": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014159": {
+                                                    "type": "string"
+                                                },
+                                                "QID1216014161": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "displayedFields": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "displayedValues": {
+                                            "type": "object",
+                                            "properties": {
+                                                "QID1216014151_16": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014153": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "QID1216014151_15": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014154": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014151_11": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014151_2": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014158_NPS_GROUP": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014151_1": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014159": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014151_3": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014158": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014147": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "QID1216014156": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "responseId",
+                                        "values",
+                                        "labels",
+                                        "displayedFields",
+                                        "displayedValues"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Set_varSurveyResults": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "SurveyResults-copy": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varResponses",
+                            "type": "array",
+                            "value": []
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "SurveyResults": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Select_responses": {
+                "type": "Select",
+                "inputs": {
+                    "from": "@body('Parse_JSON')?['responses']",
+                    "select": {
+                        "responseId": "@item()['responseId']",
+                        "values": {
+                            "startDate": "@coalesce(item()['values']?['startDate'], '')",
+                            "endDate": "@coalesce(item()['values']?['endDate'], '')",
+                            "status": "@coalesce(item()['values']?['status'], null)",
+                            "ipAddress": "@coalesce(item()['values']?['ipAddress'], '')",
+                            "progress": "@coalesce(item()['values']?['progress'], null)",
+                            "duration": "@coalesce(item()['values']?['duration'], null)",
+                            "finished": "@coalesce(item()['values']?['finished'], null)",
+                            "recordedDate": "@coalesce(item()['values']?['recordedDate'], '')",
+                            "_recordId": "@coalesce(item()['values']?['_recordId'], '')",
+                            "locationLatitude": "@coalesce(item()['values']?['locationLatitude'], '')",
+                            "locationLongitude": "@coalesce(item()['values']?['locationLongitude'], '')",
+                            "distributionChannel": "@coalesce(item()['values']?['distributionChannel'], '')",
+                            "userLanguage": "@coalesce(item()['values']?['userLanguage'], '')",
+                            "urn": "@coalesce(item()['values']?['urn'], concat('No URN - ', item()['responseId']))",
+                            "QID1216014156": "@coalesce(item()['values']?['QID1216014156'], null)",
+                            "QID1216014153": "@coalesce(item()['values']?['QID1216014153'], null)",
+                            "QID1216014151_1": "@coalesce(item()['values']?['QID1216014151_1'], null)",
+                            "QID1216014151_2": "@coalesce(item()['values']?['QID1216014151_2'], null)",
+                            "QID1216014151_3": "@coalesce(item()['values']?['QID1216014151_3'], null)",
+                            "QID1216014151_11": "@coalesce(item()['values']?['QID1216014151_11'], null)",
+                            "QID1216014151_15": "@coalesce(item()['values']?['QID1216014151_15'], null)",
+                            "QID1216014151_16": "@coalesce(item()['values']?['QID1216014151_16'], null)",
+                            "QID1216014154": "@coalesce(item()['values']?['QID1216014154'], null)",
+                            "QID1216014158_NPS_GROUP": "@coalesce(item()['values']?['QID1216014158_NPS_GROUP'], null)",
+                            "QID1216014158": "@string(coalesce(item()['values']?['QID1216014158'], ''))",
+                            "QID1216014146": "@string(coalesce(item()['values']?['QID1216014146'], ''))",
+                            "QID1216014147": "@coalesce(item()['values']?['QID1216014147'], null)",
+                            "QID1216014148": "@string(coalesce(item()['values']?['QID1216014148'], ''))",
+                            "QID1216014157": "@string(coalesce(item()['values']?['QID1216014157'], ''))",
+                            "QID1216014159": "@coalesce(item()['values']?['QID1216014159'], null)",
+                            "QID1216014149_TEXT": "@coalesce(item()['values']?['QID1216014149_TEXT'], '')",
+                            "QID1216014150_TEXT": "@coalesce(item()['values']?['QID1216014150_TEXT'], '')",
+                            "QID1216014155": "@coalesce(item()['values']?['QID1216014155'], null)",
+                            "QID1216014152": "@coalesce(item()['values']?['QID1216014152'], null)",
+                            "QID1216014161": "@coalesce(item()['values']?['QID1216014161'], null)",
+                            "QID1216014145": "@coalesce(item()['values']?['QID1216014145'], null)",
+                            "QID1216014151_5": "@coalesce(item()['values']?['QID1216014151_5'], null)",
+                            "QID1216014151_6": "@coalesce(item()['values']?['QID1216014151_6'], null)"
+                        },
+                        "labels": {
+                            "finished": "@coalesce(item()['labels']?['finished'], '')",
+                            "status": "@coalesce(item()['labels']?['status'], '')",
+                            "QID1216014145": "@coalesce(item()['labels']?['QID1216014145'], null)",
+                            "QID1216014146": "@coalesce(item()['labels']?['QID1216014146'], null)",
+                            "QID1216014147": "@if(isInt(coalesce(item()['labels']?['QID1216014147'], '')), int(coalesce(item()['labels']?['QID1216014147'], '0')), 0)",
+                            "QID1216014148": "@coalesce(item()['labels']?['QID1216014148'], '')",
+                            "QID1216014151_1": "@coalesce(item()['labels']?['QID1216014151_1'], '')",
+                            "QID1216014151_2": "@coalesce(item()['labels']?['QID1216014151_2'], '')",
+                            "QID1216014151_3": "@coalesce(item()['labels']?['QID1216014151_3'], '')",
+                            "QID1216014151_5": "@coalesce(item()['labels']?['QID1216014151_5'], '')",
+                            "QID1216014151_6": "@coalesce(item()['labels']?['QID1216014151_6'], '')",
+                            "QID1216014151_11": "@coalesce(item()['labels']?['QID1216014151_11'], '')",
+                            "QID1216014151_15": "@coalesce(item()['labels']?['QID1216014151_15'], '')",
+                            "QID1216014151_16": "@coalesce(item()['labels']?['QID1216014151_16'], '')",
+                            "QID1216014152": "@coalesce(item()['labels']?['QID1216014152'], null)",
+                            "QID1216014153": "@coalesce(item()['labels']?['QID1216014153'], null)",
+                            "QID1216014154": "@if(isInt(coalesce(item()['labels']?['QID1216014154'], '')), int(coalesce(item()['labels']?['QID1216014154'], '0')), 0)",
+                            "QID1216014155": "@coalesce(item()['labels']?['QID1216014155'], '')",
+                            "QID1216014156": "@coalesce(item()['labels']?['QID1216014156'], '')",
+                            "QID1216014157": "@coalesce(item()['labels']?['QID1216014157'], '')",
+                            "QID1216014158_NPS_GROUP": "@coalesce(item()['labels']?['QID1216014158_NPS_GROUP'], '')",
+                            "QID1216014159": "@if(isInt(coalesce(item()['labels']?['QID1216014159'], '')), int(coalesce(item()['labels']?['QID1216014159'], '0')), 0)",
+                            "QID1216014161": "@coalesce(item()['labels']?['QID1216014161'], null)"
+                        },
+                        "displayedFields": "@coalesce(item()['displayedFields'], json('[]'))",
+                        "displayedValues": "@if(empty(item()?['displayedValues']), json('{}'), item()['displayedValues'])"
+                    }
+                },
+                "runAfter": {
+                    "Parse_JSON": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Set_varResponses": {
+                "type": "SetVariable",
+                "inputs": {
+                    "name": "varResponses",
+                    "value": "@body('Select_responses')"
+                },
+                "runAfter": {
+                    "Select_responses": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "For_each": {
+                "type": "Foreach",
+                "foreach": "@variables('varResponses')",
+                "actions": {
+                    "Get_items": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "sharepointonline-1"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://mazarsglobalcloud.sharepoint.com/sites/ZAF-QRM/ClientDigitalFile'))}/tables/@{encodeURIComponent(encodeURIComponent('6be44ab1-9816-41b1-9c3a-92bd1d13baf8'))}/items",
+                            "queries": {
+                                "$filter": "Reference eq '@{items('For_each')['values']['_recordId']}'"
+                            }
+                        }
+                    },
+                    "Get_Submissions": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "referenceName": "sharepointonline-1"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://mazarsglobalcloud.sharepoint.com/sites/ZAF-QRM/ClientDigitalFile'))}/tables/@{encodeURIComponent(encodeURIComponent('f54a4ce8-d01b-42ac-83bd-e383d9d8b596'))}/items",
+                            "queries": {
+                                "$filter": "Title eq '@{toUpper(items('For_each')['values']['urn'])}'"
+                            }
+                        },
+                        "runAfter": {
+                            "Get_items": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    },
+                    "Condition-copy": {
+                        "type": "If",
+                        "expression": {
+                            "and": [
+                                {
+                                    "greater": [
+                                        "@length(body('Get_Submissions')?['value'])",
+                                        0
+                                    ]
+                                },
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "@first(body('Get_Submissions')?['value'])?['surveyStatus']",
+                                            "Feedback Received"
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "actions": {
+                            "Generate_Summary": {
+                                "type": "Http",
+                                "inputs": {
+                                    "uri": "https://apimclientlisteningprogramme.azure-api.net/azure/openai/deployments/gpt-4.5-preview/chat/completions?api-version=2025-01-01-preview",
+                                    "method": "POST",
+                                    "headers": {
+                                        "api-key": "e64156192a6440ba8cbd57bbb1aa6377",
+                                        "Content-Type": "application/json"
+                                    },
+                                    "body": {
+                                        "temperature": 0.7,
+                                        "top_p": 0.95,
+                                        "stream": false,
+                                        "stop": null,
+                                        "max_tokens": 5000,
+                                        "presence_penalty": 0,
+                                        "frequency_penalty": 0,
+                                        "logit_bias": {},
+                                        "user": "clp-feedback-user",
+                                        "messages": [
+                                            {
+                                                "role": "system",
+                                                "content": "You are a helpful assistant tasked with summarizing survey responses. Use the provided field configuration to understand the context of the data. The response data includes 'values' (raw data) and 'labels' (interpreted data) objects from the survey, plus additional submission data."
+                                            },
+                                            {
+                                                "role": "user",
+                                                "content": "Summarize the following survey response for the client \"@{first(body('Get_Submissions')?['value'])['clientName']}\" (contact: @{first(body('Get_Submissions')?['value'])['clientContactName']}). Create a concise, meaningful summary that focuses on key feedback and ratings from the survey data. Do not repeat the client’s name, contact, or email as labels, as these are already displayed elsewhere. Instead, integrate the client’s name or contact’s name naturally into the narrative. \n\nField Configuration: ```json\n@{variables('fieldConfiguration')}\n```\n\nResponse: ```json\n{\n    \"survey\": @{items('For_each')},\n    \"submission\": @{first(body('Get_Submissions')?['value'])}\n}\n```\n\nProvide a summary that emphasizes actionable insights and complements the displayed data."
+                                            }
+                                        ],
+                                        "n": 1,
+                                        "seed": 0,
+                                        "response_format": {
+                                            "type": "text"
+                                        }
+                                    }
+                                }
+                            },
+                            "Update_Submission_Status": {
+                                "type": "ApiConnection",
+                                "inputs": {
+                                    "host": {
+                                        "connection": {
+                                            "referenceName": "sharepointonline-1"
+                                        }
+                                    },
+                                    "method": "patch",
+                                    "body": {
+                                        "Title": "@first(body('Get_Submissions')?['value'])?['Title']",
+                                        "surveyStatus": {
+                                            "Value": "Feedback Received"
+                                        }
+                                    },
+                                    "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://mazarsglobalcloud.sharepoint.com/sites/ZAF-QRM/ClientDigitalFile'))}/tables/@{encodeURIComponent(encodeURIComponent('f54a4ce8-d01b-42ac-83bd-e383d9d8b596'))}/items/@{first(body('Get_Submissions')?['value'])?['Id']}"
+                                },
+                                "runAfter": {
+                                    "Set_Summary": [
+                                        "SUCCEEDED"
+                                    ]
+                                }
+                            },
+                            "Set_Summary": {
+                                "type": "Compose",
+                                "inputs": "@body('Generate_Summary')?['choices'][0]?['message']?['content']",
+                                "runAfter": {
+                                    "Generate_Summary": [
+                                        "SUCCEEDED"
+                                    ]
+                                }
+                            }
+                        },
+                        "else": {
+                            "actions": {}
+                        },
+                        "runAfter": {
+                            "Get_Submissions": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    },
+                    "Condition": {
+                        "type": "If",
+                        "expression": {
+                            "and": [
+                                {
+                                    "greater": [
+                                        "@length(body('Get_items')?['value'])",
+                                        0
+                                    ]
+                                }
+                            ]
+                        },
+                        "actions": {
+                            "Update_item": {
+                                "type": "ApiConnection",
+                                "inputs": {
+                                    "host": {
+                                        "connection": {
+                                            "referenceName": "sharepointonline-1"
+                                        }
+                                    },
+                                    "method": "patch",
+                                    "body": {
+                                        "Title": "@toUpper(items('For_each')['values']['urn'])",
+                                        "Reference": "@items('For_each')['values']['_recordId']",
+                                        "OutcomeDate": "@coalesce(items('For_each')['values']?['recordedDate'], '')",
+                                        "AISummary": "@{outputs('Set_Summary')}",
+                                        "QID1216014145_Value": "@if(empty(items('For_each')['values']?['QID1216014145']), '', join(items('For_each')['values']?['QID1216014145'], ';'))",
+                                        "QID1216014146_Display": "@coalesce(items('For_each')['labels']?['QID1216014146'], '')",
+                                        "QID1216014146_Value": "@coalesce(items('For_each')['values']?['QID1216014146'], '')",
+                                        "QID1216014147_Display": "@coalesce(items('For_each')['labels']?['QID1216014147'], '')",
+                                        "QID1216014147_Value": "@coalesce(items('For_each')['values']?['QID1216014147'], '')",
+                                        "QID1216014148_Display": "@coalesce(items('For_each')['labels']?['QID1216014148'], '')",
+                                        "QID1216014148_Value": "@coalesce(items('For_each')['values']?['QID1216014148'], '')",
+                                        "QID1216014149_TEXT_Value": "@coalesce(items('For_each')['values']?['QID1216014149_TEXT'], '')",
+                                        "QID1216014150_TEXT_Value": "@coalesce(items('For_each')['values']?['QID1216014150_TEXT'], '')",
+                                        "QID1216014152_Display": "@if(empty(items('For_each')['labels']?['QID1216014152']), '', join(items('For_each')['labels']?['QID1216014152'], ';'))",
+                                        "QID1216014152_Value": "@if(empty(items('For_each')['values']?['QID1216014152']), '', join(items('For_each')['values']?['QID1216014152'], ';'))",
+                                        "QID1216014153_Display": "@if(equals(items('For_each')['labels']?['QID1216014153'], null), '', join(items('For_each')['labels']?['QID1216014153'], ','))",
+                                        "QID1216014153_Value": "@if(equals(items('For_each')['values']?['QID1216014153'], null), '', join(items('For_each')['values']?['QID1216014153'], ','))",
+                                        "QID1216014155_Display": "@coalesce(items('For_each')['labels']?['QID1216014155'], '')",
+                                        "QID1216014157_Display": "@coalesce(items('For_each')['labels']?['QID1216014157'], '')",
+                                        "QID1216014157_Value": "@coalesce(items('For_each')['values']?['QID1216014157'], '')",
+                                        "QID1216014158_Value": "@coalesce(items('For_each')['values']?['QID1216014158'], '')",
+                                        "QID1216014145_Display": "@if(empty(items('For_each')['labels']?['QID1216014145']), '', join(items('For_each')['labels']?['QID1216014145'], ';'))",
+                                        "QID1216014151_1_Display": "@items('For_each')['labels']['QID1216014151_1']",
+                                        "QID1216014151_1_Value": "@items('For_each')['values']['QID1216014151_1']",
+                                        "QID1216014151_2_Display": "@items('For_each')['labels']['QID1216014151_2']",
+                                        "QID1216014151_2_Value": "@items('For_each')['values']['QID1216014151_2']",
+                                        "QID1216014151_3_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_3'], '')",
+                                        "QID1216014151_3_Value": "@coalesce(items('For_each')['values']?['QID1216014151_3'], '')",
+                                        "QID1216014151_5_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_5'], '')",
+                                        "QID1216014151_5_Value": "@coalesce(items('For_each')['values']?['QID1216014151_5'], '')",
+                                        "QID1216014151_6_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_6'], '')",
+                                        "QID1216014151_6_Value": "@coalesce(items('For_each')['values']?['QID1216014151_6'], '')",
+                                        "QID1216014151_11_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_11'], '')",
+                                        "QID1216014151_11_Value": "@coalesce(items('For_each')['values']?['QID1216014151_11'], '')",
+                                        "QID1216014151_15_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_15'], '')",
+                                        "QID1216014151_15_Value": "@coalesce(items('For_each')['values']?['QID1216014151_15'], '')",
+                                        "QID1216014151_16_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_16'], '')",
+                                        "QID1216014151_16_Value": "@coalesce(items('For_each')['values']?['QID1216014151_16'], '')",
+                                        "QID1216014154_Display": "@coalesce(items('For_each')['labels']?['QID1216014154'], '')",
+                                        "QID1216014154_Value": "@coalesce(items('For_each')['values']?['QID1216014154'], '')",
+                                        "QID1216014155_Value": "@coalesce(items('For_each')['values']?['QID1216014155'], '')",
+                                        "QID1216014156_Display": "@items('For_each')['labels']['QID1216014156']",
+                                        "QID1216014156_Value": "@items('For_each')['values']['QID1216014156']",
+                                        "QID1216014158_NPS_GROUP_Display": "@coalesce(items('For_each')['labels']?['QID1216014158_NPS_GROUP'], '')",
+                                        "QID1216014158_NPS_GROUP_Value": "@coalesce(items('For_each')['values']?['QID1216014158_NPS_GROUP'], '')",
+                                        "QID1216014159_Display": "@coalesce(items('For_each')['labels']?['QID1216014159'], '')",
+                                        "QID1216014159_Value": "@coalesce(items('For_each')['values']?['QID1216014159'], '')",
+                                        "QID1216014161_Display": "@if(empty(items('For_each')['labels']?['QID1216014161']), '', join(items('For_each')['labels']?['QID1216014161'], ';'))",
+                                        "QID1216014161_Value": "@if(empty(items('For_each')['values']?['QID1216014161']), '', join(items('For_each')['values']?['QID1216014161'], ';'))"
+                                    },
+                                    "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://mazarsglobalcloud.sharepoint.com/sites/ZAF-QRM/ClientDigitalFile'))}/tables/@{encodeURIComponent(encodeURIComponent('6be44ab1-9816-41b1-9c3a-92bd1d13baf8'))}/items/@{first(body('Get_items')?['value'])?['Id']}"
+                                }
+                            }
+                        },
+                        "else": {
+                            "actions": {
+                                "Create_item": {
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "host": {
+                                            "connection": {
+                                                "referenceName": "sharepointonline-1"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "body": {
+                                            "Title": "@toUpper(items('For_each')['values']['urn'])",
+                                            "Reference": "@items('For_each')['values']['_recordId']",
+                                            "OutcomeDate": "@coalesce(items('For_each')['values']?['recordedDate'], '')",
+                                            "AISummary": "@{outputs('Set_Summary')}",
+                                            "QID1216014145_Value": "@if(empty(items('For_each')['values']?['QID1216014145']), '', join(items('For_each')['values']?['QID1216014145'], ';'))",
+                                            "QID1216014146_Display": "@coalesce(items('For_each')['labels']?['QID1216014146'], '')",
+                                            "QID1216014146_Value": "@coalesce(items('For_each')['values']?['QID1216014146'], '')",
+                                            "QID1216014147_Display": "@coalesce(items('For_each')['labels']?['QID1216014147'], '')",
+                                            "QID1216014147_Value": "@coalesce(items('For_each')['values']?['QID1216014147'], '')",
+                                            "QID1216014148_Display": "@coalesce(items('For_each')['labels']?['QID1216014148'], '')",
+                                            "QID1216014148_Value": "@coalesce(items('For_each')['values']?['QID1216014148'], '')",
+                                            "QID1216014149_TEXT_Value": "@coalesce(items('For_each')['values']?['QID1216014149_TEXT'], '')",
+                                            "QID1216014150_TEXT_Value": "@coalesce(items('For_each')['values']?['QID1216014150_TEXT'], '')",
+                                            "QID1216014152_Display": "@if(empty(items('For_each')['labels']?['QID1216014152']), '', join(items('For_each')['labels']?['QID1216014152'], ';'))",
+                                            "QID1216014152_Value": "@if(empty(items('For_each')['values']?['QID1216014152']), '', join(items('For_each')['values']?['QID1216014152'], ';'))",
+                                            "QID1216014153_Display": "@if(equals(items('For_each')['labels']?['QID1216014153'], null), '', join(items('For_each')['labels']?['QID1216014153'], ','))",
+                                            "QID1216014153_Value": "@if(equals(items('For_each')['values']?['QID1216014153'], null), '', join(items('For_each')['values']?['QID1216014153'], ','))",
+                                            "QID1216014155_Display": "@coalesce(items('For_each')['labels']?['QID1216014155'], '')",
+                                            "QID1216014157_Display": "@coalesce(items('For_each')['labels']?['QID1216014157'], '')",
+                                            "QID1216014157_Value": "@coalesce(items('For_each')['values']?['QID1216014157'], '')",
+                                            "QID1216014158_Value": "@coalesce(items('For_each')['values']?['QID1216014158'], '')",
+                                            "QID1216014145_Display": "@if(empty(items('For_each')['labels']?['QID1216014145']), '', join(items('For_each')['labels']?['QID1216014145'], ';'))",
+                                            "QID1216014151_1_Display": "@items('For_each')['labels']['QID1216014151_1']",
+                                            "QID1216014151_1_Value": "@items('For_each')['values']['QID1216014151_1']",
+                                            "QID1216014151_2_Display": "@items('For_each')['labels']['QID1216014151_2']",
+                                            "QID1216014151_2_Value": "@items('For_each')['values']['QID1216014151_2']",
+                                            "QID1216014151_3_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_3'], '')",
+                                            "QID1216014151_3_Value": "@coalesce(items('For_each')['values']?['QID1216014151_3'], '')",
+                                            "QID1216014151_5_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_5'], '')",
+                                            "QID1216014151_5_Value": "@coalesce(items('For_each')['values']?['QID1216014151_5'], '')",
+                                            "QID1216014151_6_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_6'], '')",
+                                            "QID1216014151_6_Value": "@coalesce(items('For_each')['values']?['QID1216014151_6'], '')",
+                                            "QID1216014151_11_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_11'], '')",
+                                            "QID1216014151_11_Value": "@coalesce(items('For_each')['values']?['QID1216014151_11'], '')",
+                                            "QID1216014151_15_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_15'], '')",
+                                            "QID1216014151_15_Value": "@coalesce(items('For_each')['values']?['QID1216014151_15'], '')",
+                                            "QID1216014151_16_Display": "@coalesce(items('For_each')['labels']?['QID1216014151_16'], '')",
+                                            "QID1216014151_16_Value": "@coalesce(items('For_each')['values']?['QID1216014151_16'], '')",
+                                            "QID1216014154_Display": "@coalesce(items('For_each')['labels']?['QID1216014154'], '')",
+                                            "QID1216014154_Value": "@coalesce(items('For_each')['values']?['QID1216014154'], '')",
+                                            "QID1216014155_Value": "@coalesce(items('For_each')['values']?['QID1216014155'], '')",
+                                            "QID1216014156_Display": "@items('For_each')['labels']['QID1216014156']",
+                                            "QID1216014156_Value": "@items('For_each')['values']['QID1216014156']",
+                                            "QID1216014158_NPS_GROUP_Display": "@coalesce(items('For_each')['labels']?['QID1216014158_NPS_GROUP'], '')",
+                                            "QID1216014158_NPS_GROUP_Value": "@coalesce(items('For_each')['values']?['QID1216014158_NPS_GROUP'], '')",
+                                            "QID1216014159_Display": "@coalesce(items('For_each')['labels']?['QID1216014159'], '')",
+                                            "QID1216014159_Value": "@coalesce(items('For_each')['values']?['QID1216014159'], '')",
+                                            "QID1216014161_Display": "@if(empty(items('For_each')['labels']?['QID1216014161']), '', join(items('For_each')['labels']?['QID1216014161'], ';'))",
+                                            "QID1216014161_Value": "@if(empty(items('For_each')['values']?['QID1216014161']), '', join(items('For_each')['values']?['QID1216014161'], ';'))"
+                                        },
+                                        "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://mazarsglobalcloud.sharepoint.com/sites/ZAF-QRM/ClientDigitalFile'))}/tables/@{encodeURIComponent(encodeURIComponent('6be44ab1-9816-41b1-9c3a-92bd1d13baf8'))}/items"
+                                    }
+                                }
+                            }
+                        },
+                        "runAfter": {
+                            "Condition-copy": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Initialize_Field_Configuration": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Initialize_Field_Configuration": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "fieldConfiguration",
+                            "type": "object",
+                            "value": {
+                                "survey_results_fields": [
+                                    {
+                                        "Title": "Client",
+                                        "Description": "Client providing the feedback.",
+                                        "field_name": "submission.clientName"
+                                    },
+                                    {
+                                        "Title": "Contact",
+                                        "Description": "Primary contact for follow-up regarding feedback.",
+                                        "field_name": "submission.clientContactName"
+                                    },
+                                    {
+                                        "Title": "Email",
+                                        "Description": "Email for client follow-up on feedback.",
+                                        "field_name": "submission.clientContactEmail"
+                                    },
+                                    {
+                                        "Title": "Industry Sector",
+                                        "Description": "The industry sector that best represents the client's organisation.",
+                                        "field_name": "survey.labels.QID1216014146"
+                                    },
+                                    {
+                                        "Title": "Service Type",
+                                        "Description": "The type of private client service(s) we deliver.",
+                                        "field_name": "survey.labels.QID1216014152"
+                                    },
+                                    {
+                                        "Title": "Cross-selling",
+                                        "Description": "Potential opportunities for cross-selling additional services.",
+                                        "field_name": "survey.labels.QID1216014151_1"
+                                    },
+                                    {
+                                        "Title": "Client's Strategic Priorities",
+                                        "Description": "The client's strategic priorities and objectives.",
+                                        "field_name": "survey.labels.QID1216014151_1"
+                                    },
+                                    {
+                                        "Title": "Service Quality",
+                                        "Description": "Rating for overall service quality.",
+                                        "field_name": "survey.labels.QID1216014151_1"
+                                    },
+                                    {
+                                        "Title": "Responsiveness",
+                                        "Description": "Rating for responsiveness of our team.",
+                                        "field_name": "survey.labels.QID1216014151_2"
+                                    },
+                                    {
+                                        "Title": "Value Add",
+                                        "Description": "Rating for additional value provided.",
+                                        "field_name": "survey.labels.QID1216014151_3"
+                                    },
+                                    {
+                                        "Title": "Business Understanding",
+                                        "Description": "Rating for our understanding of the client's business.",
+                                        "field_name": "survey.labels.QID1216014151_5"
+                                    },
+                                    {
+                                        "Title": "Industry Insight",
+                                        "Description": "Rating for our industry-specific insights.",
+                                        "field_name": "survey.labels.QID1216014151_6"
+                                    },
+                                    {
+                                        "Title": "Project Management",
+                                        "Description": "Rating for our project management.",
+                                        "field_name": "survey.labels.QID1216014151_11"
+                                    },
+                                    {
+                                        "Title": "Expertise",
+                                        "Description": "Rating for our technical expertise.",
+                                        "field_name": "survey.labels.QID1216014151_15"
+                                    },
+                                    {
+                                        "Title": "Deadline Adherence",
+                                        "Description": "Rating for meeting deadlines.",
+                                        "field_name": "survey.labels.QID1216014151_16"
+                                    },
+                                    {
+                                        "Title": "Overall Satisfaction",
+                                        "Description": "Overall satisfaction rating on a scale of 1-10.",
+                                        "field_name": "survey.labels.QID1216014154"
+                                    },
+                                    {
+                                        "Title": "NPS Value",
+                                        "Description": "Net Promoter Score indicating recommendation likelihood. Promoter (9-10), Passive (7-8), Detractor (6 and below)",
+                                        "field_name": "survey.values.QID1216014158_Value"
+                                    },
+                                    {
+                                        "Title": "NPS Score",
+                                        "Description": "Net Promoter Score indicating recommendation likelihood. Promoter (9-10), Passive (7-8), Detractor (6 and below)",
+                                        "field_name": "survey.labels.QID1216014158_NPS_GROUP"
+                                    },
+                                    {
+                                        "Title": "Improvement Suggestions",
+                                        "Description": "Feedback on how we can enhance your experience.",
+                                        "field_name": "survey.values.QID1216014150_TEXT"
+                                    },
+                                    {
+                                        "Title": "Enhancement Ideas",
+                                        "Description": "Suggestions for improving our overall service.",
+                                        "field_name": "survey.values.QID1216014149_TEXT"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Set_varResponses": [
+                        "SUCCEEDED"
+                    ]
+                }
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "Recurrence": {
+                "type": "Recurrence",
+                "recurrence": {
+                    "interval": 1,
+                    "frequency": "Day",
+                    "timeZone": "South Africa Standard Time",
+                    "schedule": {
+                        "hours": [
+                            "18",
+                            "6"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "kind": "Stateful"
+}

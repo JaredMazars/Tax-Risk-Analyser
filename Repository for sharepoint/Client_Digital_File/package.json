@@ -1,0 +1,32 @@
+{
+    "name": "compress",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "package_datasets": "uglifyjs datasets/global_field_set_navigation/global_field_set_navigation.js datasets/client_continuance/field_set_configuration.js datasets/client_acceptance/field_set_configuration.js datasets/lockdowns/lockdown_field_set_configuration.js datasets/lockdowns/lockdown_navigation.js datasets/business_development/bd_field_set_configuration.js datasets/business_development/bd_navigation.js datasets/client_listening_programme/clp_navigation.js datasets/client_listening_programme/clp_field_configuration.js datasets/consultations/consultations_navigation.js datasets/consultations/consultations_field_set_configuration.js -o UAT/datasets.min.js",
+        "package_css": "uglifycss css/style.css css/status.css > UAT/app_styles.min.css",
+        "package_app_js": "uglifyjs js/client_information/client_section_functions.js js/navigation.js js/render_navigation.js js/main.js js/dashboard/my_dashboard.js js/dashboard/my_tasks.js js/lockdowns/lockdown.js js/business_development/bd_app_main.js js/save_sections.js js/client_information/supporting_documents.js js/client_risk_assesments/pie_form.js js/client_risk_assesments/client_risk_assesments.js js/client_risk_assesments/assurance_functions.js js/client_risk_assesments/non_assurance_service_functions.js js/client_risk_assesments/non_assurance_functions.js js/client_risk_assesments/giac_form.js js/client_risk_assesments/appendix_a_form.js js/client_risk_assesments/key_figures.js js/client_risk_assesments/team_information_functions.js js/client_risk_assesments/eqr_appointment_form.js js/client_risk_assesments/upload_documents.js js/client_risk_assesments/supporting_questions.js js/client_risk_assesments/approvals.js js/client_risk_assesments/template_controller.js js/client_risk_assesments/warning_controller.js js/client_risk_assesments/audit_log_controller.js js/client_risk_assesments/comments_controller.js js/business_development/bd_action_buttons.js js/business_development/bd_allocation_rules.js js/business_development/bd_approval_configuration.js js/business_development/bd_business_rules.js js/business_development/bd_evaluation_rules.js js/business_development/bd_independance_rules.js js/business_development/bd_initiation_rules.js js/business_development/bd_security.js js/business_development/bd_supporting_documents.js js/consultations/consultations-app.js js/client_listening_programme/clp_action_buttons.js js/client_listening_programme/clp_app_main.js js/client_listening_programme/clp_business_rules.js js/client_listening_programme/clp_survey_results_page.js js/client_listening_programme/dependancies/crypto-js.min.js -o UAT/app.min.js",
+        "package_dashboard": "npm run package_datasets & npm run package_css & npm run package_app_js",
+        "package_prod_js": "uglifyjs UAT/datasets.min.js UAT/app.min.js -o Production/app.min.js",
+        "package_prod_css": "uglifycss UAT/app_styles.min.css > Production/app_styles.min.css",
+        "package_dashboard_prod": "npm run package_prod_js & npm run package_prod_css"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "express": "^4.16.3",
+        "jquery": "^3.3.1",
+        "uglifyjs": "^2.4.11"
+    },
+    "devDependencies": {
+        "babel-core": "^6.26.3",
+        "babel-preset-env": "^1.7.0",
+        "babel-preset-es2015": "^6.24.1",
+        "babelify": "^8.0.0",
+        "browserify": "^16.2.2",
+        "lite-server": "^2.4.0",
+        "watchify": "^3.11.0"
+    },
+    "description": ""
+}

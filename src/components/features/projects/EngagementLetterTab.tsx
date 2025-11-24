@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   DocumentTextIcon, 
   ArrowDownTrayIcon, 
@@ -33,6 +33,16 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
   const [useAiAdaptation, setUseAiAdaptation] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  // Load saved engagement letter content on mount
+  useEffect(() => {
+    if (project.engagementLetterGenerated && project.engagementLetterContent) {
+      setLetterContent(project.engagementLetterContent);
+      if (project.engagementLetterTemplateId) {
+        setSelectedTemplateId(project.engagementLetterTemplateId);
+      }
+    }
+  }, [project]);
 
   // Check if user can manage engagement letters (Partners and Superusers only)
   const { data: canManage = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(project);
