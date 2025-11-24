@@ -3,8 +3,9 @@ import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { canApproveAcceptance } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { handleApiError, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
 import { toProjectId } from '@/types/branded';
+import { logAcceptanceApproved } from '@/lib/services/acceptance/auditLog';
 
 /**
  * POST /api/projects/[id]/acceptance
@@ -53,43 +54,84 @@ export async function POST(
 
     if (project.acceptanceApproved) {
       return NextResponse.json(
-        { error: 'Client acceptance already approved' },
+        { error: 'Client acceptance already approved', code: AcceptanceErrorCodes.ALREADY_APPROVED },
         { status: 400 }
       );
     }
 
-    // Approve the acceptance
-    const updatedProject = await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        acceptanceApproved: true,
-        acceptanceApprovedBy: user.id,
-        acceptanceApprovedAt: new Date(),
-      },
-      include: {
-        Client: true,
-        ProjectUser: {
-          include: {
-            User: true,
-          },
-        },
-        _count: {
-          select: {
-            MappedAccount: true,
-            TaxAdjustment: true,
-          },
-        },
+    // Check that questionnaire is completed
+    const questionnaireResponse = await prisma.clientAcceptanceResponse.findFirst({
+      where: { projectId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        completedAt: true,
+        completedBy: true,
+        questionnaireType: true,
+        overallRiskScore: true,
+        riskRating: true,
       },
     });
 
-    return NextResponse.json(
-      successResponse({
-        ...updatedProject,
-        _count: {
-          mappings: updatedProject._count.MappedAccount,
-          taxAdjustments: updatedProject._count.TaxAdjustment,
+    if (!questionnaireResponse) {
+      return NextResponse.json(
+        { error: 'Questionnaire must be initialized and completed before approval', code: AcceptanceErrorCodes.QUESTIONNAIRE_NOT_INITIALIZED },
+        { status: 400 }
+      );
+    }
+
+    if (!questionnaireResponse.completedAt) {
+      return NextResponse.json(
+        { error: 'Questionnaire must be completed and submitted before approval', code: AcceptanceErrorCodes.INCOMPLETE_QUESTIONNAIRE },
+        { status: 400 }
+      );
+    }
+
+    // Use transaction to ensure both updates succeed or both fail
+    const [updatedResponse, updatedProject] = await prisma.$transaction([
+      prisma.clientAcceptanceResponse.update({
+        where: { id: questionnaireResponse.id },
+        data: {
+          reviewedBy: user.email || user.id,
+          reviewedAt: new Date(),
         },
       }),
+      prisma.project.update({
+        where: { id: projectId },
+        data: {
+          acceptanceApproved: true,
+          acceptanceApprovedBy: user.id,
+          acceptanceApprovedAt: new Date(),
+        },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          acceptanceApproved: true,
+          acceptanceApprovedBy: true,
+          acceptanceApprovedAt: true,
+          Client: {
+            select: {
+              id: true,
+              clientCode: true,
+              clientNameFull: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    // Audit log the approval
+    await logAcceptanceApproved(
+      projectId,
+      user.id,
+      questionnaireResponse.questionnaireType,
+      questionnaireResponse.riskRating || undefined,
+      questionnaireResponse.overallRiskScore || undefined
+    );
+
+    return NextResponse.json(
+      successResponse(updatedProject),
       { status: 200 }
     );
   } catch (error) {

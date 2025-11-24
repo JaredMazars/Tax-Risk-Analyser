@@ -92,6 +92,7 @@ model Client {
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   Project                Project[]
+  ClientAcceptanceResponse ClientAcceptanceResponse[]
 
   @@index([clientNameFull])
   @@index([clientCode])
@@ -165,6 +166,7 @@ model Project {
   FilingStatus           FilingStatus[]
   NotificationPreference NotificationPreference[]
   InAppNotification      InAppNotification[]
+  ClientAcceptanceResponse ClientAcceptanceResponse[]
 
   @@index([clientId])
   @@index([projectType])
@@ -557,6 +559,91 @@ model TemplateSection {
 
   @@index([templateId])
   @@index([sectionKey])
+}
+
+model ClientAcceptanceResponse {
+  id                Int                  @id @default(autoincrement())
+  projectId         Int
+  clientId          Int
+  questionnaireType String               // ACCEPTANCE_FULL, ACCEPTANCE_LITE, CONTINUANCE_FULL, CONTINUANCE_LITE
+  overallRiskScore  Float?
+  riskRating        String?              // LOW, MEDIUM, HIGH
+  riskSummary       String?              @db.NVarChar(Max)
+  completedAt       DateTime?
+  completedBy       String?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  Project           Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Client            Client               @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  AcceptanceAnswer  AcceptanceAnswer[]
+  AcceptanceDocument AcceptanceDocument[]
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([questionnaireType])
+  @@index([riskRating])
+  @@index([projectId, questionnaireType])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([completedAt])
+  @@index([reviewedAt])
+}
+
+model AcceptanceQuestion {
+  id                Int                  @id @default(autoincrement())
+  questionnaireType String               // ACCEPTANCE_FULL, ACCEPTANCE_LITE, CONTINUANCE_FULL, CONTINUANCE_LITE
+  sectionKey        String               // e.g., "independence", "money_laundering", "kyc"
+  questionKey       String               // e.g., "Q1Independence"
+  questionText      String               @db.NVarChar(Max)
+  description       String?              @db.NVarChar(Max)
+  fieldType         String               // RADIO, TEXTAREA, SELECT, FILE_UPLOAD
+  options           String?              @db.NVarChar(Max) // JSON array of options
+  required          Boolean              @default(true)
+  order             Int
+  riskWeight        Float                @default(1.0)
+  highRiskAnswers   String?              @db.NVarChar(500) // JSON array of answers that indicate high risk (e.g., ["Yes"])
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  AcceptanceAnswer  AcceptanceAnswer[]
+
+  @@index([questionnaireType])
+  @@index([questionnaireType, sectionKey])
+  @@index([questionnaireType, order])
+  @@unique([questionnaireType, questionKey])
+}
+
+model AcceptanceAnswer {
+  id         Int                        @id @default(autoincrement())
+  responseId Int
+  questionId Int
+  answer     String?                    @db.NVarChar(Max)
+  comment    String?                    @db.NVarChar(Max)
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+  Response   ClientAcceptanceResponse   @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  Question   AcceptanceQuestion         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([responseId])
+  @@index([questionId])
+  @@index([responseId, questionId])
+  @@unique([responseId, questionId])
+}
+
+model AcceptanceDocument {
+  id           Int                        @id @default(autoincrement())
+  responseId   Int
+  documentType String                     // WECHECK, PONG, OTHER
+  fileName     String
+  filePath     String
+  fileSize     Int
+  uploadedBy   String
+  uploadedAt   DateTime                   @default(now())
+  createdAt    DateTime                   @default(now())
+  Response     ClientAcceptanceResponse   @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([responseId])
+  @@index([documentType])
 }
 
 model VerificationToken {

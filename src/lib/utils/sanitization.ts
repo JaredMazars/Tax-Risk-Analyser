@@ -172,6 +172,91 @@ export function sanitizeFilePath(path: string | null | undefined): string | null
 }
 
 /**
+ * Sanitize comment or user input field
+ * Specifically designed for questionnaire comments and user-generated content
+ * Removes potentially dangerous characters while preserving readability
+ * 
+ * @param comment - Comment string to sanitize
+ * @returns Sanitized comment or undefined
+ */
+export function sanitizeComment(comment: string | undefined | null): string | undefined {
+  if (!comment) return undefined;
+
+  let sanitized = comment.trim();
+
+  // Check if empty after trim
+  if (sanitized.length === 0) return undefined;
+
+  // Limit length to prevent abuse
+  const MAX_COMMENT_LENGTH = 5000;
+  if (sanitized.length > MAX_COMMENT_LENGTH) {
+    sanitized = sanitized.substring(0, MAX_COMMENT_LENGTH);
+  }
+
+  // Remove script tags and their content
+  sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+
+  // Remove javascript: protocol
+  sanitized = sanitized.replace(/javascript:/gi, '');
+
+  // Remove event handlers (onclick, onload, etc.)
+  sanitized = sanitized.replace(/on\w+\s*=/gi, '');
+
+  // Remove null bytes
+  sanitized = sanitized.replace(/\0/g, '');
+
+  // Remove most control characters but keep newlines and tabs
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+  // Final trim
+  sanitized = sanitized.trim();
+
+  return sanitized.length > 0 ? sanitized : undefined;
+}
+
+/**
+ * Sanitize filename for safe storage
+ * Removes path traversal and dangerous characters
+ * 
+ * @param filename - Original filename
+ * @param maxLength - Maximum filename length (default: 255)
+ * @returns Sanitized filename
+ */
+export function sanitizeFilename(filename: string, maxLength: number = 255): string {
+  let sanitized = filename.trim();
+
+  // Remove path separators and traversal attempts
+  sanitized = sanitized.replace(/[/\\]/g, '_');
+  sanitized = sanitized.replace(/\.\./g, '_');
+
+  // Remove null bytes and control characters
+  sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
+
+  // Only allow alphanumeric, dash, underscore, and dot
+  sanitized = sanitized.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+  // Ensure it doesn't start with a dot (hidden file)
+  if (sanitized.startsWith('.')) {
+    sanitized = '_' + sanitized.substring(1);
+  }
+
+  // Apply max length
+  if (sanitized.length > maxLength) {
+    // Preserve file extension if present
+    const lastDot = sanitized.lastIndexOf('.');
+    if (lastDot > 0 && lastDot > sanitized.length - 10) {
+      const ext = sanitized.substring(lastDot);
+      const name = sanitized.substring(0, maxLength - ext.length);
+      sanitized = name + ext;
+    } else {
+      sanitized = sanitized.substring(0, maxLength);
+    }
+  }
+
+  return sanitized || 'unnamed_file';
+}
+
+/**
  * Sanitize object with multiple fields
  * Applies appropriate sanitization to each field based on field name patterns
  */
@@ -194,6 +279,8 @@ export function sanitizeObject<T extends Record<string, any>>(
       sanitized[key] = sanitizeUrl(value);
     } else if (key.toLowerCase().includes('path')) {
       sanitized[key] = sanitizeFilePath(value);
+    } else if (key.toLowerCase().includes('comment')) {
+      sanitized[key] = sanitizeComment(value);
     } else if (typeof value === 'string') {
       // Default string sanitization
       const allowHTML = key.toLowerCase().includes('description') || 
@@ -215,6 +302,7 @@ export function sanitizeObject<T extends Record<string, any>>(
 
   return sanitized as T;
 }
+
 
 
 

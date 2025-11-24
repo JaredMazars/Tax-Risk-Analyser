@@ -256,6 +256,69 @@ export const UpdateTemplateSectionSchema = z.object({
 }).strict();
 
 /**
+ * Client Acceptance and Continuance Questionnaire Schemas
+ */
+
+// Questionnaire types
+export const QuestionnaireTypeSchema = z.enum([
+  'ACCEPTANCE_FULL',
+  'ACCEPTANCE_LITE',
+  'CONTINUANCE_FULL',
+  'CONTINUANCE_LITE',
+]);
+
+// Risk rating
+export const RiskRatingSchema = z.enum(['LOW', 'MEDIUM', 'HIGH']);
+
+// Document type
+export const DocumentTypeSchema = z.enum(['WECHECK', 'PONG', 'OTHER']);
+
+// Initialize questionnaire
+export const InitializeQuestionnaireSchema = z.object({
+  questionnaireType: QuestionnaireTypeSchema.optional(), // Optional: will auto-detect if not provided
+});
+
+// Save answers
+export const SaveAnswersSchema = z.object({
+  answers: z.array(
+    z.object({
+      questionId: z.number().int().positive(),
+      answer: z.string().max(10000),
+      comment: z.string().max(10000).optional(),
+    })
+  ),
+});
+
+// Alternative: save answers by question key (simpler for frontend)
+export const SaveAnswersByKeySchema = z.object({
+  answers: z.array(
+    z.object({
+      questionKey: z.string().min(1).max(100),
+      answer: z.string().max(10000),
+      comment: z.string().max(10000).optional(),
+    })
+  ),
+});
+
+// Submit questionnaire for review
+export const SubmitQuestionnaireSchema = z.object({
+  responseId: z.number().int().positive(),
+});
+
+// Upload document
+export const UploadDocumentSchema = z.object({
+  documentType: DocumentTypeSchema,
+  responseId: z.number().int().positive().optional(), // Optional if response not created yet
+});
+
+// Review and approve questionnaire (Partner/Superuser)
+export const ReviewQuestionnaireSchema = z.object({
+  responseId: z.number().int().positive(),
+  approved: z.boolean(),
+  reviewComments: z.string().max(5000).optional(),
+});
+
+/**
  * Type inference from schemas
  */
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
@@ -274,4 +337,10 @@ export type CreateTemplateInput = z.infer<typeof CreateTemplateSchema>;
 export type UpdateTemplateInput = z.infer<typeof UpdateTemplateSchema>;
 export type CreateTemplateSectionInput = z.infer<typeof CreateTemplateSectionSchema>;
 export type UpdateTemplateSectionInput = z.infer<typeof UpdateTemplateSectionSchema>;
+export type InitializeQuestionnaireInput = z.infer<typeof InitializeQuestionnaireSchema>;
+export type SaveAnswersInput = z.infer<typeof SaveAnswersSchema>;
+export type SaveAnswersByKeyInput = z.infer<typeof SaveAnswersByKeySchema>;
+export type SubmitQuestionnaireInput = z.infer<typeof SubmitQuestionnaireSchema>;
+export type UploadDocumentInput = z.infer<typeof UploadDocumentSchema>;
+export type ReviewQuestionnaireInput = z.infer<typeof ReviewQuestionnaireSchema>;
 

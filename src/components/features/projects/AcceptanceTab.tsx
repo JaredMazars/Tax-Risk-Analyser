@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ClockIcon, PlayIcon, DocumentCheckIcon } from '@heroicons/react/24/outline';
 import { Project } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { projectKeys } from '@/hooks/projects/useProjectData';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
+import { useQuestionnaireStatus } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
+import { AcceptanceQuestionnaire } from './acceptance/AcceptanceQuestionnaire';
+import { AcceptanceReview } from './acceptance/AcceptanceReview';
 
 interface AcceptanceTabProps {
   project: Project;
@@ -16,10 +19,15 @@ interface AcceptanceTabProps {
 export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: AcceptanceTabProps) {
   const [isApproving, setIsApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'questionnaire' | 'review'>('questionnaire');
   const queryClient = useQueryClient();
 
   // Check if user can approve acceptance (Partners and Superusers only)
   const { data: canApprove = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(project);
+
+  // Get questionnaire status
+  const { data: statusData, isLoading: isLoadingStatus } = useQuestionnaireStatus(project.id.toString());
+  const status = statusData?.data;
 
   const isApproved = project.acceptanceApproved;
 
@@ -52,9 +60,34 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
     }
   };
 
+  const handleSubmitSuccess = () => {
+    // Refetch status after submission
+    queryClient.invalidateQueries({ 
+      queryKey: ['acceptance', 'status', project.id.toString()] 
+    });
+    setViewMode('review');
+  };
+
+  // Determine workflow state
+  const workflowState: 'not_started' | 'in_progress' | 'submitted' | 'approved' = isApproved
+    ? 'approved'
+    : status?.completed
+    ? 'submitted'
+    : status?.exists
+    ? 'in_progress'
+    : 'not_started';
+
+  if (isLoadingStatus) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 bg-forvis-gray-50 min-h-screen">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6">
           <div className="flex items-start justify-between">
@@ -63,7 +96,7 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
                 Client Acceptance and Continuance
               </h2>
               <p className="text-sm text-forvis-gray-600">
-                Review client information and confirm acceptance before proceeding with the engagement.
+                Complete the questionnaire to assess client risk and compliance with professional standards.
               </p>
             </div>
             
@@ -72,97 +105,134 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
                 <CheckCircleIcon className="h-5 w-5 text-green-600" />
                 <span className="text-sm font-semibold text-green-700">Approved</span>
               </div>
-            ) : (
+            ) : status?.completed ? (
+              <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                <DocumentCheckIcon className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-semibold text-blue-700">Submitted</span>
+              </div>
+            ) : status?.exists ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
                 <ClockIcon className="h-5 w-5 text-yellow-600" />
-                <span className="text-sm font-semibold text-yellow-700">Pending</span>
+                <span className="text-sm font-semibold text-yellow-700">In Progress ({status?.completionPercentage || 0}%)</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 px-4 py-2 bg-forvis-gray-100 border-2 border-forvis-gray-300 rounded-lg">
+                <PlayIcon className="h-5 w-5 text-forvis-gray-600" />
+                <span className="text-sm font-semibold text-forvis-gray-700">Not Started</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Client Information */}
-        <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
-          <div className="px-6 py-4 border-b border-forvis-gray-200 bg-forvis-gray-50">
-            <h3 className="text-lg font-semibold text-forvis-gray-900">Client Information</h3>
-          </div>
-          <div className="px-6 py-4">
-            <dl className="grid grid-cols-2 gap-4">
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Client Name</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {project.client?.clientNameFull || project.client?.clientCode || 'N/A'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Client Code</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {project.client?.clientCode || 'N/A'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Partner</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {project.client?.clientPartner || 'N/A'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Manager</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {project.client?.clientManager || 'N/A'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Industry</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {project.client?.forvisMazarsIndustry || project.client?.industry || 'N/A'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Sector</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {project.client?.forvisMazarsSector || project.client?.sector || 'N/A'}
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-
-        {/* Project Information */}
-        <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
-          <div className="px-6 py-4 border-b border-forvis-gray-200 bg-forvis-gray-50">
-            <h3 className="text-lg font-semibold text-forvis-gray-900">Project Details</h3>
-          </div>
-          <div className="px-6 py-4">
-            <dl className="grid grid-cols-2 gap-4">
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Project Name</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">{project.name}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Project Type</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {project.projectType.replace(/_/g, ' ')}
-                </dd>
-              </div>
-              {project.taxYear && (
+        {/* Client Information (collapsed when working on questionnaire) */}
+        {(workflowState === 'not_started' || workflowState === 'approved') && (
+          <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
+            <div className="px-6 py-4 border-b border-forvis-gray-200 bg-forvis-gray-50">
+              <h3 className="text-lg font-semibold text-forvis-gray-900">Client Information</h3>
+            </div>
+            <div className="px-6 py-4">
+              <dl className="grid grid-cols-2 gap-4">
                 <div>
-                  <dt className="text-sm font-medium text-forvis-gray-600">Tax Year</dt>
-                  <dd className="mt-1 text-sm text-forvis-gray-900">{project.taxYear}</dd>
+                  <dt className="text-sm font-medium text-forvis-gray-600">Client Name</dt>
+                  <dd className="mt-1 text-sm text-forvis-gray-900">
+                    {project.client?.clientNameFull || project.client?.clientCode || 'N/A'}
+                  </dd>
                 </div>
-              )}
-              {project.description && (
-                <div className="col-span-2">
-                  <dt className="text-sm font-medium text-forvis-gray-600">Description</dt>
-                  <dd className="mt-1 text-sm text-forvis-gray-900">{project.description}</dd>
+                <div>
+                  <dt className="text-sm font-medium text-forvis-gray-600">Client Code</dt>
+                  <dd className="mt-1 text-sm text-forvis-gray-900">
+                    {project.client?.clientCode || 'N/A'}
+                  </dd>
                 </div>
-              )}
-            </dl>
+                <div>
+                  <dt className="text-sm font-medium text-forvis-gray-600">Partner</dt>
+                  <dd className="mt-1 text-sm text-forvis-gray-900">
+                    {project.client?.clientPartner || 'N/A'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-forvis-gray-600">Manager</dt>
+                  <dd className="mt-1 text-sm text-forvis-gray-900">
+                    {project.client?.clientManager || 'N/A'}
+                  </dd>
+                </div>
+              </dl>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Approval Status */}
-        {isApproved ? (
+        {/* Workflow State Content */}
+        {workflowState === 'not_started' && viewMode !== 'questionnaire' && (
+          <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6">
+            <h3 className="text-lg font-semibold text-forvis-gray-900 mb-3">
+              Begin Acceptance Questionnaire
+            </h3>
+            <p className="text-sm text-forvis-gray-700 mb-6">
+              The system will automatically determine whether to use the full or lite questionnaire based on client characteristics.
+            </p>
+            <button
+              onClick={() => setViewMode('questionnaire')}
+              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            >
+              <PlayIcon className="h-5 w-5" />
+              Start Questionnaire
+            </button>
+          </div>
+        )}
+
+        {(workflowState === 'in_progress' || viewMode === 'questionnaire') && (
+          <AcceptanceQuestionnaire 
+            projectId={project.id.toString()} 
+            onSubmitSuccess={handleSubmitSuccess}
+          />
+        )}
+
+        {workflowState === 'submitted' && (
+          <>
+            {canApprove && viewMode === 'review' ? (
+              <AcceptanceReview
+                projectId={project.id.toString()}
+                onApprove={handleApprove}
+                canApprove={canApprove}
+              />
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-blue-50 rounded-lg border-2 border-blue-200 shadow-corporate p-6">
+                  <div className="flex items-start">
+                    <DocumentCheckIcon className="h-6 w-6 text-blue-600 mt-1 mr-3" />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                        Questionnaire Submitted
+                      </h3>
+                      <p className="text-sm text-blue-700">
+                        Your questionnaire has been submitted for review by a Partner or System Administrator.
+                        {status?.riskRating && (
+                          <span className="block mt-2 font-semibold">
+                            Risk Rating: {status.riskRating} ({status.overallRiskScore}%)
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {canApprove && (
+                  <button
+                    onClick={() => setViewMode('review')}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  >
+                    <DocumentCheckIcon className="h-4 w-4" />
+                    Review and Approve
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {workflowState === 'approved' && (
           <div className="bg-green-50 rounded-lg border-2 border-green-200 shadow-corporate overflow-hidden">
             <div className="px-6 py-4">
               <div className="flex items-start">
@@ -194,6 +264,14 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
                         </dd>
                       </div>
                     )}
+                    {status?.riskRating && (
+                      <div>
+                        <dt className="text-sm font-medium text-green-800 inline">Final Risk Rating: </dt>
+                        <dd className="text-sm text-green-700 inline">
+                          {status.riskRating} ({status.overallRiskScore}%)
+                        </dd>
+                      </div>
+                    )}
                   </dl>
                   <p className="text-sm text-green-700 mt-3">
                     You can now proceed to generate and upload the engagement letter.
@@ -202,50 +280,14 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
               </div>
             </div>
           </div>
-        ) : (
-          <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
-            <div className="px-6 py-4">
-              <h3 className="text-lg font-semibold text-forvis-gray-900 mb-3">
-                Approval Required
-              </h3>
-              <p className="text-sm text-forvis-gray-700 mb-4">
-                Please review the client and project information above. Once you confirm that all details
-                are correct and the client acceptance process is complete, click the button below to approve.
-              </p>
+        )}
 
-              {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              )}
-
-              {isCheckingPermission ? (
-                <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-600">Checking permissions...</p>
-                </div>
-              ) : canApprove && !isApproved ? (
-                <button
-                  onClick={handleApprove}
-                  disabled={isApproving}
-                  className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                >
-                  <CheckCircleIcon className="h-5 w-5 mr-2" />
-                  {isApproving ? 'Approving...' : 'Approve Client Acceptance'}
-                </button>
-              ) : !isApproved ? (
-                <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    Only Partners and System Administrators can approve client acceptance.
-                  </p>
-                </div>
-              ) : null}
-            </div>
+        {error && (
+          <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+            <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
       </div>
     </div>
   );
 }
-
-
