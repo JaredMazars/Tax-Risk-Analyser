@@ -127,9 +127,9 @@ async function checkLiteEligibility(project: {
  * Get the questionnaire structure with sections and questions
  * Uses caching for improved performance
  */
-export function getQuestionnaireStructure(type: QuestionnaireType): QuestionSection[] {
-  // Import at function level to avoid circular dependencies
-  const { getCachedQuestionnaireStructure } = require('./cache');
+export async function getQuestionnaireStructure(type: QuestionnaireType): Promise<QuestionSection[]> {
+  // Dynamic import to avoid circular dependencies
+  const { getCachedQuestionnaireStructure } = await import('./cache');
   return getCachedQuestionnaireStructure(type);
 }
 

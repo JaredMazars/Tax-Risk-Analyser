@@ -13,7 +13,6 @@ export async function middleware(req: NextRequest) {
   // Skip auth check for other public routes
   if (
     pathname.startsWith('/auth') ||
-    pathname === '/' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/health')
   ) {
@@ -35,9 +34,21 @@ export async function middleware(req: NextRequest) {
     !pathname.startsWith('/api/health') &&
     !pathname.startsWith('/api/auth');
 
+  // Root path - redirect to Azure AD login if not authenticated
+  if (pathname === '/' && !isLoggedIn) {
+    const redirectUrl = new URL('/api/auth/login', req.url);
+    redirectUrl.searchParams.set('callbackUrl', '/dashboard');
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Redirect to dashboard if user is authenticated and accessing root
+  if (pathname === '/' && isLoggedIn) {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+
   // Require authentication for dashboard
   if (isDashboard && !isLoggedIn) {
-    const redirectUrl = new URL('/auth/signin', req.url);
+    const redirectUrl = new URL('/api/auth/login', req.url);
     redirectUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(redirectUrl);
   }

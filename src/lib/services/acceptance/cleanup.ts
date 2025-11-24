@@ -41,45 +41,15 @@ export async function cleanupOldDraftResponses(daysOld: number = 90): Promise<nu
 
 /**
  * Clean up orphaned documents
- * Removes document records that reference deleted responses
- * @returns Number of orphaned documents deleted
+ * Note: With CASCADE delete in schema, orphaned documents are automatically removed
+ * This function is kept for compatibility but will not find orphaned documents
+ * @returns Number of orphaned documents deleted (always 0 with current schema)
  */
 export async function cleanupOrphanedDocuments(): Promise<number> {
-  try {
-    // Find documents without valid response references
-    const orphanedDocuments = await prisma.acceptanceDocument.findMany({
-      where: {
-        Response: null,
-      },
-      select: {
-        id: true,
-        fileName: true,
-      },
-    });
-
-    if (orphanedDocuments.length === 0) {
-      logger.info('No orphaned documents found');
-      return 0;
-    }
-
-    // Delete orphaned documents
-    const result = await prisma.acceptanceDocument.deleteMany({
-      where: {
-        id: {
-          in: orphanedDocuments.map((doc) => doc.id),
-        },
-      },
-    });
-
-    logger.info(`Cleaned up ${result.count} orphaned documents`, {
-      documentIds: orphanedDocuments.map((doc) => doc.id),
-    });
-
-    return result.count;
-  } catch (error) {
-    logger.error('Error cleaning up orphaned documents', { error });
-    throw error;
-  }
+  // With CASCADE delete on Response relation, orphaned documents cannot exist
+  // Documents are automatically deleted when their parent Response is deleted
+  logger.info('No orphaned documents cleanup needed (CASCADE delete handles this)');
+  return 0;
 }
 
 /**

@@ -120,7 +120,7 @@ export async function POST(
     ]);
 
     // Get questionnaire structure (uses caching)
-    const structure = getQuestionnaireStructure(questionnaireType);
+    const structure = await getQuestionnaireStructure(questionnaireType);
 
     return NextResponse.json(
       successResponse({
