@@ -25,6 +25,8 @@ import { CreateProjectModal } from '@/components/features/projects/CreateProject
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
 import { useClient, clientKeys, type ClientWithProjects } from '@/hooks/clients/useClients';
 import { projectListKeys } from '@/hooks/projects/useProjects';
+import { useLatestCreditRating } from '@/hooks/analytics/useClientAnalytics';
+import { CreditRatingGrade } from '@/types/analytics';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -53,6 +55,9 @@ export default function ServiceLineClientDetailPage() {
     projectLimit,
     serviceLine: activeServiceLineTab,
   });
+
+  // Fetch latest credit rating
+  const { data: latestRating, isLoading: isLoadingRating } = useLatestCreditRating(clientId);
   
   // Transform client data to match expected format
   const client: any = useMemo(() => {
@@ -105,6 +110,25 @@ export default function ServiceLineClientDetailPage() {
     setSearchTerm('');
     setDebouncedSearch('');
   }, [activeServiceLineTab, mainTab]);
+
+  // Helper function to get rating badge color
+  const getRatingBadgeColor = (grade: CreditRatingGrade): string => {
+    switch (grade) {
+      case CreditRatingGrade.AAA:
+      case CreditRatingGrade.AA:
+      case CreditRatingGrade.A:
+        return 'bg-green-100 text-green-800';
+      case CreditRatingGrade.BBB:
+      case CreditRatingGrade.BB:
+      case CreditRatingGrade.B:
+        return 'bg-yellow-100 text-yellow-800';
+      case CreditRatingGrade.CCC:
+      case CreditRatingGrade.D:
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-forvis-gray-100 text-forvis-gray-800';
+    }
+  };
 
   // Placeholder function - returns random stage for demo
   const getProjectStage = (projectId: number): ProjectStage => {
@@ -289,6 +313,30 @@ export default function ServiceLineClientDetailPage() {
                           }`}>
                             {client.active === 'Yes' ? 'Active' : 'Inactive'}
                           </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-forvis-gray-500">Credit Rating</dt>
+                        <dd className="mt-0.5">
+                          {isLoadingRating ? (
+                            <div className="animate-pulse h-5 bg-forvis-gray-200 rounded w-32"></div>
+                          ) : latestRating ? (
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                getRatingBadgeColor(latestRating.ratingGrade)
+                              }`}>
+                                {latestRating.ratingGrade}
+                              </span>
+                              <span className="text-sm text-forvis-gray-900 font-medium">
+                                {latestRating.ratingScore}/100
+                              </span>
+                              <span className="text-xs text-forvis-gray-500">
+                                ({Math.round(latestRating.confidence * 100)}% confidence)
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-forvis-gray-500 italic">Not available</span>
+                          )}
                         </dd>
                       </div>
                       {client.clientDateOpen && (
