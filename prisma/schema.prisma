@@ -95,6 +95,7 @@ model Client {
   ClientAcceptanceResponse ClientAcceptanceResponse[]
   ClientAnalyticsDocument ClientAnalyticsDocument[]
   ClientCreditRating     ClientCreditRating[]
+  BDOpportunity          BDOpportunity[]  @relation("BDOpportunityClient")
 
   @@index([clientNameFull])
   @@index([clientCode])
@@ -768,7 +769,8 @@ model BDOpportunity {
   id                  Int           @id @default(autoincrement())
   title               String
   description         String?       @db.NVarChar(Max)
-  companyName         String
+  clientId            Int?          // Link to existing client (for current clients)
+  companyName         String?       // For new prospects (required if clientId is null)
   contactId           Int?
   serviceLine         String
   stageId             Int
@@ -779,11 +781,12 @@ model BDOpportunity {
   status              String        @default("OPEN") // OPEN, WON, LOST, ABANDONED
   lostReason          String?
   assignedTo          String        // User ID
-  convertedToClientId Int?          // Client ID after conversion
+  convertedToClientId Int?          // Client ID after conversion (if was a prospect)
   convertedAt         DateTime?
   createdBy           String
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+  Client              Client?       @relation("BDOpportunityClient", fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Contact             BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Stage               BDStage       @relation(fields: [stageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   BDActivity          BDActivity[]
@@ -794,6 +797,7 @@ model BDOpportunity {
   @@index([stageId])
   @@index([status])
   @@index([assignedTo])
+  @@index([clientId])
   @@index([convertedToClientId])
   @@index([expectedCloseDate])
   @@index([serviceLine, status])

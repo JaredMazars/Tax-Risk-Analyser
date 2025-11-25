@@ -10,7 +10,8 @@ export interface OpportunityWithRelations {
   id: number;
   title: string;
   description: string | null;
-  companyName: string;
+  clientId: number | null;
+  companyName: string | null;
   serviceLine: string;
   value: number | null;
   probability: number | null;
@@ -22,6 +23,11 @@ export interface OpportunityWithRelations {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
+  Client: {
+    id: number;
+    clientCode: string;
+    clientNameFull: string | null;
+  } | null;
   Contact: {
     id: number;
     companyName: string;
@@ -84,6 +90,13 @@ export async function getOpportunities(filters: {
     prisma.bDOpportunity.findMany({
       where,
       include: {
+        Client: {
+          select: {
+            id: true,
+            clientCode: true,
+            clientNameFull: true,
+          },
+        },
         Contact: {
           select: {
             id: true,
@@ -122,6 +135,13 @@ export async function getOpportunityById(
   const opportunity = await prisma.bDOpportunity.findUnique({
     where: { id: opportunityId },
     include: {
+      Client: {
+        select: {
+          id: true,
+          clientCode: true,
+          clientNameFull: true,
+        },
+      },
       Contact: {
         select: {
           id: true,
@@ -164,6 +184,13 @@ export async function getPipelineView(filters: {
   const opportunities = await prisma.bDOpportunity.findMany({
     where,
     include: {
+      Client: {
+        select: {
+          id: true,
+          clientCode: true,
+          clientNameFull: true,
+        },
+      },
       Contact: {
         select: {
           id: true,
@@ -205,7 +232,8 @@ export async function getPipelineView(filters: {
 export async function createOpportunity(data: {
   title: string;
   description?: string;
-  companyName: string;
+  clientId?: number;
+  companyName?: string;
   contactId?: number;
   serviceLine: string;
   stageId: number;
@@ -220,6 +248,7 @@ export async function createOpportunity(data: {
     data: {
       title: data.title,
       description: data.description,
+      clientId: data.clientId,
       companyName: data.companyName,
       contactId: data.contactId,
       serviceLine: data.serviceLine,
@@ -233,6 +262,13 @@ export async function createOpportunity(data: {
       createdBy: data.createdBy,
     },
     include: {
+      Client: {
+        select: {
+          id: true,
+          clientCode: true,
+          clientNameFull: true,
+        },
+      },
       Contact: {
         select: {
           id: true,
@@ -265,7 +301,8 @@ export async function updateOpportunity(
   data: Partial<{
     title: string;
     description: string | null;
-    companyName: string;
+    clientId: number | null;
+    companyName: string | null;
     contactId: number | null;
     stageId: number;
     value: number | null;
@@ -281,6 +318,13 @@ export async function updateOpportunity(
     where: { id: opportunityId },
     data,
     include: {
+      Client: {
+        select: {
+          id: true,
+          clientCode: true,
+          clientNameFull: true,
+        },
+      },
       Contact: {
         select: {
           id: true,

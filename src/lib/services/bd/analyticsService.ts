@@ -390,13 +390,14 @@ export async function getLeaderboard(filters: {
       };
     }
 
-    userStats[opp.assignedTo].totalCount++;
+    const stats = userStats[opp.assignedTo]!; // Non-null assertion: we just initialized it above
+    stats.totalCount++;
 
     if (opp.status === 'WON') {
-      userStats[opp.assignedTo].wonCount++;
-      userStats[opp.assignedTo].totalValue += opp.value || 0;
+      stats.wonCount++;
+      stats.totalValue += opp.value || 0;
     } else if (opp.status === 'LOST') {
-      userStats[opp.assignedTo].lostCount++;
+      stats.lostCount++;
     }
   }
 

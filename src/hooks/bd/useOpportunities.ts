@@ -14,7 +14,7 @@ import type {
 /**
  * Fetch opportunities with filters
  */
-export function useOpportunities(filters: BDOpportunityFiltersInput = {}) {
+export function useOpportunities(filters: BDOpportunityFiltersInput = { page: 1, pageSize: 50 }) {
   return useQuery({
     queryKey: ['bd-opportunities', filters],
     queryFn: async () => {

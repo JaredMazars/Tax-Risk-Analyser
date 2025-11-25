@@ -32,13 +32,19 @@ export default function BDPipelinePage() {
     },
   });
 
-  const { data: pipelineData, isLoading } = usePipeline({
-    serviceLine: serviceLine.toUpperCase(),
-  });
+  // When viewing from BUSINESS_DEV service line, show all opportunities
+  // Otherwise, filter by the current service line
+  const pipelineFilters = serviceLine.toUpperCase() === 'BUSINESS_DEV' 
+    ? {} 
+    : { serviceLine: serviceLine.toUpperCase() };
 
-  const { data: analytics } = usePipelineAnalytics({
-    serviceLine: serviceLine.toUpperCase(),
-  });
+  const { data: pipelineData, isLoading } = usePipeline(pipelineFilters);
+
+  const analyticsFilters = serviceLine.toUpperCase() === 'BUSINESS_DEV'
+    ? {}
+    : { serviceLine: serviceLine.toUpperCase() };
+
+  const { data: analytics } = usePipelineAnalytics(analyticsFilters);
 
   const createMutation = useCreateOpportunity();
 
@@ -82,7 +88,9 @@ export default function BDPipelinePage() {
             Business Development Pipeline
           </h1>
           <p className="text-sm text-forvis-gray-600 mt-1">
-            Track opportunities and manage your sales pipeline
+            {serviceLine.toUpperCase() === 'BUSINESS_DEV' 
+              ? 'Viewing all opportunities across all service lines'
+              : `Track opportunities for ${formatServiceLineName(serviceLine.toUpperCase())}`}
           </p>
         </div>
         <button

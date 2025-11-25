@@ -12,7 +12,7 @@ import type {
 /**
  * Fetch activities with filters
  */
-export function useActivities(filters: BDActivityFiltersInput = {}) {
+export function useActivities(filters: BDActivityFiltersInput = { page: 1, pageSize: 50 }) {
   return useQuery({
     queryKey: ['bd-activities', filters],
     queryFn: async () => {

@@ -496,7 +496,8 @@ export const UpdateBDContactSchema = z.object({
 export const CreateBDOpportunitySchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().max(10000).optional(),
-  companyName: z.string().min(1).max(500),
+  clientId: z.number().int().positive().optional(), // For existing clients  
+  companyName: z.string().min(1).max(500).optional(), // For new prospects - required if clientId not provided
   contactId: z.number().int().positive().optional(),
   serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']),
   stageId: z.number().int().positive(),
@@ -505,13 +506,18 @@ export const CreateBDOpportunitySchema = z.object({
   expectedCloseDate: z.coerce.date().optional(),
   source: z.enum(['REFERRAL', 'WEBSITE', 'COLD_CALL', 'NETWORKING', 'EXISTING_CLIENT', 'OTHER']).optional(),
   assignedTo: z.string().min(1).optional(), // Will default to creator if not provided
-}).strict();
+}).strict().refine(
+  (data) => data.clientId !== undefined || (data.companyName !== undefined && data.companyName.length > 0),
+  { message: 'Either select an existing client or enter a company name for a new prospect', path: ['companyName'] }
+);
 
 export const UpdateBDOpportunitySchema = z.object({
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(10000).optional(),
+  clientId: z.number().int().positive().nullable().optional(),
   companyName: z.string().min(1).max(500).optional(),
   contactId: z.number().int().positive().nullable().optional(),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']).optional(),
   stageId: z.number().int().positive().optional(),
   value: z.number().min(0).nullable().optional(),
   probability: z.number().min(0).max(100).nullable().optional(),

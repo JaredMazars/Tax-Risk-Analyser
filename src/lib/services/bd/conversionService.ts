@@ -61,18 +61,20 @@ export async function convertOpportunityToClient(
   // Check if client already exists by company name
   let client = await prisma.client.findFirst({
     where: {
-      clientNameFull: opportunity.companyName,
+      clientNameFull: opportunity.companyName || undefined,
     },
   });
 
   // If client doesn't exist, create it
   if (!client) {
+    if (!opportunity.companyName) {
+      throw new Error('Cannot convert opportunity without a company name');
+    }
     // Generate a unique client code
     const clientCode = await generateClientCode(opportunity.companyName);
 
     client = await prisma.client.create({
       data: {
-        ClientID: uuidv4(),
         clientCode,
         clientNameFull: opportunity.companyName,
         groupCode: clientCode, // Use same as client code initially

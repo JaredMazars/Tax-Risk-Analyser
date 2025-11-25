@@ -5,7 +5,8 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { CreateBDOpportunityInput } from '@/lib/validation/schemas';
 
 interface OpportunityFormProps {
@@ -23,9 +24,13 @@ export function OpportunityForm({
   onCancel,
   isLoading,
 }: OpportunityFormProps) {
+  const [opportunityType, setOpportunityType] = useState<'current' | 'prospect'>(
+    initialData?.clientId ? 'current' : 'prospect'
+  );
   const [formData, setFormData] = useState<Partial<CreateBDOpportunityInput>>({
     title: initialData?.title || '',
     description: initialData?.description || '',
+    clientId: initialData?.clientId,
     companyName: initialData?.companyName || '',
     serviceLine: initialData?.serviceLine || 'BUSINESS_DEV',
     stageId: initialData?.stageId || (stages[0]?.id || 0),
@@ -35,9 +40,46 @@ export function OpportunityForm({
     source: initialData?.source,
   });
 
+  // Client search state
+  const [clientSearch, setClientSearch] = useState('');
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const clientSearchRef = useRef<HTMLDivElement>(null);
+
+  // Fetch clients based on search
+  const { data: clientsData, isLoading: isLoadingClients } = useQuery({
+    queryKey: ['clients', 'search', clientSearch],
+    queryFn: async () => {
+      const res = await fetch(`/api/clients?search=${encodeURIComponent(clientSearch)}&limit=50`);
+      if (!res.ok) throw new Error('Failed to fetch clients');
+      const result = await res.json();
+      return result.data?.clients || [];
+    },
+    enabled: opportunityType === 'current' && clientSearch.length >= 2,
+  });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (clientSearchRef.current && !clientSearchRef.current.contains(event.target as Node)) {
+        setShowClientDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData as CreateBDOpportunityInput);
+    // Clean up form data based on opportunity type
+    const submitData = { ...formData };
+    if (opportunityType === 'current') {
+      delete submitData.companyName; // Remove if using clientId
+    } else {
+      delete submitData.clientId; // Remove if using companyName
+    }
+    onSubmit(submitData as CreateBDOpportunityInput);
   };
 
   const handleChange = (
@@ -49,6 +91,36 @@ export function OpportunityForm({
       [name]:
         type === 'number' ? (value === '' ? undefined : parseFloat(value)) : value || undefined,
     }));
+  };
+
+  const handleTypeChange = (type: 'current' | 'prospect') => {
+    setOpportunityType(type);
+    // Clear the opposing field when switching types
+    if (type === 'current') {
+      setFormData((prev) => ({ ...prev, companyName: undefined, clientId: undefined }));
+      setClientSearch('');
+      setSelectedClient(null);
+    } else {
+      setFormData((prev) => ({ ...prev, clientId: undefined, companyName: '' }));
+      setClientSearch('');
+      setSelectedClient(null);
+    }
+  };
+
+  const handleClientSelect = (client: any) => {
+    setSelectedClient(client);
+    setClientSearch(client.clientNameFull || client.clientCode);
+    setFormData((prev) => ({ ...prev, clientId: client.id }));
+    setShowClientDropdown(false);
+  };
+
+  const handleClientSearchChange = (value: string) => {
+    setClientSearch(value);
+    setShowClientDropdown(value.length >= 2);
+    if (value.length < 2) {
+      setSelectedClient(null);
+      setFormData((prev) => ({ ...prev, clientId: undefined }));
+    }
   };
 
   return (
@@ -69,21 +141,159 @@ export function OpportunityForm({
         />
       </div>
 
-      {/* Company Name */}
+      {/* Opportunity Type Selector */}
       <div>
-        <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
-          Company Name <span className="text-red-600">*</span>
+        <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+          Opportunity Type <span className="text-red-600">*</span>
         </label>
-        <input
-          type="text"
-          name="companyName"
-          value={formData.companyName}
-          onChange={handleChange}
-          required
-          className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-          placeholder="e.g., ABC Corporation (Pty) Ltd"
-        />
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleTypeChange('current')}
+            className={`px-4 py-3 rounded-lg text-sm font-medium border-2 transition-all ${
+              opportunityType === 'current'
+                ? 'border-forvis-blue-500 bg-forvis-blue-50 text-forvis-blue-700'
+                : 'border-forvis-gray-300 bg-white text-forvis-gray-700 hover:border-forvis-gray-400'
+            }`}
+          >
+            <div className="flex flex-col items-center">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+              <span>Current Client</span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTypeChange('prospect')}
+            className={`px-4 py-3 rounded-lg text-sm font-medium border-2 transition-all ${
+              opportunityType === 'prospect'
+                ? 'border-forvis-blue-500 bg-forvis-blue-50 text-forvis-blue-700'
+                : 'border-forvis-gray-300 bg-white text-forvis-gray-700 hover:border-forvis-gray-400'
+            }`}
+          >
+            <div className="flex flex-col items-center">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span>New Prospect</span>
+            </div>
+          </button>
+        </div>
       </div>
+
+      {/* Client Selector or Company Name */}
+      {opportunityType === 'current' ? (
+        <div className="relative" ref={clientSearchRef}>
+          <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
+            Search for Client <span className="text-red-600">*</span>
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-forvis-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={clientSearch}
+              onChange={(e) => handleClientSearchChange(e.target.value)}
+              onFocus={() => clientSearch.length >= 2 && setShowClientDropdown(true)}
+              placeholder="Type to search clients..."
+              required
+              className="block w-full pl-10 pr-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+            />
+            {selectedClient && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClientSearch('');
+                    setSelectedClient(null);
+                    setFormData((prev) => ({ ...prev, clientId: undefined }));
+                  }}
+                  className="text-forvis-gray-400 hover:text-forvis-gray-600"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* Loading State */}
+          {showClientDropdown && isLoadingClients && (
+            <div className="absolute z-10 mt-1 w-full bg-white border border-forvis-gray-300 rounded-lg shadow-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-forvis-blue-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <p className="text-sm text-forvis-gray-600">Searching...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Dropdown Results */}
+          {showClientDropdown && !isLoadingClients && clientsData && clientsData.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full bg-white border border-forvis-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+              {clientsData.map((client: any) => (
+                <button
+                  key={client.id}
+                  type="button"
+                  onClick={() => handleClientSelect(client)}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-forvis-blue-50 focus:bg-forvis-blue-50 focus:outline-none transition-colors"
+                >
+                  <div className="font-medium text-forvis-gray-900">
+                    {client.clientNameFull || client.clientCode}
+                  </div>
+                  <div className="text-xs text-forvis-gray-600">
+                    {client.clientCode} • {client.groupDesc || 'No group'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* No Results */}
+          {showClientDropdown && !isLoadingClients && clientSearch.length >= 2 && clientsData && clientsData.length === 0 && (
+            <div className="absolute z-10 mt-1 w-full bg-white border border-forvis-gray-300 rounded-lg shadow-lg p-4 text-center">
+              <p className="text-sm text-forvis-gray-600">No clients found matching "{clientSearch}"</p>
+            </div>
+          )}
+          
+          {/* Search hint */}
+          {!selectedClient && clientSearch.length < 2 && (
+            <p className="mt-1 text-xs text-forvis-gray-500">Type at least 2 characters to search</p>
+          )}
+        </div>
+      ) : (
+        <div>
+          <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
+            Company Name <span className="text-red-600">*</span>
+          </label>
+          <input
+            type="text"
+            name="companyName"
+            value={formData.companyName || ''}
+            onChange={handleChange}
+            required
+            className="block w-full px-4 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+            placeholder="e.g., ABC Corporation (Pty) Ltd"
+          />
+        </div>
+      )}
 
       {/* Description */}
       <div>

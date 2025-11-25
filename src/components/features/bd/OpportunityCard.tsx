@@ -12,10 +12,16 @@ interface OpportunityCardProps {
   opportunity: {
     id: number;
     title: string;
-    companyName: string;
+    clientId: number | null;
+    companyName: string | null;
     value: number | null;
     probability: number | null;
     expectedCloseDate: Date | null;
+    Client: {
+      id: number;
+      clientCode: string;
+      clientNameFull: string | null;
+    } | null;
     Contact: {
       firstName: string;
       lastName: string;
@@ -51,7 +57,16 @@ export function OpportunityCard({ opportunity, onClick }: OpportunityCardProps) 
         <h3 className="text-sm font-bold text-forvis-gray-900 line-clamp-2">
           {opportunity.title}
         </h3>
-        <p className="text-xs text-forvis-gray-600 mt-1">{opportunity.companyName}</p>
+        <p className="text-xs text-forvis-gray-600 mt-1">
+          {opportunity.Client 
+            ? `${opportunity.Client.clientNameFull || opportunity.Client.clientCode} (${opportunity.Client.clientCode})`
+            : opportunity.companyName || 'No company'}
+        </p>
+        {opportunity.Client && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-green-100 text-forvis-green-800 mt-1">
+            Current Client
+          </span>
+        )}
       </div>
 
       {/* Value */}
