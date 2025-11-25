@@ -13,7 +13,7 @@ import { AITaxReportData } from '@/lib/services/opinions/aiTaxReportGenerator';
 import { useProject, useMappedAccounts, useTaxAdjustments, useTaxCalculation, useTrialBalance } from '@/hooks/projects/useProjectData';
 
 interface ReportingPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 interface TrialBalanceAccount {
@@ -47,12 +47,11 @@ interface Tab {
   component: React.ReactNode;
 }
 
-export default async function ReportingPage(props: ReportingPageProps) {
-  const params = await props.params;
+export default function ReportingPage({ params }: ReportingPageProps) {
+  // Note: In client components, params is already resolved (not a Promise)
   const [activeTab, setActiveTab] = useState('trialBalance');
   const [isExporting, setIsExporting] = useState(false);
 
-  // Fetch all data using React Query
   const { data: project } = useProject(params.id);
   const { data: trialBalanceData, isLoading: isLoadingTrialBalance, error: trialBalanceError } = useTrialBalance(params.id);
   const { data: mappedData = [], isLoading: isLoadingMapped, error: mappedError } = useMappedAccounts(params.id);

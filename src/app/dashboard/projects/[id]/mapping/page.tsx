@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
@@ -274,11 +272,11 @@ function MappingTable({ mappedData, onMappingUpdate, onRowClick }: MappingTableP
 }
 
 interface MappingPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default async function MappingPage(props: MappingPageProps) {
-  const params = await props.params;
+export default function MappingPage({ params }: { params: { id: string } }) {
+  // Note: In client components, params is already resolved (not a Promise)
   const queryClient = useQueryClient();
   const { data: project } = useProject(params.id);
   const { data: mappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);

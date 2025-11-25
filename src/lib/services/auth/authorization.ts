@@ -82,6 +82,8 @@ export async function getUserSystemRole(userId: string): Promise<SystemRole | nu
 
 /**
  * Get user's role in a specific service line
+ * @deprecated Use getServiceLineRole from serviceLineService instead (more flexible typing)
+ * This version is kept for internal authorization use only
  */
 export async function getServiceLineRole(
   userId: string,
@@ -126,6 +128,8 @@ export async function isManager(userId: string, serviceLine: string): Promise<bo
 
 /**
  * Check if user has service line access at all
+ * @deprecated Use checkServiceLineAccess from serviceLineService instead (supports role hierarchy)
+ * This simplified version is kept for internal authorization use only
  */
 export async function hasServiceLineAccess(
   userId: string,
@@ -301,6 +305,8 @@ export async function checkFeaturePermission(
 
 /**
  * Get all service lines a user has access to
+ * @deprecated Use getUserServiceLines from serviceLineService instead (returns enhanced data with stats)
+ * This simplified version is kept for internal authorization use only
  */
 export async function getUserServiceLines(userId: string): Promise<
   Array<{
@@ -344,6 +350,7 @@ export async function getUserServiceLines(userId: string): Promise<
 
 /**
  * Format service line role for display
+ * @deprecated Use formatServiceLineRole from permissionUtils instead
  */
 export function formatServiceLineRole(role: string): string {
   switch (role) {
@@ -362,6 +369,7 @@ export function formatServiceLineRole(role: string): string {
 
 /**
  * Format system role for display
+ * @deprecated Use formatSystemRole from permissionUtils instead
  */
 export function formatSystemRole(role: string): string {
   switch (role) {

@@ -1,5 +1,7 @@
 'use client';
 
+import { formatAmount } from '@/lib/utils/formatters';
+
 interface TrialBalanceAccount {
   id: number;
   accountCode: string;
@@ -33,14 +35,6 @@ export default function TrialBalanceReport({ accounts }: TrialBalanceReportProps
     .filter(acc => acc.priorYearBalance < 0)
     .reduce((sum, acc) => sum + Math.abs(acc.priorYearBalance), 0);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
-
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
@@ -50,28 +44,28 @@ export default function TrialBalanceReport({ accounts }: TrialBalanceReportProps
           style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
         >
           <p className="text-sm font-semibold mb-1 opacity-90">Current Year Debits</p>
-          <p className="text-2xl font-bold">{formatCurrency(currentYearDebits)}</p>
+          <p className="text-2xl font-bold">{formatAmount(currentYearDebits)}</p>
         </div>
         <div 
           className="rounded-lg p-4 shadow-corporate text-white"
           style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
         >
           <p className="text-sm font-semibold mb-1 opacity-90">Current Year Credits</p>
-          <p className="text-2xl font-bold">{formatCurrency(currentYearCredits)}</p>
+          <p className="text-2xl font-bold">{formatAmount(currentYearCredits)}</p>
         </div>
         <div 
           className="rounded-lg p-4 shadow-corporate text-white"
           style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
         >
           <p className="text-sm font-semibold mb-1 opacity-90">Prior Year Debits</p>
-          <p className="text-2xl font-bold">{formatCurrency(priorYearDebits)}</p>
+          <p className="text-2xl font-bold">{formatAmount(priorYearDebits)}</p>
         </div>
         <div 
           className="rounded-lg p-4 shadow-corporate text-white"
           style={{ background: 'linear-gradient(to bottom right, #1C3667, #132445)' }}
         >
           <p className="text-sm font-semibold mb-1 opacity-90">Prior Year Credits</p>
-          <p className="text-2xl font-bold">{formatCurrency(priorYearCredits)}</p>
+          <p className="text-2xl font-bold">{formatAmount(priorYearCredits)}</p>
         </div>
       </div>
 
@@ -116,16 +110,16 @@ export default function TrialBalanceReport({ accounts }: TrialBalanceReportProps
                   {account.sarsItem}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-forvis-gray-900 tabular-nums">
-                  {account.balance > 0 ? formatCurrency(account.balance) : '-'}
+                  {account.balance > 0 ? formatAmount(account.balance) : '-'}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-forvis-gray-900 tabular-nums">
-                  {account.balance < 0 ? formatCurrency(Math.abs(account.balance)) : '-'}
+                  {account.balance < 0 ? formatAmount(Math.abs(account.balance)) : '-'}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-forvis-gray-600 tabular-nums">
-                  {account.priorYearBalance > 0 ? formatCurrency(account.priorYearBalance) : '-'}
+                  {account.priorYearBalance > 0 ? formatAmount(account.priorYearBalance) : '-'}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-forvis-gray-600 tabular-nums">
-                  {account.priorYearBalance < 0 ? formatCurrency(Math.abs(account.priorYearBalance)) : '-'}
+                  {account.priorYearBalance < 0 ? formatAmount(Math.abs(account.priorYearBalance)) : '-'}
                 </td>
               </tr>
             ))}
@@ -136,16 +130,16 @@ export default function TrialBalanceReport({ accounts }: TrialBalanceReportProps
                 Totals
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-white tabular-nums">
-                {formatCurrency(currentYearDebits)}
+                {formatAmount(currentYearDebits)}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-white tabular-nums">
-                {formatCurrency(currentYearCredits)}
+                {formatAmount(currentYearCredits)}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-white tabular-nums">
-                {formatCurrency(priorYearDebits)}
+                {formatAmount(priorYearDebits)}
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-white tabular-nums">
-                {formatCurrency(priorYearCredits)}
+                {formatAmount(priorYearCredits)}
               </td>
             </tr>
           </tfoot>
@@ -185,7 +179,7 @@ export default function TrialBalanceReport({ accounts }: TrialBalanceReportProps
             }`}>
               {Math.abs(currentYearDebits - currentYearCredits) < 0.01
                 ? '✓ Balanced'
-                : `⚠ Out of Balance: ${formatCurrency(Math.abs(currentYearDebits - currentYearCredits))}`
+                : `⚠ Out of Balance: ${formatAmount(Math.abs(currentYearDebits - currentYearCredits))}`
               }
             </p>
           </div>

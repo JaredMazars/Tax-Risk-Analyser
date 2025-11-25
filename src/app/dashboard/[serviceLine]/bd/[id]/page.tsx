@@ -124,15 +124,6 @@ export default function OpportunityDetailPage() {
     );
   }
 
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return 'N/A';
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
   return (
     <div className="min-h-screen bg-forvis-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -216,7 +207,7 @@ export default function OpportunityDetailPage() {
         <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
           <p className="text-xs font-medium text-forvis-gray-600">Value</p>
           <p className="text-2xl font-bold mt-1" style={{ color: '#2E5AAC' }}>
-            {formatCurrency(opportunity.value)}
+            {opportunity.value ? formatAmount(opportunity.value) : 'N/A'}
           </p>
         </div>
 

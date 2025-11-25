@@ -23,8 +23,8 @@ interface TaxAdjustment {
 
 type StatusFilter = 'ALL' | 'SUGGESTED' | 'APPROVED' | 'MODIFIED' | 'REJECTED' | 'ARCHIVED';
 
-export default async function AdjustmentsListPage(props: AdjustmentsListProps) {
-  const params = await props.params;
+export default function AdjustmentsListPage({ params }: { params: { id: string } }) {
+  // Note: In client components, params is already resolved (not a Promise)
   const router = useRouter();
   const [adjustments, setAdjustments] = useState<TaxAdjustment[]>([]);
   const [isLoading, setIsLoading] = useState(true);

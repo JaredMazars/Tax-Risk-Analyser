@@ -142,7 +142,7 @@ export function tooManyRequestsResponse(
 
 /**
  * Return a standardized success response
- * Re-exported from apiUtils for convenience
+ * @deprecated Use successResponse from apiUtils instead (this function is never used)
  */
 export function okResponse<T>(data: T, meta?: Record<string, unknown>): NextResponse<SuccessResponse<T>> {
   return NextResponse.json({

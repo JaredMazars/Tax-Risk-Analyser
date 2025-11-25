@@ -6,11 +6,11 @@ import { AdministrationDocument } from '@/types';
 import { PlusIcon, FolderIcon, DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 interface DocumentManagementPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default async function DocumentManagementPage(props: DocumentManagementPageProps) {
-  const params = await props.params;
+export default function DocumentManagementPage({ params }: DocumentManagementPageProps) {
+  // Note: In client components, params is already resolved (not a Promise)
   const { data: project } = useProject(params.id);
   const [documents, setDocuments] = useState<AdministrationDocument[]>([]);
   const [isLoading, setIsLoading] = useState(false);

@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { mappingGuide } from '@/lib/services/projects/mappingGuide';
 import { formatAmount } from '@/lib/utils/formatters';
@@ -15,11 +13,11 @@ const subsectionDisplayNames: Record<string, string> = {
 };
 
 interface IncomeStatementPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default async function IncomeStatementPage(props: IncomeStatementPageProps) {
-  const params = await props.params;
+export default function IncomeStatementPage({ params }: { params: { id: string } }) {
+  // Note: In client components, params is already resolved (not a Promise)
   const { data: allMappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);
   const updateMappedAccount = useUpdateMappedAccount(params.id);
   

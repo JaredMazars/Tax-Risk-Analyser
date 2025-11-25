@@ -15,7 +15,8 @@ import {
   MagnifyingGlassIcon,
   PresentationChartLineIcon,
 } from '@heroicons/react/24/outline';
-import { getProjectTypeColor, formatProjectType, formatDate } from '@/lib/utils/projectUtils';
+import { formatDate } from '@/lib/utils/projectUtils';
+import { getProjectTypeColor, formatProjectType } from '@/lib/utils/serviceLineUtils';
 import { ProjectStageIndicator } from '@/components/features/projects/ProjectStageIndicator';
 import { ProjectStage } from '@/types/project-stages';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';

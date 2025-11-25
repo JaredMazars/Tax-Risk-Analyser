@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { mappingGuide } from '@/lib/services/projects/mappingGuide';
 import { formatAmount } from '@/lib/utils/formatters';
@@ -143,11 +141,11 @@ function BalanceSheetSection({ title, items, onMappingUpdate, onOpenModal }: Bal
 }
 
 interface BalanceSheetPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default async function BalanceSheetPage(props: BalanceSheetPageProps) {
-  const params = await props.params;
+export default function BalanceSheetPage({ params }: { params: { id: string } }) {
+  // Note: In client components, params is already resolved (not a Promise)
   const { data: mappedData = [], isLoading, error: queryError } = useMappedAccounts(params.id);
   const updateMappedAccount = useUpdateMappedAccount(params.id);
   

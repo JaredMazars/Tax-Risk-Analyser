@@ -57,6 +57,28 @@ export function getSystemRoleDescription(role: string): string {
 }
 
 /**
+ * Get service line role options for select dropdowns
+ */
+export function getServiceLineRoleOptions() {
+  return [
+    { value: 'VIEWER', label: 'Viewer (View-only)', description: 'Read-only access' },
+    { value: 'USER', label: 'Staff', description: 'Can complete work' },
+    { value: 'MANAGER', label: 'Manager', description: 'Can manage projects' },
+    { value: 'ADMIN', label: 'Partner', description: 'Can approve acceptance and engagement letters' },
+  ];
+}
+
+/**
+ * Get system role options for select dropdowns
+ */
+export function getSystemRoleOptions() {
+  return [
+    { value: 'USER', label: 'User', description: 'Regular user - requires service line access' },
+    { value: 'SUPERUSER', label: 'System Administrator', description: 'System-wide access to all features' },
+  ];
+}
+
+/**
  * Get role badge color
  */
 export function getRoleBadgeColor(role: string): string {

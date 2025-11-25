@@ -2,6 +2,7 @@ import { ProjectType, ProjectRole } from '@/types';
 
 /**
  * Get color classes for project type badges
+ * @deprecated Use getProjectTypeColor from serviceLineUtils instead
  */
 export function getProjectTypeColor(type: string): string {
   // Tax types
@@ -50,6 +51,7 @@ export function getProjectTypeBorderColor(type: string): string {
 
 /**
  * Format project type for display
+ * @deprecated Use formatProjectType from serviceLineUtils instead
  */
 export function formatProjectType(type: string): string {
   const typeMap: Record<string, string> = {
@@ -78,6 +80,7 @@ export function formatProjectType(type: string): string {
 
 /**
  * Get color classes for role badges
+ * @deprecated Use getRoleBadgeColor from permissionUtils instead
  */
 export function getRoleBadgeColor(role: string): string {
   switch (role) {
@@ -103,6 +106,7 @@ export function formatRole(role: string): string {
 
 /**
  * Format system role for display
+ * @deprecated Use formatSystemRole from permissionUtils instead
  */
 export function formatSystemRole(role: string): string {
   const roleMap: Record<string, string> = {
@@ -115,6 +119,7 @@ export function formatSystemRole(role: string): string {
 
 /**
  * Get system role description
+ * @deprecated Use getSystemRoleDescription from permissionUtils instead
  */
 export function getSystemRoleDescription(role: string): string {
   const descriptionMap: Record<string, string> = {

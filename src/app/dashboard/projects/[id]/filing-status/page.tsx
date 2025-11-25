@@ -6,11 +6,11 @@ import { FilingStatus } from '@/types';
 import { PlusIcon, DocumentCheckIcon, CalendarIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 interface FilingStatusPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default async function FilingStatusPage(props: FilingStatusPageProps) {
-  const params = await props.params;
+export default function FilingStatusPage({ params }: FilingStatusPageProps) {
+  // Note: In client components, params is already resolved (not a Promise)
   const { data: project } = useProject(params.id);
   const [filings, setFilings] = useState<FilingStatus[]>([]);
   const [isLoading, setIsLoading] = useState(false);

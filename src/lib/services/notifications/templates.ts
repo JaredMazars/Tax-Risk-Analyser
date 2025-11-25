@@ -1,4 +1,5 @@
 import { ROUTES } from '@/constants/routes';
+import { formatRole } from '@/lib/utils/projectUtils';
 
 /**
  * Notification template result
@@ -131,15 +132,4 @@ export function createUserMessageNotification(
   };
 }
 
-/**
- * Format role for display
- */
-function formatRole(role: string): string {
-  const roleMap: Record<string, string> = {
-    ADMIN: 'Administrator',
-    EDITOR: 'Editor',
-    VIEWER: 'Viewer',
-  };
-  return roleMap[role] || role;
-}
 

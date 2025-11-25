@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatAmount } from '@/lib/utils/formatters';
@@ -23,8 +21,8 @@ interface TaxAdjustment {
   notes?: string;
 }
 
-export default async function TaxCalculationPage(props: TaxCalculationProps) {
-  const params = await props.params;
+export default function TaxCalculationPage({ params }: { params: { id: string } }) {
+  // Note: In client components, params is already resolved (not a Promise)
   const router = useRouter();
   const { data: taxCalcData, isLoading: isLoadingCalc } = useTaxCalculation(params.id);
   const { data: adjustments = [], isLoading: isLoadingAdjustments, error: queryError } = useTaxAdjustments(params.id);

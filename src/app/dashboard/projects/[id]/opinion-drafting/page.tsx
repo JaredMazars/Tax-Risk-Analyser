@@ -21,13 +21,13 @@ import SectionEditor from '@/components/features/opinions/OpinionAssistant/Secti
 import OpinionPreview from '@/components/features/opinions/OpinionAssistant/OpinionPreview';
 
 interface OpinionDraftingPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 type TabType = 'chat' | 'documents' | 'sections' | 'preview';
 
-export default async function OpinionDraftingPage(props: OpinionDraftingPageProps) {
-  const params = await props.params;
+export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps) {
+  // Note: In client components, params is already resolved (not a Promise)
   const { data: project, isLoading: projectLoading } = useProject(params.id);
   const [drafts, setDrafts] = useState<OpinionDraft[]>([]);
   const [isLoading, setIsLoading] = useState(false);

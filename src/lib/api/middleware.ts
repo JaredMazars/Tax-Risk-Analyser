@@ -1,5 +1,9 @@
 /**
  * API route middleware for authentication and authorization
+ * 
+ * NOTE: These middleware functions are currently UNUSED in the codebase.
+ * The project convention is to use manual authentication/authorization checks in each route.
+ * These are kept for potential future use but may be removed if not needed.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,6 +18,7 @@ import { unauthorizedResponse, forbiddenResponse, badRequestResponse, internalEr
 /**
  * Middleware to require authentication
  * Wraps a handler and ensures user is authenticated
+ * @deprecated Currently unused - routes use manual authentication checks instead
  */
 export function withAuth<TParams extends Record<string, string>, TResponse>(
   handler: AuthenticatedHandler<TParams, TResponse>
@@ -42,6 +47,7 @@ export function withAuth<TParams extends Record<string, string>, TResponse>(
 /**
  * Middleware to require project access
  * Wraps a handler and ensures user has access to the project
+ * @deprecated Currently unused - routes use manual authorization checks instead
  */
 export function withProjectAccess<TParams extends Record<string, string> & { id: string }, TResponse>(
   requiredRole?: string
@@ -73,6 +79,7 @@ export function withProjectAccess<TParams extends Record<string, string> & { id:
 /**
  * Middleware to require service line access
  * Wraps a handler and ensures user has access to the service line
+ * @deprecated Currently unused - routes use manual authorization checks instead
  */
 export function withServiceLineAccess<TParams extends Record<string, string> & { serviceLine: string }, TResponse>(
   requiredRole?: ServiceLineRole | string
@@ -110,6 +117,7 @@ export function withServiceLineAccess<TParams extends Record<string, string> & {
 
 /**
  * Helper to validate request body with Zod schema
+ * @deprecated Currently unused - routes parse request body directly
  */
 export async function validateBody<T>(
   request: NextRequest,

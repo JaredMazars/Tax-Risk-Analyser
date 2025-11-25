@@ -400,4 +400,62 @@ export * from './notification';
 export * from './project-stages';
 
 // Re-export analytics types
-export * from './analytics'; 
+export * from './analytics';
+
+/**
+ * Tax Adjustment Model
+ * Centralized type definition for TaxAdjustment to prevent duplication
+ * Matches Prisma schema
+ */
+export interface TaxAdjustment {
+  id: number;
+  projectId: number;
+  type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT' | string;
+  description: string;
+  amount: number;
+  status: string;
+  sourceDocuments?: string | null;
+  extractedData?: string | null;
+  calculationDetails?: string | null;
+  notes?: string | null;
+  sarsSection?: string | null;
+  confidenceScore?: number | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  AdjustmentDocument?: AdjustmentDocument[];
+}
+
+/**
+ * Tax Adjustment Display Type
+ * Simplified version for display purposes (without relations)
+ */
+export interface TaxAdjustmentDisplay {
+  id: number;
+  type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT' | string;
+  description: string;
+  amount: number;
+  status: string;
+  sarsSection?: string | null;
+  confidenceScore?: number | null;
+  notes?: string | null;
+  createdAt?: Date | string;
+}
+
+/**
+ * Adjustment Document Model
+ */
+export interface AdjustmentDocument {
+  id: number;
+  projectId: number;
+  taxAdjustmentId?: number | null;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  filePath: string;
+  uploadedBy?: string | null;
+  extractionStatus: string;
+  extractedData?: string | null;
+  extractionError?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+} 

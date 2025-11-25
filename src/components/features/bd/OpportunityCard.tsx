@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { formatAmount } from '@/lib/utils/formatters';
 
 interface OpportunityCardProps {
   opportunity: {
@@ -37,15 +38,6 @@ interface OpportunityCardProps {
 }
 
 export function OpportunityCard({ opportunity, onClick }: OpportunityCardProps) {
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return 'N/A';
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
   return (
     <div
       className="bg-white rounded-lg border-2 shadow-corporate hover:shadow-corporate-md transition-shadow cursor-pointer p-3"
@@ -73,7 +65,7 @@ export function OpportunityCard({ opportunity, onClick }: OpportunityCardProps) 
       {opportunity.value && (
         <div className="mb-2">
           <p className="text-lg font-bold tabular-nums" style={{ color: '#2E5AAC' }}>
-            {formatCurrency(opportunity.value)}
+            {opportunity.value ? formatAmount(opportunity.value) : 'N/A'}
           </p>
         </div>
       )}

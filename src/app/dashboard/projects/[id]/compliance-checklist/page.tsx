@@ -6,11 +6,11 @@ import { ComplianceChecklistItem } from '@/types';
 import { PlusIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 interface ComplianceChecklistPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default async function ComplianceChecklistPage(props: ComplianceChecklistPageProps) {
-  const params = await props.params;
+export default function ComplianceChecklistPage({ params }: ComplianceChecklistPageProps) {
+  // Note: In client components, params is already resolved (not a Promise)
   const { data: project } = useProject(params.id);
   const [items, setItems] = useState<ComplianceChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);

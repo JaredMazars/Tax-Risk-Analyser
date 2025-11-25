@@ -1,4 +1,5 @@
 import { UserRemovedEmailData } from '@/types/email';
+import { formatProjectType } from '@/lib/utils/serviceLineUtils';
 
 /**
  * Generate HTML email content for user removed notification
@@ -130,15 +131,4 @@ This is an automated notification. Please do not reply to this email.
   `.trim();
 }
 
-/**
- * Format project type for display
- */
-function formatProjectType(type: string): string {
-  const typeMap: Record<string, string> = {
-    TAX_CALCULATION: 'Tax Calculation',
-    TAX_OPINION: 'Tax Opinion',
-    TAX_ADMINISTRATION: 'Tax Administration',
-  };
-  return typeMap[type] || type;
-}
 

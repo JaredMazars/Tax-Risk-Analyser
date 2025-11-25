@@ -3,6 +3,7 @@ import { models, getModelParams } from '@/lib/ai/config';
 import { FinancialRatioCalculator, FinancialData } from './financialRatioCalculator';
 import { CreditAnalysisReport, CreditRatingGrade, FinancialRatios } from '@/types/analytics';
 import { logger } from '@/lib/utils/logger';
+import { formatAmount } from '@/lib/utils/formatters';
 import { z } from 'zod';
 
 interface ClientInfo {
@@ -576,9 +577,10 @@ Be objective, thorough, and professional. Acknowledge data limitations if applic
 
   /**
    * Format currency value
+   * @deprecated Use formatAmount from formatters.ts instead
    */
   private static formatCurrency(value: number): string {
-    return `R ${value.toLocaleString('en-ZA', { maximumFractionDigits: 2 })}`;
+    return formatAmount(value);
   }
 }
 

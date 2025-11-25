@@ -7,33 +7,57 @@ import { Prisma } from '@prisma/client';
  */
 
 /**
+ * Generic numeric ID parser and validator
+ * @param id - String ID from route params
+ * @param entityName - Name of the entity (e.g., 'Project', 'Adjustment', 'Document')
+ * @param required - Whether the ID is required (default: true)
+ * @returns Validated numeric ID
+ * @throws AppError if ID is invalid
+ */
+export function parseNumericId(
+  id: string | undefined,
+  entityName: string,
+  required: boolean = true
+): number {
+  if (!id || id === 'undefined' || id === 'null') {
+    if (required) {
+      throw new AppError(
+        400,
+        `${entityName} ID is required`,
+        ErrorCodes.VALIDATION_ERROR,
+        { providedId: id, type: typeof id }
+      );
+    }
+    throw new AppError(
+      400,
+      `Invalid ${entityName} ID`,
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id }
+    );
+  }
+  
+  const parsedId = parseInt(id, 10);
+  
+  if (isNaN(parsedId) || parsedId <= 0) {
+    throw new AppError(
+      400,
+      `Invalid ${entityName} ID format - must be a positive integer`,
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id, parsedValue: parsedId }
+    );
+  }
+  
+  return parsedId;
+}
+
+/**
  * Parse and validate project ID from route params
  * @param id - String ID from route params
  * @returns Validated numeric project ID
  * @throws AppError if ID is invalid
  */
 export function parseProjectId(id: string | undefined): number {
-  if (!id || id === 'undefined' || id === 'null') {
-    throw new AppError(
-      400,
-      'Project ID is required',
-      ErrorCodes.VALIDATION_ERROR,
-      { providedId: id, type: typeof id }
-    );
-  }
-  
-  const projectId = parseInt(id, 10);
-  
-  if (isNaN(projectId) || projectId <= 0) {
-    throw new AppError(
-      400,
-      'Invalid project ID format - must be a positive integer',
-      ErrorCodes.VALIDATION_ERROR,
-      { providedId: id, parsedValue: projectId }
-    );
-  }
-  
-  return projectId;
+  return parseNumericId(id, 'Project');
 }
 
 /**
@@ -43,27 +67,7 @@ export function parseProjectId(id: string | undefined): number {
  * @throws AppError if ID is invalid
  */
 export function parseAdjustmentId(id: string | undefined): number {
-  if (!id || id === 'undefined' || id === 'null') {
-    throw new AppError(
-      400,
-      'Adjustment ID is required',
-      ErrorCodes.VALIDATION_ERROR,
-      { providedId: id, type: typeof id }
-    );
-  }
-  
-  const adjustmentId = parseInt(id, 10);
-  
-  if (isNaN(adjustmentId) || adjustmentId <= 0) {
-    throw new AppError(
-      400,
-      'Invalid adjustment ID format - must be a positive integer',
-      ErrorCodes.VALIDATION_ERROR,
-      { providedId: id, parsedValue: adjustmentId }
-    );
-  }
-  
-  return adjustmentId;
+  return parseNumericId(id, 'Adjustment');
 }
 
 /**
@@ -73,18 +77,7 @@ export function parseAdjustmentId(id: string | undefined): number {
  * @throws AppError if ID is invalid
  */
 export function parseDocumentId(id: string): number {
-  const documentId = parseInt(id, 10);
-  
-  if (isNaN(documentId) || documentId <= 0) {
-    throw new AppError(
-      400,
-      'Invalid document ID format',
-      ErrorCodes.VALIDATION_ERROR,
-      { providedId: id }
-    );
-  }
-  
-  return documentId;
+  return parseNumericId(id, 'Document', false);
 }
 
 /**
