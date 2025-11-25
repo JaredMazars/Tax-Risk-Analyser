@@ -590,13 +590,16 @@ export default function ServiceLineClientDetailPage() {
               </div>
 
               {/* Analytics Card */}
-              <div className="card opacity-60">
+              <Link 
+                href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/analytics`}
+                className="card hover:shadow-lg hover:border-forvis-blue-500 transition-all cursor-pointer"
+              >
                 <div className="p-4 text-center">
-                  <PresentationChartLineIcon className="mx-auto h-10 w-10 text-forvis-gray-300 mb-2" />
+                  <PresentationChartLineIcon className="mx-auto h-10 w-10 text-forvis-blue-500 mb-2" />
                   <h3 className="text-sm font-semibold text-forvis-gray-900 mb-1">Analytics</h3>
-                  <p className="text-xs text-forvis-gray-500">Coming Soon</p>
+                  <p className="text-xs text-forvis-gray-500">Credit ratings & analysis</p>
                 </div>
-              </div>
+              </Link>
 
               {/* Contacts Card */}
               <div className="card opacity-60">
@@ -613,3 +616,4 @@ export default function ServiceLineClientDetailPage() {
     </div>
   );
 }
+

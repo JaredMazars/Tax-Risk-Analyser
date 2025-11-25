@@ -93,6 +93,8 @@ model Client {
   updatedAt              DateTime  @updatedAt
   Project                Project[]
   ClientAcceptanceResponse ClientAcceptanceResponse[]
+  ClientAnalyticsDocument ClientAnalyticsDocument[]
+  ClientCreditRating     ClientCreditRating[]
 
   @@index([clientNameFull])
   @@index([clientCode])
@@ -101,6 +103,60 @@ model Client {
   @@index([active])
   @@index([clientTaxFlag])
   @@index([updatedAt(sort: Desc)])
+}
+
+model ClientAnalyticsDocument {
+  id             Int      @id @default(autoincrement())
+  clientId       Int
+  documentType   String   // AFS, MANAGEMENT_ACCOUNTS, BANK_STATEMENTS, CASH_FLOW, OTHER
+  fileName       String
+  filePath       String
+  fileSize       Int
+  uploadedBy     String
+  uploadedAt     DateTime @default(now())
+  extractedData  String?  @db.NVarChar(Max)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  Client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  CreditRatingDocuments CreditRatingDocument[]
+
+  @@index([clientId])
+  @@index([documentType])
+  @@index([uploadedAt(sort: Desc)])
+}
+
+model ClientCreditRating {
+  id             Int      @id @default(autoincrement())
+  clientId       Int
+  ratingScore    Float    // 0-100
+  ratingGrade    String   // AAA, AA, A, BBB, BB, B, CCC, D
+  ratingDate     DateTime @default(now())
+  analysisReport String   @db.NVarChar(Max)  // JSON containing AI analysis
+  financialRatios String  @db.NVarChar(Max)  // JSON containing calculated ratios
+  confidence     Float    // 0-1
+  analyzedBy     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  Client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  Documents      CreditRatingDocument[]
+
+  @@index([clientId])
+  @@index([ratingGrade])
+  @@index([ratingDate(sort: Desc)])
+  @@index([clientId, ratingDate(sort: Desc)])
+}
+
+model CreditRatingDocument {
+  id                      Int                     @id @default(autoincrement())
+  creditRatingId          Int
+  analyticsDocumentId     Int
+  createdAt               DateTime                @default(now())
+  CreditRating            ClientCreditRating      @relation(fields: [creditRatingId], references: [id], onDelete: Cascade)
+  AnalyticsDocument       ClientAnalyticsDocument @relation(fields: [analyticsDocumentId], references: [id], onDelete: Cascade)
+
+  @@unique([creditRatingId, analyticsDocumentId])
+  @@index([creditRatingId])
+  @@index([analyticsDocumentId])
 }
 
 model MappedAccount {

@@ -344,3 +344,24 @@ export type SubmitQuestionnaireInput = z.infer<typeof SubmitQuestionnaireSchema>
 export type UploadDocumentInput = z.infer<typeof UploadDocumentSchema>;
 export type ReviewQuestionnaireInput = z.infer<typeof ReviewQuestionnaireSchema>;
 
+/**
+ * Analytics validation schemas
+ */
+export const UploadAnalyticsDocumentSchema = z.object({
+  documentType: z.enum(['AFS', 'MANAGEMENT_ACCOUNTS', 'BANK_STATEMENTS', 'CASH_FLOW', 'OTHER']),
+}).strict();
+
+export const GenerateCreditRatingSchema = z.object({
+  documentIds: z.array(z.number().int().positive()).min(1, 'At least one document is required'),
+}).strict();
+
+export const CreditRatingQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(100).optional().default(10),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+}).strict();
+
+export type UploadAnalyticsDocumentInput = z.infer<typeof UploadAnalyticsDocumentSchema>;
+export type GenerateCreditRatingInput = z.infer<typeof GenerateCreditRatingSchema>;
+export type CreditRatingQueryInput = z.infer<typeof CreditRatingQuerySchema>;
+

@@ -397,4 +397,7 @@ export interface ClientDocumentsResponse {
 export * from './notification';
 
 // Re-export project stage types
-export * from './project-stages'; 
+export * from './project-stages';
+
+// Re-export analytics types
+export * from './analytics'; 
