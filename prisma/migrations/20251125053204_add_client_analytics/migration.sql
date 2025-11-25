@@ -71,11 +71,11 @@ CREATE NONCLUSTERED INDEX [CreditRatingDocument_analyticsDocumentId_idx] ON [dbo
 ALTER TABLE [dbo].[ClientAnalyticsDocument] ADD CONSTRAINT [ClientAnalyticsDocument_clientId_fkey] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[ClientCreditRating] ADD CONSTRAINT [ClientCreditRating_clientId_fkey] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE [dbo].[ClientCreditRating] ADD CONSTRAINT [ClientCreditRating_clientId_fkey] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
 ALTER TABLE [dbo].[CreditRatingDocument] ADD CONSTRAINT [CreditRatingDocument_creditRatingId_fkey] FOREIGN KEY ([creditRatingId]) REFERENCES [dbo].[ClientCreditRating]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[CreditRatingDocument] ADD CONSTRAINT [CreditRatingDocument_analyticsDocumentId_fkey] FOREIGN KEY ([analyticsDocumentId]) REFERENCES [dbo].[ClientAnalyticsDocument]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE [dbo].[CreditRatingDocument] ADD CONSTRAINT [CreditRatingDocument_analyticsDocumentId_fkey] FOREIGN KEY ([analyticsDocumentId]) REFERENCES [dbo].[ClientAnalyticsDocument]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChartBarIcon, CalendarIcon, DocumentTextIcon, TrendingUpIcon, TrendingDownIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, CalendarIcon, DocumentTextIcon, ArrowArrowTrendingUpIcon, ArrowArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import { useLatestCreditRating, useCreditRatings } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRating, CreditRatingGrade } from '@/types/analytics';
 import { RatingReportModal } from './RatingReportModal';
@@ -167,9 +167,9 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
                     </div>
                     <div>
                       {trend.isPositive ? (
-                        <TrendingUpIcon className="h-10 w-10 opacity-80" />
+                        <ArrowTrendingUpIcon className="h-10 w-10 opacity-80" />
                       ) : (
-                        <TrendingDownIcon className="h-10 w-10 opacity-80" />
+                        <ArrowTrendingDownIcon className="h-10 w-10 opacity-80" />
                       )}
                     </div>
                   </div>
@@ -283,9 +283,9 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
                       {change !== 0 && (
                         <div className={`flex items-center gap-1 text-sm font-medium ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {change > 0 ? (
-                            <TrendingUpIcon className="h-5 w-5" />
+                            <ArrowTrendingUpIcon className="h-5 w-5" />
                           ) : (
-                            <TrendingDownIcon className="h-5 w-5" />
+                            <ArrowTrendingDownIcon className="h-5 w-5" />
                           )}
                           <span>{change > 0 ? '+' : ''}{change}</span>
                         </div>

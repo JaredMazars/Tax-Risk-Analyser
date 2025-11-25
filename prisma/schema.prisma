@@ -137,7 +137,7 @@ model ClientCreditRating {
   analyzedBy     String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  Client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  Client         Client   @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Documents      CreditRatingDocument[]
 
   @@index([clientId])
@@ -151,8 +151,8 @@ model CreditRatingDocument {
   creditRatingId          Int
   analyticsDocumentId     Int
   createdAt               DateTime                @default(now())
-  CreditRating            ClientCreditRating      @relation(fields: [creditRatingId], references: [id], onDelete: Cascade)
-  AnalyticsDocument       ClientAnalyticsDocument @relation(fields: [analyticsDocumentId], references: [id], onDelete: Cascade)
+  CreditRating            ClientCreditRating      @relation(fields: [creditRatingId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  AnalyticsDocument       ClientAnalyticsDocument @relation(fields: [analyticsDocumentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([creditRatingId, analyticsDocumentId])
   @@index([creditRatingId])
