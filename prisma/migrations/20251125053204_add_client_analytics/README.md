@@ -20,3 +20,4 @@ Junction table linking credit ratings to the documents used in their analysis.
 - Historical rating tracking
 - Document versioning and metadata
 
+

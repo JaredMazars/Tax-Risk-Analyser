@@ -16,6 +16,7 @@ import {
   getServiceLineBgColor,
   getServiceLineBorderColor 
 } from '@/lib/utils/serviceLineUtils';
+import { formatAmount } from '@/lib/utils/formatters';
 import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
 import { useQuery } from '@tanstack/react-query';
 

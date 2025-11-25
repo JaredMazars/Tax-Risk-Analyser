@@ -18,3 +18,4 @@ This folder contains one-time migration scripts that have already been executed 
 
 These scripts are archived but not deleted to maintain a record of database migrations performed. They should NOT be run again unless explicitly needed for a fresh database setup.
 
+
