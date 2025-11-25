@@ -97,28 +97,3 @@ export function getRoleBadgeColor(role: string): string {
 
   return colorMap[role] || 'bg-gray-100 text-gray-800 border-gray-200';
 }
-
-/**
- * Get available system roles
- */
-export function getSystemRoleOptions() {
-  return [
-    { value: 'USER', label: 'User', description: 'Regular user - requires service line access' },
-    { value: 'SUPERUSER', label: 'System Administrator', description: 'System-wide access to all features' },
-  ];
-}
-
-/**
- * Get available service line roles
- */
-export function getServiceLineRoleOptions() {
-  return [
-    { value: 'VIEWER', label: 'Viewer (View-only)', description: 'Read-only access' },
-    { value: 'USER', label: 'Staff', description: 'Can complete work' },
-    { value: 'MANAGER', label: 'Manager', description: 'Can manage projects' },
-    { value: 'ADMIN', label: 'Partner', description: 'Can approve acceptance and engagement letters' },
-  ];
-}
-
-
-

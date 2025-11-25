@@ -33,6 +33,8 @@ function ClientAnalyticsContent() {
         Project: clientData.projects || [],
         clientOCFlag: 'clientOCFlag' in clientData ? (clientData as { clientOCFlag?: boolean }).clientOCFlag ?? false : false,
         rolePlayer: 'rolePlayer' in clientData ? (clientData as { rolePlayer?: boolean }).rolePlayer ?? false : false,
+        createdAt: new Date(clientData.createdAt),
+        updatedAt: new Date(clientData.updatedAt),
       }
     : null;
 

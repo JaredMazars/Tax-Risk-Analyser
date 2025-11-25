@@ -273,13 +273,13 @@ export function sanitizeObject<T extends Record<string, unknown>>(
     }
 
     // Apply field-specific sanitization based on field name
-    if (key.toLowerCase().includes('email')) {
+    if (key.toLowerCase().includes('email') && typeof value === 'string') {
       sanitized[key] = sanitizeEmail(value);
-    } else if (key.toLowerCase().includes('url') || key.toLowerCase().includes('link')) {
+    } else if ((key.toLowerCase().includes('url') || key.toLowerCase().includes('link')) && typeof value === 'string') {
       sanitized[key] = sanitizeUrl(value);
-    } else if (key.toLowerCase().includes('path')) {
+    } else if (key.toLowerCase().includes('path') && typeof value === 'string') {
       sanitized[key] = sanitizeFilePath(value);
-    } else if (key.toLowerCase().includes('comment')) {
+    } else if (key.toLowerCase().includes('comment') && typeof value === 'string') {
       sanitized[key] = sanitizeComment(value);
     } else if (typeof value === 'string') {
       // Default string sanitization
@@ -294,7 +294,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(
     } else if (Array.isArray(value)) {
       sanitized[key] = value;
     } else if (typeof value === 'object') {
-      sanitized[key] = sanitizeObject(value, options);
+      sanitized[key] = sanitizeObject(value as Record<string, unknown>, options);
     } else {
       sanitized[key] = value;
     }

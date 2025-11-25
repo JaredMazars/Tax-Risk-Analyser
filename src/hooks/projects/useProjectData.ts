@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MappedData } from '@/types';
+import { MappedData, Project } from '@/types';
 
 // Query Keys
 export const projectKeys = {
@@ -12,25 +12,12 @@ export const projectKeys = {
   taxCalculation: (id: string) => [...projectKeys.detail(id), 'tax-calculation'] as const,
 };
 
-// Types
-interface ProjectData {
-  id: number;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-  _count: {
-    mappings: number;
-    taxAdjustments: number;
-  };
-}
-
 /**
  * Normalize project data from API response
  * Transforms Prisma relation names to consistent lowercase naming
  */
-function normalizeProjectData(data: unknown): unknown {
-  if (!data || typeof data !== 'object') return data;
+function normalizeProjectData(data: unknown): Project {
+  if (!data || typeof data !== 'object') return data as unknown as Project;
   
   const normalized = { ...(data as Record<string, unknown>) };
   
@@ -60,7 +47,7 @@ function normalizeProjectData(data: unknown): unknown {
     normalized._count = newCount;
   }
   
-  return normalized;
+  return normalized as unknown as Project;
 }
 
 interface TaxAdjustment {
@@ -84,7 +71,7 @@ interface TaxCalculationData {
  * Fetch project details
  */
 export function useProject(projectId: string) {
-  return useQuery({
+  return useQuery<Project>({
     queryKey: projectKeys.detail(projectId),
     queryFn: async () => {
       const response = await fetch(`/api/projects/${projectId}`);

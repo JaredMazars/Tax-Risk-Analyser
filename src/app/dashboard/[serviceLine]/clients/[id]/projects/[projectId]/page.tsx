@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { ProjectType } from '@/types';
+import { ProjectType, Project } from '@/types';
 import { 
   ChevronRightIcon,
   TableCellsIcon,
@@ -89,35 +89,8 @@ function Tab({ selected, children, onClick, icon: Icon, disabled = false, toolti
   return button;
 }
 
-interface ProjectData {
-  id: number;
-  name: string;
-  description?: string;
-  projectType: string | ProjectType;
-  serviceLine: string;
-  taxYear?: number | null;
-  taxPeriodStart?: Date | string | null;
-  taxPeriodEnd?: Date | string | null;
-  assessmentYear?: string | null;
-  submissionDeadline?: Date | string | null;
-  clientId?: number | null;
-  client?: {
-    id: number;
-    name: string;
-    clientNameFull?: string;
-    clientCode?: string;
-  } | null;
-  createdAt: string;
-  updatedAt: string;
-  _count: {
-    mappings: number;
-    taxAdjustments: number;
-  };
-  users?: ProjectUser[];
-}
-
 interface SettingsTabProps {
-  project: ProjectData;
+  project: Project;
   onUpdate: () => void;
 }
 
@@ -130,10 +103,10 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
     clientId: project.clientId || null,
     projectType: project.projectType as ProjectType,
     taxYear: project.taxYear || new Date().getFullYear(),
-    taxPeriodStart: project.taxPeriodStart ? new Date(project.taxPeriodStart) : null,
-    taxPeriodEnd: project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null,
+    taxPeriodStart: project.taxPeriodStart instanceof Date ? project.taxPeriodStart : (project.taxPeriodStart ? new Date(project.taxPeriodStart) : null),
+    taxPeriodEnd: project.taxPeriodEnd instanceof Date ? project.taxPeriodEnd : (project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null),
     assessmentYear: project.assessmentYear || '',
-    submissionDeadline: project.submissionDeadline ? new Date(project.submissionDeadline) : null,
+    submissionDeadline: project.submissionDeadline instanceof Date ? project.submissionDeadline : (project.submissionDeadline ? new Date(project.submissionDeadline) : null),
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -170,16 +143,6 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
     } catch (error) {
       setIsSubmitting(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   return (
@@ -262,10 +225,10 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                       clientId: project.clientId || null,
                       projectType: project.projectType as ProjectType,
                       taxYear: project.taxYear || new Date().getFullYear(),
-                      taxPeriodStart: project.taxPeriodStart ? new Date(project.taxPeriodStart) : null,
-                      taxPeriodEnd: project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null,
+                      taxPeriodStart: project.taxPeriodStart instanceof Date ? project.taxPeriodStart : (project.taxPeriodStart ? new Date(project.taxPeriodStart) : null),
+                      taxPeriodEnd: project.taxPeriodEnd instanceof Date ? project.taxPeriodEnd : (project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null),
                       assessmentYear: project.assessmentYear || '',
-                      submissionDeadline: project.submissionDeadline ? new Date(project.submissionDeadline) : null,
+                      submissionDeadline: project.submissionDeadline instanceof Date ? project.submissionDeadline : (project.submissionDeadline ? new Date(project.submissionDeadline) : null),
                     });
                   }}
                   className="btn-secondary"
@@ -318,13 +281,13 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
             <div className="bg-forvis-blue-50 rounded-lg p-3 border border-forvis-blue-100">
               <dt className="text-xs font-medium text-forvis-blue-800">Mapped Accounts</dt>
               <dd className="mt-1 text-xl font-semibold text-forvis-blue-600">
-                {project._count.mappings}
+                {project._count?.mappings ?? 0}
               </dd>
             </div>
             <div className="bg-forvis-blue-100 rounded-lg p-3 border border-forvis-blue-200">
               <dt className="text-xs font-medium text-forvis-blue-900">Tax Adjustments</dt>
               <dd className="mt-1 text-xl font-semibold text-forvis-blue-700">
-                {project._count.taxAdjustments}
+                {project._count?.taxAdjustments ?? 0}
               </dd>
             </div>
           </dl>
@@ -434,10 +397,20 @@ export default function ClientProjectPage() {
   
   // Lazy load team members only when team tab is active
   const { 
-    data: teamMembers = [],
+    data: teamMembersData = [],
     isLoading: loadingTeam,
     refetch: refetchTeam 
   } = useProjectTeam(projectId, activeTab === 'team');
+  
+  // Convert ProjectTeamMember[] to ProjectUser[] format
+  const teamMembers: ProjectUser[] = teamMembersData.map(member => ({
+    id: member.id,
+    projectId: member.projectId,
+    userId: member.userId,
+    role: member.role,
+    createdAt: new Date(member.createdAt),
+    User: member.User,
+  }));
 
   // Handle tab query parameter and update default tab when project loads
   useEffect(() => {
@@ -724,8 +697,8 @@ export default function ClientProjectPage() {
                     </div>
                   )}
                   <span>•</span>
-                  <span>{project?._count.mappings} accounts</span>
-                  <span>{project?._count.taxAdjustments} adjustments</span>
+                  <span>{project?._count?.mappings ?? 0} accounts</span>
+                  <span>{project?._count?.taxAdjustments ?? 0} adjustments</span>
                   {project?.users && (
                     <span>{project.users.length} team members</span>
                   )}

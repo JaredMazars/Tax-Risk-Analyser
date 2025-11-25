@@ -17,7 +17,12 @@ export interface TaxAdjustmentDefinition {
   additionalChecks?: string[];
 }
 
-export const taxAdjustmentsGuide = {
+export const taxAdjustmentsGuide: {
+  debitAdjustments: TaxAdjustmentDefinition[];
+  creditAdjustments: TaxAdjustmentDefinition[];
+  allowances: TaxAdjustmentDefinition[];
+  recoupments: TaxAdjustmentDefinition[];
+} = {
   debitAdjustments: [
     {
       name: "Depreciation Add-back",

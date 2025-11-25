@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ProjectRole } from '@/types';
 
 // Query Keys
 export const projectTeamKeys = {
@@ -13,7 +14,7 @@ export interface ProjectTeamMember {
   id: number;
   userId: string;
   projectId: number;
-  role: 'ADMIN' | 'EDITOR' | 'VIEWER';
+  role: ProjectRole;
   createdAt: string;
   User: {
     id: string;

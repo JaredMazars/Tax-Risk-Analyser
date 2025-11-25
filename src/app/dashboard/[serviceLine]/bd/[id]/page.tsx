@@ -19,6 +19,7 @@ import {
 import { formatAmount } from '@/lib/utils/formatters';
 import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
 import { useQuery } from '@tanstack/react-query';
+import type { ActivityWithRelations } from '@/lib/services/bd/activityService';
 
 export default function OpportunityDetailPage() {
   const params = useParams();
@@ -247,7 +248,7 @@ export default function OpportunityDetailPage() {
             <h3 className="text-sm font-semibold text-forvis-gray-900 mb-4">Activity Timeline</h3>
             {activitiesData && activitiesData.activities.length > 0 ? (
               <div className="space-y-3">
-                {activitiesData.activities.map((activity) => (
+                {activitiesData.activities.map((activity: ActivityWithRelations) => (
                   <div key={activity.id} className="flex gap-3">
                     <div
                       className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
