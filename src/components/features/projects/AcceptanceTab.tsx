@@ -47,10 +47,21 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
         throw new Error(data.error || 'Failed to approve acceptance');
       }
 
-      // Invalidate and refetch the project data
-      await queryClient.invalidateQueries({ 
-        queryKey: projectKeys.detail(project.id.toString()) 
-      });
+      // Invalidate all related queries to ensure fresh data
+      await Promise.all([
+        queryClient.invalidateQueries({ 
+          queryKey: projectKeys.detail(project.id.toString()) 
+        }),
+        queryClient.invalidateQueries({ 
+          queryKey: ['acceptance', 'status', project.id.toString()] 
+        }),
+        queryClient.invalidateQueries({ 
+          queryKey: ['acceptance', 'questionnaire', project.id.toString()] 
+        }),
+      ]);
+      
+      // Wait for queries to refetch
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       onApprovalComplete();
     } catch (err) {
@@ -181,7 +192,7 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
           </div>
         )}
 
-        {(workflowState === 'in_progress' || viewMode === 'questionnaire') && (
+        {(workflowState === 'in_progress' || (viewMode === 'questionnaire' && workflowState === 'not_started')) && (
           <AcceptanceQuestionnaire 
             projectId={project.id.toString()} 
             onSubmitSuccess={handleSubmitSuccess}
@@ -195,6 +206,7 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
                 projectId={project.id.toString()}
                 onApprove={handleApprove}
                 canApprove={canApprove}
+                isApproving={isApproving}
               />
             ) : (
               <div className="space-y-4">
@@ -233,53 +245,64 @@ export function AcceptanceTab({ project, currentUserRole, onApprovalComplete }: 
         )}
 
         {workflowState === 'approved' && (
-          <div className="bg-green-50 rounded-lg border-2 border-green-200 shadow-corporate overflow-hidden">
-            <div className="px-6 py-4">
-              <div className="flex items-start">
-                <CheckCircleIcon className="h-6 w-6 text-green-600 mt-1 mr-3" />
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-green-900 mb-2">
-                    Acceptance Approved
-                  </h3>
-                  <dl className="space-y-2">
-                    {project.acceptanceApprovedAt && (
-                      <div>
-                        <dt className="text-sm font-medium text-green-800 inline">Approved on: </dt>
-                        <dd className="text-sm text-green-700 inline">
-                          {new Date(project.acceptanceApprovedAt).toLocaleString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </dd>
-                      </div>
-                    )}
-                    {project.acceptanceApprovedBy && (
-                      <div>
-                        <dt className="text-sm font-medium text-green-800 inline">Approved by: </dt>
-                        <dd className="text-sm text-green-700 inline">
-                          {project.acceptanceApprovedBy}
-                        </dd>
-                      </div>
-                    )}
-                    {status?.riskRating && (
-                      <div>
-                        <dt className="text-sm font-medium text-green-800 inline">Final Risk Rating: </dt>
-                        <dd className="text-sm text-green-700 inline">
-                          {status.riskRating} ({status.overallRiskScore}%)
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                  <p className="text-sm text-green-700 mt-3">
-                    You can now proceed to generate and upload the engagement letter.
-                  </p>
+          <>
+            <div className="bg-green-50 rounded-lg border-2 border-green-200 shadow-corporate overflow-hidden">
+              <div className="px-6 py-4">
+                <div className="flex items-start">
+                  <CheckCircleIcon className="h-6 w-6 text-green-600 mt-1 mr-3" />
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-green-900 mb-2">
+                      Acceptance Approved
+                    </h3>
+                    <dl className="space-y-2">
+                      {project.acceptanceApprovedAt && (
+                        <div>
+                          <dt className="text-sm font-medium text-green-800 inline">Approved on: </dt>
+                          <dd className="text-sm text-green-700 inline">
+                            {new Date(project.acceptanceApprovedAt).toLocaleString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </dd>
+                        </div>
+                      )}
+                      {project.acceptanceApprovedBy && (
+                        <div>
+                          <dt className="text-sm font-medium text-green-800 inline">Approved by: </dt>
+                          <dd className="text-sm text-green-700 inline">
+                            {project.acceptanceApprovedBy}
+                          </dd>
+                        </div>
+                      )}
+                      {status?.riskRating && (
+                        <div>
+                          <dt className="text-sm font-medium text-green-800 inline">Final Risk Rating: </dt>
+                          <dd className="text-sm text-green-700 inline">
+                            {status.riskRating} ({status.overallRiskScore}%)
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                    <p className="text-sm text-green-700 mt-3">
+                      You can now proceed to generate and upload the engagement letter.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+            
+            {/* Show full review in read-only mode */}
+            <AcceptanceReview
+              projectId={project.id.toString()}
+              onApprove={() => {}} // No-op, already approved
+              canApprove={false} // Hide approve button
+              isApproving={false}
+              hideReviewedMessage={true} // Hide duplicate reviewed message
+            />
+          </>
         )}
 
         {error && (

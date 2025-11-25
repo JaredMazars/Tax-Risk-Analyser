@@ -8,6 +8,8 @@ interface AcceptanceReviewProps {
   projectId: string;
   onApprove: () => void;
   canApprove: boolean;
+  isApproving?: boolean;
+  hideReviewedMessage?: boolean;
 }
 
 interface AnswerData {
@@ -18,8 +20,8 @@ interface AnswerData {
   };
 }
 
-export function AcceptanceReview({ projectId, onApprove, canApprove }: AcceptanceReviewProps) {
-  const { data: questionnaireData, isLoading } = useQuestionnaire(projectId);
+export function AcceptanceReview({ projectId, onApprove, canApprove, isApproving = false, hideReviewedMessage = false }: AcceptanceReviewProps) {
+  const { data: questionnaireData, isLoading, refetch } = useQuestionnaire(projectId);
 
   const sections: QuestionSection[] = questionnaireData?.data?.structure || [];
   const response = questionnaireData?.data?.response;
@@ -233,17 +235,27 @@ export function AcceptanceReview({ projectId, onApprove, canApprove }: Acceptanc
           </p>
           <button
             onClick={onApprove}
-            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+            disabled={isApproving}
+            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
           >
-            <CheckCircleIcon className="h-5 w-5" />
-            Approve Client Acceptance
+            {isApproving ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Approving...
+              </>
+            ) : (
+              <>
+                <CheckCircleIcon className="h-5 w-5" />
+                Approve Client Acceptance
+              </>
+            )}
           </button>
         </div>
       )}
 
       {/* Already Reviewed */}
-      {response.reviewedAt && (
+      {response.reviewedAt && !hideReviewedMessage && (
         <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
           <div className="flex items-center gap-2">
             <CheckCircleIcon className="h-5 w-5 text-green-600" />

@@ -79,3 +79,4 @@ To roll back: Drop the four new tables in reverse order (AcceptanceDocument, Acc
 - API routes and UI components deployed to use the new tables
 
 
+
