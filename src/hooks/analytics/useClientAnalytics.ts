@@ -138,16 +138,11 @@ export function useCreditRatings(
       const url = `/api/clients/${clientId}/analytics/rating${
         params.toString() ? `?${params.toString()}` : ''
       }`;
-      console.log('Fetching credit ratings from:', url);
       const res = await fetch(url);
-      console.log('Credit ratings response status:', res.status);
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        console.error('Failed to fetch credit ratings:', errorData);
         throw new Error('Failed to fetch credit ratings');
       }
       const data = await res.json();
-      console.log('Credit ratings data received:', data);
       return data.data as { ratings: CreditRating[]; totalCount: number };
     },
     enabled: options?.enabled !== false && !!clientId,
@@ -159,14 +154,6 @@ export function useCreditRatings(
  */
 export function useLatestCreditRating(clientId: string | number) {
   const { data, ...rest } = useCreditRatings(clientId, { limit: 1 });
-  
-  console.log('useLatestCreditRating:', {
-    clientId,
-    data,
-    ratings: data?.ratings,
-    ratingsLength: data?.ratings?.length,
-    firstRating: data?.ratings?.[0],
-  });
 
   return {
     data: data?.ratings?.[0] || null,

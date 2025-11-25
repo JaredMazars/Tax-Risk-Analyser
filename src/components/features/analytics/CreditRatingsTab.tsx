@@ -18,18 +18,6 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
   const ratings = ratingsData?.ratings || [];
   const previousRating = ratings.length > 1 ? ratings[1] : null;
 
-  // Debug logging
-  console.log('CreditRatingsTab Debug:', {
-    clientId,
-    latestRating,
-    latestError,
-    ratingsData,
-    historyError,
-    ratingsCount: ratings.length,
-    isLoadingLatest,
-    isLoadingHistory,
-  });
-
   const getRatingColor = (grade: CreditRatingGrade) => {
     switch (grade) {
       case CreditRatingGrade.AAA:
