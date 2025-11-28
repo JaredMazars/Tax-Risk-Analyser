@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { mappingGuide } from '@/lib/services/projects/mappingGuide';
 import { formatAmount } from '@/lib/utils/formatters';

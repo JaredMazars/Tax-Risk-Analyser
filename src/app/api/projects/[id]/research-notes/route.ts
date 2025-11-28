@@ -69,9 +69,9 @@ export async function POST(
     const note = await prisma.researchNote.create({
       data: {
         projectId,
-        title: sanitizeText(validated.title, { maxLength: 200 }),
-        content: sanitizeText(validated.content, { allowHTML: false, allowNewlines: true }),
-        tags: validated.tags,
+        title: sanitizeText(validated.title, { maxLength: 200 }) || validated.title,
+        content: sanitizeText(validated.content, { allowHTML: false, allowNewlines: true }) || validated.content,
+        tags: validated.tags ? JSON.stringify(validated.tags) : null,
         category: validated.category,
         createdBy: user.id,
       },

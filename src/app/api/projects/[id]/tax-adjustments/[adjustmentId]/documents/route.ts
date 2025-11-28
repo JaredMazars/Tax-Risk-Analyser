@@ -13,13 +13,13 @@ const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); 
  */
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string; adjustmentId: string }> }
+  routeContext: { params: Promise<{ id: string; adjustmentId: string }> }
 ) {
   try {
     // Apply rate limiting for file uploads
     enforceRateLimit(request, RateLimitPresets.FILE_UPLOADS);
     
-    const params = await context.params;
+    const params = await routeContext.params;
     const projectId = parseInt(params.id);
     const adjustmentId = parseInt(params.adjustmentId);
 

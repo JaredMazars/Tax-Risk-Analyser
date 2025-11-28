@@ -71,11 +71,11 @@ export async function POST(
     const response = await prisma.sarsResponse.create({
       data: {
         projectId,
-        referenceNumber: sanitizeText(validated.referenceNumber, { maxLength: 100 }),
-        subject: sanitizeText(validated.subject, { maxLength: 500 }),
-        content: sanitizeText(validated.content, { allowHTML: false, allowNewlines: true }),
+        referenceNumber: sanitizeText(validated.referenceNumber, { maxLength: 100 }) || validated.referenceNumber,
+        subject: sanitizeText(validated.subject, { maxLength: 500 }) || validated.subject,
+        content: sanitizeText(validated.content, { allowHTML: false, allowNewlines: true }) || validated.content,
         status: validated.status || 'PENDING',
-        responseType: validated.responseType,
+        responseType: validated.responseType || 'General',
         deadline: validated.deadline ? new Date(validated.deadline) : null,
         createdBy: user.id,
       },

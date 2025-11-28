@@ -13,6 +13,7 @@ import { usePipeline, useCreateOpportunity } from '@/hooks/bd/useOpportunities';
 import { usePipelineAnalytics } from '@/hooks/bd/useBDAnalytics';
 import { PipelineBoard } from '@/components/features/bd/PipelineBoard';
 import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
+import { CreateBDOpportunityInput } from '@/lib/validation/schemas';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 
 export default function BDPipelinePage() {
@@ -48,7 +49,7 @@ export default function BDPipelinePage() {
 
   const createMutation = useCreateOpportunity();
 
-  const handleCreateOpportunity = async (data: Record<string, unknown>) => {
+  const handleCreateOpportunity = async (data: CreateBDOpportunityInput) => {
     try {
       await createMutation.mutateAsync(data);
       setShowCreateForm(false);

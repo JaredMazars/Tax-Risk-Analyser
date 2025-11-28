@@ -74,7 +74,7 @@ export async function POST(
     const filing = await prisma.filingStatus.create({
       data: {
         projectId,
-        filingType: sanitizeText(validated.filingType, { maxLength: 100 }),
+        filingType: sanitizeText(validated.filingType, { maxLength: 100 }) || validated.filingType,
         description: validated.description ? sanitizeText(validated.description, { allowNewlines: true }) : undefined,
         status: validated.status || 'PENDING',
         deadline: validated.deadline ? new Date(validated.deadline) : null,

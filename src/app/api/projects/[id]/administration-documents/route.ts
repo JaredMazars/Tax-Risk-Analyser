@@ -76,7 +76,7 @@ export async function POST(
         fileType: validated.fileType,
         fileSize: validated.fileSize,
         filePath: validated.filePath,
-        category: validated.category,
+        category: validated.category || 'General',
         description: validated.description ? sanitizeText(validated.description, { allowNewlines: true }) : undefined,
         version: validated.version || 1,
         uploadedBy: user.id,

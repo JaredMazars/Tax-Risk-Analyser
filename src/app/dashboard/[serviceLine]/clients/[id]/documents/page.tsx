@@ -28,6 +28,10 @@ function ClientDocumentsContent() {
     return {
       ...clientData,
       Project: clientData.projects || [],
+      clientOCFlag: false,
+      rolePlayer: false,
+      createdAt: new Date(clientData.createdAt),
+      updatedAt: new Date(clientData.updatedAt),
     };
   }, [clientData]);
 

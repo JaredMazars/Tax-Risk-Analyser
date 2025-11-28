@@ -40,18 +40,18 @@ export async function PUT(
     interface UpdateData {
       title?: string;
       content?: string;
-      tags?: string[];
+      tags?: string;
       category?: string;
     }
 
     const updateData: UpdateData = {};
     if (validated.title !== undefined) {
-      updateData.title = sanitizeText(validated.title, { maxLength: 200 });
+      updateData.title = sanitizeText(validated.title, { maxLength: 200 }) || validated.title;
     }
     if (validated.content !== undefined) {
-      updateData.content = sanitizeText(validated.content, { allowHTML: false, allowNewlines: true });
+      updateData.content = sanitizeText(validated.content, { allowHTML: false, allowNewlines: true }) || validated.content;
     }
-    if (validated.tags !== undefined) updateData.tags = validated.tags;
+    if (validated.tags !== undefined) updateData.tags = JSON.stringify(validated.tags);
     if (validated.category !== undefined) updateData.category = validated.category;
 
     const note = await prisma.researchNote.update({

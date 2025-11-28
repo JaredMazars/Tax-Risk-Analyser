@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';

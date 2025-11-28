@@ -11,8 +11,26 @@ import { OpportunityCard } from './OpportunityCard';
 interface Opportunity {
   id: number;
   title: string;
+  clientId: number | null;
+  companyName: string | null;
   value: number | null;
-  [key: string]: unknown;
+  probability: number | null;
+  expectedCloseDate: Date | null;
+  Client: {
+    id: number;
+    clientCode: string;
+    clientNameFull: string | null;
+  } | null;
+  Contact: {
+    firstName: string;
+    lastName: string;
+    email: string | null;
+  } | null;
+  Stage: {
+    name: string;
+    probability: number;
+    color: string | null;
+  };
 }
 
 interface PipelineBoardProps {
