@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { ServiceLine } from '@/types';
 import { ServiceLineWithStats } from '@/types/dto';
 import { useServiceLines } from '@/hooks/service-lines/useServiceLines';
@@ -38,13 +38,17 @@ export function ServiceLineProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const value = {
-    currentServiceLine,
-    setCurrentServiceLine,
-    availableServiceLines,
-    isLoading,
-    refetch,
-  };
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(
+    () => ({
+      currentServiceLine,
+      setCurrentServiceLine,
+      availableServiceLines,
+      isLoading,
+      refetch,
+    }),
+    [currentServiceLine, availableServiceLines, isLoading, refetch]
+  );
 
   return (
     <ServiceLineContext.Provider value={value}>

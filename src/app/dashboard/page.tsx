@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { ServiceLineCard } from '@/components/features/service-lines/ServiceLineCard';
 import { SharedServiceCard } from '@/components/features/service-lines/SharedServiceCard';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -9,7 +8,6 @@ import { isSharedService } from '@/lib/utils/serviceLineUtils';
 import { GT3Logo } from '@/components/shared/GT3Logo';
 
 export default function DashboardHomePage() {
-  const router = useRouter();
   const { availableServiceLines, isLoading, setCurrentServiceLine, refetch } = useServiceLine();
 
   // Clear any stored service line when landing on this page and refetch
@@ -17,7 +15,8 @@ export default function DashboardHomePage() {
     setCurrentServiceLine(null);
     // Refetch service lines when landing on dashboard to ensure fresh data
     refetch();
-  }, [setCurrentServiceLine, refetch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   if (isLoading) {
     return (
@@ -51,20 +50,6 @@ export default function DashboardHomePage() {
               </p>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If user only has access to one service line, redirect automatically
-  if (availableServiceLines.length === 1 && availableServiceLines[0]) {
-    const serviceLine = availableServiceLines[0].serviceLine.toLowerCase();
-    router.push(`/dashboard/${serviceLine}`);
-    return (
-      <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-500 mx-auto"></div>
-          <p className="mt-4 text-sm text-forvis-gray-700 font-medium">Redirecting...</p>
         </div>
       </div>
     );
