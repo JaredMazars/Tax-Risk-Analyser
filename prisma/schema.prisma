@@ -312,6 +312,36 @@ model User {
   @@index([role])
 }
 
+model Permission {
+  id               Int              @id @default(autoincrement())
+  resourceType     String           @db.NVarChar(20)
+  resourceKey      String           @db.NVarChar(100)
+  displayName      String           @db.NVarChar(200)
+  description      String?          @db.NVarChar(500)
+  availableActions String           @db.NVarChar(Max)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  RolePermission   RolePermission[]
+
+  @@unique([resourceType, resourceKey])
+  @@index([resourceType])
+  @@index([resourceKey])
+}
+
+model RolePermission {
+  id             Int        @id @default(autoincrement())
+  role           String     @db.NVarChar(20)
+  permissionId   Int
+  allowedActions String     @db.NVarChar(Max)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  Permission     Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@index([permissionId])
+}
+
 model ServiceLineUser {
   id          Int      @id @default(autoincrement())
   userId      String

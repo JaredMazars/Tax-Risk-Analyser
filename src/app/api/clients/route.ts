@@ -11,6 +11,13 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Check permission
+    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
+    const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+    }
     
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';

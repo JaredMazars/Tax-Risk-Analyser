@@ -17,6 +17,13 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Check permission
+    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
+    const hasPermission = await checkUserPermission(user.id, 'projects', 'READ');
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+    }
     
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -162,6 +169,13 @@ export async function POST(request: NextRequest) {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check permission
+    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
+    const hasPermission = await checkUserPermission(user.id, 'projects.create', 'CREATE');
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions to create projects' }, { status: 403 });
     }
     
     // Check if user exists in database

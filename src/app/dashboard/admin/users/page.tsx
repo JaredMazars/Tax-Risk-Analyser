@@ -551,8 +551,11 @@ export default function UserManagementPage() {
 
                 {/* Service Line Access Section */}
                 <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-forvis-gray-900">Service Line Access</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <h3 className="text-lg font-semibold text-forvis-gray-900">Service Line Access</h3>
+                      <p className="text-xs text-forvis-gray-600 mt-1">Assign service lines and set permission levels for this user</p>
+                    </div>
                     <div className="relative" ref={dropdownRef}>
                       <button
                         onClick={() => setShowAddServiceLineDropdown(!showAddServiceLineDropdown)}
@@ -601,24 +604,62 @@ export default function UserManagementPage() {
                       <div key="skeleton-2" className="h-16 bg-gray-200 rounded-lg"></div>
                     </div>
                   ) : userServiceLines.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg">
-                      <p className="text-gray-500">No service line access assigned</p>
-                      <p className="text-sm text-gray-400 mt-1">Click "Add Service Line" to grant access</p>
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <p className="text-gray-500 font-medium">No service line access assigned</p>
+                      <p className="text-sm text-gray-400 mt-1">Click "Add Service Line" above to grant access</p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div>
+                      {/* Role Descriptions */}
+                      <div className="mb-4 p-3 rounded-lg border-2" style={{ background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)', borderColor: '#E0EDFB' }}>
+                        <details className="group">
+                          <summary className="cursor-pointer text-xs font-bold flex items-center gap-1 text-forvis-blue-700">
+                            <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            Role Permission Guide
+                          </summary>
+                          <div className="mt-2 ml-5 text-xs space-y-1 text-forvis-gray-700">
+                            <div><span className="font-semibold">Viewer:</span> Read-only access to view data</div>
+                            <div><span className="font-semibold">User:</span> Can work on assigned projects, create mappings and adjustments</div>
+                            <div><span className="font-semibold">Supervisor:</span> Can create projects, assign users, approve acceptance</div>
+                            <div><span className="font-semibold">Manager:</span> Full CRUD on clients & projects within service line</div>
+                            <div><span className="font-semibold">Partner:</span> Full access across all service lines</div>
+                            <div><span className="font-semibold">Admin:</span> Full access + admin pages & system management</div>
+                          </div>
+                        </details>
+                      </div>
+                      <div className="space-y-2">
                       {userServiceLines.map((slUser) => {
                         const details = SERVICE_LINE_DETAILS[slUser.serviceLine as ServiceLine];
                         const Icon = details.icon;
+                        
+                        // Role badge colors
+                        const defaultBadge = { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' };
+                        const badges: Record<string, { bg: string; text: string; border: string }> = {
+                          VIEWER: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' },
+                          USER: defaultBadge,
+                          SUPERVISOR: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300' },
+                          MANAGER: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+                          PARTNER: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+                          ADMIN: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
+                        };
+                        const roleBadge = badges[slUser.role] || defaultBadge;
+                        
                         return (
                           <div
                             key={slUser.id}
                             className={`flex items-center justify-between p-4 border-2 ${details.borderColorClass} ${details.bgColorClass} rounded-lg`}
                           >
-                            <div className="flex items-center space-x-3">
+                            <div className="flex items-center space-x-3 flex-1">
                               <Icon className={`h-6 w-6 ${details.colorClass}`} />
-                              <div>
-                                <div className="font-medium text-gray-900">{details.name}</div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="font-medium text-gray-900">{details.name}</div>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${roleBadge.bg} ${roleBadge.text} ${roleBadge.border}`}>
+                                    {slUser.role}
+                                  </span>
+                                </div>
                                 <div className="text-sm text-gray-600">{details.description}</div>
                               </div>
                             </div>
@@ -631,11 +672,15 @@ export default function UserManagementPage() {
                                     e.target.value as ServiceLineRole
                                   )
                                 }
-                                className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="px-3 py-2 border-2 border-forvis-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors"
+                                style={{ minWidth: '140px' }}
                               >
-                                <option key="role-user" value={ServiceLineRole.USER}>User</option>
-                                <option key="role-manager" value={ServiceLineRole.MANAGER}>Manager</option>
-                                <option key="role-admin" value={ServiceLineRole.ADMIN}>Admin</option>
+                                <option value="VIEWER">Viewer</option>
+                                <option value="USER">User</option>
+                                <option value="SUPERVISOR">Supervisor</option>
+                                <option value="MANAGER">Manager</option>
+                                <option value="PARTNER">Partner</option>
+                                <option value="ADMIN">Admin</option>
                               </select>
                               <button
                                 onClick={() => handleRemoveServiceLine(slUser.id)}
@@ -648,6 +693,7 @@ export default function UserManagementPage() {
                           </div>
                         );
                       })}
+                      </div>
                     </div>
                   )}
                 </div>

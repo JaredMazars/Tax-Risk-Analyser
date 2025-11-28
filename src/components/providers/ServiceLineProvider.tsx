@@ -41,11 +41,11 @@ export function ServiceLineProvider({ children }: { children: ReactNode }) {
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(
     () => ({
-      currentServiceLine,
-      setCurrentServiceLine,
-      availableServiceLines,
-      isLoading,
-      refetch,
+    currentServiceLine,
+    setCurrentServiceLine,
+    availableServiceLines,
+    isLoading,
+    refetch,
     }),
     [currentServiceLine, availableServiceLines, isLoading, refetch]
   );

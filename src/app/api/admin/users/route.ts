@@ -25,6 +25,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
+    // Check permission
+    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
+    const hasPermission = await checkUserPermission(currentUser.id, 'admin.users', 'READ');
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+    }
+
     // Get all users with their project assignments
     const users = await prisma.user.findMany({
       select: {

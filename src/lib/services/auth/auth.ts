@@ -577,3 +577,45 @@ export async function getUserProjects(
     return projectUsers.map(pu => pu.Project);
   }
 }
+
+/**
+ * Check if user has a specific permission
+ * Integrates with the permission service
+ * @param userId - The user ID
+ * @param resource - The resource key
+ * @param action - The action to check
+ * @returns true if user has permission, false otherwise
+ */
+export async function checkUserPermission(
+  userId: string,
+  resource: string,
+  action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
+): Promise<boolean> {
+  try {
+    // Dynamic import to avoid circular dependency
+    const { checkUserPermission: checkPermission } = await import('@/lib/services/permissions/permissionService');
+    return await checkPermission(userId, resource, action);
+  } catch (error) {
+    log.error('Error checking user permission', error);
+    return false;
+  }
+}
+
+/**
+ * Require specific permission - throws error if user doesn't have it
+ * @param userId - The user ID
+ * @param resource - The resource key
+ * @param action - The action to check
+ * @throws Error if user doesn't have permission
+ */
+export async function requirePermission(
+  userId: string,
+  resource: string,
+  action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
+): Promise<void> {
+  const hasPermission = await checkUserPermission(userId, resource, action);
+  
+  if (!hasPermission) {
+    throw new Error(`Permission denied: ${action} on ${resource}`);
+  }
+}

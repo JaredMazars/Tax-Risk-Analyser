@@ -7,11 +7,12 @@ import { ProjectTypeSelector } from './ProjectTypeSelector';
 import { ProjectTimelineInput } from '../../shared/ProjectTimelineInput';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { getProjectTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
+import { useCreateProject } from '@/hooks/projects/useCreateProject';
 
 interface ProjectCreatedResult {
   id: number;
   name: string;
-  serviceLine: ServiceLine;
+  serviceLine: string;
   [key: string]: unknown;
 }
 
@@ -25,10 +26,9 @@ interface CreateProjectModalProps {
 
 export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId, initialServiceLine }: CreateProjectModalProps) {
   const [step, setStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [error, setError] = useState('');
   const { currentServiceLine } = useServiceLine();
+  const createProjectMutation = useCreateProject();
   
   // Use initialServiceLine if provided, otherwise fall back to currentServiceLine
   const effectiveServiceLine = initialServiceLine || currentServiceLine || ServiceLine.TAX;
@@ -109,27 +109,12 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
     }
     
     if (!formData.name.trim()) {
-      setError('Project name is required');
       return;
     }
 
-    setIsSubmitting(true);
-    setError('');
-
     try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create project');
-      }
-
-      const result = await response.json();
-      const createdProject = result.success ? result.data : result;
+      // Use mutateAsync to await the mutation and cache invalidation
+      const createdProject = await createProjectMutation.mutateAsync(formData);
       
       // Reset form
       const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
@@ -149,11 +134,11 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
       setStep(1);
       setIsTransitioning(false);
       
+      // Call parent's onSuccess only after cache has been invalidated
       onSuccess(createdProject);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsSubmitting(false);
+    } catch (error) {
+      // Error is handled by the mutation hook
+      console.error('Failed to create project:', error);
     }
   };
 
@@ -173,8 +158,8 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
       submissionDeadline: null,
     });
     setStep(1);
-    setError('');
     setIsTransitioning(false);
+    createProjectMutation.reset(); // Reset mutation state
     onClose();
   };
 
@@ -208,9 +193,9 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
         </div>
 
         <div className="p-6">
-          {error && (
+          {createProjectMutation.error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-              {error}
+              {createProjectMutation.error.message}
             </div>
           )}
 
@@ -339,10 +324,10 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess, initialClientId
                 <button
                   type="button"
                   onClick={() => handleSubmit()}
-                  disabled={isSubmitting}
+                  disabled={createProjectMutation.isPending}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
                 >
-                  {isSubmitting ? 'Creating...' : 'Create Project'}
+                  {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
                 </button>
               )}
             </div>

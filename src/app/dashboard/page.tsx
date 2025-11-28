@@ -1,14 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ServiceLineCard } from '@/components/features/service-lines/ServiceLineCard';
 import { SharedServiceCard } from '@/components/features/service-lines/SharedServiceCard';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
-import { isSharedService } from '@/lib/utils/serviceLineUtils';
+import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { GT3Logo } from '@/components/shared/GT3Logo';
 
 export default function DashboardHomePage() {
   const { availableServiceLines, isLoading, setCurrentServiceLine, refetch } = useServiceLine();
+  const searchParams = useSearchParams();
+  const [showError, setShowError] = useState(true);
+
+  // Get error parameters from URL
+  const error = searchParams.get('error');
+  const serviceLine = searchParams.get('serviceLine');
 
   // Clear any stored service line when landing on this page and refetch
   useEffect(() => {
@@ -29,32 +36,6 @@ export default function DashboardHomePage() {
     );
   }
 
-  if (availableServiceLines.length === 0) {
-    return (
-      <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md">
-          <div className="bg-white rounded-lg shadow-corporate border-2 p-8 text-center" style={{ borderColor: '#2E5AAC' }}>
-            <div className="rounded-full p-4 inline-flex mb-4" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
-              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-forvis-gray-900 mb-3">No Service Lines Available</h2>
-            <p className="text-sm text-forvis-gray-700 mb-6">
-              You don't have access to any service lines yet. Please contact your administrator to request access.
-            </p>
-            <div className="rounded-lg p-4 border-2" style={{ background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)', borderColor: '#E0EDFB' }}>
-              <p className="text-xs font-bold mb-1" style={{ color: '#1C3667' }}>Need Help?</p>
-              <p className="text-xs text-forvis-gray-700">
-                Contact your system administrator to grant you access to service lines.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Separate main service lines from shared services
   const mainServiceLines = availableServiceLines.filter(
     (sl) => !isSharedService(sl.serviceLine)
@@ -63,9 +44,48 @@ export default function DashboardHomePage() {
     (sl) => isSharedService(sl.serviceLine)
   );
 
+  // Generate error message based on error type
+  const errorMessage = error === 'no_service_line_access' && serviceLine
+    ? `You don't have access to ${formatServiceLineName(serviceLine)}. Please contact your administrator to request access.`
+    : error === 'invalid_service_line'
+    ? 'Invalid service line requested.'
+    : null;
+
   return (
     <div className="min-h-screen bg-forvis-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Error Message */}
+        {errorMessage && showError && (
+          <div className="mb-6 max-w-3xl mx-auto">
+            <div className="rounded-xl p-4 border-2 shadow-corporate bg-red-50" style={{ borderColor: '#DC2626' }}>
+              <div className="flex items-start gap-3">
+                <div className="rounded-full p-2 bg-red-100">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold mb-1 text-red-900">
+                    Access Denied
+                  </h3>
+                  <p className="text-sm text-red-800">
+                    {errorMessage}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowError(false)}
+                  className="text-red-400 hover:text-red-600 transition-colors"
+                  aria-label="Dismiss error"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8 text-center" style={{ overflow: 'visible' }}>
           <h1 className="text-3xl md:text-4xl font-semibold text-forvis-gray-900">
@@ -75,12 +95,38 @@ export default function DashboardHomePage() {
             <GT3Logo />
           </div>
           <p className="text-sm text-forvis-gray-600">
-            Select a service line to get started
+            {availableServiceLines.length > 0 
+              ? 'Select a service line to get started'
+              : 'Learn more about our services below'}
           </p>
         </div>
 
+        {/* Info Banner - No Service Lines */}
+        {availableServiceLines.length === 0 && (
+          <div className="mb-8 max-w-3xl mx-auto">
+            <div className="rounded-xl p-4 border-2 shadow-corporate" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
+              <div className="flex items-start gap-3">
+                <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold mb-1" style={{ color: '#1C3667' }}>
+                    No Service Lines Assigned
+                  </h3>
+                  <p className="text-sm text-forvis-gray-700">
+                    You don't have access to any service lines yet. Please contact your administrator to request access to the service lines you need. In the meantime, explore our service offerings below.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {availableServiceLines.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div 
             className="rounded-lg p-4 shadow-corporate text-white"
             style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
@@ -136,6 +182,7 @@ export default function DashboardHomePage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Main Service Line Cards */}
         {mainServiceLines.length > 0 && (

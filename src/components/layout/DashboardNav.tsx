@@ -13,6 +13,7 @@ import {
 import { NotificationBell } from '@/components/features/notifications/NotificationBell';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { usePermission } from '@/hooks/permissions/usePermission';
 
 interface NavItem {
   label: string;
@@ -25,6 +26,13 @@ export default function DashboardNav() {
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
   const { currentServiceLine } = useServiceLine();
+
+  // Check permissions for admin access
+  const { hasPermission: hasAdminAccess } = usePermission('admin', 'READ');
+  const { hasPermission: hasUsersAccess } = usePermission('admin.users', 'READ');
+  const { hasPermission: hasServiceLineAccess } = usePermission('admin.service-lines', 'READ');
+  const { hasPermission: hasTemplatesAccess } = usePermission('admin.templates', 'READ');
+  const { hasPermission: hasPermissionsAccess } = usePermission('admin.permissions', 'READ');
 
   // Base nav items - always visible
   const baseNavItems: NavItem[] = [
@@ -44,29 +52,45 @@ export default function DashboardNav() {
       ]
     : [];
 
-  // Admin nav items
-  const adminNavItems: NavItem[] = [
-    {
-      label: 'Admin',
-      items: [
+  // Admin nav items - only show if user has admin access
+  const adminMenuItems = [];
+  if (hasUsersAccess) {
+    adminMenuItems.push({
+      label: 'User Management',
+      href: '/dashboard/admin/users',
+      description: 'Manage users and permissions',
+    });
+  }
+  if (hasServiceLineAccess) {
+    adminMenuItems.push({
+      label: 'Service Line Access',
+      href: '/dashboard/admin/service-lines',
+      description: 'Manage service line permissions',
+    });
+  }
+  if (hasTemplatesAccess) {
+    adminMenuItems.push({
+      label: 'Template Management',
+      href: '/dashboard/admin/templates',
+      description: 'Manage engagement letter templates',
+    });
+  }
+  if (hasPermissionsAccess) {
+    adminMenuItems.push({
+      label: 'Permission Matrix',
+      href: '/dashboard/admin/permissions',
+      description: 'Manage role-based permissions',
+    });
+  }
+
+  const adminNavItems: NavItem[] = hasAdminAccess && adminMenuItems.length > 0
+    ? [
         {
-          label: 'User Management',
-          href: '/dashboard/admin/users',
-          description: 'Manage users and permissions',
+          label: 'Admin',
+          items: adminMenuItems,
         },
-        {
-          label: 'Service Line Access',
-          href: '/dashboard/admin/service-lines',
-          description: 'Manage service line permissions',
-        },
-        {
-          label: 'Template Management',
-          href: '/dashboard/admin/templates',
-          description: 'Manage engagement letter templates',
-        },
-      ],
-    },
-  ];
+      ]
+    : [];
 
   const navItems: NavItem[] = [...baseNavItems, ...serviceLineNavItems, ...adminNavItems];
 
