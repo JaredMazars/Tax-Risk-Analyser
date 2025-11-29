@@ -39,7 +39,7 @@ export async function generateFromTemplate(
     const template = await prisma.template.findUnique({
       where: { id: templateId },
       include: {
-        sections: {
+        TemplateSection: {
           orderBy: { order: 'asc' },
         },
       },

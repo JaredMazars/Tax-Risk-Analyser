@@ -1,12 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
-import { 
-  NotificationType, 
-  NotificationFilters, 
-  NotificationResponse, 
-  InAppNotificationWithUser,
-  NotificationMetadata 
-} from '@/types/notification';
+import { NotificationType, NotificationFilters, NotificationResponse, InAppNotificationWithUser } from '@/types/notification';
 
 /**
  * Notification Service
@@ -24,7 +18,7 @@ export class NotificationService {
     projectId?: number,
     actionUrl?: string,
     fromUserId?: string,
-    metadata?: NotificationMetadata
+    metadata?: Record<string, unknown>
   ): Promise<void> {
     try {
       await prisma.inAppNotification.create({
@@ -37,6 +31,7 @@ export class NotificationService {
           actionUrl: actionUrl || null,
           fromUserId: fromUserId || null,
           metadata: metadata ? JSON.stringify(metadata) : null,
+          updatedAt: new Date(),
         },
       });
 
@@ -83,14 +78,14 @@ export class NotificationService {
       }
 
       // Get notifications with user and project details
-      const [rawNotifications, totalCount, unreadCount] = await Promise.all([
+      const [notifications, totalCount, unreadCount] = await Promise.all([
         prisma.inAppNotification.findMany({
           where,
           skip,
           take: pageSize,
           orderBy: { createdAt: 'desc' },
           include: {
-            User_InAppNotification_fromUserIdToUser: {
+            FromUser: {
               select: {
                 id: true,
                 name: true,
@@ -115,41 +110,8 @@ export class NotificationService {
         }),
       ]);
 
-      // Properly map Prisma results to match interface
-      const notifications: InAppNotificationWithUser[] = rawNotifications.map(notification => {
-        // Parse metadata if present
-        let metadata: NotificationMetadata | null = null;
-        if (notification.metadata) {
-          try {
-            metadata = JSON.parse(notification.metadata) as NotificationMetadata;
-          } catch (error) {
-            logger.error('Failed to parse notification metadata', { 
-              notificationId: notification.id, 
-              error 
-            });
-          }
-        }
-
-        return {
-          id: notification.id,
-          userId: notification.userId,
-          projectId: notification.projectId,
-          type: notification.type,
-          title: notification.title,
-          message: notification.message,
-          actionUrl: notification.actionUrl,
-          isRead: notification.isRead,
-          readAt: notification.readAt,
-          metadata,
-          fromUserId: notification.fromUserId,
-          createdAt: notification.createdAt,
-          fromUser: notification.User_InAppNotification_fromUserIdToUser || null,
-          project: notification.Project || null,
-        };
-      });
-
       return {
-        notifications,
+        notifications: notifications as InAppNotificationWithUser[],
         unreadCount,
         totalCount,
         page,

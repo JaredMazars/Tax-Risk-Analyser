@@ -19,20 +19,25 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
-    const isRead = searchParams.get('isRead');
-    const projectId = searchParams.get('projectId');
+    const isReadParam = searchParams.get('isRead');
+    const projectIdParam = searchParams.get('projectId');
 
     const filters: NotificationFilters = {
       page,
       pageSize,
     };
 
-    if (isRead !== null) {
-      filters.isRead = isRead === 'true';
+    // Only set isRead filter if explicitly provided
+    if (isReadParam !== null && isReadParam !== undefined) {
+      filters.isRead = isReadParam === 'true';
     }
 
-    if (projectId) {
-      filters.projectId = parseInt(projectId, 10);
+    // Only set projectId filter if provided and valid
+    if (projectIdParam !== null && projectIdParam !== undefined) {
+      const parsedProjectId = parseInt(projectIdParam, 10);
+      if (!isNaN(parsedProjectId)) {
+        filters.projectId = parsedProjectId;
+      }
     }
 
     const response = await notificationService.getUserNotifications(user.id, filters);

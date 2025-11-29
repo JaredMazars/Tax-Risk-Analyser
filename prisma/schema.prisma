@@ -14,7 +14,7 @@ model AcceptanceAnswer {
   answer                   String?                  @db.NVarChar(Max)
   comment                  String?                  @db.NVarChar(Max)
   createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @default(now()) @updatedAt
   AcceptanceQuestion       AcceptanceQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_Question")
   ClientAcceptanceResponse ClientAcceptanceResponse @relation(fields: [responseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_Response")
 
@@ -53,7 +53,7 @@ model AcceptanceQuestion {
   riskWeight        Float              @default(1.0)
   highRiskAnswers   String?            @db.NVarChar(500)
   createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now()) @updatedAt
   AcceptanceAnswer  AcceptanceAnswer[]
 
   @@unique([questionnaireType, questionKey])
@@ -94,7 +94,7 @@ model AdjustmentDocument {
   extractedData    String?
   extractionError  String?
   createdAt        DateTime       @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime       @updatedAt
   Project          Project        @relation(fields: [projectId], references: [id], onUpdate: NoAction)
   TaxAdjustment    TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id], onUpdate: NoAction)
 
@@ -116,7 +116,7 @@ model AdministrationDocument {
   version     Int      @default(1)
   uploadedBy  String
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   Project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([category])
@@ -132,7 +132,7 @@ model AITaxReport {
   detailedFindings  String   @db.NVarChar(Max)
   recommendations   String   @db.NVarChar(Max)
   createdAt         DateTime @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   Project           Project  @relation(fields: [projectId], references: [id])
 
   @@index([projectId])
@@ -153,7 +153,7 @@ model BDActivity {
   assignedTo    String
   createdBy     String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime      @updatedAt
   BDContact     BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
@@ -188,7 +188,7 @@ model BDContact {
   notes         String?         @db.NVarChar(Max)
   createdBy     String
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime        @updatedAt
   BDActivity    BDActivity[]
   BDOpportunity BDOpportunity[]
 
@@ -204,7 +204,7 @@ model BDNote {
   isPrivate     Boolean       @default(false)
   createdBy     String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime      @updatedAt
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([createdAt(sort: Desc)])
@@ -230,7 +230,7 @@ model BDOpportunity {
   convertedAt         DateTime?
   createdBy           String
   createdAt           DateTime     @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime     @updatedAt
   clientId            Int?
   BDActivity          BDActivity[]
   BDNote              BDNote[]
@@ -269,7 +269,7 @@ model BDProposal {
   version       Int           @default(1)
   uploadedBy    String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime      @updatedAt
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([opportunityId])
@@ -289,7 +289,7 @@ model BDStage {
   isDefault     Boolean         @default(false)
   color         String?
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime        @updatedAt
   BDOpportunity BDOpportunity[]
 
   @@unique([serviceLine, name])
@@ -323,7 +323,7 @@ model Client {
   typeCode                 String                     @db.NVarChar(10)
   typeDesc                 String                     @db.NVarChar(50)
   createdAt                DateTime                   @default(now())
-  updatedAt                DateTime
+  updatedAt                DateTime                   @updatedAt
   ClientID                 String                     @db.UniqueIdentifier
   BDOpportunity            BDOpportunity[]
   ClientAcceptanceResponse ClientAcceptanceResponse[]
@@ -354,7 +354,7 @@ model ClientAcceptanceResponse {
   reviewedBy         String?              @db.NVarChar(200)
   reviewedAt         DateTime?
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now()) @updatedAt
   AcceptanceAnswer   AcceptanceAnswer[]
   AcceptanceDocument AcceptanceDocument[]
   Client             Client               @relation(fields: [clientId], references: [id], onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Client")
@@ -378,7 +378,7 @@ model ClientAnalyticsDocument {
   uploadedAt           DateTime               @default(now())
   extractedData        String?                @db.NVarChar(Max)
   createdAt            DateTime               @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime               @updatedAt
   Client               Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
   CreditRatingDocument CreditRatingDocument[]
 
@@ -398,7 +398,7 @@ model ClientCreditRating {
   confidence           Float
   analyzedBy           String
   createdAt            DateTime               @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime               @updatedAt
   Client               Client                 @relation(fields: [clientId], references: [id], onUpdate: NoAction)
   CreditRatingDocument CreditRatingDocument[]
 
@@ -421,7 +421,7 @@ model ComplianceChecklist {
   completedBy String?
   createdBy   String
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime  @updatedAt
   Project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([assignedTo])
@@ -483,7 +483,7 @@ model Employee {
   ExternalEmpID   String    @db.UniqueIdentifier
   WinLogon        String?   @db.NVarChar(100)
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime  @updatedAt
 
   @@index([Active])
   @@index([EmpCode])
@@ -506,7 +506,7 @@ model FilingStatus {
   notes           String?   @db.NVarChar(Max)
   createdBy       String
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime  @updatedAt
   Project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([deadline])
@@ -550,7 +550,7 @@ model LegalPrecedent {
   link      String?
   createdBy String
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   Project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
@@ -567,7 +567,7 @@ model MappedAccount {
   priorYearBalance Float    @default(0)
   sarsItem         String
   createdAt        DateTime @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
   projectId        Int
   Project          Project  @relation(fields: [projectId], references: [id])
 
@@ -584,7 +584,7 @@ model NotificationPreference {
   notificationType String
   emailEnabled     Boolean  @default(true)
   createdAt        DateTime @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
   Project          Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   User             User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -635,7 +635,7 @@ model OpinionDraft {
   status             String               @default("DRAFT")
   createdBy          String
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime             @updatedAt
   OpinionChatMessage OpinionChatMessage[]
   OpinionDocument    OpinionDocument[]
   Project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -658,7 +658,7 @@ model OpinionSection {
   reviewedAt     DateTime?
   order          Int
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
 
   @@index([opinionDraftId, order])
@@ -672,7 +672,7 @@ model Permission {
   description      String?          @db.NVarChar(500)
   availableActions String           @db.NVarChar(Max)
   createdAt        DateTime         @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime         @updatedAt
   RolePermission   RolePermission[]
 
   @@unique([resourceType, resourceKey])
@@ -685,7 +685,7 @@ model Project {
   name                        String
   description                 String?
   createdAt                   DateTime                   @default(now())
-  updatedAt                   DateTime
+  updatedAt                   DateTime                   @updatedAt
   status                      String                     @default("ACTIVE")
   archived                    Boolean                    @default(false)
   assessmentYear              String?
@@ -767,7 +767,7 @@ model ResearchNote {
   category  String?
   createdBy String
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   Project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([category])
@@ -780,7 +780,7 @@ model RolePermission {
   permissionId   Int
   allowedActions String     @db.NVarChar(Max)
   createdAt      DateTime   @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime   @updatedAt
   Permission     Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([role, permissionId])
@@ -802,7 +802,7 @@ model SarsResponse {
   documentPath    String?
   createdBy       String
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime  @updatedAt
   Project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([deadline])
@@ -810,17 +810,34 @@ model SarsResponse {
   @@index([status])
 }
 
-model ServiceLine {
+// Master service lines (application level)
+model ServiceLineMaster {
+  code        String   @id @db.NVarChar(50)
+  name        String   @db.NVarChar(200)
+  description String?  @db.NVarChar(500)
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([sortOrder])
+}
+
+// External DB service lines (from external system)
+model ServiceLineExternal {
   id           Int      @id @default(autoincrement())
   ServLineCode String?  @db.NVarChar(10)
   ServLineDesc String?  @db.NVarChar(150)
   GLPrefix     String?  @db.NVarChar(10)
   SLGroup      String?  @db.NVarChar(10)
+  masterCode   String?  @db.NVarChar(50)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
 
   @@index([ServLineCode])
   @@index([SLGroup])
+  @@index([masterCode])
 }
 
 model ServiceLineUser {
@@ -829,7 +846,7 @@ model ServiceLineUser {
   serviceLine String
   role        String   @default("USER")
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, serviceLine])
@@ -865,8 +882,8 @@ model Task {
   TaskDateOpen      DateTime
   TaskDateTerminate DateTime?
   createdAt         DateTime  @default(now())
-  updatedAt         DateTime
-  Client            Client    @relation(fields: [ClientCode], references: [clientCode], onUpdate: NoAction)
+  updatedAt         DateTime  @updatedAt
+  Client            Client?   @relation(fields: [ClientCode], references: [clientCode], onUpdate: NoAction)
   WipLTD            WipLTD[]
 
   @@unique([ClientCode, TaskCode])
@@ -894,7 +911,7 @@ model TaxAdjustment {
   sarsSection        String?
   confidenceScore    Float?
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime             @updatedAt
   AdjustmentDocument AdjustmentDocument[]
   Project            Project              @relation(fields: [projectId], references: [id])
 
@@ -916,7 +933,7 @@ model Template {
   active          Boolean           @default(true)
   createdBy       String
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime          @updatedAt
   TemplateSection TemplateSection[]
 
   @@index([active])
@@ -937,7 +954,7 @@ model TemplateSection {
   applicableServiceLines String?  @db.NVarChar(Max)
   applicableProjectTypes String?  @db.NVarChar(Max)
   createdAt              DateTime @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime @updatedAt
   Template               Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([sectionKey])
@@ -952,7 +969,7 @@ model User {
   image                                                String?
   role                                                 String                   @default("USER")
   createdAt                                            DateTime                 @default(now())
-  updatedAt                                            DateTime
+  updatedAt                                            DateTime                 @updatedAt
   Account                                              Account[]
   EmailLog                                             EmailLog[]
   InAppNotification_InAppNotification_fromUserIdToUser InAppNotification[]      @relation("InAppNotification_fromUserIdToUser")
@@ -1008,7 +1025,7 @@ model WipLTD {
   BudDueDate       DateTime?
   BudApproveDate   DateTime?
   createdAt        DateTime  @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime  @updatedAt
   Task             Task      @relation(fields: [taskId], references: [id], onUpdate: NoAction)
 
   @@index([ClientCode])

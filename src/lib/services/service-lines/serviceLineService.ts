@@ -227,7 +227,6 @@ export async function grantServiceLineAccess(
       },
       update: {
         role: role as string,
-        updatedAt: new Date(),
       },
       create: {
         userId,
@@ -285,7 +284,6 @@ export async function updateServiceLineRole(
       },
       data: {
         role: role as string,
-        updatedAt: new Date(),
       },
     });
 

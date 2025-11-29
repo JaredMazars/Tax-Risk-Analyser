@@ -172,6 +172,7 @@ async function executeMigration(plans: MigrationPlan[]): Promise<void> {
               userId: plan.user.id,
               serviceLine: assignment.serviceLine,
               role: assignment.role,
+              updatedAt: new Date(),
             },
             update: {
               role: assignment.role,

@@ -27,9 +27,9 @@ async function checkRatings() {
         where: { clientId: client.id },
         orderBy: { ratingDate: 'desc' },
         include: {
-          Documents: {
+          CreditRatingDocument: {
             include: {
-              AnalyticsDocument: true,
+              ClientAnalyticsDocument: true,
             },
           },
         },
@@ -45,7 +45,7 @@ async function checkRatings() {
         console.log(`    Confidence: ${rating.confidence}`);
         console.log(`    Date: ${rating.ratingDate}`);
         console.log(`    Analyzed By: ${rating.analyzedBy}`);
-        console.log(`    Documents: ${rating.Documents.length}`);
+        console.log(`    Documents: ${rating.CreditRatingDocument.length}`);
         console.log(`    Analysis Report Length: ${rating.analysisReport.length} chars`);
         console.log(`    Financial Ratios Length: ${rating.financialRatios.length} chars`);
         

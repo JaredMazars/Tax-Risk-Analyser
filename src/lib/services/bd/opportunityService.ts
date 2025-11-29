@@ -28,15 +28,15 @@ export interface OpportunityWithRelations {
     clientCode: string;
     clientNameFull: string | null;
   } | null;
-  Contact: {
+  BDContact: {
     id: number;
-    companyName: string;
+    companyName: string | null;
     firstName: string;
     lastName: string;
     email: string | null;
     phone: string | null;
   } | null;
-  Stage: {
+  BDStage: {
     id: number;
     name: string;
     probability: number;
@@ -97,7 +97,7 @@ export async function getOpportunities(filters: {
             clientNameFull: true,
           },
         },
-        Contact: {
+        BDContact: {
           select: {
             id: true,
             companyName: true,
@@ -107,7 +107,7 @@ export async function getOpportunities(filters: {
             phone: true,
           },
         },
-        Stage: {
+        BDStage: {
           select: {
             id: true,
             name: true,
@@ -142,7 +142,7 @@ export async function getOpportunityById(
           clientNameFull: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           companyName: true,
@@ -152,7 +152,7 @@ export async function getOpportunityById(
           phone: true,
         },
       },
-      Stage: {
+      BDStage: {
         select: {
           id: true,
           name: true,
@@ -191,7 +191,7 @@ export async function getPipelineView(filters: {
           clientNameFull: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           companyName: true,
@@ -201,7 +201,7 @@ export async function getPipelineView(filters: {
           phone: true,
         },
       },
-      Stage: {
+      BDStage: {
         select: {
           id: true,
           name: true,
@@ -210,13 +210,13 @@ export async function getPipelineView(filters: {
         },
       },
     },
-    orderBy: [{ Stage: { order: 'asc' } }, { updatedAt: 'desc' }],
+    orderBy: [{ BDStage: { order: 'asc' } }, { updatedAt: 'desc' }],
   });
 
   // Group by stage name
   const pipeline: Record<string, OpportunityWithRelations[]> = {};
   for (const opp of opportunities as OpportunityWithRelations[]) {
-    const stageName = opp.Stage.name;
+    const stageName = opp.BDStage.name;
     if (!pipeline[stageName]) {
       pipeline[stageName] = [];
     }
@@ -269,7 +269,7 @@ export async function createOpportunity(data: {
           clientNameFull: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           companyName: true,
@@ -279,7 +279,7 @@ export async function createOpportunity(data: {
           phone: true,
         },
       },
-      Stage: {
+      BDStage: {
         select: {
           id: true,
           name: true,
@@ -325,7 +325,7 @@ export async function updateOpportunity(
           clientNameFull: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           companyName: true,
@@ -335,7 +335,7 @@ export async function updateOpportunity(
           phone: true,
         },
       },
-      Stage: {
+      BDStage: {
         select: {
           id: true,
           name: true,
@@ -463,7 +463,7 @@ export async function getWeightedPipelineValue(filters: {
   const opportunities = await prisma.bDOpportunity.findMany({
     where,
     include: {
-      Stage: {
+      BDStage: {
         select: {
           probability: true,
         },
@@ -474,7 +474,7 @@ export async function getWeightedPipelineValue(filters: {
   let weightedValue = 0;
   for (const opp of opportunities) {
     const value = opp.value || 0;
-    const probability = (opp.probability || opp.Stage.probability) / 100;
+    const probability = (opp.probability || opp.BDStage.probability) / 100;
     weightedValue += value * probability;
   }
 

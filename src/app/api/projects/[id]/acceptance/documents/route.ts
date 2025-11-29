@@ -223,7 +223,7 @@ export async function DELETE(
       select: {
         id: true,
         fileName: true,
-        Response: {
+        ClientAcceptanceResponse: {
           select: {
             reviewedAt: true,
           },
@@ -236,7 +236,7 @@ export async function DELETE(
     }
 
     // Check if questionnaire is locked
-    if (document.Response.reviewedAt) {
+    if (document.ClientAcceptanceResponse.reviewedAt) {
       return NextResponse.json(
         { error: 'Cannot delete documents after review', code: AcceptanceErrorCodes.CANNOT_MODIFY_AFTER_REVIEW },
         { status: 403 }

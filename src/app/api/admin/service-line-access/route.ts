@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest) {
     const { prisma } = await import('@/lib/db/prisma');
     await prisma.serviceLineUser.update({
       where: { id },
-      data: { role, updatedAt: new Date() },
+      data: { role },
     });
 
     return NextResponse.json(

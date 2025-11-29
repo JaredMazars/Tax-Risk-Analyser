@@ -5,6 +5,7 @@ import { randomBytes } from 'crypto';
 import { prisma } from '../../db/prisma';
 import { withRetry, RetryPresets } from '../../utils/retryUtils';
 import type { Session, SessionUser } from './types';
+import { cache } from '@/lib/services/cache/CacheService';
 
 // Helper for conditional logging (avoid importing logger to prevent Edge Runtime issues)
 const log = {
@@ -171,10 +172,25 @@ interface DatabaseSession {
 }
 
 /**
- * Get session from database
+ * Get session from cache or database
  */
 export async function getSessionFromDatabase(token: string): Promise<DatabaseSession | null> {
   try {
+    // Try cache first
+    const cacheKey = `session:${token}`;
+    const cachedSession = await cache.get<DatabaseSession>(cacheKey);
+    
+    if (cachedSession) {
+      // Check if cached session hasn't expired
+      if (new Date(cachedSession.expires) > new Date()) {
+        log.info('Session cache hit', { userId: cachedSession.userId });
+        return cachedSession;
+      }
+      // Expired - remove from cache
+      await cache.delete(cacheKey);
+    }
+
+    // Not in cache or expired - fetch from database
     // Use retry logic for session lookup to handle Azure SQL cold-start
     const session = await withRetry(
       async () => {
@@ -204,7 +220,24 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
       return null;
     }
 
-    return session;
+    // Cache the session (TTL: 1 hour)
+    const sessionData: DatabaseSession = {
+      id: session.id,
+      sessionToken: session.sessionToken,
+      userId: session.userId,
+      expires: session.expires,
+      User: {
+        id: session.User.id,
+        email: session.User.email || '',
+        name: session.User.name || '',
+        role: session.User.role,
+      },
+    };
+    
+    await cache.set(cacheKey, sessionData, 3600); // 1 hour
+    log.info('Session cached', { userId: session.userId });
+
+    return sessionData;
   } catch (error) {
     log.error('Failed to get session from database', error);
     return null;
@@ -512,6 +545,10 @@ export async function requireProjectRole(
  */
 export async function deleteSession(token: string): Promise<void> {
   try {
+    // Delete from cache
+    await cache.delete(`session:${token}`);
+    
+    // Delete from database
     await prisma.session.delete({
       where: { sessionToken: token },
     });
@@ -524,6 +561,10 @@ export async function deleteSession(token: string): Promise<void> {
  * Delete all sessions for a user (logout from all devices)
  */
 export async function deleteAllUserSessions(userId: string): Promise<void> {
+  // Invalidate all session caches for this user
+  await cache.invalidate(`session:`);
+  
+  // Delete from database
   await prisma.session.deleteMany({
     where: { userId },
   });

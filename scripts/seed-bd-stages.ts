@@ -80,6 +80,7 @@ async function main() {
       data: {
         ...stage,
         serviceLine: null, // Default stages apply to all service lines
+        updatedAt: new Date(),
       },
     });
 

@@ -18,6 +18,13 @@ export enum NotificationType {
 }
 
 /**
+ * Notification metadata type
+ */
+export interface NotificationMetadata {
+  [key: string]: unknown;
+}
+
+/**
  * In-app notification
  */
 export interface InAppNotification {
@@ -30,7 +37,7 @@ export interface InAppNotification {
   actionUrl: string | null;
   isRead: boolean;
   readAt: Date | null;
-  metadata: string | null;
+  metadata: NotificationMetadata | null;
   fromUserId: string | null;
   createdAt: Date;
 }
@@ -39,13 +46,13 @@ export interface InAppNotification {
  * Notification with user details
  */
 export interface InAppNotificationWithUser extends InAppNotification {
-  FromUser?: {
+  fromUser?: {
     id: string;
     name: string | null;
     email: string;
     image: string | null;
   } | null;
-  Project?: {
+  project?: {
     id: number;
     name: string;
   } | null;

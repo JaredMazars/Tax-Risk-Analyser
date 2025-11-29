@@ -32,14 +32,14 @@ export async function GET(
     const activity = await prisma.bDActivity.findUnique({
       where: { id: activityId },
       include: {
-        Opportunity: {
+        BDOpportunity: {
           select: {
             id: true,
             title: true,
             companyName: true,
           },
         },
-        Contact: {
+        BDContact: {
           select: {
             id: true,
             firstName: true,

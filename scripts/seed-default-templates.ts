@@ -23,6 +23,7 @@ async function main() {
       content: '', // Content will be built from sections
       active: true,
       createdBy: 'system',
+      updatedAt: new Date(),
     },
   });
 
@@ -212,6 +213,7 @@ Date: ___________________
         applicableProjectTypes: sectionData.applicableProjectTypes
           ? JSON.stringify(sectionData.applicableProjectTypes)
           : null,
+        updatedAt: new Date(),
       },
     });
     console.log(`  ✅ Created section: ${section.title}`);

@@ -107,7 +107,6 @@ export async function PATCH(
           update: {
             answer: answerInput.answer,
             comment: sanitizedComment,
-            updatedAt: new Date(),
           },
         });
       })
@@ -147,7 +146,6 @@ export async function PATCH(
         overallRiskScore: riskAssessment.overallRiskScore,
         riskRating: riskAssessment.riskRating,
         riskSummary: riskAssessment.riskSummary,
-        updatedAt: new Date(),
       },
       select: {
         id: true,

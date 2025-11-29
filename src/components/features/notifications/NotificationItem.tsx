@@ -49,7 +49,7 @@ export function NotificationItem({
     await deleteNotification.mutateAsync(notification.id);
   };
 
-  const senderName = notification.FromUser?.name || notification.FromUser?.email || 'System';
+  const senderName = notification.fromUser?.name || notification.fromUser?.email || 'System';
   const messageText = compact ? truncateMessage(notification.message, 80) : notification.message;
 
   return (
@@ -75,7 +75,7 @@ export function NotificationItem({
               <p className="text-sm font-medium text-forvis-gray-900 truncate">
                 {notification.title}
               </p>
-              {notification.FromUser && (
+              {notification.fromUser && (
                 <p className="text-xs text-forvis-gray-600">
                   from {senderName}
                 </p>
@@ -97,10 +97,10 @@ export function NotificationItem({
           </p>
 
           {/* Project Badge */}
-          {notification.Project && (
+          {notification.project && (
             <div className="mt-2">
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-gray-100 text-forvis-gray-800">
-                {notification.Project.name}
+                {notification.project.name}
               </span>
             </div>
           )}

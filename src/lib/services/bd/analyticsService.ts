@@ -71,7 +71,7 @@ export async function getPipelineMetrics(filters: {
   const opportunities = await prisma.bDOpportunity.findMany({
     where,
     include: {
-      Stage: {
+      BDStage: {
         select: {
           name: true,
           color: true,
@@ -96,16 +96,16 @@ export async function getPipelineMetrics(filters: {
 
   for (const opp of opportunities) {
     const value = opp.value || 0;
-    const probability = (opp.probability || opp.Stage.probability) / 100;
+    const probability = (opp.probability || opp.BDStage.probability) / 100;
 
     totalValue += value;
     weightedValue += value * probability;
 
-    const stageName = opp.Stage.name;
+    const stageName = opp.BDStage.name;
     if (!stageMetrics[stageName]) {
       stageMetrics[stageName] = {
         stageName,
-        stageColor: opp.Stage.color,
+        stageColor: opp.BDStage.color,
         count: 0,
         totalValue: 0,
         weightedValue: 0,
@@ -224,7 +224,7 @@ export async function getForecastMetrics(filters: {
       },
     },
     include: {
-      Stage: {
+      BDStage: {
         select: {
           probability: true,
         },
@@ -235,7 +235,7 @@ export async function getForecastMetrics(filters: {
   let thisMonthExpected = 0;
   for (const opp of thisMonthExpectedOpps) {
     const value = opp.value || 0;
-    const probability = (opp.probability || opp.Stage.probability) / 100;
+    const probability = (opp.probability || opp.BDStage.probability) / 100;
     thisMonthExpected += value * probability;
   }
 
@@ -267,7 +267,7 @@ export async function getForecastMetrics(filters: {
       },
     },
     include: {
-      Stage: {
+      BDStage: {
         select: {
           probability: true,
         },
@@ -278,7 +278,7 @@ export async function getForecastMetrics(filters: {
   let nextMonthExpected = 0;
   for (const opp of nextMonthExpectedOpps) {
     const value = opp.value || 0;
-    const probability = (opp.probability || opp.Stage.probability) / 100;
+    const probability = (opp.probability || opp.BDStage.probability) / 100;
     nextMonthExpected += value * probability;
   }
 
@@ -293,7 +293,7 @@ export async function getForecastMetrics(filters: {
       },
     },
     include: {
-      Stage: {
+      BDStage: {
         select: {
           probability: true,
         },
@@ -304,7 +304,7 @@ export async function getForecastMetrics(filters: {
   let thisQuarterExpected = 0;
   for (const opp of thisQuarterExpectedOpps) {
     const value = opp.value || 0;
-    const probability = (opp.probability || opp.Stage.probability) / 100;
+    const probability = (opp.probability || opp.BDStage.probability) / 100;
     thisQuarterExpected += value * probability;
   }
 

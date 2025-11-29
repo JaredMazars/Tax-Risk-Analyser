@@ -269,7 +269,6 @@ export async function updateRolePermission(
       },
       update: {
         allowedActions: JSON.stringify(actions),
-        updatedAt: new Date(),
       },
     });
   } catch (error) {
@@ -412,7 +411,6 @@ export async function bulkUpdateRolePermissions(
               },
               update: {
                 allowedActions: JSON.stringify(update.actions),
-                updatedAt: new Date(),
               },
             })
       )

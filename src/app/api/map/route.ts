@@ -177,7 +177,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
                 subsection: item.subsection,
                 balance: item.balance,
                 priorYearBalance: item.priorYearBalance || 0,
-                sarsItem: item.sarsItem
+                sarsItem: item.sarsItem,
               }))
             });
           }
@@ -418,7 +418,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
             subsection: item.subsection,
             balance: item.balance,
             priorYearBalance: item.priorYearBalance || 0,
-            sarsItem: item.sarsItem
+            sarsItem: item.sarsItem,
           }))
         });
       }

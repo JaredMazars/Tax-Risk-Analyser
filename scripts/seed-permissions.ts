@@ -679,6 +679,7 @@ async function main() {
         displayName: perm.displayName,
         description: perm.description,
         availableActions: JSON.stringify(perm.availableActions),
+        updatedAt: new Date(),
       },
       update: {
         displayName: perm.displayName,
@@ -716,6 +717,7 @@ async function main() {
         role: rolePerm.role,
         permissionId: permission.id,
         allowedActions: JSON.stringify(rolePerm.allowedActions),
+        updatedAt: new Date(),
       },
       update: {
         allowedActions: JSON.stringify(rolePerm.allowedActions),

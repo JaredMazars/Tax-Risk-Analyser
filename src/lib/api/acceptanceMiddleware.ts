@@ -149,7 +149,7 @@ export async function validateDocumentAccess(
     const document = await prisma.acceptanceDocument.findUnique({
       where: { id: documentId },
       select: {
-        Response: {
+        ClientAcceptanceResponse: {
           select: {
             projectId: true,
           },
@@ -161,7 +161,7 @@ export async function validateDocumentAccess(
       return { hasAccess: false };
     }
 
-    const projectId = document.Response.projectId;
+    const projectId = document.ClientAcceptanceResponse.projectId;
     const hasAccess = await validateAcceptanceAccess(projectId, userId);
 
     return { hasAccess, projectId };

@@ -56,7 +56,7 @@ export async function DELETE(
     const ratingsUsingDoc = await prisma.creditRatingDocument.findMany({
       where: { analyticsDocumentId: docId },
       include: {
-        CreditRating: {
+        ClientCreditRating: {
           select: {
             id: true,
             ratingDate: true,
@@ -73,7 +73,7 @@ export async function DELETE(
         {
           error: 'Cannot delete document',
           message: `This document is being used in ${ratingsUsingDoc.length} credit rating(s). Please delete those ratings first.`,
-          ratingsAffected: ratingsUsingDoc.map((r) => r.CreditRating),
+          ratingsAffected: ratingsUsingDoc.map((r) => r.ClientCreditRating),
         },
         { status: 409 }
       );

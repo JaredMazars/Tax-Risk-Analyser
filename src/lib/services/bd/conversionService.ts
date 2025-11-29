@@ -42,7 +42,7 @@ export async function convertOpportunityToClient(
   const opportunity = await prisma.bDOpportunity.findUnique({
     where: { id: opportunityId },
     include: {
-      Contact: true,
+      BDContact: true,
     },
   });
 
@@ -84,8 +84,8 @@ export async function convertOpportunityToClient(
         clientIncharge: 'TBD',
         active: 'Yes',
         clientDateOpen: new Date(),
-        industry: opportunity.Contact?.industry || null,
-        sector: opportunity.Contact?.sector || null,
+        industry: opportunity.BDContact?.industry || null,
+        sector: opportunity.BDContact?.sector || null,
         clientOCFlag: false,
         clientTaxFlag: opportunity.serviceLine === 'TAX',
         clientSecFlag: false,
@@ -93,6 +93,7 @@ export async function convertOpportunityToClient(
         rolePlayer: false,
         typeCode: 'STD',
         typeDesc: 'Standard Client',
+        ClientID: crypto.randomUUID(),
       },
     });
   }
@@ -120,7 +121,6 @@ export async function convertOpportunityToClient(
         projectType,
         status: 'ACTIVE',
         createdAt: new Date(),
-        updatedAt: new Date(),
       },
     });
   }

@@ -60,3 +60,4 @@ This migration is part of a broader terminology update:
 - Documentation updated to reflect new terminology
 - UI displays "System Administrator" instead of "Superuser"
 
+

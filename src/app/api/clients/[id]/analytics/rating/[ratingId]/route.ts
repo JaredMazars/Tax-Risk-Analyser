@@ -47,9 +47,9 @@ export async function GET(
         clientId,
       },
       include: {
-        Documents: {
+        CreditRatingDocument: {
           include: {
-            AnalyticsDocument: true,
+            ClientAnalyticsDocument: true,
           },
         },
         Client: {
@@ -73,7 +73,7 @@ export async function GET(
       ...rating,
       analysisReport: parseCreditAnalysisReport(rating.analysisReport),
       financialRatios: parseFinancialRatios(rating.financialRatios),
-      documents: rating.Documents.map((d) => d.AnalyticsDocument),
+      documents: rating.CreditRatingDocument.map((d) => d.ClientAnalyticsDocument),
     };
 
     return NextResponse.json(successResponse(transformedRating));

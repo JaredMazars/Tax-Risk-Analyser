@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       prisma.bDProposal.findMany({
         where,
         include: {
-          Opportunity: {
+          BDOpportunity: {
             select: {
               id: true,
               title: true,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         uploadedBy: user.id,
       },
       include: {
-        Opportunity: {
+        BDOpportunity: {
           select: {
             id: true,
             title: true,

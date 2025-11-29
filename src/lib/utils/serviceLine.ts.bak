@@ -135,6 +135,7 @@ export async function updateServiceLine(
       where: { code },
       data: {
         ...data,
+        updatedAt: new Date(),
       },
     });
   } catch (error) {

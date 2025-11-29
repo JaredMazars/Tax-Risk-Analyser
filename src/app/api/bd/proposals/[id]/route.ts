@@ -28,7 +28,7 @@ export async function GET(
     const proposal = await prisma.bDProposal.findUnique({
       where: { id: proposalId },
       include: {
-        Opportunity: {
+        BDOpportunity: {
           select: {
             id: true,
             title: true,
@@ -68,7 +68,7 @@ export async function PUT(
       where: { id: proposalId },
       data: validated,
       include: {
-        Opportunity: {
+        BDOpportunity: {
           select: {
             id: true,
             title: true,

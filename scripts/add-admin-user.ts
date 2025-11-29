@@ -24,6 +24,7 @@ async function addAdminUser() {
         email,
         name: email.split('@')[0],
         role: 'SYSTEM_ADMIN',
+        updatedAt: new Date(),
       },
     });
 

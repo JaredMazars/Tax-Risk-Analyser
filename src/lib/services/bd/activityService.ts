@@ -22,12 +22,12 @@ export interface ActivityWithRelations {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
-  Opportunity: {
+  BDOpportunity: {
     id: number;
     title: string;
-    companyName: string;
+    companyName: string | null;
   };
-  Contact: {
+  BDContact: {
     id: number;
     firstName: string;
     lastName: string;
@@ -72,14 +72,14 @@ export async function getActivities(filters: {
     prisma.bDActivity.findMany({
       where,
       include: {
-        Opportunity: {
+        BDOpportunity: {
           select: {
             id: true,
             title: true,
             companyName: true,
           },
         },
-        Contact: {
+        BDContact: {
           select: {
             id: true,
             firstName: true,
@@ -119,14 +119,14 @@ export async function getUpcomingActivities(
       },
     },
     include: {
-      Opportunity: {
+      BDOpportunity: {
         select: {
           id: true,
           title: true,
           companyName: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           firstName: true,
@@ -156,14 +156,14 @@ export async function getOverdueActivities(userId: string): Promise<ActivityWith
       },
     },
     include: {
-      Opportunity: {
+      BDOpportunity: {
         select: {
           id: true,
           title: true,
           companyName: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           firstName: true,
@@ -189,14 +189,14 @@ export async function getOpportunityTimeline(
       opportunityId,
     },
     include: {
-      Opportunity: {
+      BDOpportunity: {
         select: {
           id: true,
           title: true,
           companyName: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           firstName: true,
@@ -242,14 +242,14 @@ export async function createActivity(data: {
       createdBy: data.createdBy,
     },
     include: {
-      Opportunity: {
+      BDOpportunity: {
         select: {
           id: true,
           title: true,
           companyName: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           firstName: true,
@@ -285,14 +285,14 @@ export async function updateActivity(
     where: { id: activityId },
     data,
     include: {
-      Opportunity: {
+      BDOpportunity: {
         select: {
           id: true,
           title: true,
           companyName: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           firstName: true,
@@ -367,14 +367,14 @@ export async function getLastActivity(
       status: 'COMPLETED',
     },
     include: {
-      Opportunity: {
+      BDOpportunity: {
         select: {
           id: true,
           title: true,
           companyName: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           firstName: true,
@@ -404,14 +404,14 @@ export async function getNextActivity(
       dueDate: { gte: now },
     },
     include: {
-      Opportunity: {
+      BDOpportunity: {
         select: {
           id: true,
           title: true,
           companyName: true,
         },
       },
-      Contact: {
+      BDContact: {
         select: {
           id: true,
           firstName: true,

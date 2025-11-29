@@ -350,7 +350,7 @@ export default function TemplateEditorPage() {
             {!isNew && (
               <div className="card p-6">
                 <TemplateSectionManager
-                  sections={template.TemplateSection}
+                  sections={template.sections}
                   onAddSection={handleAddSection}
                   onUpdateSection={handleUpdateSection}
                   onDeleteSection={handleDeleteSection}

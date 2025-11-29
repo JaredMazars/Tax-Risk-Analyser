@@ -64,8 +64,8 @@ export function MessageThread({ messages, currentUserId }: MessageThreadProps) {
         // Get the other user's info from the first message
         const firstMessage = sortedMessages[0];
         const otherUser = firstMessage?.fromUserId === otherUserId
-          ? firstMessage.FromUser
-          : sortedMessages.find(m => m.userId === otherUserId && m.FromUser)?.FromUser;
+          ? firstMessage.fromUser
+          : sortedMessages.find(m => m.userId === otherUserId && m.fromUser)?.fromUser;
 
         const otherUserName = otherUser?.name || otherUser?.email || 'Unknown User';
         const unreadCount = sortedMessages.filter(msg => !msg.isRead && msg.userId === currentUserId).length;
