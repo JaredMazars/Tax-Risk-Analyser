@@ -1,0 +1,401 @@
+# Code Standards & Best Practices
+
+Advanced patterns for maintaining code quality, type safety, and performance in the Next.js/TypeScript/Prisma stack.
+
+---
+
+## 1. Branded Types
+
+**REQUIRED**: Use branded types for all entity IDs throughout the codebase.
+
+### Pattern
+
+```typescript
+// Import branded type and converter
+import { toProjectId, ProjectId } from '@/types/branded';
+
+// API routes - convert params immediately
+const { id } = await context.params;
+const projectId = toProjectId(id);
+
+// Service layer - use branded types in function signatures
+async function getProject(id: ProjectId): Promise<Project> {
+  return prisma.project.findUnique({ where: { id } });
+}
+```
+
+### Enforcement
+
+- [ ] All ID parameters must use branded types
+- [ ] Route params must be converted using `toXxxId()` converters
+- [ ] Service functions must accept branded types, not raw numbers
+- [ ] Database queries use the branded type (TypeScript strips at runtime)
+
+### Benefits
+
+- Prevents mixing different entity IDs (e.g., passing projectId where clientId expected)
+- Validates IDs at the boundary (throws on invalid input)
+- Self-documenting function signatures
+- Compile-time type safety
+
+---
+
+## 2. API Routes - Enhanced Standard Pattern
+
+**REQUIRED**: All API routes must follow this exact pattern with no variations.
+
+### Complete Pattern
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkUserPermission } from '@/lib/services/permissions/permissionService';
+import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
+import { successResponse } from '@/lib/utils/apiUtils';
+import { handleApiError } from '@/lib/utils/errorHandler';
+import { sanitizeObject } from '@/lib/utils/sanitization';
+import { toProjectId } from '@/types/branded';
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    // 1. Authenticate (REQUIRED)
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // 2. Parse and validate IDs using branded types (if applicable)
+    const { id } = await context.params;
+    const projectId = toProjectId(id);
+
+    // 3. Check permission (REQUIRED)
+    const hasPermission = await checkUserPermission(user.id, 'projects', 'READ');
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // 4. Filter by service line access (for list endpoints)
+    const userServiceLines = await getUserServiceLines(user.id);
+    const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
+
+    // 5. Execute business logic
+    const data = await prisma.resource.findMany({
+      where: { serviceLine: { in: accessibleServiceLines } },
+      select: { /* explicit fields only */ },
+    });
+
+    // 6. Return success response
+    return NextResponse.json(successResponse(data));
+  } catch (error) {
+    return handleApiError(error, 'GET /api/resource');
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Authenticate
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // 2. Check permission
+    const hasPermission = await checkUserPermission(user.id, 'resource.create', 'CREATE');
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // 3. Parse and sanitize input
+    const body = await request.json();
+    const sanitizedBody = sanitizeObject(body, { maxLength: 1000 });
+
+    // 4. Validate with Zod
+    const validatedData = ResourceSchema.parse(sanitizedBody);
+
+    // 5. Execute business logic
+    const result = await prisma.resource.create({ data: validatedData });
+
+    // 6. Return success response
+    return NextResponse.json(successResponse(result), { status: 201 });
+  } catch (error) {
+    return handleApiError(error, 'POST /api/resource');
+  }
+}
+```
+
+### Checklist
+
+- [ ] Static imports (no dynamic imports)
+- [ ] `getCurrentUser()` at start
+- [ ] `checkUserPermission()` before business logic
+- [ ] Branded types for all IDs
+- [ ] `sanitizeObject()` before validation on POST/PUT/PATCH
+- [ ] Zod schema validation
+- [ ] Explicit field selection in queries (`select:`)
+- [ ] Service line filtering for list endpoints
+- [ ] `successResponse()` wrapper for success
+- [ ] `handleApiError()` in catch blocks
+- [ ] Proper HTTP status codes (200/201/400/401/403/404/500)
+
+---
+
+## 3. Type Organization
+
+### Single Source of Truth
+
+- **Prisma Schema**: Source of truth for database models
+- **types/index.ts**: Main entity types (derived from Prisma, extended as needed)
+- **types/dto.ts**: Data transfer objects for API requests/responses
+- **types/branded.ts**: Branded ID types only
+- **types/api.ts**: API-specific types (responses, pagination, etc.)
+
+### Type Derivation Pattern
+
+```typescript
+// types/index.ts - Main entity (matches Prisma)
+export interface Project {
+  id: number;
+  name: string;
+  // ... all fields from Prisma
+}
+
+// types/dto.ts - Derive DTOs using Partial/Pick/Omit
+export type CreateProjectDTO = Omit<Project, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateProjectDTO = Partial<CreateProjectDTO>;
+
+// Zod schemas derive from DTOs
+export const CreateProjectSchema = z.object({
+  name: z.string().min(1).max(200),
+  // ... matches CreateProjectDTO
+});
+```
+
+### Type File Rules
+
+- **NO duplicate type definitions** across files
+- **NO deprecated types** - remove immediately after migration
+- **NO string unions for enums** - use strict enums with runtime validation
+- **Always export** types from types/index.ts for external use
+
+### Enum Management
+
+- Define each enum ONCE in types/index.ts
+- Import everywhere else
+- Never redefine enums in service files
+
+---
+
+## 4. Code Duplication Prevention
+
+### Utilities Over Repetition
+
+If code is used in 3+ places, it must be extracted to a utility function.
+
+### Common Patterns That Must Use Utilities
+
+#### Service Line Filtering
+
+```typescript
+// ❌ BAD - Repeated everywhere
+const userServiceLines = await getUserServiceLines(user.id);
+const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
+const where = { serviceLine: { in: accessibleServiceLines } };
+
+// ✅ GOOD - Use utility
+const where = await buildServiceLineFilter(user.id);
+```
+
+#### Response Transformation
+
+```typescript
+// ❌ BAD - Manual transformation
+const result = {
+  ...project,
+  client: project.Client,
+  _count: { mappings: project._count.MappedAccount }
+};
+
+// ✅ GOOD - Use transformer
+const result = transformProjectResponse(project);
+```
+
+#### Permission Wrapper
+
+```typescript
+// ✅ Create wrapper for routes
+export const withPermission = (
+  handler: RouteHandler,
+  resource: string,
+  action: PermissionAction
+) => async (req: NextRequest, context: Context) => {
+  const user = await getCurrentUser();
+  if (!user) return unauthorized();
+  
+  const hasPermission = await checkUserPermission(user.id, resource, action);
+  if (!hasPermission) return forbidden();
+  
+  return handler(req, context, user);
+};
+
+// Usage
+export const GET = withPermission(
+  async (req, context, user) => {
+    // Business logic only
+  },
+  'projects',
+  'READ'
+);
+```
+
+---
+
+## 5. File Hygiene
+
+### Backup Files
+
+- **NEVER commit .bak, .backup, .old, or similar files**
+- Use git for version control
+- Delete backup files immediately
+
+### File Naming
+
+- Use camelCase for files (matches existing convention): `serviceLineService.ts`
+- Match file name to main export: `projectService.ts` exports `ProjectService` or project-related functions
+- Group related files in folders, not with prefixes
+
+### File Size
+
+- Target max 500 lines per file
+- If larger, split by responsibility
+- Extract utilities, types, constants to separate files
+
+---
+
+## 6. Performance Requirements
+
+### Database Queries
+
+- **ALWAYS use explicit field selection** (`select:`)
+- **NEVER use `include` without necessity**
+- Batch related queries with `Promise.all()`
+- Use transactions for multi-step operations
+- Add indexes for frequently filtered fields
+
+### Caching Strategy (REQUIRED)
+
+```typescript
+// User roles and permissions - cache for 5 minutes
+await cacheService.get(`user:${userId}:permissions`, async () => {
+  return getUserPermissions(userId);
+}, 300);
+
+// Service line access - cache for 10 minutes
+await cacheService.get(`user:${userId}:service-lines`, async () => {
+  return getUserServiceLines(userId);
+}, 600);
+```
+
+### N+1 Prevention
+
+```typescript
+// ❌ BAD - N+1 queries
+for (const project of projects) {
+  const users = await getProjectUsers(project.id);
+}
+
+// ✅ GOOD - Single query with include
+const projects = await prisma.project.findMany({
+  include: { ProjectUser: { include: { User: true } } }
+});
+```
+
+### Import Optimization
+
+- Static imports at top (no dynamic imports for core dependencies)
+- Tree-shakeable exports
+- Lazy load heavy dependencies only when needed
+
+---
+
+## 7. Error Handling Standards
+
+### Standard Error Responses
+
+All errors must use `AppError` with appropriate error codes:
+
+```typescript
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+
+// Validation error
+throw new AppError(400, 'Invalid input', ErrorCodes.VALIDATION_ERROR, { field: 'name' });
+
+// Not found
+throw new AppError(404, 'Project not found', ErrorCodes.NOT_FOUND, { projectId });
+
+// Forbidden
+throw new AppError(403, 'Insufficient permissions', ErrorCodes.FORBIDDEN);
+
+// Unauthorized
+throw new AppError(401, 'Not authenticated', ErrorCodes.UNAUTHORIZED);
+```
+
+### API Route Error Handling
+
+```typescript
+catch (error) {
+  return handleApiError(error, 'Operation context');
+}
+```
+
+### Error Messages
+
+- Client-facing: Generic, don't leak implementation details
+- Logs: Detailed with context
+- Never expose database errors directly to client
+
+---
+
+## 8. Null vs Undefined Convention
+
+### Standard Convention
+
+- **Use `undefined`** for optional/missing values
+- **Use `null`** for intentional absence or database nulls (Prisma returns null)
+
+### Examples
+
+```typescript
+// ✅ GOOD - Optional parameter
+function getProject(id: number, options?: ProjectOptions) {
+  // options is undefined if not provided
+}
+
+// ✅ GOOD - Database null
+interface Project {
+  clientId: number | null; // null when no client assigned
+}
+
+// ✅ GOOD - Intentional absence
+const config = {
+  maxRetries: 3,
+  timeout: null, // null means no timeout
+};
+```
+
+### Type Definitions
+
+- Function parameters: Use `?:` for optional (undefined)
+- Database fields: Use `| null` (matches Prisma)
+- Return types: Prefer `| undefined` for "not found" cases unless dealing with Prisma
+
+---
+
+## Summary
+
+These standards ensure:
+
+- **Type Safety**: Branded types prevent ID confusion
+- **Consistency**: Standard patterns across all routes
+- **Performance**: Caching, query optimization, N+1 prevention
+- **Maintainability**: DRY principles, clear organization
+- **Security**: Consistent auth/permission checks
+- **Quality**: No deprecated code, proper error handling

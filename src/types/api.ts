@@ -34,12 +34,6 @@ export interface PaginationMeta {
 }
 
 /**
- * Generic API response wrapper (for backward compatibility)
- * @deprecated Use ApiResponse instead
- */
-export type GenericApiResponse<T = unknown> = ApiResponse<T>;
-
-/**
  * Tax computation export data types
  */
 export interface TaxExportData {
@@ -85,42 +79,6 @@ export interface FileValidationResult {
   error?: string;
   mimeType?: string;
   size?: number;
-}
-
-
-/**
- * Legacy AI Report type - use AITaxReport from schemas instead
- * @deprecated Use AITaxReport from @/lib/ai/schemas
- */
-export interface AITaxReportData {
-  executiveSummary: string;
-  risks: RiskItem[];
-  taxSensitiveItems: TaxSensitiveItem[];
-  detailedFindings: string;
-  recommendations: string[];
-  generatedAt?: string;
-}
-
-/**
- * @deprecated Use TaxReportRisk from @/lib/ai/schemas
- */
-export interface RiskItem {
-  category?: string;
-  title?: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  description: string;
-  impact?: string;
-  mitigation?: string;
-  recommendation?: string;
-}
-
-/**
- * @deprecated Use TaxSensitiveItem from @/lib/ai/schemas
- */
-export interface TaxSensitiveItem {
-  item: string;
-  reason: string;
-  action: string;
 }
 
 /**

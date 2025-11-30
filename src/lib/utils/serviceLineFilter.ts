@@ -61,6 +61,31 @@ export async function getServiceLineWhereClause(userId: string): Promise<{ servi
 }
 
 /**
+ * Builder function for service line filtering - RECOMMENDED PATTERN
+ * Creates a where clause that can be merged with other conditions
+ * 
+ * @param userId - User ID
+ * @returns Promise<{ serviceLine: { in: string[] } }>
+ * 
+ * @example
+ * // Simple usage
+ * const where = await buildServiceLineFilter(userId);
+ * const projects = await prisma.project.findMany({ where });
+ * 
+ * @example
+ * // With additional conditions
+ * const where = {
+ *   ...await buildServiceLineFilter(userId),
+ *   archived: false,
+ *   status: 'ACTIVE',
+ * };
+ * const projects = await prisma.project.findMany({ where });
+ */
+export async function buildServiceLineFilter(userId: string): Promise<{ serviceLine: { in: string[] } }> {
+  return getServiceLineWhereClause(userId);
+}
+
+/**
  * Verify user has access to a specific service line
  * @param userId - User ID
  * @param serviceLine - Service line to check
