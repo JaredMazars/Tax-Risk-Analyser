@@ -15,6 +15,20 @@ interface TemplateSection {
   order: number;
   applicableServiceLines: string | null;
   applicableProjectTypes: string | null;
+  [key: string]: unknown;
+}
+
+interface TemplateResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  type: string;
+  serviceLine: string | null;
+  projectType: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  TemplateSection?: TemplateSection[];
 }
 
 interface Template {
@@ -28,7 +42,6 @@ interface Template {
   createdAt: string;
   updatedAt: string;
   sections?: TemplateSection[];
-  TemplateSection?: TemplateSection[];
 }
 
 export default function TemplatesPage() {
@@ -62,9 +75,9 @@ export default function TemplatesPage() {
 
       if (data.success) {
         // Normalize template data - map TemplateSection to sections for consistency
-        const normalizedTemplates = data.data.map((template: Template) => ({
+        const normalizedTemplates = data.data.map((template: TemplateResponse) => ({
           ...template,
-          sections: template.TemplateSection || template.sections || [],
+          sections: template.TemplateSection || [],
         }));
         setTemplates(normalizedTemplates);
       } else {
