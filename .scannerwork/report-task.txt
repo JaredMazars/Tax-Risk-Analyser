@@ -1,7 +1,0 @@
-organization=andicap5047
-projectKey=Andicap5047_mapper
-serverUrl=https://sonarcloud.io
-serverVersion=8.0.0.76948
-dashboardUrl=https://sonarcloud.io/dashboard?id=Andicap5047_mapper
-ceTaskId=AZraG7PZLNMR3GOmEyqC
-ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZraG7PZLNMR3GOmEyqC
