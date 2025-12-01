@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 export function GT3Logo() {
   return (
     <div 
@@ -13,28 +15,26 @@ export function GT3Logo() {
         position: 'relative',
       }}
     >
-      <span 
-        className="gt3-logo-text"
+      <div
         style={{
-          fontFamily: 'var(--font-windsong)',
-          fontSize: '120px',
-          fontWeight: '700',
-          fontStyle: 'italic',
-          backgroundImage: 'linear-gradient(135deg, #2E5AAC 0%, #FFD700 100%)',
-          WebkitBackgroundClip: 'text',
-          backgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          color: 'transparent',
           display: 'block',
           animation: 'drawIn 1.5s ease-out forwards',
           opacity: 0,
-          letterSpacing: '-0.02em',
-          lineHeight: '1.4',
-          whiteSpace: 'nowrap',
+          position: 'relative',
+          width: '500px',
+          height: '280px',
         }}
       >
-        Gt3
-      </span>
+        <Image
+          src="/GT3.png"
+          alt="GT3 Logo"
+          fill
+          style={{
+            objectFit: 'contain',
+          }}
+          priority
+        />
+      </div>
     </div>
   );
 }

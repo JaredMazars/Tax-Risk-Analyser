@@ -32,7 +32,7 @@ interface OpportunityCardProps {
       name: string;
       probability: number;
       color: string | null;
-    };
+    } | null;
   };
   onClick?: () => void;
 }
@@ -75,7 +75,7 @@ export function OpportunityCard({ opportunity, onClick }: OpportunityCardProps) 
         <div className="flex items-center justify-between text-xs mb-1">
           <span className="text-forvis-gray-600">Probability</span>
           <span className="font-bold" style={{ color: '#1C3667' }}>
-            {opportunity.probability || opportunity.Stage.probability}%
+            {opportunity.probability ?? opportunity.Stage?.probability ?? 0}%
           </span>
         </div>
         <div
@@ -85,7 +85,7 @@ export function OpportunityCard({ opportunity, onClick }: OpportunityCardProps) 
           <div
             className="h-1.5 rounded-full transition-all"
             style={{
-              width: `${opportunity.probability || opportunity.Stage.probability}%`,
+              width: `${opportunity.probability ?? opportunity.Stage?.probability ?? 0}%`,
               background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
             }}
           />
