@@ -163,13 +163,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
 };
 
 /**
- * Get project types for a service line
- */
-export function getProjectTypesForServiceLine(serviceLine: ServiceLine): ProjectType[] {
-  return SERVICE_LINE_CONFIGS[serviceLine]?.projectTypes || [];
-}
-
-/**
  * Get service line for a project type
  */
 export function getServiceLineForProjectType(projectType: ProjectType): ServiceLine | null {
@@ -179,24 +172,6 @@ export function getServiceLineForProjectType(projectType: ProjectType): ServiceL
     }
   }
   return null;
-}
-
-/**
- * Check if a project type belongs to a service line
- */
-export function isProjectTypeInServiceLine(
-  projectType: ProjectType,
-  serviceLine: ServiceLine
-): boolean {
-  return SERVICE_LINE_CONFIGS[serviceLine]?.projectTypes.includes(projectType) || false;
-}
-
-/**
- * Format service line name
- */
-export function formatServiceLineName(serviceLine: ServiceLine | string): string {
-  const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
-  return config?.name || serviceLine;
 }
 
 /**

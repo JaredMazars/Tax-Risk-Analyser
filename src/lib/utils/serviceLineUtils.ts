@@ -3,7 +3,7 @@
  */
 
 import { ServiceLine, ProjectType } from '@/types';
-import { SERVICE_LINE_CONFIGS } from '@/types/service-line';
+import { SERVICE_LINE_CONFIGS, getServiceLineForProjectType } from '@/types/service-line';
 
 /**
  * Format project type name for display
@@ -102,17 +102,6 @@ export function getProjectTypeBorderColor(projectType: ProjectType | string): st
   return colorMap[serviceLine] || 'border-gray-200';
 }
 
-/**
- * Get service line from project type
- */
-function getServiceLineForProjectType(projectType: ProjectType): ServiceLine | null {
-  for (const [line, config] of Object.entries(SERVICE_LINE_CONFIGS)) {
-    if (config.projectTypes.includes(projectType)) {
-      return line as ServiceLine;
-    }
-  }
-  return null;
-}
 
 /**
  * Get color classes for service line

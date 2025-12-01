@@ -215,13 +215,13 @@ export default function OpportunityDetailPage() {
 
         <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
           <p className="text-xs font-medium text-forvis-gray-600">Stage</p>
-          <p className="text-lg font-bold mt-1 text-forvis-gray-900">{opportunity.Stage.name}</p>
+          <p className="text-lg font-bold mt-1 text-forvis-gray-900">{opportunity.BDStage.name}</p>
         </div>
 
         <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
           <p className="text-xs font-medium text-forvis-gray-600">Probability</p>
           <p className="text-2xl font-bold mt-1 text-forvis-gray-900">
-            {opportunity.probability || opportunity.Stage.probability}%
+            {opportunity.probability || opportunity.BDStage.probability}%
           </p>
         </div>
 
@@ -289,18 +289,18 @@ export default function OpportunityDetailPage() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Contact Information */}
-          {opportunity.Contact && (
+          {opportunity.BDContact && (
             <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
               <h3 className="text-sm font-semibold text-forvis-gray-900 mb-3">Contact</h3>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-forvis-gray-900">
-                  {opportunity.Contact.firstName} {opportunity.Contact.lastName}
+                  {opportunity.BDContact.firstName} {opportunity.BDContact.lastName}
                 </p>
-                {opportunity.Contact.email && (
-                  <p className="text-sm text-forvis-gray-600">{opportunity.Contact.email}</p>
+                {opportunity.BDContact.email && (
+                  <p className="text-sm text-forvis-gray-600">{opportunity.BDContact.email}</p>
                 )}
-                {opportunity.Contact.phone && (
-                  <p className="text-sm text-forvis-gray-600">{opportunity.Contact.phone}</p>
+                {opportunity.BDContact.phone && (
+                  <p className="text-sm text-forvis-gray-600">{opportunity.BDContact.phone}</p>
                 )}
               </div>
             </div>

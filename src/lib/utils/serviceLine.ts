@@ -8,9 +8,10 @@ import { prisma } from '@/lib/db/prisma';
 import { logger } from './logger';
 
 /**
- * Service Line interface
+ * Service Line Master interface
+ * Represents the ServiceLineMaster database table structure
  */
-export interface ServiceLine {
+export interface ServiceLineMaster {
   code: string;
   name: string;
   description: string | null;
@@ -22,7 +23,7 @@ export interface ServiceLine {
  * Get all active service lines
  * @returns Array of active service lines
  */
-export async function getActiveServiceLines(): Promise<ServiceLine[]> {
+export async function getActiveServiceLines(): Promise<ServiceLineMaster[]> {
   try {
     return await prisma.serviceLineMaster.findMany({
       where: { active: true },
@@ -38,7 +39,7 @@ export async function getActiveServiceLines(): Promise<ServiceLine[]> {
  * Get all service lines (including inactive)
  * @returns Array of all service lines
  */
-export async function getAllServiceLines(): Promise<ServiceLine[]> {
+export async function getAllServiceLines(): Promise<ServiceLineMaster[]> {
   try {
     return await prisma.serviceLineMaster.findMany({
       orderBy: { sortOrder: 'asc' },
@@ -54,7 +55,7 @@ export async function getAllServiceLines(): Promise<ServiceLine[]> {
  * @param code - Service line code
  * @returns Service line or null
  */
-export async function getServiceLineByCode(code: string): Promise<ServiceLine | null> {
+export async function getServiceLineByCode(code: string): Promise<ServiceLineMaster | null> {
   try {
     return await prisma.serviceLineMaster.findUnique({
       where: { code },
@@ -108,8 +109,8 @@ export async function getServiceLineCodes(activeOnly: boolean = true): Promise<s
  * @returns Created service line
  */
 export async function createServiceLine(
-  serviceLine: Omit<ServiceLine, 'createdAt' | 'updatedAt'>
-): Promise<ServiceLine> {
+  serviceLine: Omit<ServiceLineMaster, 'createdAt' | 'updatedAt'>
+): Promise<ServiceLineMaster> {
   try {
     return await prisma.serviceLineMaster.create({
       data: serviceLine,
@@ -128,8 +129,8 @@ export async function createServiceLine(
  */
 export async function updateServiceLine(
   code: string,
-  data: Partial<Omit<ServiceLine, 'code' | 'createdAt' | 'updatedAt'>>
-): Promise<ServiceLine> {
+  data: Partial<Omit<ServiceLineMaster, 'code' | 'createdAt' | 'updatedAt'>>
+): Promise<ServiceLineMaster> {
   try {
     return await prisma.serviceLineMaster.update({
       where: { code },
@@ -148,7 +149,7 @@ export async function updateServiceLine(
  * @param code - Service line code
  * @returns Updated service line
  */
-export async function deactivateServiceLine(code: string): Promise<ServiceLine> {
+export async function deactivateServiceLine(code: string): Promise<ServiceLineMaster> {
   return updateServiceLine(code, { active: false });
 }
 
@@ -157,7 +158,7 @@ export async function deactivateServiceLine(code: string): Promise<ServiceLine> 
  * @param code - Service line code
  * @returns Updated service line
  */
-export async function activateServiceLine(code: string): Promise<ServiceLine> {
+export async function activateServiceLine(code: string): Promise<ServiceLineMaster> {
   return updateServiceLine(code, { active: true });
 }
 
