@@ -339,3 +339,4 @@ export async function preloadUserPermissions(userId: string): Promise<void> {
   
   logger.debug('Preloaded permissions for user', { userId });
 }
+

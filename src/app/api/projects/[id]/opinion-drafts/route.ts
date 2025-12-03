@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const projectId = parseInt(params.id);
+    const projectId = Number.parseInt(params.id);
     
     const drafts = await prisma.opinionDraft.findMany({
       where: { projectId },
@@ -36,7 +36,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const projectId = parseInt(params.id);
+    const projectId = Number.parseInt(params.id);
     const body = await request.json();
 
     const draft = await prisma.opinionDraft.create({

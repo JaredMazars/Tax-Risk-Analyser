@@ -166,9 +166,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const id = parseInt(idStr, 10);
+    const id = Number.parseInt(idStr, 10);
 
-    if (isNaN(id)) {
+    if (Number.isNaN(id)) {
       return NextResponse.json(
         { error: 'id must be a valid number' },
         { status: 400 }
@@ -201,4 +201,5 @@ export async function DELETE(request: NextRequest) {
     return handleApiError(error, 'DELETE /api/admin/service-line-access');
   }
 }
+
 

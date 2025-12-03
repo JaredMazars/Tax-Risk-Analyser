@@ -23,7 +23,7 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const proposalId = parseInt(id);
+    const proposalId = Number.parseInt(id);
 
     const proposal = await prisma.bDProposal.findUnique({
       where: { id: proposalId },
@@ -59,7 +59,7 @@ export async function PUT(
     }
 
     const { id } = await context.params;
-    const proposalId = parseInt(id);
+    const proposalId = Number.parseInt(id);
 
     const body = await request.json();
     const validated = UpdateBDProposalSchema.parse(body);
@@ -95,7 +95,7 @@ export async function DELETE(
     }
 
     const { id } = await context.params;
-    const proposalId = parseInt(id);
+    const proposalId = Number.parseInt(id);
 
     await prisma.bDProposal.delete({
       where: { id: proposalId },

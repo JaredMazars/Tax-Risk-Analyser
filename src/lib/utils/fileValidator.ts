@@ -5,7 +5,7 @@ import type { FileValidationResult } from '@/types/api';
 /**
  * Maximum file size in bytes (10MB)
  */
-const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760', 10);
+const MAX_FILE_SIZE = Number.parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760', 10);
 
 /**
  * Allowed file types with their magic bytes
@@ -90,7 +90,8 @@ async function checkMagicBytes(filePath: string): Promise<string | null> {
       
       // CSV files don't have magic bytes, check if it looks like text
       const text = buffer.toString('utf8', 0, Math.min(buffer.length, 100));
-      if (/^[\x20-\x7E\r\n\t,]*$/.test(text)) {
+      // Use a safer regex with length limit to prevent ReDoS
+      if (text.length <= 100 && /^[\x20-\x7E\r\n\t,]{0,100}$/.test(text)) {
         resolve('csv');
         return;
       }
@@ -257,5 +258,6 @@ export function getMaxFileSizeDisplay(): string {
   const mb = MAX_FILE_SIZE / 1024 / 1024;
   return `${mb}MB`;
 }
+
 
 

@@ -36,7 +36,7 @@ export async function GET(
     const categories = searchParams.get('categories')?.split(',') || undefined;
     const dateFrom = searchParams.get('dateFrom') ? new Date(searchParams.get('dateFrom')!) : undefined;
     const dateTo = searchParams.get('dateTo') ? new Date(searchParams.get('dateTo')!) : undefined;
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 10;
+    const limit = searchParams.get('limit') ? Number.parseInt(searchParams.get('limit')!, 10) : 10;
 
     if (!query) {
       return NextResponse.json(

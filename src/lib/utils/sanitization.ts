@@ -124,7 +124,7 @@ export function sanitizeNumber(input: unknown): number | null {
   }
 
   const num = Number(input);
-  if (isNaN(num) || !isFinite(num)) {
+  if (Number.isNaN(num) || !isFinite(num)) {
     return null;
   }
 
@@ -193,14 +193,15 @@ export function sanitizeComment(comment: string | undefined | null): string | un
     sanitized = sanitized.substring(0, MAX_COMMENT_LENGTH);
   }
 
-  // Remove script tags and their content
-  sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+  // Remove script tags and their content (non-greedy with length limit to prevent ReDoS)
+  // Process in chunks to avoid catastrophic backtracking
+  sanitized = sanitized.replace(/<script[^>]{0,200}?>[\s\S]{0,5000}?<\/script>/gi, '');
 
   // Remove javascript: protocol
   sanitized = sanitized.replace(/javascript:/gi, '');
 
-  // Remove event handlers (onclick, onload, etc.)
-  sanitized = sanitized.replace(/on\w+\s*=/gi, '');
+  // Remove event handlers (onclick, onload, etc.) with length limit
+  sanitized = sanitized.replace(/on\w{0,20}\s*=/gi, '');
 
   // Remove null bytes
   sanitized = sanitized.replace(/\0/g, '');
@@ -302,6 +303,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(
 
   return sanitized as T;
 }
+
 
 
 

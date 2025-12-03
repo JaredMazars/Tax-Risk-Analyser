@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
+    const draftId = Number.parseInt(params.draftId);
 
     const messages = await prisma.opinionChatMessage.findMany({
       where: { 
@@ -54,8 +54,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
-    const projectId = parseInt(params.id);
+    const draftId = Number.parseInt(params.draftId);
+    const projectId = Number.parseInt(params.id);
     const body = await request.json();
     const { message } = body;
 

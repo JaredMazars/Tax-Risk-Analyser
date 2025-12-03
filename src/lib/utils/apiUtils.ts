@@ -36,9 +36,9 @@ export function parseNumericId(
     );
   }
   
-  const parsedId = parseInt(id, 10);
+  const parsedId = Number.Number.parseInt(id, 10);
   
-  if (isNaN(parsedId) || parsedId <= 0) {
+  if (Number.isNaN(parsedId) || parsedId <= 0) {
     throw new AppError(
       400,
       `Invalid ${entityName} ID format - must be a positive integer`,
@@ -281,5 +281,6 @@ export function paginationMeta(total: number, page: number, limit: number) {
     hasPrev: page > 1,
   };
 }
+
 
 

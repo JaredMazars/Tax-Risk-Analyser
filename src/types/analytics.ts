@@ -163,3 +163,4 @@ export interface RatioComparison {
   status: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
 }
 
+

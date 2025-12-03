@@ -86,9 +86,9 @@ export function getEnvVarAsNumber(key: string, defaultValue: number): number {
     return defaultValue;
   }
   
-  const parsed = parseInt(value, 10);
+  const parsed = Number.parseInt(value, 10);
   
-  return isNaN(parsed) ? defaultValue : parsed;
+  return Number.isNaN(parsed) ? defaultValue : parsed;
 }
 
 /**
@@ -171,17 +171,17 @@ export const env = {
   // File uploads
   maxFileUploadSize: getEnvVarAsNumber(
     'MAX_FILE_UPLOAD_SIZE',
-    parseInt(OPTIONAL_ENV_VARS.MAX_FILE_UPLOAD_SIZE, 10)
+    Number.parseInt(OPTIONAL_ENV_VARS.MAX_FILE_UPLOAD_SIZE, 10)
   ),
   
   // Rate limiting
   rateLimitMaxRequests: getEnvVarAsNumber(
     'RATE_LIMIT_MAX_REQUESTS',
-    parseInt(OPTIONAL_ENV_VARS.RATE_LIMIT_MAX_REQUESTS, 10)
+    Number.parseInt(OPTIONAL_ENV_VARS.RATE_LIMIT_MAX_REQUESTS, 10)
   ),
   rateLimitWindowMs: getEnvVarAsNumber(
     'RATE_LIMIT_WINDOW_MS',
-    parseInt(OPTIONAL_ENV_VARS.RATE_LIMIT_WINDOW_MS, 10)
+    Number.parseInt(OPTIONAL_ENV_VARS.RATE_LIMIT_WINDOW_MS, 10)
   ),
   
   // Azure Communication Services (Email) - Optional
@@ -203,6 +203,7 @@ export const env = {
     OPTIONAL_ENV_VARS.AZURE_SEARCH_INDEX_NAME
   ),
 } as const;
+
 
 
 

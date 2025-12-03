@@ -16,8 +16,8 @@ export async function PATCH(
       // Fetch the current account to get the balance
       const currentAccount = await prisma.mappedAccount.findUnique({
         where: {
-          id: parseInt(params.accountId),
-          projectId: parseInt(params.id),
+          id: Number.parseInt(params.accountId),
+          projectId: Number.parseInt(params.id),
         },
       });
 
@@ -41,8 +41,8 @@ export async function PATCH(
 
     const mappedAccount = await prisma.mappedAccount.update({
       where: {
-        id: parseInt(params.accountId),
-        projectId: parseInt(params.id),
+        id: Number.parseInt(params.accountId),
+        projectId: Number.parseInt(params.id),
       },
       data,
     });

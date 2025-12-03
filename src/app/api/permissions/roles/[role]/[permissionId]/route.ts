@@ -48,8 +48,8 @@ export async function PUT(
     }
 
     // Validate permission ID
-    const permId = parseInt(permissionId);
-    if (isNaN(permId)) {
+    const permId = Number.parseInt(permissionId);
+    if (Number.isNaN(permId)) {
       return NextResponse.json(
         { error: 'Invalid permission ID' },
         { status: 400 }

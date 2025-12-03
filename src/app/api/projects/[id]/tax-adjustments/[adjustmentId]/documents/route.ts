@@ -5,7 +5,7 @@ import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { logger } from '@/lib/utils/logger';
 
-const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); // 10MB default
+const MAX_FILE_SIZE = Number.parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); // 10MB default
 
 /**
  * POST /api/projects/[id]/tax-adjustments/[adjustmentId]/documents
@@ -20,8 +20,8 @@ export async function POST(
     enforceRateLimit(request, RateLimitPresets.FILE_UPLOADS);
     
     const params = await routeContext.params;
-    const projectId = parseInt(params.id);
-    const adjustmentId = parseInt(params.adjustmentId);
+    const projectId = Number.parseInt(params.id);
+    const adjustmentId = Number.parseInt(params.adjustmentId);
 
     // Parse multipart form data
     const formData = await request.formData();

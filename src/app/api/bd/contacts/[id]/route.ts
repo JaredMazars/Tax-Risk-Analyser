@@ -23,7 +23,7 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const contactId = parseInt(id);
+    const contactId = Number.parseInt(id);
 
     const contact = await prisma.bDContact.findUnique({
       where: { id: contactId },
@@ -50,7 +50,7 @@ export async function PUT(
     }
 
     const { id } = await context.params;
-    const contactId = parseInt(id);
+    const contactId = Number.parseInt(id);
 
     const body = await request.json();
     const validated = UpdateBDContactSchema.parse(body);
@@ -77,7 +77,7 @@ export async function DELETE(
     }
 
     const { id } = await context.params;
-    const contactId = parseInt(id);
+    const contactId = Number.parseInt(id);
 
     await prisma.bDContact.delete({
       where: { id: contactId },

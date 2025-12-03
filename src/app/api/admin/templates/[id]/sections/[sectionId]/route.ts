@@ -32,9 +32,9 @@ export async function PUT(
     }
 
     const { sectionId } = await context.params;
-    const sectionIdNum = parseInt(sectionId, 10);
+    const sectionIdNum = Number.parseInt(sectionId, 10);
 
-    if (isNaN(sectionIdNum)) {
+    if (Number.isNaN(sectionIdNum)) {
       return NextResponse.json({ error: 'Invalid section ID' }, { status: 400 });
     }
 
@@ -72,9 +72,9 @@ export async function DELETE(
     }
 
     const { sectionId } = await context.params;
-    const sectionIdNum = parseInt(sectionId, 10);
+    const sectionIdNum = Number.parseInt(sectionId, 10);
 
-    if (isNaN(sectionIdNum)) {
+    if (Number.isNaN(sectionIdNum)) {
       return NextResponse.json({ error: 'Invalid section ID' }, { status: 400 });
     }
 

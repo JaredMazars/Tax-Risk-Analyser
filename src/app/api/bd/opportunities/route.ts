@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const filters = BDOpportunityFiltersSchema.parse({
       serviceLine: searchParams.get('serviceLine') || undefined,
-      stageId: searchParams.get('stageId') ? parseInt(searchParams.get('stageId')!) : undefined,
+      stageId: searchParams.get('stageId') ? Number.parseInt(searchParams.get('stageId')!) : undefined,
       status: searchParams.get('status') || undefined,
       assignedTo: searchParams.get('assignedTo') || undefined,
       search: searchParams.get('search') || undefined,
@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
         ? new Date(searchParams.get('fromDate')!)
         : undefined,
       toDate: searchParams.get('toDate') ? new Date(searchParams.get('toDate')!) : undefined,
-      page: searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1,
-      pageSize: searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!) : 20,
+      page: searchParams.get('page') ? Number.parseInt(searchParams.get('page')!) : 1,
+      pageSize: searchParams.get('pageSize') ? Number.parseInt(searchParams.get('pageSize')!) : 20,
     });
 
     const result = await getOpportunities(filters);
@@ -78,4 +78,5 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/bd/opportunities');
   }
 }
+
 

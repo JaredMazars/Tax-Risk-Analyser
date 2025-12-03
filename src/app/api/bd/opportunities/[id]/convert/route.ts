@@ -21,7 +21,7 @@ export async function POST(
     }
 
     const { id } = await context.params;
-    const opportunityId = parseInt(id);
+    const opportunityId = Number.parseInt(id);
 
     const body = await request.json();
     const validated = ConvertBDOpportunitySchema.parse(body);
