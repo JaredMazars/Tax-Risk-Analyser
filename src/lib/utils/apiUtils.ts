@@ -36,7 +36,7 @@ export function parseNumericId(
     );
   }
   
-  const parsedId = Number.Number.parseInt(id, 10);
+  const parsedId = Number.parseInt(id, 10);
   
   if (Number.isNaN(parsedId) || parsedId <= 0) {
     throw new AppError(

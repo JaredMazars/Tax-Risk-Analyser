@@ -101,7 +101,7 @@ export async function PUT(request: NextRequest) {
     const validated = UpdateNotificationPreferenceSchema.parse(body);
 
     // Try to find existing preference
-    const parsedProjectId = projectId ? Number.Number.parseInt(projectId, 10) : null;
+    const parsedProjectId = projectId ? Number.parseInt(projectId, 10) : null;
     const existing = await prisma.notificationPreference.findFirst({
       where: {
         userId: user.id,
@@ -124,7 +124,7 @@ export async function PUT(request: NextRequest) {
       const created = await prisma.notificationPreference.create({
         data: {
           userId: user.id,
-          projectId: projectId ? Number.Number.parseInt(projectId, 10) : null,
+          projectId: projectId ? Number.parseInt(projectId, 10) : null,
           notificationType,
           emailEnabled: validated.emailEnabled,
         },

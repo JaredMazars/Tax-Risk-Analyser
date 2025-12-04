@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
-    const limit = Number.Number.parseInt(searchParams.get('limit') || '20');
+    const limit = Number.parseInt(searchParams.get('limit') || '20');
     const projectId = searchParams.get('projectId');
 
     // Validate limit
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     // If projectId is provided, filter out users already in the project
     if (projectId) {
       const projectUsers = await prisma.projectUser.findMany({
-        where: { projectId: Number.Number.parseInt(projectId) },
+        where: { projectId: Number.parseInt(projectId) },
         select: { userId: true },
       });
       

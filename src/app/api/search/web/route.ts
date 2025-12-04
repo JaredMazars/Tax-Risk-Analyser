@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
-    const count = Number.Number.parseInt(searchParams.get('count') || '10', 10);
+    const count = Number.parseInt(searchParams.get('count') || '10', 10);
     const market = searchParams.get('market') || 'en-ZA';
 
     if (!query) {

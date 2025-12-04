@@ -222,7 +222,7 @@ export function withProjectAccess<T extends { id: string }>(
       }
 
       const { id } = await routeContext.params;
-      const projectId = Number.Number.parseInt(id);
+      const projectId = Number.parseInt(id);
 
       if (Number.isNaN(projectId)) {
         return NextResponse.json(
@@ -319,8 +319,8 @@ export function getPaginationParams(request: NextRequest): {
   offset: number;
 } {
   const { searchParams } = new URL(request.url);
-  const page = Number.Number.parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(Number.Number.parseInt(searchParams.get('limit') || '50'), 100);
+  const page = Number.parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
   const offset = (page - 1) * limit;
   
   return { page, limit, offset };
