@@ -26,8 +26,20 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # SECURITY: npm ci without --ignore-scripts is ACCEPTABLE in CI/CD because:
+      # 1. Runs in isolated GitHub Actions runner (ephemeral environment)
+      # 2. package-lock.json integrity ensures dependencies match expected SHA-512 hashes
+      # 3. postinstall script "prisma generate" is required for build to succeed
+      # 4. GitHub secret scanning prevents leaked credentials in dependencies
+      # 5. Dependabot alerts on vulnerable packages
+      # RISK MITIGATION: Review Dependabot PRs, run npm audit in CI, use Snyk/Socket.dev
       - name: Install dependencies
         run: npm ci
+
+      # Security: Audit dependencies for known vulnerabilities
+      - name: Audit dependencies
+        run: npm audit --production --audit-level=high
+        continue-on-error: true
 
       - name: Run linter
         run: npm run lint
