@@ -32,7 +32,7 @@ export function getRedisClient(): Redis | null {
         
         redis = new Redis({
           host: host || 'localhost',
-          port: parseInt(port || '6380'), // Default Azure Redis SSL port
+          port: Number.parseInt(port || '6380'), // Default Azure Redis SSL port
           password,
           // Enhanced TLS Security
           tls: {
@@ -42,7 +42,7 @@ export function getRedisClient(): Redis | null {
           // Connection pooling and limits
           maxRetriesPerRequest: 3,
           enableReadyCheck: true,
-          connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT || '10000'),
+          connectTimeout: Number.parseInt(process.env.REDIS_CONNECT_TIMEOUT || '10000'),
           maxLoadingRetryTime: 5000,
           lazyConnect: false,
           // Security: Fail fast if Redis is unavailable
@@ -69,12 +69,12 @@ export function getRedisClient(): Redis | null {
         
         redis = new Redis({
           host: host || 'localhost',
-          port: parseInt(port || '6379'),
+          port: Number.parseInt(port || '6379'),
           password,
           // Connection pooling and limits
           maxRetriesPerRequest: 3,
           enableReadyCheck: true,
-          connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT || '10000'),
+          connectTimeout: Number.parseInt(process.env.REDIS_CONNECT_TIMEOUT || '10000'),
           maxLoadingRetryTime: 5000,
           lazyConnect: false,
           // Security: Fail fast if Redis is unavailable
@@ -163,4 +163,5 @@ export async function pingRedis(): Promise<boolean> {
     return false;
   }
 }
+
 

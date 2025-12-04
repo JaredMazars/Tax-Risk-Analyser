@@ -118,18 +118,18 @@ export async function getRedisHealth(): Promise<RedisHealthCheck> {
     const keyspace = parseRedisInfo(keyspaceInfo);
 
     // Parse metrics
-    const usedMemory = parseInt(memory.used_memory || '0');
-    const maxMemory = parseInt(memory.maxmemory || '0');
+    const usedMemory = Number.parseInt(memory.used_memory || '0');
+    const maxMemory = Number.parseInt(memory.maxmemory || '0');
     const memoryUsagePercent = maxMemory > 0 ? (usedMemory / maxMemory) * 100 : 0;
     
-    const keyspaceHits = parseInt(stats.keyspace_hits || '0');
-    const keyspaceMisses = parseInt(stats.keyspace_misses || '0');
+    const keyspaceHits = Number.parseInt(stats.keyspace_hits || '0');
+    const keyspaceMisses = Number.parseInt(stats.keyspace_misses || '0');
     const totalRequests = keyspaceHits + keyspaceMisses;
     const hitRate = totalRequests > 0 ? (keyspaceHits / totalRequests) * 100 : 0;
     
-    const evictedKeys = parseInt(stats.evicted_keys || '0');
-    const connectedClients = parseInt(clients.connected_clients || '0');
-    const blockedClients = parseInt(clients.blocked_clients || '0');
+    const evictedKeys = Number.parseInt(stats.evicted_keys || '0');
+    const connectedClients = Number.parseInt(clients.connected_clients || '0');
+    const blockedClients = Number.parseInt(clients.blocked_clients || '0');
     
     // Calculate total keys across all databases
     let totalKeys = 0;
@@ -139,7 +139,7 @@ export async function getRedisHealth(): Promise<RedisHealthCheck> {
         if (value) {
           const match = value.match(/keys=(\d+)/);
           if (match && match[1]) {
-            totalKeys += parseInt(match[1], 10);
+            totalKeys += Number.parseInt(match[1], 10);
           }
         }
       }
@@ -172,10 +172,10 @@ export async function getRedisHealth(): Promise<RedisHealthCheck> {
       totalKeys,
       details: {
         redisVersion: memory.redis_version,
-        uptimeSeconds: parseInt(stats.uptime_in_seconds || '0'),
-        totalConnectionsReceived: parseInt(stats.total_connections_received || '0'),
-        totalCommandsProcessed: parseInt(stats.total_commands_processed || '0'),
-        instantaneousOpsPerSec: parseInt(stats.instantaneous_ops_per_sec || '0'),
+        uptimeSeconds: Number.parseInt(stats.uptime_in_seconds || '0'),
+        totalConnectionsReceived: Number.parseInt(stats.total_connections_received || '0'),
+        totalCommandsProcessed: Number.parseInt(stats.total_commands_processed || '0'),
+        instantaneousOpsPerSec: Number.parseInt(stats.instantaneous_ops_per_sec || '0'),
       },
     };
 
@@ -277,4 +277,5 @@ export async function getQueueStats(): Promise<Record<string, {
     return {};
   }
 }
+
 

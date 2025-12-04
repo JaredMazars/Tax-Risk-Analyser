@@ -23,7 +23,7 @@ export async function PUT(
 
     const params = await context.params;
     const projectId = toProjectId(params.id);
-    const itemId = parseInt(params.itemId);
+    const itemId = Number.parseInt(params.itemId);
 
     // Check project access (requires EDITOR role or higher)
     const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');

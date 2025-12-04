@@ -20,9 +20,9 @@ export async function PATCH(
     }
 
     const params = await context.params;
-    const notificationId = parseInt(params.id, 10);
+    const notificationId = Number.parseInt(params.id, 10);
 
-    if (isNaN(notificationId)) {
+    if (Number.isNaN(notificationId)) {
       return NextResponse.json(
         { error: 'Invalid notification ID' },
         { status: 400 }
@@ -65,9 +65,9 @@ export async function DELETE(
     }
 
     const params = await context.params;
-    const notificationId = parseInt(params.id, 10);
+    const notificationId = Number.parseInt(params.id, 10);
 
-    if (isNaN(notificationId)) {
+    if (Number.isNaN(notificationId)) {
       return NextResponse.json(
         { error: 'Invalid notification ID' },
         { status: 400 }

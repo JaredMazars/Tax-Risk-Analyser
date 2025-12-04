@@ -18,9 +18,9 @@ export async function GET(
     }
     
     const params = await context.params;
-    const clientId = parseInt(params.id);
+    const clientId = Number.parseInt(params.id);
 
-    if (isNaN(clientId)) {
+    if (Number.isNaN(clientId)) {
       return NextResponse.json(
         { error: 'Invalid client ID' },
         { status: 400 }
@@ -30,8 +30,8 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     
     // Pagination params for projects
-    const projectPage = parseInt(searchParams.get('projectPage') || '1');
-    const projectLimit = Math.min(parseInt(searchParams.get('projectLimit') || '20'), 50);
+    const projectPage = Number.parseInt(searchParams.get('projectPage') || '1');
+    const projectLimit = Math.min(Number.parseInt(searchParams.get('projectLimit') || '20'), 50);
     const serviceLine = searchParams.get('serviceLine') || undefined;
     const includeArchived = searchParams.get('includeArchived') === 'true';
     
@@ -162,9 +162,9 @@ export async function PUT(
     }
     
     const params = await context.params;
-    const clientId = parseInt(params.id);
+    const clientId = Number.parseInt(params.id);
 
-    if (isNaN(clientId)) {
+    if (Number.isNaN(clientId)) {
       return NextResponse.json(
         { error: 'Invalid client ID' },
         { status: 400 }
@@ -247,9 +247,9 @@ export async function DELETE(
     }
     
     const params = await context.params;
-    const clientId = parseInt(params.id);
+    const clientId = Number.parseInt(params.id);
 
-    if (isNaN(clientId)) {
+    if (Number.isNaN(clientId)) {
       return NextResponse.json(
         { error: 'Invalid client ID' },
         { status: 400 }

@@ -33,9 +33,9 @@ export async function PUT(
 
     // 3. Get ID from params
     const { id } = await context.params;
-    const externalId = parseInt(id, 10);
+    const externalId = Number.parseInt(id, 10);
     
-    if (isNaN(externalId)) {
+    if (Number.isNaN(externalId)) {
       return NextResponse.json(
         { error: 'Invalid external service line ID' },
         { status: 400 }

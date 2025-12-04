@@ -265,7 +265,7 @@ export class FinancialRatioCalculator {
       const value = obj[key];
       if (value !== undefined && value !== null) {
         const num = typeof value === 'number' ? value : parseFloat(value);
-        if (!isNaN(num)) {
+        if (!Number.isNaN(num)) {
           return num;
         }
       }
@@ -337,4 +337,5 @@ export class FinancialRatioCalculator {
     }
   }
 }
+
 

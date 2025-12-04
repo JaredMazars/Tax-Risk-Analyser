@@ -33,9 +33,9 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const templateId = parseInt(id, 10);
+    const templateId = Number.parseInt(id, 10);
 
-    if (isNaN(templateId)) {
+    if (Number.isNaN(templateId)) {
       return NextResponse.json({ error: 'Invalid template ID' }, { status: 400 });
     }
 
@@ -74,9 +74,9 @@ export async function PUT(
     }
 
     const { id } = await context.params;
-    const templateId = parseInt(id, 10);
+    const templateId = Number.parseInt(id, 10);
 
-    if (isNaN(templateId)) {
+    if (Number.isNaN(templateId)) {
       return NextResponse.json({ error: 'Invalid template ID' }, { status: 400 });
     }
 
@@ -114,9 +114,9 @@ export async function DELETE(
     }
 
     const { id } = await context.params;
-    const templateId = parseInt(id, 10);
+    const templateId = Number.parseInt(id, 10);
 
-    if (isNaN(templateId)) {
+    if (Number.isNaN(templateId)) {
       return NextResponse.json({ error: 'Invalid template ID' }, { status: 400 });
     }
 

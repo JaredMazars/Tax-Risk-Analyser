@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100); // Max 100 per page
+    const page = Number.parseInt(searchParams.get('page') || '1');
+    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100); // Max 100 per page
     const sortBy = searchParams.get('sortBy') || 'clientNameFull';
     const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
     
@@ -102,4 +102,5 @@ export async function GET(request: NextRequest) {
     return handleApiError(error, 'Get Clients');
   }
 }
+
 

@@ -48,7 +48,7 @@ export default function AddAdjustmentModal({
     }
 
     const amountNum = parseFloat(formData.amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (Number.isNaN(amountNum) || amountNum <= 0) {
       setError('Please enter a valid positive amount');
       return;
     }

@@ -13,9 +13,9 @@ export async function DELETE(
 ) {
   try {
     const params = await context.params;
-    const projectId = parseInt(params.id, 10);
+    const projectId = Number.parseInt(params.id, 10);
     
-    if (isNaN(projectId)) {
+    if (Number.isNaN(projectId)) {
       return NextResponse.json(
         { error: 'Invalid project ID format' },
         { status: 400 }

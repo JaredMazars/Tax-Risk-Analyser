@@ -21,10 +21,10 @@ export async function GET(
     }
 
     const { id, ratingId } = await context.params;
-    const clientId = parseInt(id);
-    const ratId = parseInt(ratingId);
+    const clientId = Number.parseInt(id);
+    const ratId = Number.parseInt(ratingId);
 
-    if (isNaN(clientId) || isNaN(ratId)) {
+    if (Number.isNaN(clientId) || Number.isNaN(ratId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 
@@ -97,10 +97,10 @@ export async function DELETE(
     }
 
     const { id, ratingId } = await context.params;
-    const clientId = parseInt(id);
-    const ratId = parseInt(ratingId);
+    const clientId = Number.parseInt(id);
+    const ratId = Number.parseInt(ratingId);
 
-    if (isNaN(clientId) || isNaN(ratId)) {
+    if (Number.isNaN(clientId) || Number.isNaN(ratId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
     }
 

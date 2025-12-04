@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const opportunityId = parseInt(id);
+    const opportunityId = Number.parseInt(id);
 
     const opportunity = await getOpportunityById(opportunityId);
 
@@ -52,7 +52,7 @@ export async function PUT(
     }
 
     const { id } = await context.params;
-    const opportunityId = parseInt(id);
+    const opportunityId = Number.parseInt(id);
 
     const body = await request.json();
     const validated = UpdateBDOpportunitySchema.parse(body);
@@ -76,7 +76,7 @@ export async function DELETE(
     }
 
     const { id } = await context.params;
-    const opportunityId = parseInt(id);
+    const opportunityId = Number.parseInt(id);
 
     await deleteOpportunity(opportunityId);
 

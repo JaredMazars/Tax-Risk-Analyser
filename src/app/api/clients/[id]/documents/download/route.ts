@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { DocumentType } from '@/types';
 import { readFile } from 'fs/promises';
-import path from 'path';
+import path from 'node:path';
 
 /**
  * GET /api/clients/[id]/documents/download
@@ -22,19 +22,19 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientId = parseInt(id);
+    const clientId = Number.parseInt(id);
 
-    if (isNaN(clientId)) {
+    if (Number.isNaN(clientId)) {
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const documentType = searchParams.get('documentType') as DocumentType;
-    const documentId = parseInt(searchParams.get('documentId') || '');
-    const projectId = parseInt(searchParams.get('projectId') || '');
+    const documentId = Number.parseInt(searchParams.get('documentId') || '');
+    const projectId = Number.parseInt(searchParams.get('projectId') || '');
 
-    if (!documentType || isNaN(documentId)) {
+    if (!documentType || Number.isNaN(documentId)) {
       return NextResponse.json(
         { error: 'Missing required parameters: documentType, documentId' },
         { status: 400 }

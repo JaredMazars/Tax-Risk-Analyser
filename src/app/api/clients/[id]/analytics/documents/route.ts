@@ -5,11 +5,11 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
 import { logger } from '@/lib/utils/logger';
-import path from 'path';
+import path from 'node:path';
 import fs from 'fs/promises';
 import { fileTypeFromBuffer } from 'file-type';
 
-const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760'); // 10MB default
+const MAX_FILE_SIZE = Number.parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760', 10); // 10MB default
 const ALLOWED_TYPES = [
   'application/pdf',
   'application/vnd.ms-excel',
@@ -34,9 +34,9 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientId = parseInt(id);
+    const clientId = Number.parseInt(id);
 
-    if (isNaN(clientId)) {
+    if (Number.isNaN(clientId)) {
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
@@ -93,9 +93,9 @@ export async function POST(
     }
 
     const { id } = await context.params;
-    const clientId = parseInt(id);
+    const clientId = Number.parseInt(id);
 
-    if (isNaN(clientId)) {
+    if (Number.isNaN(clientId)) {
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 

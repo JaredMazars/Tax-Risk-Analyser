@@ -275,3 +275,4 @@ export function canSupervise(role: string): boolean {
 export function isSystemAdmin(role: string): boolean {
   return role === SystemRole.SYSTEM_ADMIN;
 }
+

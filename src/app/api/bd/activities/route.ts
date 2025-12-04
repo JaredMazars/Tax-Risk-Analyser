@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const filters = BDActivityFiltersSchema.parse({
       opportunityId: searchParams.get('opportunityId')
-        ? parseInt(searchParams.get('opportunityId')!)
+        ? Number.parseInt(searchParams.get('opportunityId')!)
         : undefined,
       activityType: searchParams.get('activityType') || undefined,
       status: searchParams.get('status') || undefined,
@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
         ? new Date(searchParams.get('fromDate')!)
         : undefined,
       toDate: searchParams.get('toDate') ? new Date(searchParams.get('toDate')!) : undefined,
-      page: searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1,
-      pageSize: searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!) : 20,
+      page: searchParams.get('page') ? Number.parseInt(searchParams.get('page')!) : 1,
+      pageSize: searchParams.get('pageSize') ? Number.parseInt(searchParams.get('pageSize')!) : 20,
     });
 
     const result = await getActivities(filters);
@@ -78,4 +78,5 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/bd/activities');
   }
 }
+
 

@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const page = Number.parseInt(searchParams.get('page') || '1');
+    const pageSize = Number.parseInt(searchParams.get('pageSize') || '20');
 
     const where = search
       ? {
@@ -80,4 +80,5 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/bd/contacts');
   }
 }
+
 

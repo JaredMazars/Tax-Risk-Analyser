@@ -222,9 +222,9 @@ export function withProjectAccess<T extends { id: string }>(
       }
 
       const { id } = await routeContext.params;
-      const projectId = parseInt(id);
+      const projectId = Number.parseInt(id);
 
-      if (isNaN(projectId)) {
+      if (Number.isNaN(projectId)) {
         return NextResponse.json(
           { error: 'Invalid project ID' },
           { status: 400 }
@@ -319,8 +319,8 @@ export function getPaginationParams(request: NextRequest): {
   offset: number;
 } {
   const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+  const page = Number.parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
   const offset = (page - 1) * limit;
   
   return { page, limit, offset };
@@ -339,3 +339,4 @@ export function getSortParams(request: NextRequest, defaultSort: string = 'creat
   
   return { sortBy, sortOrder };
 }
+

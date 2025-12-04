@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
+    const page = Number.parseInt(searchParams.get('page') || '1', 10);
+    const pageSize = Number.parseInt(searchParams.get('pageSize') || '20', 10);
     const isReadParam = searchParams.get('isRead');
     const projectIdParam = searchParams.get('projectId');
 
@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
 
     // Only set projectId filter if provided and valid
     if (projectIdParam !== null && projectIdParam !== undefined) {
-      const parsedProjectId = parseInt(projectIdParam, 10);
-      if (!isNaN(parsedProjectId)) {
+      const parsedProjectId = Number.parseInt(projectIdParam, 10);
+      if (!Number.isNaN(parsedProjectId)) {
         filters.projectId = parsedProjectId;
       }
     }
@@ -71,4 +71,5 @@ export async function DELETE(request: NextRequest) {
     return handleApiError(error, 'DELETE /api/notifications');
   }
 }
+
 

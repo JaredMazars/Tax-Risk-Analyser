@@ -25,9 +25,9 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientId = parseInt(id);
+    const clientId = Number.parseInt(id);
 
-    if (isNaN(clientId)) {
+    if (Number.isNaN(clientId)) {
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
@@ -159,9 +159,9 @@ export async function POST(
     }
 
     const { id } = await context.params;
-    const clientId = parseInt(id);
+    const clientId = Number.parseInt(id);
 
-    if (isNaN(clientId)) {
+    if (Number.isNaN(clientId)) {
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
