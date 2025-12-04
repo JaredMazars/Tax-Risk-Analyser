@@ -82,8 +82,9 @@ export function formatMarkdownToElements(markdown: string): FormattedElement[] {
       return;
     }
 
-    // Ordered list
-    const orderedMatch = trimmedLine.match(/^\d+\.\s+(.+)$/);
+    // Ordered list - limit line length to prevent ReDoS
+    const safeLine = trimmedLine.length > 500 ? trimmedLine.substring(0, 500) : trimmedLine;
+    const orderedMatch = safeLine.match(/^\d{1,4}\.\s+(.{1,450})$/);
     if (orderedMatch && orderedMatch[1]) {
       if (listType !== 'ol') {
         flushList();

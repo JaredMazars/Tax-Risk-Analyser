@@ -13,8 +13,12 @@ COPY prisma ./prisma
 # Install all dependencies
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy source code (filtered by .dockerignore - see that file for exclusions)
+# SECURITY: Ensure .dockerignore excludes .env*, secrets/, *.key, *.pem, etc.
+# Only copying: src/, public/, next.config.js, tsconfig.json, tailwind.config.ts, postcss.config.js
+COPY src ./src
+COPY public ./public
+COPY next.config.js tsconfig.json tailwind.config.ts postcss.config.js ./
 
 # Generate Prisma Client
 RUN npx prisma generate

@@ -207,12 +207,13 @@ export function sanitizeFileName(fileName: string): string {
 /**
  * Generate a unique filename to prevent conflicts and path traversal
  * @param originalFileName - Original filename
- * @returns Unique filename with timestamp
+ * @returns Unique filename with timestamp and cryptographically secure random component
  */
 export function generateUniqueFileName(originalFileName: string): string {
   const sanitized = sanitizeFileName(originalFileName);
   const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
+  // Use first 8 chars of UUID for shorter but still secure random component
+  const random = crypto.randomUUID().substring(0, 8);
   const extension = sanitized.substring(sanitized.lastIndexOf('.'));
   const nameWithoutExt = sanitized.substring(0, sanitized.lastIndexOf('.'));
   

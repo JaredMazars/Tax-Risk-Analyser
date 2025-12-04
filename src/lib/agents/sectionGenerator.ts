@@ -25,7 +25,50 @@ export interface SectionGenerationState {
 
 export class SectionGenerator {
   /**
+   * Helper: Build search query based on section type
+   */
+  private static buildSearchQuery(
+    sectionType: string,
+    previousSections: OpinionSection[],
+    qaHistory: string
+  ): string {
+    const type = sectionType.toLowerCase();
+
+    switch (type) {
+      case 'facts':
+        return `factual circumstances background taxpayer details ${qaHistory}`;
+      case 'issue':
+        return `tax issue question dispute assessment ${qaHistory}`;
+      case 'law':
+        return `legislation sections regulations case law precedent ${qaHistory}`;
+      case 'conclusion':
+        return `conclusion position recommendation ${qaHistory}`;
+      case 'analysis':
+      case 'application': {
+        const facts = previousSections.find(s => s.sectionType.toLowerCase() === 'facts')?.content || '';
+        const issue = previousSections.find(s => s.sectionType.toLowerCase() === 'issue')?.content || '';
+        return `${issue} ${facts} ${qaHistory}`;
+      }
+      default:
+        return `${sectionType} ${qaHistory}`;
+    }
+  }
+
+  /**
+   * Helper: Convert research sources to document findings
+   */
+  private static convertToFindings(sources: any[]): DocumentFinding[] {
+    return sources.map(source => ({
+      content: source.excerpt || '',
+      fileName: source.fileName,
+      category: source.category,
+      score: 0.8,
+    }));
+  }
+
+  /**
    * Search documents for relevant context based on section type and Q&A history
+   * Refactored to reduce cognitive complexity
    */
   private static async searchDocumentsForContext(
     draftId: number,
@@ -34,44 +77,12 @@ export class SectionGenerator {
     qaHistory: string = ''
   ): Promise<DocumentFinding[]> {
     try {
-      // Build search query based on section type and context
-      let searchQuery = '';
-      
-      switch (sectionType.toLowerCase()) {
-        case 'facts':
-          searchQuery = `factual circumstances background taxpayer details ${qaHistory}`;
-          break;
-        case 'issue':
-          searchQuery = `tax issue question dispute assessment ${qaHistory}`;
-          break;
-        case 'law':
-          searchQuery = `legislation sections regulations case law precedent ${qaHistory}`;
-          break;
-        case 'analysis':
-        case 'application':
-          const facts = previousSections.find(s => s.sectionType.toLowerCase() === 'facts')?.content || '';
-          const issue = previousSections.find(s => s.sectionType.toLowerCase() === 'issue')?.content || '';
-          searchQuery = `${issue} ${facts} ${qaHistory}`;
-          break;
-        case 'conclusion':
-          searchQuery = `conclusion position recommendation ${qaHistory}`;
-          break;
-        default:
-          searchQuery = `${sectionType} ${qaHistory}`;
-      }
+      const searchQuery = this.buildSearchQuery(sectionType, previousSections, qaHistory);
 
       logger.info(`🔍 Searching documents for ${sectionType} section: "${searchQuery.substring(0, 100)}..."`);
 
-      // Search documents using ResearchAgent
       const searchResult = await ResearchAgent.searchDocuments(draftId, searchQuery);
-      
-      // Convert to DocumentFinding format
-      const findings: DocumentFinding[] = searchResult.sources.map(source => ({
-        content: source.excerpt || '',
-        fileName: source.fileName,
-        category: source.category,
-        score: 0.8, // ResearchAgent doesn't return scores, use default
-      }));
+      const findings = this.convertToFindings(searchResult.sources);
 
       logger.info(`✅ Found ${findings.length} relevant document excerpts for ${sectionType}`);
       
@@ -93,8 +104,8 @@ export class SectionGenerator {
   ): Promise<{ question: string; state: SectionGenerationState }> {
     logger.info(`Starting section generation: ${sectionType} for draft ${draftId}`);
 
-    // Generate unique ID for this section generation flow
-    const generationId = `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate unique ID for this section generation flow (cryptographically secure)
+    const generationId = `section_${Date.now()}_${crypto.randomUUID()}`;
 
     // Get chat history for context
     const chatHistory = await prisma.opinionChatMessage.findMany({

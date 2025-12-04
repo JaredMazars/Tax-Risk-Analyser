@@ -80,11 +80,44 @@ export function sanitizeEmail(email: string | null | undefined): string | null {
   // Remove whitespace
   let sanitized = email.trim().toLowerCase();
 
-  // Basic email validation regex
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
-  if (!emailRegex.test(sanitized)) {
+  // Limit email length to prevent ReDoS
+  if (sanitized.length > 320) { // Max email length per RFC 5321
     return null;
+  }
+
+  // Safe email validation regex with explicit length limits
+  // Split into parts to avoid nested quantifiers
+  const localPartRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}$/;
+  const domainLabelRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+
+  // Split and validate email parts separately
+  const parts = sanitized.split('@');
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const localPart = parts[0];
+  const domain = parts[1];
+
+  // Validate local part
+  if (!localPart || !localPartRegex.test(localPart)) {
+    return null;
+  }
+
+  // Validate domain
+  if (!domain) {
+    return null;
+  }
+
+  const domainLabels = domain.split('.');
+  if (domainLabels.length < 2 || domainLabels.length > 127) {
+    return null;
+  }
+
+  for (const label of domainLabels) {
+    if (!label || !domainLabelRegex.test(label) || label.length > 63) {
+      return null;
+    }
   }
 
   return sanitized;

@@ -19,14 +19,9 @@ export interface QuestionnaireTypeResult {
 }
 
 /**
- * Determine the appropriate questionnaire type for a project/client
- * Optimized to reduce database queries
+ * Helper: Get basic project and client data
  */
-export async function getQuestionnaireType(
-  projectId: number,
-  clientId: number
-): Promise<QuestionnaireTypeResult> {
-  // Single parallel query for both project details and previous projects count
+async function getProjectData(projectId: number, clientId: number) {
   const [project, previousProjectsCount] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
@@ -55,35 +50,56 @@ export async function getQuestionnaireType(
     throw new Error(`Project ${projectId} not found`);
   }
 
-  const isNewClient = previousProjectsCount === 0;
+  return { project, isNewClient: previousProjectsCount === 0 };
+}
 
-  // Check if LITE criteria is met
-  const isLiteEligible = await checkLiteEligibility(project);
-
-  // Determine recommended type
-  let recommendedType: QuestionnaireType;
-  let reason: string;
-
+/**
+ * Helper: Determine questionnaire type based on client status and eligibility
+ */
+function determineQuestionnaireType(isNewClient: boolean, isLiteEligible: boolean): {
+  type: QuestionnaireType;
+  reason: string;
+} {
   if (isNewClient) {
     if (isLiteEligible) {
-      recommendedType = 'ACCEPTANCE_LITE';
-      reason = 'New client meeting simplified criteria (fees < R250k, non-PIE, standalone)';
-    } else {
-      recommendedType = 'ACCEPTANCE_FULL';
-      reason = 'New client requiring comprehensive acceptance assessment';
+      return {
+        type: 'ACCEPTANCE_LITE',
+        reason: 'New client meeting simplified criteria (fees < R250k, non-PIE, standalone)',
+      };
     }
-  } else {
-    if (isLiteEligible) {
-      recommendedType = 'CONTINUANCE_LITE';
-      reason = 'Existing client meeting simplified criteria';
-    } else {
-      recommendedType = 'CONTINUANCE_FULL';
-      reason = 'Existing client requiring comprehensive continuance assessment';
-    }
+    return {
+      type: 'ACCEPTANCE_FULL',
+      reason: 'New client requiring comprehensive acceptance assessment',
+    };
+  }
+
+  if (isLiteEligible) {
+    return {
+      type: 'CONTINUANCE_LITE',
+      reason: 'Existing client meeting simplified criteria',
+    };
   }
 
   return {
-    recommendedType,
+    type: 'CONTINUANCE_FULL',
+    reason: 'Existing client requiring comprehensive continuance assessment',
+  };
+}
+
+/**
+ * Determine the appropriate questionnaire type for a project/client
+ * Refactored to reduce cognitive complexity
+ */
+export async function getQuestionnaireType(
+  projectId: number,
+  clientId: number
+): Promise<QuestionnaireTypeResult> {
+  const { project, isNewClient } = await getProjectData(projectId, clientId);
+  const isLiteEligible = await checkLiteEligibility(project);
+  const { type, reason } = determineQuestionnaireType(isNewClient, isLiteEligible);
+
+  return {
+    recommendedType: type,
     isNewClient,
     isLiteEligible,
     reason,
@@ -134,7 +150,49 @@ export async function getQuestionnaireStructure(type: QuestionnaireType): Promis
 }
 
 /**
+ * Helper: Check if question should be validated
+ */
+function shouldValidateQuestion(
+  question: any,
+  answerMap: Map<string, string>
+): boolean {
+  // Skip non-required and special fields
+  if (!question.required || question.fieldType === 'PLACEHOLDER' || question.fieldType === 'BUTTON') {
+    return false;
+  }
+
+  // Check conditional display
+  if (question.conditionalDisplay) {
+    const dependentAnswer = answerMap.get(question.conditionalDisplay.dependsOn);
+    return dependentAnswer === question.conditionalDisplay.requiredAnswer;
+  }
+
+  return true;
+}
+
+/**
+ * Helper: Validate individual question answer
+ */
+function validateQuestionAnswer(
+  question: any,
+  answer: string | undefined,
+  errors: string[]
+): void {
+  // Check if answer exists
+  if (!answer || answer.trim() === '') {
+    errors.push(`Question "${question.questionText}" is required`);
+    return;
+  }
+
+  // Validate answer against options if applicable
+  if (question.options && !question.options.includes(answer)) {
+    errors.push(`Invalid answer for question "${question.questionText}"`);
+  }
+}
+
+/**
  * Validate questionnaire responses
+ * Refactored to reduce cognitive complexity
  */
 export function validateQuestionnaireResponses(
   type: QuestionnaireType,
@@ -145,31 +203,12 @@ export function validateQuestionnaireResponses(
   const answerMap = new Map(answers.map((a) => [a.questionKey, a.answer]));
 
   for (const question of questions) {
-    // Skip non-required and special fields
-    if (!question.required || question.fieldType === 'PLACEHOLDER' || question.fieldType === 'BUTTON') {
+    if (!shouldValidateQuestion(question, answerMap)) {
       continue;
     }
 
-    // Check conditional display
-    if (question.conditionalDisplay) {
-      const dependentAnswer = answerMap.get(question.conditionalDisplay.dependsOn);
-      if (dependentAnswer !== question.conditionalDisplay.requiredAnswer) {
-        continue; // Skip if condition not met
-      }
-    }
-
-    // Check if answer exists
     const answer = answerMap.get(question.questionKey);
-    if (!answer || answer.trim() === '') {
-      errors.push(`Question "${question.questionText}" is required`);
-    }
-
-    // Validate answer against options if applicable
-    if (question.options && answer) {
-      if (!question.options.includes(answer)) {
-        errors.push(`Invalid answer for question "${question.questionText}"`);
-      }
-    }
+    validateQuestionAnswer(question, answer, errors);
   }
 
   return {
