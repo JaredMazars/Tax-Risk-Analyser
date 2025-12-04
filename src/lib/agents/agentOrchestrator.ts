@@ -593,20 +593,23 @@ What would you like me to do?`;
    * Helper: Extract search query from message
    */
   private static extractSearchQuery(message: string): string {
-    // Simple extraction - could be enhanced with NLP
+    // Limit input length to prevent ReDoS
+    const safeMessage = message.substring(0, 1000);
+    
+    // Simple extraction with length limits to prevent catastrophic backtracking
     const patterns = [
-      /search for (.+)/i,
-      /find (.+)/i,
-      /look for (.+)/i,
-      /information about (.+)/i,
+      /search for (.{1,500})/i,
+      /find (.{1,500})/i,
+      /look for (.{1,500})/i,
+      /information about (.{1,500})/i,
     ];
 
     for (const pattern of patterns) {
-      const match = message.match(pattern);
+      const match = safeMessage.match(pattern);
       if (match && match[1]) return match[1];
     }
 
-    return message;
+    return safeMessage;
   }
 
   /**
@@ -646,4 +649,5 @@ What would you like me to do?`;
     };
   }
 }
+
 

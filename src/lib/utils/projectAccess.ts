@@ -58,34 +58,93 @@ export interface ProjectAccessResult {
  * @param requiredRole - Optional minimum project role required
  * @returns Detailed access result
  */
+/**
+ * Helper: Check if user is system admin
+ */
+async function checkSystemAdminAccess(userId: string): Promise<ProjectAccessResult | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+
+  if (!user) {
+    return {
+      canAccess: false,
+      accessType: ProjectAccessType.NO_ACCESS,
+      isSystemAdmin: false,
+    };
+  }
+
+  if (isSystemAdmin(user)) {
+    return {
+      canAccess: true,
+      accessType: ProjectAccessType.SYSTEM_ADMIN,
+      isSystemAdmin: true,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Helper: Check service line admin access
+ */
+async function checkServiceLineAccess(
+  userId: string,
+  serviceLine: string
+): Promise<{ isAdmin: boolean; role?: string }> {
+  const serviceLineUser = await prisma.serviceLineUser.findUnique({
+    where: {
+      userId_serviceLine: { userId, serviceLine },
+    },
+    select: { role: true },
+  });
+
+  const isAdmin = serviceLineUser?.role === 'ADMINISTRATOR' || serviceLineUser?.role === 'PARTNER';
+  return { isAdmin, role: serviceLineUser?.role };
+}
+
+/**
+ * Helper: Check project membership and role
+ */
+async function checkProjectMembership(
+  userId: string,
+  projectId: number,
+  requiredRole?: string
+): Promise<{ hasAccess: boolean; role?: string; meetsRoleRequirement?: boolean }> {
+  const projectUser = await prisma.projectUser.findUnique({
+    where: {
+      projectId_userId: { projectId, userId },
+    },
+    select: { role: true },
+  });
+
+  if (!projectUser) {
+    return { hasAccess: false };
+  }
+
+  if (requiredRole) {
+    const { hasProjectRole } = await import('./roleHierarchy');
+    const meetsRoleRequirement = hasProjectRole(projectUser.role, requiredRole);
+    return { hasAccess: true, role: projectUser.role, meetsRoleRequirement };
+  }
+
+  return { hasAccess: true, role: projectUser.role, meetsRoleRequirement: true };
+}
+
+/**
+ * Main function: Check if user can access project
+ * Refactored to reduce cognitive complexity
+ */
 export async function canAccessProject(
   userId: string,
   projectId: number,
   requiredRole?: string
 ): Promise<ProjectAccessResult> {
   try {
-    // Get user info
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    if (!user) {
-      return {
-        canAccess: false,
-        accessType: ProjectAccessType.NO_ACCESS,
-        isSystemAdmin: false,
-      };
-    }
-
-    // Check if SYSTEM_ADMIN (global access)
-    if (isSystemAdmin(user)) {
-      return {
-        canAccess: true,
-        accessType: ProjectAccessType.SYSTEM_ADMIN,
-        isSystemAdmin: true,
-      };
-    }
+    // Check system admin access first
+    const adminAccess = await checkSystemAdminAccess(userId);
+    if (adminAccess) return adminAccess;
 
     // Get project info
     const project = await prisma.project.findUnique({
@@ -101,40 +160,26 @@ export async function canAccessProject(
       };
     }
 
-    // Check service line access
-    const serviceLineUser = await prisma.serviceLineUser.findUnique({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine: project.serviceLine,
-        },
-      },
-      select: { role: true },
-    });
+    // Check service line admin access
+    const { isAdmin: isServiceLineAdmin, role: serviceLineRole } = await checkServiceLineAccess(
+      userId,
+      project.serviceLine
+    );
 
-    // If user is Partner/Admin in service line, they can see all projects
-    if (serviceLineUser && (serviceLineUser.role === 'ADMINISTRATOR' || serviceLineUser.role === 'PARTNER')) {
+    if (isServiceLineAdmin) {
       return {
         canAccess: true,
         accessType: ProjectAccessType.SERVICE_LINE_ADMIN,
-        serviceLineRole: serviceLineUser.role,
+        serviceLineRole,
         serviceLine: project.serviceLine,
         isSystemAdmin: false,
       };
     }
 
     // Check project membership
-    const projectUser = await prisma.projectUser.findUnique({
-      where: {
-        projectId_userId: {
-          projectId,
-          userId,
-        },
-      },
-      select: { role: true },
-    });
+    const membership = await checkProjectMembership(userId, projectId, requiredRole);
 
-    if (!projectUser) {
+    if (!membership.hasAccess) {
       return {
         canAccess: false,
         accessType: ProjectAccessType.NO_ACCESS,
@@ -143,29 +188,23 @@ export async function canAccessProject(
       };
     }
 
-    // If required role specified, check role hierarchy
-    if (requiredRole) {
-      const { hasProjectRole } = await import('./roleHierarchy');
-      const hasRequiredRole = hasProjectRole(projectUser.role, requiredRole);
-      
-      if (!hasRequiredRole) {
-        return {
-          canAccess: false,
-          accessType: ProjectAccessType.PROJECT_MEMBER,
-          projectRole: projectUser.role,
-          serviceLine: project.serviceLine,
-          serviceLineRole: serviceLineUser?.role,
-          isSystemAdmin: false,
-        };
-      }
+    if (requiredRole && !membership.meetsRoleRequirement) {
+      return {
+        canAccess: false,
+        accessType: ProjectAccessType.PROJECT_MEMBER,
+        projectRole: membership.role,
+        serviceLine: project.serviceLine,
+        serviceLineRole,
+        isSystemAdmin: false,
+      };
     }
 
     return {
       canAccess: true,
       accessType: ProjectAccessType.PROJECT_MEMBER,
-      projectRole: projectUser.role,
+      projectRole: membership.role,
       serviceLine: project.serviceLine,
-      serviceLineRole: serviceLineUser?.role,
+      serviceLineRole,
       isSystemAdmin: false,
     };
   } catch (error) {
@@ -371,5 +410,6 @@ export function getAccessSummary(result: ProjectAccessResult): string {
       return 'You have access to this project.';
   }
 }
+
 
 

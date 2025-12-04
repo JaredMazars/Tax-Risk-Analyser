@@ -5,7 +5,7 @@ import type { FileValidationResult } from '@/types/api';
 /**
  * Maximum file size in bytes (10MB)
  */
-const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760', 10);
+const MAX_FILE_SIZE = Number.parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760', 10);
 
 /**
  * Allowed file types with their magic bytes
@@ -90,7 +90,8 @@ async function checkMagicBytes(filePath: string): Promise<string | null> {
       
       // CSV files don't have magic bytes, check if it looks like text
       const text = buffer.toString('utf8', 0, Math.min(buffer.length, 100));
-      if (/^[\x20-\x7E\r\n\t,]*$/.test(text)) {
+      // Use a safer regex with length limit to prevent ReDoS
+      if (text.length <= 100 && /^[\x20-\x7E\r\n\t,]{0,100}$/.test(text)) {
         resolve('csv');
         return;
       }
@@ -206,12 +207,13 @@ export function sanitizeFileName(fileName: string): string {
 /**
  * Generate a unique filename to prevent conflicts and path traversal
  * @param originalFileName - Original filename
- * @returns Unique filename with timestamp
+ * @returns Unique filename with timestamp and cryptographically secure random component
  */
 export function generateUniqueFileName(originalFileName: string): string {
   const sanitized = sanitizeFileName(originalFileName);
   const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
+  // Use first 8 chars of UUID for shorter but still secure random component
+  const random = crypto.randomUUID().substring(0, 8);
   const extension = sanitized.substring(sanitized.lastIndexOf('.'));
   const nameWithoutExt = sanitized.substring(0, sanitized.lastIndexOf('.'));
   
@@ -257,5 +259,6 @@ export function getMaxFileSizeDisplay(): string {
   const mb = MAX_FILE_SIZE / 1024 / 1024;
   return `${mb}MB`;
 }
+
 
 

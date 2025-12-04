@@ -13,7 +13,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
+    const draftId = Number.parseInt(params.draftId);
     const body = await request.json();
 
     const draft = await prisma.opinionDraft.update({
@@ -41,7 +41,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
+    const draftId = Number.parseInt(params.draftId);
 
     await prisma.opinionDraft.delete({
       where: { id: draftId },

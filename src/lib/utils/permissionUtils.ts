@@ -97,3 +97,4 @@ export function getRoleBadgeColor(role: string): string {
 
   return colorMap[role] || 'bg-gray-100 text-gray-800 border-gray-200';
 }
+

@@ -13,8 +13,12 @@ COPY prisma ./prisma
 # Install all dependencies
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy source code (filtered by .dockerignore - see that file for exclusions)
+# SECURITY: Ensure .dockerignore excludes .env*, secrets/, *.key, *.pem, etc.
+# Only copying: src/, public/, next.config.js, tsconfig.json, tailwind.config.ts, postcss.config.js
+COPY src ./src
+COPY public ./public
+COPY next.config.js tsconfig.json tailwind.config.ts postcss.config.js ./
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -43,7 +47,11 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copy package files and install production dependencies
 COPY package.json package-lock.json ./
-# Skip postinstall since we copy the generated Prisma client from builder
+# SECURITY: Using --ignore-scripts is SAFE here because:
+# 1. We copy the pre-built Prisma client from the builder stage (no generation needed)
+# 2. All postinstall scripts already ran in the builder stage
+# 3. This prevents arbitrary script execution in the production container
+# 4. The Prisma client is copied from: /app/node_modules/.prisma (see below)
 RUN npm ci --only=production --ignore-scripts
 
 # Copy necessary files from builder

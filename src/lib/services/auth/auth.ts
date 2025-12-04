@@ -753,3 +753,4 @@ export async function requirePermission(
     throw new Error(`Permission denied: ${action} on ${resource}`);
   }
 }
+

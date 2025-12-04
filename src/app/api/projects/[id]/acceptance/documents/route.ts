@@ -219,7 +219,7 @@ export async function DELETE(
 
     // Get document details for audit log
     const document = await prisma.acceptanceDocument.findUnique({
-      where: { id: parseInt(documentId) },
+      where: { id: Number.parseInt(documentId) },
       select: {
         id: true,
         fileName: true,
@@ -244,10 +244,10 @@ export async function DELETE(
     }
 
     // Delete document
-    await deleteAcceptanceDocument(parseInt(documentId));
+    await deleteAcceptanceDocument(Number.parseInt(documentId));
 
     // Audit log
-    await logDocumentDeleted(projectId, user.id, parseInt(documentId), document.fileName);
+    await logDocumentDeleted(projectId, user.id, Number.parseInt(documentId), document.fileName);
 
     return NextResponse.json(successResponse({ deleted: true }));
   } catch (error) {

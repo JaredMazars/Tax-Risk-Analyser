@@ -359,20 +359,20 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
               {/* Tab Content */}
               <div className="flex-1 overflow-hidden">
                 {activeTab === 'chat' && (
-                  <ChatInterface projectId={parseInt(params.id)} draftId={selectedDraft.id} />
+                  <ChatInterface projectId={Number.parseInt(params.id)} draftId={selectedDraft.id} />
                 )}
                 {activeTab === 'documents' && (
                   <DocumentManager
-                    projectId={parseInt(params.id)}
+                    projectId={Number.parseInt(params.id)}
                     draftId={selectedDraft.id}
                   />
                 )}
                 {activeTab === 'sections' && (
-                  <SectionEditor projectId={parseInt(params.id)} draftId={selectedDraft.id} />
+                  <SectionEditor projectId={Number.parseInt(params.id)} draftId={selectedDraft.id} />
                 )}
                 {activeTab === 'preview' && (
                   <OpinionPreview
-                    projectId={parseInt(params.id)}
+                    projectId={Number.parseInt(params.id)}
                     draftId={selectedDraft.id}
                     draftTitle={selectedDraft.title}
                   />

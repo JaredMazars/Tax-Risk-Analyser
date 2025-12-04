@@ -26,8 +26,8 @@ export async function GET(request: NextRequest) {
     }
     
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const page = Number.Number.parseInt(searchParams.get('page') || '1');
+    const limit = Math.min(Number.Number.parseInt(searchParams.get('limit') || '50'), 100);
     const search = searchParams.get('search') || '';
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const serviceLine = searchParams.get('serviceLine');
@@ -310,3 +310,4 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'Create Project');
   }
 }
+

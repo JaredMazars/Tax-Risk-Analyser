@@ -14,7 +14,7 @@ export async function GET(
     }
 
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = Number.parseInt(params.id);
     
     const precedents = await prisma.legalPrecedent.findMany({
       where: { projectId },
@@ -38,7 +38,7 @@ export async function POST(
     }
 
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = Number.parseInt(params.id);
     const body = await request.json();
 
     const precedent = await prisma.legalPrecedent.create({

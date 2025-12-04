@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
+    const draftId = Number.parseInt(params.draftId);
 
     const documents = await prisma.opinionDocument.findMany({
       where: { opinionDraftId: draftId },
@@ -50,8 +50,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
-    const projectId = parseInt(params.id);
+    const draftId = Number.parseInt(params.draftId);
+    const projectId = Number.parseInt(params.id);
 
     // Verify draft exists and belongs to project
     const draft = await prisma.opinionDraft.findFirst({
@@ -194,7 +194,7 @@ export async function DELETE(
       );
     }
 
-    const docId = parseInt(documentId);
+    const docId = Number.parseInt(documentId);
 
     // Get document
     const document = await prisma.opinionDocument.findUnique({

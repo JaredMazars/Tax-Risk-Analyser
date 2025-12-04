@@ -167,8 +167,9 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
       a.href = url;
       
       // Get filename from Content-Disposition header or use default
+      // Use safe regex with length limit to prevent ReDoS
       const contentDisposition = response.headers.get('Content-Disposition');
-      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filenameMatch = contentDisposition?.substring(0, 500).match(/filename="([^"]{1,255})"/);
       const filename = filenameMatch?.[1] || 'engagement-letter.pdf';
       
       a.download = filename;

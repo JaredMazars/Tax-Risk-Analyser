@@ -236,8 +236,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert projectId to number
-    const projectId = parseInt(projectIdStr, 10);
-    if (isNaN(projectId)) {
+    const projectId = Number.parseInt(projectIdStr, 10);
+    if (Number.isNaN(projectId)) {
       return NextResponse.json(
         { error: 'Invalid Project ID format.' },
         { status: 400 }
@@ -484,3 +484,4 @@ Return a JSON object with a single "accounts" key containing an array of mapped 
 }
 </output_format>`;
 }
+

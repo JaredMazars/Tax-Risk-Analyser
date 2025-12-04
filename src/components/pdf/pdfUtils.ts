@@ -96,3 +96,4 @@ export function transformMappedDataToBalanceSheet(mappedData: MappedAccount[]) {
 
     return balanceSheet;
 }
+

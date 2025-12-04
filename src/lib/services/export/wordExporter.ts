@@ -182,17 +182,20 @@ export class WordExporter {
   private static parseContentWithFormatting(text: string): TextRun[] {
     const runs: TextRun[] = [];
     
-    // Simple bold detection (**text** or __text__)
-    const boldRegex = /(\*\*|__)(.*?)\1/g;
+    // Limit input length to prevent ReDoS
+    const safeText = text.substring(0, 50000);
+    
+    // Simple bold detection (**text** or __text__) with length limits
+    const boldRegex = /(\*\*|__)([^*_]{1,1000}?)\1/g;
     let lastIndex = 0;
     let match;
 
-    while ((match = boldRegex.exec(text)) !== null) {
+    while ((match = boldRegex.exec(safeText)) !== null) {
       // Add text before bold
       if (match.index > lastIndex) {
         runs.push(
           new TextRun({
-            text: text.substring(lastIndex, match.index),
+            text: safeText.substring(lastIndex, match.index),
           })
         );
       }
@@ -241,4 +244,5 @@ export class WordExporter {
     });
   }
 }
+
 

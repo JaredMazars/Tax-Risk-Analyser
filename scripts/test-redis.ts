@@ -51,7 +51,7 @@ async function testRedis() {
     if (isAzure) {
       redis = new Redis({
         host,
-        port: parseInt(port || '6380'),
+        port: Number.parseInt(port || '6380'),
         password,
         tls: { servername: host },
         maxRetriesPerRequest: 3,
@@ -59,7 +59,7 @@ async function testRedis() {
     } else {
       redis = new Redis({
         host,
-        port: parseInt(port || '6379'),
+        port: Number.parseInt(port || '6379'),
         password,
         maxRetriesPerRequest: 3,
       });

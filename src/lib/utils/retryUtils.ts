@@ -1,8 +1,20 @@
 import { AppError, ErrorCodes } from './errorHandler';
-import { logWarn, logError, logInfo } from './logger';
-
-/**
- * Retry configuration
+import { logWarn, logError, logInfo } from './logg/**
+ * Calculate delay with exponential backoff
+ * @param attemptNumber - Current attempt number (0-indexed)
+ * @param config - Retry configuration
+ * @returns Delay in milliseconds
+ */
+function calculateDelay(attemptNumber: number, config: RetryConfig): number {
+  const delay = config.initialDelayMs * Math.pow(config.backoffMultiplier, attemptNumber);
+  
+  // Add jitter to prevent thundering herd
+  // SECURITY NOTE: Math.random() is acceptable here as this is not security-sensitive
+  // Jitter is only used for network retry timing to prevent synchronized retries
+  const jitter = Math.random() * 0.3 * delay;
+  
+  return Math.min(delay + jitter, config.maxDelayMs);
+}* Retry configuration
  */
 export interface RetryConfig {
   maxRetries: number;
@@ -360,4 +372,5 @@ export async function withRetryAndCircuitBreaker<T>(
     circuitConfig
   );
 }
+
 

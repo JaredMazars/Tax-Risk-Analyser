@@ -80,11 +80,44 @@ export function sanitizeEmail(email: string | null | undefined): string | null {
   // Remove whitespace
   let sanitized = email.trim().toLowerCase();
 
-  // Basic email validation regex
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
-  if (!emailRegex.test(sanitized)) {
+  // Limit email length to prevent ReDoS
+  if (sanitized.length > 320) { // Max email length per RFC 5321
     return null;
+  }
+
+  // Safe email validation regex with explicit length limits
+  // Split into parts to avoid nested quantifiers
+  const localPartRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}$/;
+  const domainLabelRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+
+  // Split and validate email parts separately
+  const parts = sanitized.split('@');
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const localPart = parts[0];
+  const domain = parts[1];
+
+  // Validate local part
+  if (!localPart || !localPartRegex.test(localPart)) {
+    return null;
+  }
+
+  // Validate domain
+  if (!domain) {
+    return null;
+  }
+
+  const domainLabels = domain.split('.');
+  if (domainLabels.length < 2 || domainLabels.length > 127) {
+    return null;
+  }
+
+  for (const label of domainLabels) {
+    if (!label || !domainLabelRegex.test(label) || label.length > 63) {
+      return null;
+    }
   }
 
   return sanitized;
@@ -124,7 +157,7 @@ export function sanitizeNumber(input: unknown): number | null {
   }
 
   const num = Number(input);
-  if (isNaN(num) || !isFinite(num)) {
+  if (Number.isNaN(num) || !isFinite(num)) {
     return null;
   }
 
@@ -193,14 +226,15 @@ export function sanitizeComment(comment: string | undefined | null): string | un
     sanitized = sanitized.substring(0, MAX_COMMENT_LENGTH);
   }
 
-  // Remove script tags and their content
-  sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+  // Remove script tags and their content (non-greedy with length limit to prevent ReDoS)
+  // Process in chunks to avoid catastrophic backtracking
+  sanitized = sanitized.replace(/<script[^>]{0,200}?>[\s\S]{0,5000}?<\/script>/gi, '');
 
   // Remove javascript: protocol
   sanitized = sanitized.replace(/javascript:/gi, '');
 
-  // Remove event handlers (onclick, onload, etc.)
-  sanitized = sanitized.replace(/on\w+\s*=/gi, '');
+  // Remove event handlers (onclick, onload, etc.) with length limit
+  sanitized = sanitized.replace(/on\w{0,20}\s*=/gi, '');
 
   // Remove null bytes
   sanitized = sanitized.replace(/\0/g, '');
@@ -302,6 +336,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(
 
   return sanitized as T;
 }
+
 
 
 

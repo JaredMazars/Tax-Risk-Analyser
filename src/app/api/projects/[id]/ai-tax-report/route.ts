@@ -15,7 +15,7 @@ export async function GET(
     enforceRateLimit(request, RateLimitPresets.AI_ENDPOINTS);
     
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = Number.parseInt(params.id);
 
     // Get the most recent AI tax report for this project
     const latestReport = await prisma.aITaxReport.findFirst({
@@ -53,7 +53,7 @@ export async function POST(
     enforceRateLimit(request, RateLimitPresets.AI_ENDPOINTS);
     
     const params = await context.params;
-    const projectId = parseInt(params.id);
+    const projectId = Number.parseInt(params.id);
 
     // Fetch project details
     const project = await prisma.project.findUnique({

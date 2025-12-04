@@ -316,3 +316,4 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     borderColorClass: 'border-pink-200',
   },
 };
+

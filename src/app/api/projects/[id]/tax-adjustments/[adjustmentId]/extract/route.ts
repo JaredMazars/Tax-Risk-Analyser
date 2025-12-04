@@ -27,7 +27,7 @@ export async function POST(
 
     const params = await context.params;
     const projectId = toProjectId(params.id);
-    const adjustmentId = parseInt(params.adjustmentId);
+    const adjustmentId = Number.parseInt(params.adjustmentId);
 
     // Check project access (requires EDITOR role or higher)
     const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
@@ -138,7 +138,7 @@ export async function GET(
 ) {
   try {
     const params = await context.params;
-    const adjustmentId = parseInt(params.adjustmentId);
+    const adjustmentId = Number.parseInt(params.adjustmentId);
 
     const documents = await prisma.adjustmentDocument.findMany({
       where: { taxAdjustmentId: adjustmentId },

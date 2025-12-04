@@ -20,11 +20,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const opportunityId = searchParams.get('opportunityId')
-      ? parseInt(searchParams.get('opportunityId')!)
+      ? Number.parseInt(searchParams.get('opportunityId')!)
       : undefined;
     const status = searchParams.get('status') || undefined;
-    const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const page = Number.parseInt(searchParams.get('page') || '1');
+    const pageSize = Number.parseInt(searchParams.get('pageSize') || '20');
 
     interface WhereClause {
       opportunityId?: number;
@@ -113,4 +113,5 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/bd/proposals');
   }
 }
+
 

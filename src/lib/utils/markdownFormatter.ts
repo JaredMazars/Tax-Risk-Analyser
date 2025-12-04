@@ -82,8 +82,9 @@ export function formatMarkdownToElements(markdown: string): FormattedElement[] {
       return;
     }
 
-    // Ordered list
-    const orderedMatch = trimmedLine.match(/^\d+\.\s+(.+)$/);
+    // Ordered list - limit line length to prevent ReDoS
+    const safeLine = trimmedLine.length > 500 ? trimmedLine.substring(0, 500) : trimmedLine;
+    const orderedMatch = safeLine.match(/^\d{1,4}\.\s+(.{1,450})$/);
     if (orderedMatch && orderedMatch[1]) {
       if (listType !== 'ol') {
         flushList();
@@ -112,22 +113,28 @@ export function formatMarkdownToElements(markdown: string): FormattedElement[] {
  * Format inline markdown (bold, italic, code, links)
  */
 function formatInlineMarkdown(text: string): string {
+  // Limit input length to prevent ReDoS attacks
+  if (text.length > 10000) {
+    text = text.substring(0, 10000);
+  }
+  
   let formatted = text;
 
-  // Bold: **text** or __text__
-  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  formatted = formatted.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  // Bold: **text** or __text__ (with length limits to prevent catastrophic backtracking)
+  formatted = formatted.replace(/\*\*([^*]{1,500}?)\*\*/g, '<strong>$1</strong>');
+  formatted = formatted.replace(/__([^_]{1,500}?)__/g, '<strong>$1</strong>');
 
-  // Italic: *text* or _text_
-  formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  formatted = formatted.replace(/_(.+?)_/g, '<em>$1</em>');
+  // Italic: *text* or _text_ (with length limits)
+  formatted = formatted.replace(/\*([^*]{1,500}?)\*/g, '<em>$1</em>');
+  formatted = formatted.replace(/_([^_]{1,500}?)_/g, '<em>$1</em>');
 
-  // Code: `code`
-  formatted = formatted.replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>');
+  // Code: `code` (with length limit)
+  formatted = formatted.replace(/`([^`]{1,500}?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>');
 
-  // Links: [text](url)
-  formatted = formatted.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>');
+  // Links: [text](url) (with length limits)
+  formatted = formatted.replace(/\[([^\]]{1,200}?)\]\(([^)]{1,500}?)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>');
 
   return formatted;
 }
+
 

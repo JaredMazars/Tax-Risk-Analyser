@@ -201,11 +201,13 @@ export class BingSearchService {
    * Extract case name from title
    */
   private extractCaseName(title: string): string {
-    // Simple heuristic: Look for "v" or "vs" pattern
-    const vPattern = /(.+?)\s+v[s]?\s+(.+)/i;
-    const match = title.match(vPattern);
-    const splitTitle = title.split('|')[0];
-    return match ? title : (splitTitle ? splitTitle.trim() : title);
+    // Limit input length to prevent ReDoS
+    const safeTitle = title.substring(0, 500);
+    // Simple heuristic: Look for "v" or "vs" pattern (non-greedy with length limit)
+    const vPattern = /^(.{1,200}?)\s+v[s]?\s+(.{1,200})$/i;
+    const match = safeTitle.match(vPattern);
+    const splitTitle = safeTitle.split('|')[0];
+    return match ? safeTitle : (splitTitle ? splitTitle.trim() : safeTitle);
   }
 
   /**
@@ -237,7 +239,7 @@ export class BingSearchService {
   private extractYear(text: string): number | undefined {
     const yearPattern = /\b(19|20)\d{2}\b/;
     const match = text.match(yearPattern);
-    return match ? parseInt(match[0], 10) : undefined;
+    return match ? Number.parseInt(match[0], 10) : undefined;
   }
 
   /**
@@ -264,4 +266,5 @@ export class BingSearchService {
 
 // Singleton instance
 export const bingSearchService = new BingSearchService();
+
 

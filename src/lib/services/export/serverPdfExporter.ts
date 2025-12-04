@@ -52,3 +52,4 @@ export async function generateReportingPackPDF(
     React.createElement(ReportingPackPDF, { data: reportData, selectedReports }) as any
   ).toBlob();
 }
+

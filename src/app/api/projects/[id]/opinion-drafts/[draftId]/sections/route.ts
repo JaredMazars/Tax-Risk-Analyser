@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
+    const draftId = Number.parseInt(params.draftId);
 
     const sections = await prisma.opinionSection.findMany({
       where: { opinionDraftId: draftId },
@@ -51,8 +51,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
-    const projectId = parseInt(params.id);
+    const draftId = Number.parseInt(params.draftId);
+    const projectId = Number.parseInt(params.id);
     const body = await request.json();
     const { action, sectionType, customTitle, state, answer, sectionId, title, content, order } = body;
 
@@ -480,7 +480,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const draftId = parseInt(params.draftId);
+    const draftId = Number.parseInt(params.draftId);
     const body = await request.json();
     const { sectionId, title, content, reviewed, reorderData } = body;
 
@@ -563,7 +563,7 @@ export async function DELETE(
     }
 
     await prisma.opinionSection.delete({
-      where: { id: parseInt(sectionId) },
+      where: { id: Number.parseInt(sectionId) },
     });
 
     return NextResponse.json({

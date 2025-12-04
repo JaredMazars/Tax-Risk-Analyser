@@ -26,7 +26,7 @@ export async function PUT(
 
     const params = await context.params;
     const projectId = toProjectId(params.id);
-    const noteId = parseInt(params.noteId);
+    const noteId = Number.parseInt(params.noteId);
 
     // Check project access (requires EDITOR role or higher)
     const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');
@@ -77,7 +77,7 @@ export async function DELETE(
 
     const params = await context.params;
     const projectId = toProjectId(params.id);
-    const noteId = parseInt(params.noteId);
+    const noteId = Number.parseInt(params.noteId);
 
     // Check project access (requires EDITOR role or higher)
     const hasAccess = await checkProjectAccess(user.id, projectId, 'EDITOR');

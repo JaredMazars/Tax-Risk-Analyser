@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const activityId = parseInt(id);
+    const activityId = Number.parseInt(id);
 
     const activity = await prisma.bDActivity.findUnique({
       where: { id: activityId },
@@ -71,7 +71,7 @@ export async function PUT(
     }
 
     const { id } = await context.params;
-    const activityId = parseInt(id);
+    const activityId = Number.parseInt(id);
 
     const body = await request.json();
     const validated = UpdateBDActivitySchema.parse(body);
@@ -95,7 +95,7 @@ export async function DELETE(
     }
 
     const { id } = await context.params;
-    const activityId = parseInt(id);
+    const activityId = Number.parseInt(id);
 
     await deleteActivity(activityId);
 

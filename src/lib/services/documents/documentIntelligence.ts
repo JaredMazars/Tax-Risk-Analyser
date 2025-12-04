@@ -153,3 +153,4 @@ export class DocumentIntelligence {
 // Singleton instance
 export const documentIntelligence = new DocumentIntelligence();
 
+
