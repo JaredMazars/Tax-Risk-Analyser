@@ -102,7 +102,7 @@ export function transformClientResponse(client: {
     ...rest,
     _count: _count
       ? {
-          projects: _count.Project || 0,
+          tasks: _count.Task || 0,
         }
       : undefined,
   };

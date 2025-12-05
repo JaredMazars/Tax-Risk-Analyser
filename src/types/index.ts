@@ -121,37 +121,42 @@ export interface Client {
 }
 
 // Enhanced Project
-export interface Project {
+export interface Task {
   id: number;
-  name: string;
+  ExternalTaskID: string;
+  ClientCode: string;
+  TaskCode: string;
+  TaskDesc: string;
+  TaskPartner: string;
+  TaskPartnerName: string;
+  TaskManager: string;
+  TaskManagerName: string;
+  OfficeCode: string;
+  SLGroup: string;
+  ServLineCode: string;
+  ServLineDesc: string;
+  Active: string;
+  TaskDateOpen: Date;
+  TaskDateTerminate?: Date | null;
+  // New project-like fields
+  name?: string | null;
   description?: string | null;
-  projectType: ProjectType;
-  serviceLine: ServiceLine | string;
-  taxYear?: number | null;
-  taxPeriodStart?: Date | null;
-  taxPeriodEnd?: Date | null;
-  assessmentYear?: string | null;
-  submissionDeadline?: Date | null;
-  clientId?: number | null;
-  client?: Client | null;
   status: string;
   archived: boolean;
-  // Client Acceptance and Engagement Letter Workflow
-  acceptanceApproved?: boolean;
-  acceptanceApprovedBy?: string | null;
-  acceptanceApprovedAt?: Date | null;
-  engagementLetterGenerated?: boolean;
-  engagementLetterContent?: string | null;
-  engagementLetterTemplateId?: number | null;
-  engagementLetterGeneratedBy?: string | null;
-  engagementLetterGeneratedAt?: Date | null;
-  engagementLetterUploaded?: boolean;
-  engagementLetterPath?: string | null;
-  engagementLetterUploadedBy?: string | null;
-  engagementLetterUploadedAt?: Date | null;
+  assessmentYear?: string | null;
+  projectType: ProjectType;
+  submissionDeadline?: Date | null;
+  taxPeriodStart?: Date | null;
+  taxPeriodEnd?: Date | null;
+  taxYear?: number | null;
+  createdBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
-  users?: ProjectUser[];
+  client?: Client | null;
+  team?: TaskTeam[];
+  acceptance?: TaskAcceptance | null;
+  engagementLetter?: TaskEngagementLetter | null;
+  documents?: TaskDocument[];
   _count?: {
     mappings: number;
     taxAdjustments: number;
@@ -174,10 +179,19 @@ export interface ServiceLineUser {
   };
 }
 
-// Project User Access
-export interface ProjectUser {
+// Sub Service Line Group (from ServiceLineExternal)
+export interface SubServiceLineGroup {
+  code: string;
+  description: string;
+  activeProjects: number; // Actually counts active tasks in this sub-service line group
+  totalProjects: number; // Actually counts total tasks in this sub-service line group
+  masterCode: string;
+}
+
+// Task Team Access
+export interface TaskTeam {
   id: number;
-  projectId: number;
+  taskId: number;
   userId: string;
   role: ProjectRole;
   createdAt: Date;
@@ -194,6 +208,50 @@ export interface ProjectUser {
     email: string;
     image?: string | null;
   };
+}
+
+export interface TaskAcceptance {
+  id: number;
+  taskId: number;
+  acceptanceApproved: boolean;
+  approvedBy?: string | null;
+  approvedAt?: Date | null;
+  questionnaireType?: string | null;
+  overallRiskScore?: number | null;
+  riskRating?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TaskEngagementLetter {
+  id: number;
+  taskId: number;
+  generated: boolean;
+  uploaded: boolean;
+  filePath?: string | null;
+  content?: string | null;
+  templateId?: number | null;
+  generatedAt?: Date | null;
+  generatedBy?: string | null;
+  uploadedAt?: Date | null;
+  uploadedBy?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TaskDocument {
+  id: number;
+  taskId: number;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  filePath: string;
+  category: string;
+  description?: string | null;
+  version: number;
+  uploadedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Active Directory User (from Microsoft Graph)

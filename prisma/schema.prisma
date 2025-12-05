@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
-  url      = env("DATABASE_URL")
+  provider          = "sqlserver"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model AcceptanceAnswer {
@@ -83,7 +84,7 @@ model Account {
 
 model AdjustmentDocument {
   id               Int            @id @default(autoincrement())
-  projectId        Int
+  taskId           Int
   taxAdjustmentId  Int?
   fileName         String
   fileType         String
@@ -95,37 +96,18 @@ model AdjustmentDocument {
   extractionError  String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-  Project          Project        @relation(fields: [projectId], references: [id], onUpdate: NoAction)
+  Task             Task           @relation(fields: [taskId], references: [id], onUpdate: NoAction)
   TaxAdjustment    TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id], onUpdate: NoAction)
 
   @@index([extractionStatus])
-  @@index([extractionStatus, projectId])
-  @@index([projectId])
+  @@index([extractionStatus, taskId])
+  @@index([taskId])
   @@index([taxAdjustmentId])
-}
-
-model AdministrationDocument {
-  id          Int      @id @default(autoincrement())
-  projectId   Int
-  fileName    String
-  fileType    String
-  fileSize    Int
-  filePath    String
-  category    String
-  description String?
-  version     Int      @default(1)
-  uploadedBy  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  Project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([category])
-  @@index([projectId])
 }
 
 model AITaxReport {
   id                Int      @id @default(autoincrement())
-  projectId         Int
+  taskId            Int
   executiveSummary  String   @db.NVarChar(Max)
   risks             String   @db.NVarChar(Max)
   taxSensitiveItems String   @db.NVarChar(Max)
@@ -133,9 +115,9 @@ model AITaxReport {
   recommendations   String   @db.NVarChar(Max)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  Project           Project  @relation(fields: [projectId], references: [id])
+  Task              Task     @relation(fields: [taskId], references: [id])
 
-  @@index([projectId])
+  @@index([taskId])
 }
 
 model BDActivity {
@@ -329,7 +311,6 @@ model Client {
   ClientAcceptanceResponse ClientAcceptanceResponse[]
   ClientAnalyticsDocument  ClientAnalyticsDocument[]
   ClientCreditRating       ClientCreditRating[]
-  Project                  Project[]
   Task                     Task[]
 
   @@index([active])
@@ -343,7 +324,7 @@ model Client {
 
 model ClientAcceptanceResponse {
   id                 Int                  @id(map: "PK__ClientAc__3213E83F94B62F25") @default(autoincrement())
-  projectId          Int
+  taskId             Int
   clientId           Int
   questionnaireType  String               @db.NVarChar(50)
   overallRiskScore   Float?
@@ -358,11 +339,11 @@ model ClientAcceptanceResponse {
   AcceptanceAnswer   AcceptanceAnswer[]
   AcceptanceDocument AcceptanceDocument[]
   Client             Client               @relation(fields: [clientId], references: [id], onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Client")
-  Project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Project")
+  Task               Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Task")
 
   @@index([clientId])
-  @@index([projectId])
-  @@index([projectId, questionnaireType])
+  @@index([taskId])
+  @@index([taskId, questionnaireType])
   @@index([questionnaireType])
   @@index([riskRating])
 }
@@ -410,7 +391,7 @@ model ClientCreditRating {
 
 model ComplianceChecklist {
   id          Int       @id @default(autoincrement())
-  projectId   Int
+  taskId      Int
   title       String
   description String?   @db.NVarChar(Max)
   dueDate     DateTime?
@@ -422,11 +403,11 @@ model ComplianceChecklist {
   createdBy   String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  Project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([assignedTo])
   @@index([dueDate])
-  @@index([projectId])
+  @@index([taskId])
   @@index([status])
 }
 
@@ -495,7 +476,7 @@ model Employee {
 
 model FilingStatus {
   id              Int       @id @default(autoincrement())
-  projectId       Int
+  taskId          Int
   filingType      String
   description     String?
   status          String    @default("PENDING")
@@ -507,17 +488,17 @@ model FilingStatus {
   createdBy       String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  Project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([deadline])
-  @@index([projectId])
+  @@index([taskId])
   @@index([status])
 }
 
 model InAppNotification {
   id                                      Int       @id @default(autoincrement())
   userId                                  String
-  projectId                               Int?
+  taskId                                  Int?
   type                                    String
   title                                   String
   message                                 String    @db.NVarChar(Max)
@@ -528,19 +509,19 @@ model InAppNotification {
   fromUserId                              String?
   createdAt                               DateTime  @default(now())
   User_InAppNotification_fromUserIdToUser User?     @relation("InAppNotification_fromUserIdToUser", fields: [fromUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Project                                 Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Task                                    Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   User_InAppNotification_userIdToUser     User      @relation("InAppNotification_userIdToUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([createdAt(sort: Desc)])
   @@index([fromUserId])
-  @@index([projectId])
+  @@index([taskId])
   @@index([userId])
   @@index([userId, isRead])
 }
 
 model LegalPrecedent {
   id        Int      @id @default(autoincrement())
-  projectId Int
+  taskId    Int
   caseName  String
   citation  String
   court     String?
@@ -551,9 +532,9 @@ model LegalPrecedent {
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  Project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  @@index([projectId])
+  @@index([taskId])
   @@index([year])
 }
 
@@ -568,28 +549,28 @@ model MappedAccount {
   sarsItem         String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  projectId        Int
-  Project          Project  @relation(fields: [projectId], references: [id])
+  taskId           Int
+  Task             Task     @relation(fields: [taskId], references: [id])
 
-  @@index([projectId, accountCode])
-  @@index([projectId])
-  @@index([projectId, section])
-  @@index([projectId, section, subsection])
+  @@index([taskId, accountCode])
+  @@index([taskId])
+  @@index([taskId, section])
+  @@index([taskId, section, subsection])
 }
 
 model NotificationPreference {
   id               Int      @id @default(autoincrement())
   userId           String
-  projectId        Int?
+  taskId           Int?
   notificationType String
   emailEnabled     Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  Project          Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Task             Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   User             User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([userId, projectId, notificationType])
-  @@index([projectId])
+  @@unique([userId, taskId, notificationType])
+  @@index([taskId])
   @@index([userId])
 }
 
@@ -628,7 +609,7 @@ model OpinionDocument {
 
 model OpinionDraft {
   id                 Int                  @id @default(autoincrement())
-  projectId          Int
+  taskId             Int
   version            Int                  @default(1)
   title              String
   content            String               @db.NVarChar(Max)
@@ -638,11 +619,11 @@ model OpinionDraft {
   updatedAt          DateTime             @updatedAt
   OpinionChatMessage OpinionChatMessage[]
   OpinionDocument    OpinionDocument[]
-  Project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Task               Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
   OpinionSection     OpinionSection[]
 
-  @@index([projectId])
-  @@index([projectId, version])
+  @@index([taskId])
+  @@index([taskId, version])
   @@index([status])
 }
 
@@ -680,87 +661,9 @@ model Permission {
   @@index([resourceType])
 }
 
-model Project {
-  id                          Int                        @id @default(autoincrement())
-  name                        String
-  description                 String?
-  createdAt                   DateTime                   @default(now())
-  updatedAt                   DateTime                   @updatedAt
-  status                      String                     @default("ACTIVE")
-  archived                    Boolean                    @default(false)
-  assessmentYear              String?
-  clientId                    Int?
-  projectType                 String                     @default("TAX_CALCULATION")
-  serviceLine                 String                     @default("TAX")
-  submissionDeadline          DateTime?
-  taxPeriodEnd                DateTime?
-  taxPeriodStart              DateTime?
-  taxYear                     Int?
-  acceptanceApproved          Boolean                    @default(false)
-  acceptanceApprovedBy        String?
-  acceptanceApprovedAt        DateTime?
-  engagementLetterGenerated   Boolean                    @default(false)
-  engagementLetterUploaded    Boolean                    @default(false)
-  engagementLetterPath        String?
-  engagementLetterUploadedBy  String?
-  engagementLetterUploadedAt  DateTime?
-  engagementLetterContent     String?                    @db.NVarChar(Max)
-  engagementLetterGeneratedAt DateTime?
-  engagementLetterGeneratedBy String?
-  engagementLetterTemplateId  Int?
-  createdBy                   String?
-  AdjustmentDocument          AdjustmentDocument[]
-  AdministrationDocument      AdministrationDocument[]
-  AITaxReport                 AITaxReport[]
-  ClientAcceptanceResponse    ClientAcceptanceResponse[]
-  ComplianceChecklist         ComplianceChecklist[]
-  FilingStatus                FilingStatus[]
-  InAppNotification           InAppNotification[]
-  LegalPrecedent              LegalPrecedent[]
-  MappedAccount               MappedAccount[]
-  NotificationPreference      NotificationPreference[]
-  OpinionDraft                OpinionDraft[]
-  Client                      Client?                    @relation(fields: [clientId], references: [id])
-  User                        User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  ProjectUser                 ProjectUser[]
-  ResearchNote                ResearchNote[]
-  SarsResponse                SarsResponse[]
-  TaxAdjustment               TaxAdjustment[]
-
-  @@index([clientId])
-  @@index([clientId, status, archived])
-  @@index([clientId, updatedAt(sort: Desc)])
-  @@index([createdAt(sort: Desc)])
-  @@index([createdBy])
-  @@index([projectType])
-  @@index([projectType, taxYear])
-  @@index([serviceLine])
-  @@index([serviceLine, status, archived])
-  @@index([serviceLine, updatedAt(sort: Desc)])
-  @@index([status])
-  @@index([taxYear])
-  @@index([updatedAt(sort: Desc)])
-}
-
-model ProjectUser {
-  id        Int      @id @default(autoincrement())
-  projectId Int
-  userId    String
-  role      String   @default("VIEWER")
-  createdAt DateTime @default(now())
-  Project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([projectId, userId])
-  @@index([projectId])
-  @@index([projectId, role])
-  @@index([role])
-  @@index([userId])
-}
-
 model ResearchNote {
   id        Int      @id @default(autoincrement())
-  projectId Int
+  taskId    Int
   title     String
   content   String   @db.NVarChar(Max)
   tags      String?
@@ -768,10 +671,10 @@ model ResearchNote {
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  Project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([category])
-  @@index([projectId])
+  @@index([taskId])
 }
 
 model RolePermission {
@@ -790,7 +693,7 @@ model RolePermission {
 
 model SarsResponse {
   id              Int       @id @default(autoincrement())
-  projectId       Int
+  taskId          Int
   referenceNumber String
   subject         String
   content         String    @db.NVarChar(Max)
@@ -803,10 +706,10 @@ model SarsResponse {
   createdBy       String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  Project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  Task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([deadline])
-  @@index([projectId])
+  @@index([taskId])
   @@index([status])
 }
 
@@ -868,26 +771,45 @@ model Session {
 }
 
 model Task {
-  id                Int       @id @default(autoincrement())
-  ExternalTaskID    String    @db.UniqueIdentifier
-  ClientCode        String    @db.NVarChar(10)
-  TaskCode          String    @db.NVarChar(10)
-  TaskDesc          String    @db.NVarChar(150)
-  TaskPartner       String    @db.NVarChar(10)
-  TaskPartnerName   String    @db.NVarChar(50)
-  TaskManager       String    @db.NVarChar(10)
-  TaskManagerName   String    @db.NVarChar(50)
-  OfficeCode        String    @db.NVarChar(10)
-  SLGroup           String    @db.NVarChar(10)
-  ServLineCode      String    @db.NVarChar(10)
-  ServLineDesc      String    @db.NVarChar(150)
-  Active            String    @db.VarChar(3)
-  TaskDateOpen      DateTime
-  TaskDateTerminate DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  Client            Client?   @relation(fields: [ClientCode], references: [clientCode], onUpdate: NoAction)
-  WipLTD            WipLTD[]
+  id                       Int                        @id @default(autoincrement())
+  ExternalTaskID           String                     @db.UniqueIdentifier
+  ClientCode               String                     @db.NVarChar(10)
+  TaskCode                 String                     @db.NVarChar(10)
+  TaskDesc                 String                     @db.NVarChar(150)
+  TaskPartner              String                     @db.NVarChar(10)
+  TaskPartnerName          String                     @db.NVarChar(50)
+  TaskManager              String                     @db.NVarChar(10)
+  TaskManagerName          String                     @db.NVarChar(50)
+  OfficeCode               String                     @db.NVarChar(10)
+  SLGroup                  String                     @db.NVarChar(10)
+  ServLineCode             String                     @db.NVarChar(10)
+  ServLineDesc             String                     @db.NVarChar(150)
+  Active                   String                     @db.VarChar(3)
+  TaskDateOpen             DateTime
+  TaskDateTerminate        DateTime?
+  createdBy                String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  Client                   Client?                    @relation(fields: [ClientCode], references: [clientCode], onUpdate: NoAction)
+  User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  WipLTD                   WipLTD[]
+  TaskTeam                 TaskTeam[]
+  TaskAcceptance           TaskAcceptance?
+  TaskEngagementLetter     TaskEngagementLetter?
+  TaskDocument             TaskDocument[]
+  AdjustmentDocument       AdjustmentDocument[]
+  AITaxReport              AITaxReport[]
+  ClientAcceptanceResponse ClientAcceptanceResponse[]
+  ComplianceChecklist      ComplianceChecklist[]
+  FilingStatus             FilingStatus[]
+  InAppNotification        InAppNotification[]
+  LegalPrecedent           LegalPrecedent[]
+  MappedAccount            MappedAccount[]
+  NotificationPreference   NotificationPreference[]
+  OpinionDraft             OpinionDraft[]
+  ResearchNote             ResearchNote[]
+  SarsResponse             SarsResponse[]
+  TaxAdjustment            TaxAdjustment[]
 
   @@unique([ClientCode, TaskCode])
   @@index([Active])
@@ -900,9 +822,79 @@ model Task {
   @@index([TaskPartner])
 }
 
+model TaskTeam {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  userId    String
+  role      String   @default("VIEWER")
+  createdAt DateTime @default(now())
+  Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
+  @@index([role])
+}
+
+model TaskAcceptance {
+  id                 Int       @id @default(autoincrement())
+  taskId             Int       @unique
+  acceptanceApproved Boolean   @default(false)
+  approvedBy         String?
+  approvedAt         DateTime?
+  questionnaireType  String?
+  overallRiskScore   Float?
+  riskRating         String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  Task               Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([riskRating])
+}
+
+model TaskEngagementLetter {
+  id          Int       @id @default(autoincrement())
+  taskId      Int       @unique
+  generated   Boolean   @default(false)
+  uploaded    Boolean   @default(false)
+  filePath    String?
+  content     String?   @db.NVarChar(Max)
+  templateId  Int?
+  generatedAt DateTime?
+  generatedBy String?
+  uploadedAt  DateTime?
+  uploadedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskDocument {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  fileName    String
+  fileType    String
+  fileSize    Int
+  filePath    String
+  category    String
+  description String?
+  version     Int      @default(1)
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([category])
+}
+
 model TaxAdjustment {
   id                 Int                  @id @default(autoincrement())
-  projectId          Int
+  taskId             Int
   type               String
   description        String
   amount             Float
@@ -916,13 +908,13 @@ model TaxAdjustment {
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   AdjustmentDocument AdjustmentDocument[]
-  Project            Project              @relation(fields: [projectId], references: [id])
+  Task               Task                 @relation(fields: [taskId], references: [id])
 
   @@index([createdAt])
-  @@index([projectId])
-  @@index([projectId, status, createdAt(sort: Desc)])
+  @@index([taskId])
+  @@index([taskId, status, createdAt(sort: Desc)])
   @@index([status])
-  @@index([status, projectId])
+  @@index([status, taskId])
 }
 
 model Template {
@@ -978,10 +970,10 @@ model User {
   InAppNotification_InAppNotification_fromUserIdToUser InAppNotification[]      @relation("InAppNotification_fromUserIdToUser")
   InAppNotification_InAppNotification_userIdToUser     InAppNotification[]      @relation("InAppNotification_userIdToUser")
   NotificationPreference                               NotificationPreference[]
-  Project                                              Project[]
-  ProjectUser                                          ProjectUser[]
   ServiceLineUser                                      ServiceLineUser[]
   Session                                              Session[]
+  Task                                                 Task[]
+  TaskTeam                                             TaskTeam[]
 
   @@index([role])
 }

@@ -6,35 +6,34 @@
 import { ProjectType, ServiceLine, ServiceLineRole } from './index';
 
 /**
- * DTO for updating a project
+ * DTO for updating a task
  */
-export interface UpdateProjectDTO {
+export interface UpdateTaskDTO {
   name?: string;
   description?: string | null;
+  status?: string;
+  archived?: boolean;
+  assessmentYear?: string | null;
   projectType?: ProjectType;
-  serviceLine?: ServiceLine | string;
-  taxYear?: number;
+  submissionDeadline?: Date | null;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;
-  assessmentYear?: string;
-  submissionDeadline?: Date | null;
-  clientId?: number | null;
+  taxYear?: number | null;
 }
 
 /**
- * DTO for creating a project
+ * DTO for creating a task
  */
-export interface CreateProjectDTO {
+export interface CreateTaskDTO {
   name: string;
   description?: string | null;
   projectType: ProjectType;
-  serviceLine: ServiceLine | string;
-  taxYear?: number;
+  taxYear?: number | null;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;
-  assessmentYear?: string;
+  assessmentYear?: string | null;
   submissionDeadline?: Date | null;
-  clientId?: number | null;
+  createdBy?: string;
 }
 
 /**
@@ -116,7 +115,7 @@ export interface UpdateTaxAdjustmentDTO {
  * DTO for creating a tax adjustment
  */
 export interface CreateTaxAdjustmentDTO {
-  projectId: number;
+  taskId: number;
   type: string;
   description: string;
   amount: number;
@@ -157,8 +156,8 @@ export interface ServiceLineWithStats {
   id?: number;
   serviceLine: ServiceLine | string;
   role: ServiceLineRole | string;
-  projectCount: number;
-  activeProjectCount: number;
+  taskCount: number;
+  activeTaskCount: number;
 }
 
 /**

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
+import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,14 +26,53 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100); // Max 100 per page
     const sortBy = searchParams.get('sortBy') || 'clientNameFull';
     const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
+    const subServiceLineGroup = searchParams.get('subServiceLineGroup');
+    const serviceLine = searchParams.get('serviceLine');
     
     const skip = (page - 1) * limit;
 
     // Build where clause with improved search
     interface WhereClause {
       OR?: Array<Record<string, { contains: string }>>;
+      Task?: {
+        some: {
+          ServLineCode: {
+            in: string[];
+          };
+        };
+      };
     }
     const where: WhereClause = {};
+    
+    // Filter by SubServiceLineGroup via Task relationships
+    if (subServiceLineGroup) {
+      const servLineCodes = await getServLineCodesBySubGroup(
+        subServiceLineGroup,
+        serviceLine || undefined
+      );
+      
+      if (servLineCodes.length > 0) {
+        where.Task = {
+          some: {
+            ServLineCode: { in: servLineCodes },
+          },
+        };
+      } else {
+        // No ServLineCodes found, return empty result
+        return NextResponse.json(
+          successResponse({
+            clients: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              totalPages: 0,
+            },
+          })
+        );
+      }
+    }
+    
     if (search) {
       where.OR = [
         { clientNameFull: { contains: search } },
@@ -57,7 +97,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await prisma.client.count({ where });
 
-    // Get clients with project count - optimized field selection
+    // Get clients with project and task counts - optimized field selection
     const clients = await prisma.client.findMany({
       where,
       skip,
@@ -81,7 +121,7 @@ export async function GET(request: NextRequest) {
         updatedAt: true,
         _count: {
           select: {
-            Project: true,
+            Task: true,
           },
         },
       },

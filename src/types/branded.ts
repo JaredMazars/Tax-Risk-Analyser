@@ -3,7 +3,7 @@
  * Prevents accidentally mixing different ID types
  */
 
-export type ProjectId = number & { readonly __brand: 'ProjectId' };
+export type TaskId = number & { readonly __brand: 'TaskId' };
 export type UserId = string & { readonly __brand: 'UserId' };
 export type DraftId = number & { readonly __brand: 'DraftId' };
 export type ClientId = number & { readonly __brand: 'ClientId' };
@@ -14,20 +14,20 @@ export type SectionId = number & { readonly __brand: 'SectionId' };
 export type NotificationId = number & { readonly __brand: 'NotificationId' };
 export type PermissionId = number & { readonly __brand: 'PermissionId' };
 export type ServiceLineUserId = number & { readonly __brand: 'ServiceLineUserId' };
-export type ProjectUserId = number & { readonly __brand: 'ProjectUserId' };
+export type TaskTeamId = number & { readonly __brand: 'TaskTeamId' };
 export type OpportunityId = number & { readonly __brand: 'OpportunityId' };
 export type ActivityId = number & { readonly __brand: 'ActivityId' };
 export type ContactId = number & { readonly __brand: 'ContactId' };
 
 /**
- * Convert unknown value to ProjectId with validation
+ * Convert unknown value to TaskId with validation
  */
-export const toProjectId = (value: unknown): ProjectId => {
+export const toTaskId = (value: unknown): TaskId => {
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) {
-    throw new Error(`Invalid ProjectId: ${value}`);
+    throw new Error(`Invalid TaskId: ${value}`);
   }
-  return id as ProjectId;
+  return id as TaskId;
 };
 
 /**
@@ -140,14 +140,14 @@ export const toServiceLineUserId = (value: unknown): ServiceLineUserId => {
 };
 
 /**
- * Convert unknown value to ProjectUserId with validation
+ * Convert unknown value to TaskTeamId with validation
  */
-export const toProjectUserId = (value: unknown): ProjectUserId => {
+export const toTaskTeamId = (value: unknown): TaskTeamId => {
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) {
-    throw new Error(`Invalid ProjectUserId: ${value}`);
+    throw new Error(`Invalid TaskTeamId: ${value}`);
   }
-  return id as ProjectUserId;
+  return id as TaskTeamId;
 };
 
 /**

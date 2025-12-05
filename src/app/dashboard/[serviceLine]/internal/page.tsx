@@ -13,9 +13,9 @@ import {
 import { isValidServiceLine, formatServiceLineName, formatProjectType } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
-import { useProjects, type ProjectListItem, projectListKeys } from '@/hooks/projects/useProjects';
+import { useTasks, type TaskListItem, taskListKeys } from '@/hooks/tasks/useTasks';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
+import { CreateTaskModal } from '@/components/features/tasks/CreateTaskModal';
 
 export default function InternalProjectsPage() {
   const router = useRouter();
@@ -31,7 +31,7 @@ export default function InternalProjectsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Fetch internal projects only for this service line
-  const { data: projectsData, isLoading, error } = useProjects({
+  const { data: tasksData, isLoading, error } = useTasks({
     serviceLine,
     includeArchived: showArchived,
     internalOnly: true,
@@ -39,7 +39,7 @@ export default function InternalProjectsPage() {
     limit: 1000, // Get all internal projects
     enabled: !!serviceLine,
   });
-  const projects = projectsData?.projects || [];
+  const projects = tasksData?.tasks || [];
 
   // Validate service line
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function InternalProjectsPage() {
   const handleProjectCreated = (project: { id: number; name: string; serviceLine: string }) => {
     setShowCreateModal(false);
     // Invalidate projects query to refetch and show the new project
-    queryClient.invalidateQueries({ queryKey: projectListKeys.all });
+    queryClient.invalidateQueries({ queryKey: taskListKeys.all });
   };
 
   if (!isValidServiceLine(serviceLine)) {
@@ -136,7 +136,7 @@ export default function InternalProjectsPage() {
         </div>
 
         {/* Create Project Modal */}
-        <CreateProjectModal
+        <CreateTaskModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleProjectCreated}
@@ -273,7 +273,7 @@ export default function InternalProjectsPage() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <Link
-                            href={`/dashboard/${serviceLine.toLowerCase()}/internal/projects/${project.id}`}
+                            href={`/dashboard/${serviceLine.toLowerCase()}/internal/tasks/${project.id}`}
                             className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium"
                           >
                             View

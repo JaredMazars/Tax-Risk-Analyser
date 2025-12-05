@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { formatRole, formatDate } from '@/lib/utils/projectUtils';
 import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
-import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
+import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';
 import { ADUser, ServiceLine, ServiceLineRole } from '@/types';
@@ -27,7 +27,7 @@ interface SystemUser {
   email: string | null;
   createdAt: string;
   updatedAt: string;
-  projectCount: number;
+  taskCount: number;
   lastActivity: string;
   roles: string[];
   role?: string; // System role (SYSTEM_ADMIN or USER)
@@ -36,10 +36,10 @@ interface SystemUser {
     serviceLine: string;
     role: string;
   }>;
-  projects: Array<{
+  tasks: Array<{
     id: number;
     role: string;
-    project: {
+    task: {
       id: number;
       name: string;
       projectType: string;
@@ -127,7 +127,7 @@ export default function UserManagementPage() {
         return (
           user.name?.toLowerCase().includes(searchLower) ||
           user.email?.toLowerCase().includes(searchLower) ||
-          user.projects.some(p => p.project.name.toLowerCase().includes(searchLower))
+          user.tasks.some(p => p.task.name.toLowerCase().includes(searchLower))
         );
       });
       setFilteredUsers(filtered);
@@ -572,7 +572,7 @@ export default function UserManagementPage() {
                         <div className="flex items-center space-x-4 text-sm text-forvis-gray-500 pt-2 border-t border-forvis-gray-200">
                           <span className="flex items-center">
                             <FolderIcon className="h-4 w-4 mr-1" />
-                            {user.projectCount} projects
+                            {user.taskCount} projects
                           </span>
                           <span>Last active: {formatDate(user.lastActivity)}</span>
                           <span>Joined: {formatDate(user.createdAt)}</span>
@@ -822,7 +822,7 @@ export default function UserManagementPage() {
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="card p-4">
                     <div className="text-sm text-forvis-gray-600">Total Projects</div>
-                    <div className="text-2xl font-bold text-forvis-gray-900">{selectedUser.projectCount}</div>
+                    <div className="text-2xl font-bold text-forvis-gray-900">{selectedUser.taskCount}</div>
                   </div>
                   <div className="card p-4">
                     <div className="text-sm text-forvis-gray-600">Project Roles</div>
@@ -1072,10 +1072,10 @@ export default function UserManagementPage() {
                 <div>
                   <h3 className="text-lg font-semibold text-forvis-gray-900 mb-4">Project Assignments</h3>
                   <div className="space-y-3">
-                    {selectedUser.projects.map(projectUser => (
+                    {selectedUser.tasks.map(projectUser => (
                       <div key={projectUser.id} className="flex items-center justify-between p-4 border border-forvis-gray-200 rounded-lg">
                         <div className="flex-1">
-                          <div className="font-medium text-forvis-gray-900">{projectUser.project.name}</div>
+                          <div className="font-medium text-forvis-gray-900">{projectUser.task.name}</div>
                           {projectUser.project.client && (
                             <div className="text-sm text-forvis-gray-600">{projectUser.project.client.clientNameFull || projectUser.project.client.clientCode}</div>
                           )}

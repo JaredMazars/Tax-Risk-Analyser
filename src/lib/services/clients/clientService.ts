@@ -157,38 +157,37 @@ export async function getClientWithProjects(
       const projectSkip = (projectPage - 1) * Math.min(projectLimit, 50);
       const projectTake = Math.min(projectLimit, 50);
 
-      // Build project where clause
-      interface ProjectWhereClause {
-        archived?: boolean;
-        serviceLine?: string;
+      // Build task where clause
+      interface TaskWhereClause {
+        Active?: string;
+        ServLineCode?: string;
       }
-      const projectWhere: ProjectWhereClause = {};
+      const taskWhere: TaskWhereClause = {};
       if (!includeArchived) {
-        projectWhere.archived = false;
+        taskWhere.Active = 'Yes';
       }
       if (serviceLine) {
-        projectWhere.serviceLine = serviceLine;
+        taskWhere.ServLineCode = serviceLine;
       }
 
       const client = await prisma.client.findUnique({
         where: { id: clientId },
         include: {
-          Project: {
-            where: projectWhere,
+          Task: {
+            where: taskWhere,
             orderBy: { updatedAt: 'desc' },
             skip: projectSkip,
             take: projectTake,
             select: {
               id: true,
-              name: true,
-              description: true,
-              projectType: true,
-              serviceLine: true,
-              taxYear: true,
-              status: true,
-              archived: true,
+              TaskDesc: true,
+              TaskCode: true,
+              ServLineCode: true,
+              Active: true,
               createdAt: true,
               updatedAt: true,
+              TaskDateOpen: true,
+              TaskDateTerminate: true,
               _count: {
                 select: {
                   MappedAccount: true,
@@ -199,7 +198,7 @@ export async function getClientWithProjects(
           },
           _count: {
             select: {
-              Project: true,
+              Task: true,
             },
           },
         },
@@ -209,11 +208,11 @@ export async function getClientWithProjects(
         return null;
       }
 
-      // Get total project count with filters
-      const totalProjects = await prisma.project.count({
+      // Get total task count with filters
+      const totalProjects = await prisma.task.count({
         where: {
-          clientId,
-          ...projectWhere,
+          ClientCode: client.clientCode,
+          ...taskWhere,
         },
       });
 

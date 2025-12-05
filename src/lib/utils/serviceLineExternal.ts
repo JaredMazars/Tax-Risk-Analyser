@@ -212,6 +212,170 @@ export async function bulkMapByPattern(pattern: {
   }
 }
 
+/**
+ * Get unique SubServLineGroups for a master service line with task counts
+ * @param masterCode - Master service line code (e.g., 'TAX', 'ACCOUNTING')
+ * @returns Array of SubServiceLineGroups with counts
+ */
+export async function getSubServiceLineGroupsByMaster(
+  masterCode: string
+): Promise<Array<{
+  code: string;
+  description: string;
+  activeProjects: number;
+  totalProjects: number;
+  masterCode: string;
+}>> {
+  try {
+    // Get unique SubServLineGroups for this master code
+    const subGroups = await prisma.serviceLineExternal.findMany({
+      where: {
+        masterCode,
+        SubServlineGroupCode: { not: null },
+      },
+      select: {
+        SubServlineGroupCode: true,
+        SubServlineGroupDesc: true,
+      },
+      distinct: ['SubServlineGroupCode'],
+      orderBy: { SubServlineGroupCode: 'asc' },
+    });
+
+    // For each SubServLineGroup, count tasks
+    const groupsWithCounts = await Promise.all(
+      subGroups.map(async (group) => {
+        if (!group.SubServlineGroupCode) {
+          return null;
+        }
+
+        // Get all ServLineCodes for this SubServLineGroup
+        const servLineCodes = await prisma.serviceLineExternal.findMany({
+          where: {
+            SubServlineGroupCode: group.SubServlineGroupCode,
+            masterCode,
+          },
+          select: { ServLineCode: true },
+        });
+
+        const codes = servLineCodes
+          .map(s => s.ServLineCode)
+          .filter((code): code is string => code !== null);
+
+        if (codes.length === 0) {
+          return {
+            code: group.SubServlineGroupCode,
+            description: group.SubServlineGroupDesc || '',
+            activeProjects: 0,
+            totalProjects: 0,
+            masterCode,
+          };
+        }
+
+        // Count tasks with matching ServLineCodes
+        const [activeCount, totalCount] = await Promise.all([
+          prisma.task.count({
+            where: {
+              Active: 'Yes',
+              ServLineCode: { in: codes },
+            },
+          }),
+          prisma.task.count({
+            where: {
+              ServLineCode: { in: codes },
+            },
+          }),
+        ]);
+
+        return {
+          code: group.SubServlineGroupCode,
+          description: group.SubServlineGroupDesc || '',
+          activeProjects: activeCount,
+          totalProjects: totalCount,
+          masterCode,
+        };
+      })
+    );
+
+    return groupsWithCounts.filter((g): g is NonNullable<typeof g> => g !== null);
+  } catch (error) {
+    logger.error('Error fetching SubServLineGroups by master', { masterCode, error });
+    return [];
+  }
+}
+
+/**
+ * Get ServLineCodes for a specific SubServLineGroup
+ * @param subGroupCode - SubServLineGroup code
+ * @param masterCode - Optional master code for additional filtering
+ * @returns Array of ServLineCodes
+ */
+export async function getServLineCodesBySubGroup(
+  subGroupCode: string,
+  masterCode?: string
+): Promise<string[]> {
+  try {
+    const where: any = {
+      SubServlineGroupCode: subGroupCode,
+    };
+    
+    if (masterCode) {
+      where.masterCode = masterCode;
+    }
+
+    const results = await prisma.serviceLineExternal.findMany({
+      where,
+      select: { ServLineCode: true },
+    });
+
+    return results
+      .map(r => r.ServLineCode)
+      .filter((code): code is string => code !== null);
+  } catch (error) {
+    logger.error('Error fetching ServLineCodes by SubServLineGroup', { subGroupCode, masterCode, error });
+    return [];
+  }
+}
+
+/**
+ * Check if a project belongs to a SubServLineGroup
+ * @param projectId - Project ID
+ * @param subGroupCode - SubServLineGroup code
+ * @param masterCode - Optional master code for additional filtering
+ * @returns True if project has tasks in this SubServLineGroup
+ */
+export async function isProjectInSubGroup(
+  projectId: number,
+  subGroupCode: string,
+  masterCode?: string
+): Promise<boolean> {
+  try {
+    // Get ServLineCodes for this SubServLineGroup
+    const servLineCodes = await getServLineCodesBySubGroup(subGroupCode, masterCode);
+    
+    if (servLineCodes.length === 0) {
+      return false;
+    }
+
+    // Check if project has any tasks with these ServLineCodes
+    const taskCount = await prisma.task.count({
+      where: {
+        projectId,
+        ServLineCode: { in: servLineCodes },
+      },
+    });
+
+    return taskCount > 0;
+  } catch (error) {
+    logger.error('Error checking if project is in SubServLineGroup', { 
+      projectId, 
+      subGroupCode, 
+      masterCode, 
+      error 
+    });
+    return false;
+  }
+}
+
 
 
 

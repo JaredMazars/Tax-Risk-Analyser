@@ -25,7 +25,7 @@ export const CACHE_PREFIXES = {
   PERMISSION: 'perm:',
   RATE_LIMIT: 'rl:',
   USER: 'user:',
-  PROJECT: 'proj:',
+  TASK: 'task:',
   SERVICE_LINE: 'sl:',
   NOTIFICATION: 'notif:',
   ANALYTICS: 'analytics:',

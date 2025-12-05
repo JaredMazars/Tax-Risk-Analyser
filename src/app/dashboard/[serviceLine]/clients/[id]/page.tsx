@@ -17,14 +17,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { formatDate } from '@/lib/utils/projectUtils';
 import { getProjectTypeColor, formatProjectType } from '@/lib/utils/serviceLineUtils';
-import { ProjectStageIndicator } from '@/components/features/projects/ProjectStageIndicator';
+import { TaskStageIndicator } from '@/components/features/tasks/TaskStageIndicator';
 import { ProjectStage } from '@/types/project-stages';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine } from '@/types';
-import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
+import { CreateTaskModal } from '@/components/features/tasks/CreateTaskModal';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
 import { useClient, clientKeys, type ClientWithProjects } from '@/hooks/clients/useClients';
-import { projectListKeys } from '@/hooks/projects/useProjects';
+import { taskListKeys } from '@/hooks/tasks/useTasks';
 import { useLatestCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRatingGrade } from '@/types/analytics';
 
@@ -64,7 +64,7 @@ export default function ServiceLineClientDetailPage() {
     if (!clientData) return null;
     return {
       ...clientData,
-      Project: clientData.projects || [],
+      Task: clientData.tasks || [],
     };
   }, [clientData]);
   
@@ -149,7 +149,7 @@ export default function ServiceLineClientDetailPage() {
     // Invalidate client query to refetch and show the new project
     queryClient.invalidateQueries({ queryKey: clientKeys.detail(clientId) });
     // Also invalidate projects list so it shows up there too
-    queryClient.invalidateQueries({ queryKey: projectListKeys.all });
+    queryClient.invalidateQueries({ queryKey: taskListKeys.all });
     // Optionally, if the new project is in a different service line tab, switch to it
     if (project.serviceLine) {
       setActiveServiceLineTab(project.serviceLine.toUpperCase() as ServiceLine);
@@ -258,19 +258,20 @@ export default function ServiceLineClientDetailPage() {
             {formatServiceLineName(serviceLine)}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
-          
-          {isSharedService(serviceLine) && (
-            <>
-              <Link 
-                href={`/dashboard/${serviceLine.toLowerCase()}/clients`} 
-                className="hover:text-forvis-gray-900 transition-colors"
-              >
-                Client Projects
-              </Link>
-              <ChevronRightIcon className="h-4 w-4" />
-            </>
-          )}
-          
+          <Link 
+            href={`/dashboard/${serviceLine.toLowerCase()}/${client.groupCode}`} 
+            className="hover:text-forvis-gray-900 transition-colors"
+          >
+            {client.groupDesc}
+          </Link>
+          <ChevronRightIcon className="h-4 w-4" />
+          <Link 
+            href={`/dashboard/${serviceLine.toLowerCase()}/clients`} 
+            className="hover:text-forvis-gray-900 transition-colors"
+          >
+            Clients
+          </Link>
+          <ChevronRightIcon className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">{client.clientNameFull || client.clientCode}</span>
         </nav>
 
@@ -278,7 +279,7 @@ export default function ServiceLineClientDetailPage() {
         <ClientHeader client={client} />
 
         {/* Create Project Modal */}
-        <CreateProjectModal
+        <CreateTaskModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleProjectCreated}
@@ -575,7 +576,7 @@ export default function ServiceLineClientDetailPage() {
                         <ProjectWrapper
                           key={project.id}
                           {...(isAccessible ? {
-                            href: `/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/projects/${project.id}`,
+                            href: `/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/tasks/${project.id}`,
                           } : {})}
                           className={`block p-3 border border-forvis-gray-200 rounded-lg transition-all ${
                             isAccessible
@@ -628,7 +629,7 @@ export default function ServiceLineClientDetailPage() {
                                 {formatDate(project.updatedAt)}
                               </span>
                             </div>
-                            <ProjectStageIndicator stage={projectStage} />
+                            <TaskStageIndicator stage={projectStage} />
                           </div>
                         </ProjectWrapper>
                       );

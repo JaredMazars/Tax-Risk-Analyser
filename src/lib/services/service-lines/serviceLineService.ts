@@ -25,38 +25,79 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       // SYSTEM_ADMIN gets access to all service lines with ADMINISTRATOR role
       const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR'];
       
-      // Get project counts for all service lines
-      const [allProjectCounts, activeProjectCounts] = await Promise.all([
-        prisma.project.groupBy({
-          by: ['serviceLine'],
+      // Map master codes to actual ServLineCodes from ServiceLineExternal
+      const serviceLineMapping = await prisma.serviceLineExternal.findMany({
+        where: {
+          masterCode: { in: allServiceLines },
+        },
+        select: {
+          ServLineCode: true,
+          masterCode: true,
+        },
+      });
+
+      // Create map of masterCode -> [ServLineCodes]
+      const masterToServLineCodesMap = new Map<string, string[]>();
+      for (const mapping of serviceLineMapping) {
+        if (mapping.masterCode && mapping.ServLineCode) {
+          const existing = masterToServLineCodesMap.get(mapping.masterCode) || [];
+          existing.push(mapping.ServLineCode);
+          masterToServLineCodesMap.set(mapping.masterCode, existing);
+        }
+      }
+
+      // Get all actual ServLineCodes for querying tasks
+      const allServLineCodes = Array.from(
+        new Set(serviceLineMapping.map(m => m.ServLineCode).filter((code): code is string => code !== null))
+      );
+      
+      // Get task counts for all service lines
+      const [allTaskCounts, activeTaskCounts] = await Promise.all([
+        prisma.task.groupBy({
+          by: ['ServLineCode'],
+          where: allServLineCodes.length > 0 ? { ServLineCode: { in: allServLineCodes } } : undefined,
           _count: true,
         }),
-        prisma.project.groupBy({
-          by: ['serviceLine'],
-          where: {
-            status: 'ACTIVE',
-            archived: false,
-          },
+        prisma.task.groupBy({
+          by: ['ServLineCode'],
+          where: allServLineCodes.length > 0 ? {
+            ServLineCode: { in: allServLineCodes },
+            Active: 'Yes',
+          } : { Active: 'Yes' },
           _count: true,
         }),
       ]);
 
-      // Create lookup maps for fast access
-      const projectCountMap = new Map(
-        allProjectCounts.map(item => [item.serviceLine, item._count])
+      // Create lookup maps: ServLineCode -> count
+      const taskCountMap = new Map(
+        allTaskCounts.map(item => [item.ServLineCode, item._count])
       );
-      const activeProjectCountMap = new Map(
-        activeProjectCounts.map(item => [item.serviceLine, item._count])
+      const activeTaskCountMap = new Map(
+        activeTaskCounts.map(item => [item.ServLineCode, item._count])
       );
 
       // Return all service lines with ADMINISTRATOR role for SYSTEM_ADMIN
-      return allServiceLines.map((sl, index) => ({
-        id: -(index + 1), // Use negative IDs for virtual service line access
-        serviceLine: sl,
-        role: 'ADMINISTRATOR',
-        projectCount: projectCountMap.get(sl) || 0,
-        activeProjectCount: activeProjectCountMap.get(sl) || 0,
-      }));
+      return allServiceLines.map((sl, index) => {
+        const servLineCodes = masterToServLineCodesMap.get(sl) || [];
+        
+        // Sum up counts for all ServLineCodes mapped to this master code
+        const projectCount = servLineCodes.reduce(
+          (sum, code) => sum + (taskCountMap.get(code) || 0),
+          0
+        );
+        const activeProjectCount = servLineCodes.reduce(
+          (sum, code) => sum + (activeTaskCountMap.get(code) || 0),
+          0
+        );
+
+        return {
+          id: -(index + 1), // Use negative IDs for virtual service line access
+          serviceLine: sl,
+          role: 'ADMINISTRATOR',
+          projectCount,
+          activeProjectCount,
+        };
+      });
     }
 
     // For regular users, get their explicit service line assignments
@@ -74,44 +115,94 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
     }
 
     // Get all service lines this user has access to
-    const serviceLines = serviceLineUsers.map(slu => slu.serviceLine);
+    const masterCodes = serviceLineUsers.map(slu => slu.serviceLine);
 
-    // Use a single aggregation query to get project counts for all service lines
-    const [allProjectCounts, activeProjectCounts] = await Promise.all([
-      prisma.project.groupBy({
-        by: ['serviceLine'],
+    // Map master codes to actual ServLineCodes from ServiceLineExternal
+    const serviceLineMapping = await prisma.serviceLineExternal.findMany({
+      where: {
+        masterCode: { in: masterCodes },
+      },
+      select: {
+        ServLineCode: true,
+        masterCode: true,
+      },
+    });
+
+    // Create map of masterCode -> [ServLineCodes]
+    const masterToServLineCodesMap = new Map<string, string[]>();
+    for (const mapping of serviceLineMapping) {
+      if (mapping.masterCode && mapping.ServLineCode) {
+        const existing = masterToServLineCodesMap.get(mapping.masterCode) || [];
+        existing.push(mapping.ServLineCode);
+        masterToServLineCodesMap.set(mapping.masterCode, existing);
+      }
+    }
+
+    // Get all actual ServLineCodes for querying tasks
+    const allServLineCodes = Array.from(
+      new Set(serviceLineMapping.map(m => m.ServLineCode).filter((code): code is string => code !== null))
+    );
+
+    // If no mappings found, return empty counts
+    if (allServLineCodes.length === 0) {
+      return serviceLineUsers.map(slu => ({
+        id: slu.id,
+        serviceLine: slu.serviceLine,
+        role: slu.role,
+        projectCount: 0,
+        activeProjectCount: 0,
+      }));
+    }
+
+    // Use a single aggregation query to get task counts for all service lines
+    const [allTaskCounts, activeTaskCounts] = await Promise.all([
+      prisma.task.groupBy({
+        by: ['ServLineCode'],
         where: {
-          serviceLine: { in: serviceLines },
+          ServLineCode: { in: allServLineCodes },
         },
         _count: true,
       }),
-      prisma.project.groupBy({
-        by: ['serviceLine'],
+      prisma.task.groupBy({
+        by: ['ServLineCode'],
         where: {
-          serviceLine: { in: serviceLines },
-          status: 'ACTIVE',
-          archived: false,
+          ServLineCode: { in: allServLineCodes },
+          Active: 'Yes',
         },
         _count: true,
       }),
     ]);
 
-    // Create lookup maps for fast access
-    const projectCountMap = new Map(
-      allProjectCounts.map(item => [item.serviceLine, item._count])
+    // Create lookup maps: ServLineCode -> count
+    const taskCountMap = new Map(
+      allTaskCounts.map(item => [item.ServLineCode, item._count])
     );
-    const activeProjectCountMap = new Map(
-      activeProjectCounts.map(item => [item.serviceLine, item._count])
+    const activeTaskCountMap = new Map(
+      activeTaskCounts.map(item => [item.ServLineCode, item._count])
     );
 
-    // Combine service line data with counts
-    return serviceLineUsers.map(slu => ({
-      id: slu.id,
-      serviceLine: slu.serviceLine,
-      role: slu.role,
-      projectCount: projectCountMap.get(slu.serviceLine) || 0,
-      activeProjectCount: activeProjectCountMap.get(slu.serviceLine) || 0,
-    }));
+    // Combine service line data with counts (aggregate by master code)
+    return serviceLineUsers.map(slu => {
+      const servLineCodes = masterToServLineCodesMap.get(slu.serviceLine) || [];
+      
+      // Sum up counts for all ServLineCodes mapped to this master code
+      const projectCount = servLineCodes.reduce(
+        (sum, code) => sum + (taskCountMap.get(code) || 0),
+        0
+      );
+      const activeProjectCount = servLineCodes.reduce(
+        (sum, code) => sum + (activeTaskCountMap.get(code) || 0),
+        0
+      );
+
+      return {
+        id: slu.id,
+        serviceLine: slu.serviceLine,
+        role: slu.role,
+        projectCount,
+        activeProjectCount,
+      };
+    });
   } catch (error) {
     logger.error('Error getting user service lines', { userId, error });
     throw error;
@@ -323,50 +414,49 @@ export async function getServiceLineUsers(serviceLine: ServiceLine | string) {
 export async function getServiceLineStats(serviceLine: ServiceLine | string) {
   try {
     const [
-      totalProjects,
-      activeProjects,
-      archivedProjects,
+      totalTasks,
+      activeTasks,
+      inactiveTasks,
       totalUsers,
-      recentProjects,
+      recentTasks,
     ] = await Promise.all([
-      prisma.project.count({
-        where: { serviceLine: serviceLine as string },
+      prisma.task.count({
+        where: { ServLineCode: serviceLine as string },
       }),
-      prisma.project.count({
+      prisma.task.count({
         where: { 
-          serviceLine: serviceLine as string, 
-          status: 'ACTIVE',
-          archived: false,
+          ServLineCode: serviceLine as string, 
+          Active: 'Yes',
         },
       }),
-      prisma.project.count({
+      prisma.task.count({
         where: { 
-          serviceLine: serviceLine as string, 
-          archived: true,
+          ServLineCode: serviceLine as string, 
+          Active: 'No',
         },
       }),
       prisma.serviceLineUser.count({
         where: { serviceLine: serviceLine as string },
       }),
-      prisma.project.findMany({
-        where: { serviceLine: serviceLine as string },
+      prisma.task.findMany({
+        where: { ServLineCode: serviceLine as string },
         orderBy: { createdAt: 'desc' },
         take: 5,
         select: {
           id: true,
-          name: true,
-          projectType: true,
+          TaskDesc: true,
+          TaskCode: true,
           createdAt: true,
         },
       }),
     ]);
 
     return {
-      totalProjects,
-      activeProjects,
-      archivedProjects,
+      totalProjects: totalTasks,
+      activeProjects: activeTasks,
+      archivedProjects: inactiveTasks,
       totalUsers,
-      recentProjects,
+      recentProjects: recentTasks,
     };
   } catch (error) {
     logger.error('Error getting service line stats', { serviceLine, error });

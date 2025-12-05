@@ -28,11 +28,27 @@ export interface Client {
   createdAt: string;
   updatedAt: string;
   _count: {
-    Project: number;
+    Task: number;
   };
 }
 
 export interface ClientWithProjects extends Client {
+  tasks?: Array<{
+    id: number;
+    TaskDesc: string;
+    TaskCode: string;
+    Active: string;
+    createdAt: string;
+    updatedAt: string;
+    ServLineCode: string;
+    ExternalTaskID: string;
+    TaskDateOpen: string;
+    TaskDateTerminate?: string | null;
+    _count: {
+      MappedAccount: number;
+      TaxAdjustment: number;
+    };
+  }>;
   projects: Array<{
     id: number;
     name: string;
@@ -84,6 +100,8 @@ export interface UseClientsParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  subServiceLineGroup?: string;
+  serviceLine?: string;
   enabled?: boolean;
 }
 
@@ -97,11 +115,13 @@ export function useClients(params: UseClientsParams = {}) {
     limit = 50,
     sortBy = 'clientNameFull',
     sortOrder = 'asc',
+    subServiceLineGroup,
+    serviceLine,
     enabled = true,
   } = params;
 
   return useQuery<ClientsResponse>({
-    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder }),
+    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder, subServiceLineGroup, serviceLine }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (search) searchParams.set('search', search);
@@ -109,6 +129,8 @@ export function useClients(params: UseClientsParams = {}) {
       searchParams.set('limit', limit.toString());
       searchParams.set('sortBy', sortBy);
       searchParams.set('sortOrder', sortOrder);
+      if (subServiceLineGroup) searchParams.set('subServiceLineGroup', subServiceLineGroup);
+      if (serviceLine) searchParams.set('serviceLine', serviceLine);
       
       const url = `/api/clients?${searchParams.toString()}`;
       const response = await fetch(url);

@@ -1,0 +1,151 @@
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { TaskRole } from '@/types';
+
+// Query Keys
+export const taskTeamKeys = {
+  all: (taskId: string) => ['tasks', taskId, 'team'] as const,
+  list: (taskId: string) => [...taskTeamKeys.all(taskId), 'list'] as const,
+};
+
+// Types
+export interface TaskTeamMember {
+  id: number;
+  userId: string;
+  taskId: number;
+  role: TaskRole;
+  createdAt: string;
+  User: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string | null;
+  };
+}
+
+/**
+ * Fetch team members for a task
+ * Only loads when explicitly called (lazy loading)
+ */
+export function useTaskTeam(taskId: string, enabled = true) {
+  return useQuery<TaskTeamMember[]>({
+    queryKey: taskTeamKeys.list(taskId),
+    queryFn: async () => {
+      const response = await fetch(`/api/tasks/${taskId}/users`);
+      if (!response.ok) throw new Error('Failed to fetch team members');
+      
+      const result = await response.json();
+      return result.success ? result.data : result;
+    },
+    enabled: enabled && !!taskId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * Add a user to the task team
+ */
+export function useAddTaskTeamMember(taskId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { userId: string; role: string }) => {
+      const response = await fetch(`/api/tasks/${taskId}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add team member');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskTeamKeys.list(taskId) });
+    },
+  });
+}
+
+/**
+ * Update a team member's role with optimistic updates
+ */
+export function useUpdateTaskTeamMemberRole(taskId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskUserId,
+      role,
+    }: {
+      taskUserId: number;
+      role: string;
+    }) => {
+      const response = await fetch(
+        `/api/tasks/${taskId}/users/${taskUserId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role }),
+        }
+      );
+      if (!response.ok) throw new Error('Failed to update role');
+      return response.json();
+    },
+    // Optimistic update
+    onMutate: async ({ taskUserId, role }) => {
+      await queryClient.cancelQueries({ queryKey: taskTeamKeys.list(taskId) });
+      
+      const previousTeam = queryClient.getQueryData(taskTeamKeys.list(taskId));
+      
+      queryClient.setQueryData(taskTeamKeys.list(taskId), (old: unknown) => {
+        if (!old || !Array.isArray(old)) return old;
+        return old.map((member: TaskTeamMember) =>
+          member.id === taskUserId ? { ...member, role } : member
+        );
+      });
+      
+      return { previousTeam };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousTeam) {
+        queryClient.setQueryData(
+          taskTeamKeys.list(taskId),
+          context.previousTeam
+        );
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: taskTeamKeys.list(taskId) });
+    },
+  });
+}
+
+/**
+ * Remove a team member from the task
+ */
+export function useRemoveTaskTeamMember(taskId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (taskUserId: number) => {
+      const response = await fetch(
+        `/api/tasks/${taskId}/users/${taskUserId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      if (!response.ok) throw new Error('Failed to remove team member');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskTeamKeys.list(taskId) });
+    },
+  });
+}
+
+
+
+

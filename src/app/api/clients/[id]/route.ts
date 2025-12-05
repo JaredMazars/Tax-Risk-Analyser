@@ -5,6 +5,7 @@ import { UpdateClientSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { z } from 'zod';
+import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
 
 export async function GET(
   request: NextRequest,
@@ -29,7 +30,7 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     
-    // Pagination params for projects
+    // Pagination params for tasks (referred to as "projects" in frontend)
     const projectPage = Number.parseInt(searchParams.get('projectPage') || '1');
     const projectLimit = Math.min(Number.parseInt(searchParams.get('projectLimit') || '20'), 50);
     const serviceLine = searchParams.get('serviceLine') || undefined;
@@ -37,47 +38,35 @@ export async function GET(
     
     const projectSkip = (projectPage - 1) * projectLimit;
 
-    // Build project where clause
-    interface ProjectWhereClause {
-      archived?: boolean;
-      serviceLine?: string;
-    }
-    const projectWhere: ProjectWhereClause = {};
-    if (!includeArchived) {
-      projectWhere.archived = false;
-    }
+    // Get ServLineCodes for the requested service line
+    let servLineCodes: string[] | undefined;
     if (serviceLine) {
-      projectWhere.serviceLine = serviceLine;
+      const externalServiceLines = await getExternalServiceLinesByMaster(serviceLine);
+      servLineCodes = externalServiceLines
+        .map(sl => sl.ServLineCode)
+        .filter((code): code is string => code !== null);
     }
 
+    // Build task where clause
+    interface TaskWhereClause {
+      ClientCode: string;
+      Active?: string;
+      ServLineCode?: { in: string[] };
+    }
+    const taskWhere: TaskWhereClause = {
+      ClientCode: '', // Will be set below after we get the client
+    };
+    
+    if (!includeArchived) {
+      taskWhere.Active = 'Yes';
+    }
+    if (servLineCodes && servLineCodes.length > 0) {
+      taskWhere.ServLineCode = { in: servLineCodes };
+    }
+
+    // First, get the client to get their ClientCode
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      include: {
-        Project: {
-          where: projectWhere,
-          orderBy: { updatedAt: 'desc' },
-          skip: projectSkip,
-          take: projectLimit,
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            projectType: true,
-            serviceLine: true,
-            taxYear: true,
-            status: true,
-            archived: true,
-            createdAt: true,
-            updatedAt: true,
-            _count: {
-              select: {
-                MappedAccount: true,
-                TaxAdjustment: true,
-              },
-            },
-          },
-        },
-      },
     });
 
     if (!client) {
@@ -87,60 +76,120 @@ export async function GET(
       );
     }
 
-    // Get total project count with filters
-    const totalProjects = await prisma.project.count({
-      where: {
-        clientId,
-        ...projectWhere,
+    // Set the ClientCode in the where clause
+    taskWhere.ClientCode = client.clientCode;
+
+    // Get tasks for this client
+    const tasks = await prisma.task.findMany({
+      where: taskWhere,
+      orderBy: { updatedAt: 'desc' },
+      skip: projectSkip,
+      take: projectLimit,
+      select: {
+        id: true,
+        TaskDesc: true,
+        TaskCode: true,
+        Active: true,
+        createdAt: true,
+        updatedAt: true,
+        ServLineCode: true, // Include to derive serviceLine
+        ExternalTaskID: true,
+        TaskDateOpen: true,
+        TaskDateTerminate: true,
+        _count: {
+          select: {
+            MappedAccount: true,
+            TaxAdjustment: true,
+          },
+        },
       },
     });
 
-    // Get project counts per service line for tab display (all 9 service lines)
-    const projectCountsByServiceLine = await Promise.all([
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'TAX' } }),
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'AUDIT' } }),
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'ACCOUNTING' } }),
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'ADVISORY' } }),
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'QRM' } }),
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'BUSINESS_DEV' } }),
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'IT' } }),
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'FINANCE' } }),
-      prisma.project.count({ where: { clientId, archived: !includeArchived ? false : undefined, serviceLine: 'HR' } }),
+    // Get total task count with filters
+    const totalTasks = await prisma.task.count({
+      where: taskWhere,
+    });
+
+    // Helper function to get ServLineCodes for a master code
+    const getServLineCodesForMaster = async (masterCode: string): Promise<string[]> => {
+      const externals = await getExternalServiceLinesByMaster(masterCode);
+      return externals.map(sl => sl.ServLineCode).filter((code): code is string => code !== null);
+    };
+
+    // Get task counts per service line for tab display (all 9 service lines)
+    const [taxCodes, auditCodes, accountingCodes, advisoryCodes, qrmCodes, bdCodes, itCodes, financeCodes, hrCodes] = await Promise.all([
+      getServLineCodesForMaster('TAX'),
+      getServLineCodesForMaster('AUDIT'),
+      getServLineCodesForMaster('ACCOUNTING'),
+      getServLineCodesForMaster('ADVISORY'),
+      getServLineCodesForMaster('QRM'),
+      getServLineCodesForMaster('BUSINESS_DEV'),
+      getServLineCodesForMaster('IT'),
+      getServLineCodesForMaster('FINANCE'),
+      getServLineCodesForMaster('HR'),
+    ]);
+
+    const taskCountsByServiceLine = await Promise.all([
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: taxCodes.length > 0 ? { in: taxCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: auditCodes.length > 0 ? { in: auditCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: accountingCodes.length > 0 ? { in: accountingCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: advisoryCodes.length > 0 ? { in: advisoryCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: qrmCodes.length > 0 ? { in: qrmCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: bdCodes.length > 0 ? { in: bdCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: itCodes.length > 0 ? { in: itCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: financeCodes.length > 0 ? { in: financeCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: hrCodes.length > 0 ? { in: hrCodes } : undefined } }),
     ]);
 
     // Calculate total across all service lines
-    const totalAcrossAllServiceLines = projectCountsByServiceLine.reduce((sum, count) => sum + count, 0);
+    const totalAcrossAllServiceLines = taskCountsByServiceLine.reduce((sum, count) => sum + count, 0);
 
-    // Transform Project to projects for frontend compatibility
-    const { Project, ...clientWithoutProject } = client;
+    // Get mapping from ServLineCode to masterCode for deriving serviceLine
+    const allServLineCodes = tasks.map(t => t.ServLineCode);
+    const serviceLineMapping: Record<string, string> = {};
+    if (allServLineCodes.length > 0) {
+      const mappings = await prisma.serviceLineExternal.findMany({
+        where: { ServLineCode: { in: allServLineCodes } },
+        select: { ServLineCode: true, masterCode: true },
+      });
+      mappings.forEach(m => {
+        if (m.ServLineCode && m.masterCode) {
+          serviceLineMapping[m.ServLineCode] = m.masterCode;
+        }
+      });
+    }
+
+    // Transform Task to projects for frontend compatibility
     const responseData = {
-      ...clientWithoutProject,
-      projects: Project.map(project => ({
-        ...project,
+      ...client,
+      tasks, // Also include raw tasks
+      projects: tasks.map(task => ({
+        ...task,
+        serviceLine: serviceLineMapping[task.ServLineCode] || 'UNKNOWN',
         _count: {
-          mappings: project._count.MappedAccount,
-          taxAdjustments: project._count.TaxAdjustment,
+          mappings: task._count.MappedAccount,
+          taxAdjustments: task._count.TaxAdjustment,
         },
       })),
       _count: {
-        Project: totalAcrossAllServiceLines, // Total across all service lines (not filtered by active tab)
+        Task: totalAcrossAllServiceLines, // Total across all service lines (not filtered by active tab)
       },
       projectPagination: {
         page: projectPage,
         limit: projectLimit,
-        total: totalProjects, // Filtered count for pagination
-        totalPages: Math.ceil(totalProjects / projectLimit),
+        total: totalTasks, // Filtered count for pagination
+        totalPages: Math.ceil(totalTasks / projectLimit),
       },
       projectCountsByServiceLine: {
-        TAX: projectCountsByServiceLine[0],
-        AUDIT: projectCountsByServiceLine[1],
-        ACCOUNTING: projectCountsByServiceLine[2],
-        ADVISORY: projectCountsByServiceLine[3],
-        QRM: projectCountsByServiceLine[4],
-        BUSINESS_DEV: projectCountsByServiceLine[5],
-        IT: projectCountsByServiceLine[6],
-        FINANCE: projectCountsByServiceLine[7],
-        HR: projectCountsByServiceLine[8],
+        TAX: taskCountsByServiceLine[0],
+        AUDIT: taskCountsByServiceLine[1],
+        ACCOUNTING: taskCountsByServiceLine[2],
+        ADVISORY: taskCountsByServiceLine[3],
+        QRM: taskCountsByServiceLine[4],
+        BUSINESS_DEV: taskCountsByServiceLine[5],
+        IT: taskCountsByServiceLine[6],
+        FINANCE: taskCountsByServiceLine[7],
+        HR: taskCountsByServiceLine[8],
       },
     };
 
@@ -262,7 +311,7 @@ export async function DELETE(
       include: {
         _count: {
           select: {
-            Project: true,
+            Task: true,
           },
         },
       },
@@ -275,10 +324,10 @@ export async function DELETE(
       );
     }
 
-    // Check if client has projects
-    if (existingClient._count.Project > 0) {
+    // Check if client has tasks
+    if (existingClient._count.Task > 0) {
       return NextResponse.json(
-        { error: 'Cannot delete client with existing projects. Please reassign or delete projects first.' },
+        { error: 'Cannot delete client with existing tasks. Please reassign or delete tasks first.' },
         { status: 400 }
       );
     }

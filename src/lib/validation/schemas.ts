@@ -8,9 +8,12 @@ import { CreditRatingGrade, AnalyticsDocumentType } from '@/types/analytics';
 /**
  * Project validation schemas
  */
-export const UpdateProjectSchema = z.object({
+export const UpdateTaskSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).nullable().optional(),
+  status: z.string().max(50).optional(),
+  archived: z.boolean().optional(),
+  assessmentYear: z.string().max(50).optional(),
   projectType: z.enum([
     'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
     'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
@@ -22,16 +25,13 @@ export const UpdateProjectSchema = z.object({
     'FINANCE_REPORTING', 'FINANCE_BUDGETING', 'FINANCE_ANALYSIS',
     'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY'
   ]).optional(),
-  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']).optional(),
-  taxYear: z.number().int().min(2000).max(2100).optional(),
+  submissionDeadline: z.coerce.date().nullable().optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
   taxPeriodEnd: z.coerce.date().nullable().optional(),
-  assessmentYear: z.string().max(50).optional(),
-  submissionDeadline: z.coerce.date().nullable().optional(),
-  clientId: z.number().int().positive().nullable().optional(),
+  taxYear: z.number().int().min(2000).max(2100).nullable().optional(),
 }).strict();
 
-export const CreateProjectSchema = z.object({
+export const CreateTaskSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).nullable().optional(),
   projectType: z.enum([
@@ -45,13 +45,12 @@ export const CreateProjectSchema = z.object({
     'FINANCE_REPORTING', 'FINANCE_BUDGETING', 'FINANCE_ANALYSIS',
     'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY'
   ]),
-  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']),
-  taxYear: z.number().int().min(2000).max(2100).optional(),
+  taxYear: z.number().int().min(2000).max(2100).nullable().optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
   taxPeriodEnd: z.coerce.date().nullable().optional(),
   assessmentYear: z.string().max(50).optional(),
   submissionDeadline: z.coerce.date().nullable().optional(),
-  clientId: z.number().int().positive().nullable().optional(),
+  createdBy: z.string().optional(),
 }).strict();
 
 /**
@@ -322,8 +321,8 @@ export const ReviewQuestionnaireSchema = z.object({
 /**
  * Type inference from schemas
  */
-export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
-export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
+export type UpdateTaskInput = z.infer<typeof UpdateTaskSchema>;
+export type CreateTaskInput = z.infer<typeof CreateTaskSchema>;
 export type UpdateClientInput = z.infer<typeof UpdateClientSchema>;
 export type CreateClientInput = z.infer<typeof CreateClientSchema>;
 export type UpdateTaxAdjustmentInput = z.infer<typeof UpdateTaxAdjustmentSchema>;
