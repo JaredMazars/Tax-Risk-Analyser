@@ -36,13 +36,14 @@ export default function DashboardHomePage() {
     );
   }
 
-  // Separate main service lines from shared services
-  const mainServiceLines = availableServiceLines.filter(
-    (sl) => !isSharedService(sl.serviceLine)
-  );
-  const sharedServices = availableServiceLines.filter(
-    (sl) => isSharedService(sl.serviceLine)
-  );
+  // Separate main service lines from shared services and sort alphabetically
+  const mainServiceLines = availableServiceLines
+    .filter((sl) => !isSharedService(sl.serviceLine))
+    .sort((a, b) => a.serviceLine.localeCompare(b.serviceLine));
+  
+  const sharedServices = availableServiceLines
+    .filter((sl) => isSharedService(sl.serviceLine))
+    .sort((a, b) => a.serviceLine.localeCompare(b.serviceLine));
 
   // Generate error message based on error type
   const errorMessage = error === 'no_service_line_access' && serviceLine
