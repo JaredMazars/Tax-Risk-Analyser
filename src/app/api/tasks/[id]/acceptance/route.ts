@@ -91,38 +91,64 @@ export async function POST(
     }
 
     // Use transaction to ensure both updates succeed or both fail
-    const [updatedResponse, updatedProject] = await prisma.$transaction([
-      prisma.clientAcceptanceResponse.update({
+    const [updatedResponse, updatedTaskAcceptance] = await prisma.$transaction(async (tx) => {
+      // Update the acceptance response review status
+      const response = await tx.clientAcceptanceResponse.update({
         where: { id: questionnaireResponse.id },
         data: {
           reviewedBy: user.email || user.id,
           reviewedAt: new Date(),
         },
-      }),
-      prisma.task.update({
-        where: { id: taskId },
-        data: {
+      });
+
+      // Upsert the TaskAcceptance record
+      const taskAcceptance = await tx.taskAcceptance.upsert({
+        where: { taskId },
+        create: {
+          taskId,
           acceptanceApproved: true,
-          acceptanceApprovedBy: user.id,
-          acceptanceApprovedAt: new Date(),
+          approvedBy: user.id,
+          approvedAt: new Date(),
+          questionnaireType: questionnaireResponse.questionnaireType,
+          overallRiskScore: questionnaireResponse.overallRiskScore,
+          riskRating: questionnaireResponse.riskRating,
         },
-        select: {
-          id: true,
-          name: true,
-          status: true,
+        update: {
           acceptanceApproved: true,
-          acceptanceApprovedBy: true,
-          acceptanceApprovedAt: true,
-          Client: {
-            select: {
-              id: true,
-              clientCode: true,
-              clientNameFull: true,
-            },
+          approvedBy: user.id,
+          approvedAt: new Date(),
+          questionnaireType: questionnaireResponse.questionnaireType,
+          overallRiskScore: questionnaireResponse.overallRiskScore,
+          riskRating: questionnaireResponse.riskRating,
+        },
+      });
+
+      return [response, taskAcceptance];
+    });
+
+    // Fetch the task with updated acceptance data for response
+    const updatedTask = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        TaskDesc: true,
+        Active: true,
+        TaskAcceptance: {
+          select: {
+            acceptanceApproved: true,
+            approvedBy: true,
+            approvedAt: true,
           },
         },
-      }),
-    ]);
+        Client: {
+          select: {
+            id: true,
+            clientCode: true,
+            clientNameFull: true,
+          },
+        },
+      },
+    });
 
     // Audit log the approval
     await logAcceptanceApproved(
@@ -134,7 +160,7 @@ export async function POST(
     );
 
     return NextResponse.json(
-      successResponse(updatedProject),
+      successResponse(updatedTask),
       { status: 200 }
     );
   } catch (error) {

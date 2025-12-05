@@ -18,7 +18,7 @@ export async function validateAcceptanceAccess(
   requiredRole?: TaskRole
 ): Promise<boolean> {
   try {
-    // Check if user has access to project
+    // Check if user has access to task
     const access = await prisma.taskTeam.findFirst({
       where: {
         taskId,
@@ -28,7 +28,7 @@ export async function validateAcceptanceAccess(
         role: true,
         Task: {
           select: {
-            serviceLine: true,
+            ServLineCode: true,
           },
         },
       },
@@ -45,7 +45,7 @@ export async function validateAcceptanceAccess(
         logger.warn('User access denied', {
           userId,
           taskId,
-          reason: 'No project membership and not SYSTEM_ADMIN',
+          reason: 'No task membership and not SYSTEM_ADMIN',
         });
         return false;
       }
@@ -106,13 +106,23 @@ export async function canApproveAcceptanceValidation(
       return true;
     }
 
-    // Check if user is Partner/Administrator for the project's service line
+    // Check if user is Partner/Administrator for the task's service line
     const task = await prisma.task.findUnique({
-      where: { id: projectId },
-      select: { serviceLine: true },
+      where: { id: taskId },
+      select: { ServLineCode: true },
     });
 
-    if (!project) {
+    if (!task) {
+      return false;
+    }
+
+    // Get master service line from ServLineCode
+    const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+      where: { ServLineCode: task.ServLineCode },
+      select: { masterCode: true },
+    });
+
+    if (!serviceLineMapping?.masterCode) {
       return false;
     }
 
@@ -120,7 +130,7 @@ export async function canApproveAcceptanceValidation(
       where: {
         userId_serviceLine: {
           userId,
-          serviceLine: project.serviceLine,
+          serviceLine: serviceLineMapping.masterCode,
         },
       },
       select: { role: true },
@@ -139,12 +149,12 @@ export async function canApproveAcceptanceValidation(
 
 /**
  * Validate document access
- * Checks that the document belongs to a questionnaire response for a project the user can access
+ * Checks that the document belongs to a questionnaire response for a task the user can access
  */
 export async function validateDocumentAccess(
   documentId: number,
   userId: string
-): Promise<{ hasAccess: boolean; projectId?: number }> {
+): Promise<{ hasAccess: boolean; taskId?: number }> {
   try {
     const document = await prisma.acceptanceDocument.findUnique({
       where: { id: documentId },
@@ -161,10 +171,10 @@ export async function validateDocumentAccess(
       return { hasAccess: false };
     }
 
-    const taskId = document.ClientAcceptanceResponse.projectId;
+    const taskId = document.ClientAcceptanceResponse.taskId;
     const hasAccess = await validateAcceptanceAccess(taskId, userId);
 
-    return { hasAccess, projectId };
+    return { hasAccess, taskId };
   } catch (error) {
     logger.error('Error validating document access', {
       error,
