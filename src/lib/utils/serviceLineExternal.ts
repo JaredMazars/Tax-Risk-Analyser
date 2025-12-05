@@ -17,19 +17,21 @@ export interface ServiceLineExternal {
   GLPrefix: string | null;
   SLGroup: string | null;
   masterCode: string | null;
+  SubServlineGroupCode: string | null;
+  SubServlineGroupDesc: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 /**
  * Map external service line code to master service line code
- * @param externalCode - External service line code
+ * @param externalCode - External service line code (SubServlineGroupCode)
  * @returns Master service line code or null if not mapped
  */
 export async function mapExternalToMaster(externalCode: string): Promise<string | null> {
   try {
     const external = await prisma.serviceLineExternal.findFirst({
-      where: { ServLineCode: externalCode },
+      where: { SubServlineGroupCode: externalCode },
       select: { masterCode: true },
     });
     return external?.masterCode || null;
@@ -50,7 +52,7 @@ export async function getExternalServiceLinesByMaster(
   try {
     return await prisma.serviceLineExternal.findMany({
       where: { masterCode },
-      orderBy: { ServLineCode: 'asc' },
+      orderBy: { SubServlineGroupCode: 'asc' },
     });
   } catch (error) {
     logger.error('Error fetching external service lines by master', { masterCode, error });
@@ -65,7 +67,7 @@ export async function getExternalServiceLinesByMaster(
 export async function getAllExternalServiceLines(): Promise<ServiceLineExternal[]> {
   try {
     return await prisma.serviceLineExternal.findMany({
-      orderBy: { ServLineCode: 'asc' },
+      orderBy: { SubServlineGroupCode: 'asc' },
     });
   } catch (error) {
     logger.error('Error fetching all external service lines', { error });
@@ -81,7 +83,7 @@ export async function getUnmappedExternalServiceLines(): Promise<ServiceLineExte
   try {
     return await prisma.serviceLineExternal.findMany({
       where: { masterCode: null },
-      orderBy: { ServLineCode: 'asc' },
+      orderBy: { SubServlineGroupCode: 'asc' },
     });
   } catch (error) {
     logger.error('Error fetching unmapped external service lines', { error });
@@ -187,7 +189,7 @@ export async function bulkMapByPattern(pattern: {
     
     const where: any = { masterCode: null };
     if (externalCodePrefix) {
-      where.ServLineCode = { startsWith: externalCodePrefix };
+      where.SubServlineGroupCode = { startsWith: externalCodePrefix };
     }
     
     const result = await prisma.serviceLineExternal.updateMany({

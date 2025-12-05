@@ -826,18 +826,21 @@ model ServiceLineMaster {
 
 // External DB service lines (from external system)
 model ServiceLineExternal {
-  id           Int      @id @default(autoincrement())
-  ServLineCode String?  @db.NVarChar(10)
-  ServLineDesc String?  @db.NVarChar(150)
-  GLPrefix     String?  @db.NVarChar(10)
-  SLGroup      String?  @db.NVarChar(10)
-  masterCode   String?  @db.NVarChar(50)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   Int      @id @default(autoincrement())
+  ServLineCode         String?  @db.NVarChar(10)
+  ServLineDesc         String?  @db.NVarChar(150)
+  GLPrefix             String?  @db.NVarChar(10)
+  SLGroup              String?  @db.NVarChar(10)
+  masterCode           String?  @db.NVarChar(50)
+  SubServlineGroupCode String?  @db.NVarChar(10)
+  SubServlineGroupDesc String?  @db.NVarChar(150)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([ServLineCode])
   @@index([SLGroup])
   @@index([masterCode])
+  @@index([SubServlineGroupCode])
 }
 
 model ServiceLineUser {

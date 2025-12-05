@@ -18,6 +18,8 @@ interface ExternalServiceLine {
   GLPrefix: string | null;
   SLGroup: string | null;
   masterCode: string | null;
+  SubServlineGroupCode: string | null;
+  SubServlineGroupDesc: string | null;
   masterServiceLine: {
     code: string;
     name: string;
@@ -196,6 +198,8 @@ export default function ServiceLineMappingPage() {
   const filteredExternal = externalServiceLines.filter((external) => {
     const matchesSearch =
       !searchTerm ||
+      external.SubServlineGroupCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      external.SubServlineGroupDesc?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       external.ServLineCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       external.ServLineDesc?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       external.SLGroup?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -417,7 +421,7 @@ export default function ServiceLineMappingPage() {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
                             <h3 className="text-sm font-bold text-forvis-gray-900">
-                              {external.ServLineCode || 'N/A'}
+                              {external.SubServlineGroupCode || 'N/A'}
                             </h3>
                             {external.masterCode ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -430,13 +434,27 @@ export default function ServiceLineMappingPage() {
                             )}
                           </div>
                           <p className="text-sm text-forvis-gray-700 mb-2">
-                            {external.ServLineDesc || 'No description'}
+                            {external.SubServlineGroupDesc || 'No description'}
                           </p>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                            <div>
+                              <span className="text-forvis-gray-500">Service Line:</span>{' '}
+                              <span className="font-medium text-forvis-gray-800">
+                                {external.ServLineCode || 'N/A'}
+                              </span>
+                            </div>
                             <div>
                               <span className="text-forvis-gray-500">SL Group:</span>{' '}
                               <span className="font-medium text-forvis-gray-800">
                                 {external.SLGroup || 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-forvis-gray-500">SL Description:</span>{' '}
+                              <span className="font-medium text-forvis-gray-800">
+                                {external.ServLineDesc || 'N/A'}
                               </span>
                             </div>
                             <div>
