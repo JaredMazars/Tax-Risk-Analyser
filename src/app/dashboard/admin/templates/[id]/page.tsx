@@ -28,7 +28,7 @@ interface TemplateSection {
   isAiAdaptable: boolean;
   order: number;
   applicableServiceLines: string | null;
-  applicableProjectTypes: string | null;
+  applicableTaskTypes: string | null;
 }
 
 export default function TemplateEditorPage() {
@@ -393,7 +393,7 @@ export default function TemplateEditorPage() {
                   {'{{clientCode}}'}
                 </div>
                 <div className="p-2 bg-forvis-gray-50 rounded">
-                  {'{{projectName}}'}
+                  {'{{taskName}}'}
                 </div>
                 <div className="p-2 bg-forvis-gray-50 rounded">
                   {'{{projectType}}'}

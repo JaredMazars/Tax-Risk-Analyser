@@ -1,10 +1,10 @@
-import { ProjectType, ProjectRole } from '@/types';
+import { TaskType, TaskRole } from '@/types';
 
 /**
- * Get color classes for project type badges
- * @deprecated Use getProjectTypeColor from serviceLineUtils instead
+ * Get color classes for task type badges
+ * @deprecated Use getTaskTypeColor from serviceLineUtils instead
  */
-export function getProjectTypeColor(type: string): string {
+export function getTaskTypeColor(type: string): string {
   // Tax types
   if (type.startsWith('TAX_')) {
     return 'bg-blue-100 text-blue-800 border-blue-200';
@@ -26,9 +26,9 @@ export function getProjectTypeColor(type: string): string {
 }
 
 /**
- * Get border color for project type
+ * Get border color for task type
  */
-export function getProjectTypeBorderColor(type: string): string {
+export function getTaskTypeBorderColor(type: string): string {
   // Tax types
   if (type.startsWith('TAX_')) {
     return 'border-blue-500';
@@ -50,10 +50,10 @@ export function getProjectTypeBorderColor(type: string): string {
 }
 
 /**
- * Format project type for display
- * @deprecated Use formatProjectType from serviceLineUtils instead
+ * Format task type for display
+ * @deprecated Use formatTaskType from serviceLineUtils instead
  */
-export function formatProjectType(type: string): string {
+export function formatTaskType(type: string): string {
   const typeMap: Record<string, string> = {
     // Tax
     TAX_CALCULATION: 'Tax Calculation',
@@ -177,10 +177,10 @@ export function formatDateTime(date: Date | string | null | undefined): string {
 }
 
 /**
- * Get project type options for select
- * @deprecated Use getProjectTypesForServiceLine from serviceLineUtils instead
+ * Get task type options for select
+ * @deprecated Use getTaskTypesForServiceLine from serviceLineUtils instead
  */
-export function getProjectTypeOptions() {
+export function getTaskTypeOptions() {
   return [
     { value: 'TAX_CALCULATION', label: 'Tax Calculation' },
     { value: 'TAX_OPINION', label: 'Tax Opinion' },
@@ -208,9 +208,3 @@ export function getRoleOptions() {
     { value: 'ADMIN', label: 'Admin', description: 'Full control' },
   ];
 }
-
-
-
-
-
-

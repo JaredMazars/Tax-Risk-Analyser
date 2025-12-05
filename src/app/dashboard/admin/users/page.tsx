@@ -11,7 +11,7 @@ import {
   FolderIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
-import { formatRole, formatDate } from '@/lib/utils/projectUtils';
+import { formatRole, formatDate } from '@/lib/utils/taskUtils';
 import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';

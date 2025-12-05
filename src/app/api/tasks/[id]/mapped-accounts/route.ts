@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db/prisma';
 import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 
 export async function GET(
   request: NextRequest,

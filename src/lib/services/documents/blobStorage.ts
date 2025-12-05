@@ -58,7 +58,7 @@ export async function initBlobStorage(): Promise<void> {
 export async function uploadFile(
   buffer: Buffer,
   fileName: string,
-  projectId: number
+  taskId: number
 ): Promise<string> {
   try {
     const containerClient = getContainerClient();
@@ -200,7 +200,7 @@ export async function fileExists(blobName: string): Promise<boolean> {
  * @param projectId - Project ID
  * @returns Array of blob names
  */
-export async function listProjectFiles(projectId: number): Promise<string[]> {
+export async function listProjectFiles(taskId: number): Promise<string[]> {
   try {
     const containerClient = getContainerClient();
     const prefix = `${projectId}/`;

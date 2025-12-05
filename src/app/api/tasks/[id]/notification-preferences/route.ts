@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
-import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { UpdateNotificationPreferenceSchema } from '@/lib/validation/schemas';
 
 /**

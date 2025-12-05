@@ -31,7 +31,7 @@ export async function GET(
     }
 
     // Get project and engagement letter path
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
         engagementLetterPath: true,
@@ -40,8 +40,8 @@ export async function GET(
       },
     });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     if (!project.engagementLetterUploaded || !project.engagementLetterPath) {

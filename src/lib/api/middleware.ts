@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, checkProjectAccess } from '@/lib/services/auth/auth';
 import { checkServiceLineAccess } from '@/lib/services/service-lines/serviceLineService';
-import { parseProjectId } from '@/lib/utils/apiUtils';
+import { parseTaskId } from '@/lib/utils/apiUtils';
 import { isValidServiceLine } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine, ServiceLineRole } from '@/types';
 import { AuthenticatedHandler, ProjectHandler, ApiResponse } from './types';
@@ -55,10 +55,10 @@ export function withProjectAccess<TParams extends Record<string, string> & { id:
   return (handler: ProjectHandler<TParams, TResponse>) => {
     return withAuth<TParams, TResponse>(async (request, context) => {
       try {
-        const projectId = parseProjectId(context.params.id);
+        const taskId = parseTaskId(context.params.id);
         const hasAccess = await checkProjectAccess(
           context.user.id,
-          projectId,
+          taskId,
           requiredRole
         );
 

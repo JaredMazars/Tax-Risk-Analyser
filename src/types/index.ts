@@ -9,6 +9,9 @@ export interface MappedData {
   sarsItem: string;
 }
 
+// Re-export task stages
+export { TaskStage } from './task-stages';
+
 // Enums matching Prisma schema
 export enum ServiceLine {
   TAX = 'TAX',
@@ -23,7 +26,7 @@ export enum ServiceLine {
   HR = 'HR',
 }
 
-export enum ProjectType {
+export enum TaskType {
   // Tax Service Line
   TAX_CALCULATION = 'TAX_CALCULATION',
   TAX_OPINION = 'TAX_OPINION',
@@ -70,8 +73,8 @@ export enum SystemRole {
   USER = 'USER',
 }
 
-// Project-level roles (ProjectUser.role)
-export enum ProjectRole {
+// Task-level roles (TaskTeam.role)
+export enum TaskRole {
   ADMIN = 'ADMIN',
   REVIEWER = 'REVIEWER',
   EDITOR = 'EDITOR',
@@ -138,13 +141,15 @@ export interface Task {
   Active: string;
   TaskDateOpen: Date;
   TaskDateTerminate?: Date | null;
-  // New project-like fields
+  // New task-like fields
   name?: string | null;
   description?: string | null;
   status: string;
   archived: boolean;
+  clientId?: number | null;
+  serviceLine?: string | null;
   assessmentYear?: string | null;
-  projectType: ProjectType;
+  projectType: TaskType;
   submissionDeadline?: Date | null;
   taxPeriodStart?: Date | null;
   taxPeriodEnd?: Date | null;
@@ -154,9 +159,24 @@ export interface Task {
   updatedAt: Date;
   client?: Client | null;
   team?: TaskTeam[];
+  users?: TaskTeam[];
   acceptance?: TaskAcceptance | null;
   engagementLetter?: TaskEngagementLetter | null;
   documents?: TaskDocument[];
+  // Flattened acceptance fields (from TaskAcceptance)
+  acceptanceApproved?: boolean;
+  acceptanceApprovedBy?: string | null;
+  acceptanceApprovedAt?: Date | null;
+  // Flattened engagement letter fields (from TaskEngagementLetter)
+  engagementLetterGenerated?: boolean;
+  engagementLetterUploaded?: boolean;
+  engagementLetterContent?: string | null;
+  engagementLetterTemplateId?: number | null;
+  engagementLetterGeneratedBy?: string | null;
+  engagementLetterGeneratedAt?: Date | null;
+  engagementLetterPath?: string | null;
+  engagementLetterUploadedBy?: string | null;
+  engagementLetterUploadedAt?: Date | null;
   _count?: {
     mappings: number;
     taxAdjustments: number;
@@ -183,8 +203,8 @@ export interface ServiceLineUser {
 export interface SubServiceLineGroup {
   code: string;
   description: string;
-  activeProjects: number; // Actually counts active tasks in this sub-service line group
-  totalProjects: number; // Actually counts total tasks in this sub-service line group
+  activeTasks: number; // Actually counts active tasks in this sub-service line group
+  totalTasks: number; // Actually counts total tasks in this sub-service line group
   masterCode: string;
 }
 
@@ -193,7 +213,7 @@ export interface TaskTeam {
   id: number;
   taskId: number;
   userId: string;
-  role: ProjectRole;
+  role: TaskRole;
   createdAt: Date;
   user?: {
     id: string;
@@ -266,7 +286,7 @@ export interface ADUser {
 // Tax Opinion Models
 export interface OpinionDraft {
   id: number;
-  projectId: number;
+  taskId: number;
   version: number;
   title: string;
   content: string;
@@ -321,7 +341,7 @@ export interface OpinionChatMessage {
 
 export interface ResearchNote {
   id: number;
-  projectId: number;
+  taskId: number;
   title: string;
   content: string;
   tags?: string | null;
@@ -333,7 +353,7 @@ export interface ResearchNote {
 
 export interface LegalPrecedent {
   id: number;
-  projectId: number;
+  taskId: number;
   caseName: string;
   citation: string;
   court?: string | null;
@@ -349,7 +369,7 @@ export interface LegalPrecedent {
 // Tax Administration Models
 export interface SarsResponse {
   id: number;
-  projectId: number;
+  taskId: number;
   referenceNumber: string;
   subject: string;
   content: string;
@@ -366,7 +386,7 @@ export interface SarsResponse {
 
 export interface AdministrationDocument {
   id: number;
-  projectId: number;
+  taskId: number;
   fileName: string;
   fileType: string;
   fileSize: number;
@@ -381,7 +401,7 @@ export interface AdministrationDocument {
 
 export interface ComplianceChecklistItem {
   id: number;
-  projectId: number;
+  taskId: number;
   title: string;
   description?: string | null;
   dueDate?: Date | null;
@@ -397,7 +417,7 @@ export interface ComplianceChecklistItem {
 
 export interface FilingStatus {
   id: number;
-  projectId: number;
+  taskId: number;
   filingType: string;
   description?: string | null;
   status: string;
@@ -427,8 +447,8 @@ export interface ClientDocument {
   fileType: string;
   fileSize: number;
   filePath: string;
-  projectId: number;
-  projectName: string;
+  taskId: number;
+  taskName: string;
   uploadedBy?: string | null;
   createdAt: Date;
   // Type-specific fields
@@ -456,8 +476,8 @@ export interface ClientDocumentsResponse {
 // Re-export notification types
 export * from './notification';
 
-// Re-export project stage types
-export * from './project-stages';
+// Re-export task stage types
+export * from './task-stages';
 
 // Re-export analytics types
 export * from './analytics';
@@ -469,7 +489,7 @@ export * from './analytics';
  */
 export interface TaxAdjustment {
   id: number;
-  projectId: number;
+  taskId: number;
   type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT' | string;
   description: string;
   amount: number;
@@ -506,7 +526,7 @@ export interface TaxAdjustmentDisplay {
  */
 export interface AdjustmentDocument {
   id: number;
-  projectId: number;
+  taskId: number;
   taxAdjustmentId?: number | null;
   fileName: string;
   fileType: string;

@@ -60,16 +60,6 @@ export function parseTaskId(id: string | undefined): number {
   return parseNumericId(id, 'Task');
 }
 
-/**
- * Parse and validate project ID from route params
- * @param id - String ID from route params
- * @returns Validated numeric project ID
- * @throws AppError if ID is invalid
- * @deprecated Use parseTaskId instead
- */
-export function parseProjectId(id: string | undefined): number {
-  return parseNumericId(id, 'Project');
-}
 
 /**
  * Parse and validate adjustment ID from route params
@@ -119,20 +109,6 @@ export async function getTaskOrThrow(
   return task;
 }
 
-/**
- * Fetch project by ID or throw 404 error
- * @param projectId - Project ID
- * @param include - Optional Prisma include object
- * @returns Project object
- * @throws AppError if project not found
- * @deprecated Use getTaskOrThrow instead
- */
-export async function getProjectOrThrow(
-  projectId: number,
-  include?: Prisma.TaskInclude
-) {
-  return getTaskOrThrow(projectId, include);
-}
 
 /**
  * Fetch tax adjustment by ID or throw 404 error
@@ -240,16 +216,6 @@ export async function verifyTaskExists(taskId: number): Promise<void> {
   }
 }
 
-/**
- * Verify that a project exists and is accessible
- * Useful for authorization checks
- * @param projectId - Project ID to verify
- * @throws AppError if project doesn't exist
- * @deprecated Use verifyTaskExists instead
- */
-export async function verifyProjectExists(projectId: number): Promise<void> {
-  return verifyTaskExists(projectId);
-}
 
 /**
  * Verify that an adjustment belongs to a specific task
@@ -285,19 +251,6 @@ export async function verifyAdjustmentBelongsToTask(
   }
 }
 
-/**
- * Verify that an adjustment belongs to a specific project
- * @param adjustmentId - Adjustment ID
- * @param projectId - Expected project ID
- * @throws AppError if adjustment doesn't belong to project
- * @deprecated Use verifyAdjustmentBelongsToTask instead
- */
-export async function verifyAdjustmentBelongsToProject(
-  adjustmentId: number,
-  projectId: number
-): Promise<void> {
-  return verifyAdjustmentBelongsToTask(adjustmentId, projectId);
-}
 
 /**
  * Standard success response formatter

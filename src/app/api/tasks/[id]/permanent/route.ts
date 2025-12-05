@@ -23,13 +23,13 @@ export async function DELETE(
     }
 
     // Check if project exists
-    const existingProject = await prisma.project.findUnique({
+    const existingProject = await prisma.task.findUnique({
       where: { id: taskId },
     });
 
     if (!existingProject) {
       return NextResponse.json(
-        { error: 'Project not found' },
+        { error: 'Task not found' },
         { status: 404 }
       );
     }

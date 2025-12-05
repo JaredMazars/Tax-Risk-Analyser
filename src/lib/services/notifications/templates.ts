@@ -1,5 +1,5 @@
 import { ROUTES } from '@/constants/routes';
-import { formatRole } from '@/lib/utils/projectUtils';
+import { formatRole } from '@/lib/utils/taskUtils';
 
 /**
  * Notification template result
@@ -14,13 +14,13 @@ interface NotificationTemplate {
  * Create user added to project notification
  */
 export function createUserAddedNotification(
-  projectName: string,
-  projectId: number,
+  taskName: string,
+  taskId: number,
   addedByName: string,
   role: string
 ): NotificationTemplate {
   return {
-    title: `Added to ${projectName}`,
+    title: `Added to ${taskName}`,
     message: `${addedByName} added you to the project as ${formatRole(role)}.`,
     actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}`,
   };
@@ -30,12 +30,12 @@ export function createUserAddedNotification(
  * Create user removed from project notification
  */
 export function createUserRemovedNotification(
-  projectName: string,
-  projectId: number,
+  taskName: string,
+  taskId: number,
   removedByName: string
 ): NotificationTemplate {
   return {
-    title: `Removed from ${projectName}`,
+    title: `Removed from ${taskName}`,
     message: `${removedByName} removed you from the project.`,
     actionUrl: ROUTES.DASHBOARD.ROOT,
   };
@@ -45,14 +45,14 @@ export function createUserRemovedNotification(
  * Create user role changed notification
  */
 export function createUserRoleChangedNotification(
-  projectName: string,
-  projectId: number,
+  taskName: string,
+  taskId: number,
   changedByName: string,
   oldRole: string,
   newRole: string
 ): NotificationTemplate {
   return {
-    title: `Role Changed in ${projectName}`,
+    title: `Role Changed in ${taskName}`,
     message: `${changedByName} changed your role from ${formatRole(oldRole)} to ${formatRole(newRole)}.`,
     actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}`,
   };
@@ -62,12 +62,12 @@ export function createUserRoleChangedNotification(
  * Create document processed notification
  */
 export function createDocumentProcessedNotification(
-  projectName: string,
-  projectId: number,
+  taskName: string,
+  taskId: number,
   documentName: string
 ): NotificationTemplate {
   return {
-    title: `Document Processed in ${projectName}`,
+    title: `Document Processed in ${taskName}`,
     message: `"${documentName}" has been successfully processed.`,
     actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}/document-management`,
   };
@@ -77,12 +77,12 @@ export function createDocumentProcessedNotification(
  * Create opinion draft ready notification
  */
 export function createOpinionDraftReadyNotification(
-  projectName: string,
-  projectId: number,
+  taskName: string,
+  taskId: number,
   draftId: number
 ): NotificationTemplate {
   return {
-    title: `Opinion Draft Ready in ${projectName}`,
+    title: `Opinion Draft Ready in ${taskName}`,
     message: `A new opinion draft is ready for review.`,
     actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}/opinion-drafting`,
   };
@@ -92,11 +92,11 @@ export function createOpinionDraftReadyNotification(
  * Create tax calculation complete notification
  */
 export function createTaxCalculationCompleteNotification(
-  projectName: string,
-  projectId: number
+  taskName: string,
+  taskId: number
 ): NotificationTemplate {
   return {
-    title: `Tax Calculation Complete in ${projectName}`,
+    title: `Tax Calculation Complete in ${taskName}`,
     message: `Tax calculations have been completed and are ready for review.`,
     actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}/tax-calculation`,
   };
@@ -106,12 +106,12 @@ export function createTaxCalculationCompleteNotification(
  * Create filing status updated notification
  */
 export function createFilingStatusUpdatedNotification(
-  projectName: string,
-  projectId: number,
+  taskName: string,
+  taskId: number,
   newStatus: string
 ): NotificationTemplate {
   return {
-    title: `Filing Status Updated in ${projectName}`,
+    title: `Filing Status Updated in ${taskName}`,
     message: `Filing status has been updated to: ${newStatus}`,
     actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}/filing-status`,
   };

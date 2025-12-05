@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { ProjectType, Task, TaskTeam, ProjectRole } from '@/types';
+import { TaskType, Task, TaskTeam, TaskRole } from '@/types';
 import { 
   ChevronRightIcon,
   TableCellsIcon,
@@ -29,8 +29,8 @@ import ReportingPage from '@/app/dashboard/tasks/[id]/reporting/page';
 import OpinionDraftingPage from '@/app/dashboard/tasks/[id]/opinion-drafting/page';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { useTaskTeam } from '@/hooks/tasks/useTaskTeam';
-import { formatDate } from '@/lib/utils/projectUtils';
-import { getProjectTypeColor, formatProjectType } from '@/lib/utils/serviceLineUtils';
+import { formatDate } from '@/lib/utils/taskUtils';
+import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
 import { TaskTypeSelector } from '@/components/features/tasks/TaskTypeSelector';
@@ -73,7 +73,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
     name: project.name || project.TaskDesc,
     description: project.description || '',
     clientCode: project.ClientCode || '',
-    projectType: project.projectType as ProjectType,
+    projectType: project.projectType as TaskType,
     taxYear: project.taxYear || new Date().getFullYear(),
     taxPeriodStart: project.taxPeriodStart instanceof Date ? project.taxPeriodStart : (project.taxPeriodStart ? new Date(project.taxPeriodStart) : null),
     taxPeriodEnd: project.taxPeriodEnd instanceof Date ? project.taxPeriodEnd : (project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null),
@@ -176,7 +176,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 </label>
                 <TaskTypeSelector
                   value={editData.projectType}
-                  onChange={(projectType: ProjectType) => setEditData({ ...editData, projectType })}
+                  onChange={(projectType: TaskType) => setEditData({ ...editData, projectType })}
                 />
               </div>
               <div>
@@ -197,7 +197,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                       name: project.name || project.TaskDesc,
                       description: project.description || '',
                       clientCode: project.ClientCode || '',
-                      projectType: project.projectType as ProjectType,
+                      projectType: project.projectType as TaskType,
                       taxYear: project.taxYear || new Date().getFullYear(),
                       taxPeriodStart: project.taxPeriodStart instanceof Date ? project.taxPeriodStart : (project.taxPeriodStart ? new Date(project.taxPeriodStart) : null),
                       taxPeriodEnd: project.taxPeriodEnd instanceof Date ? project.taxPeriodEnd : (project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null),
@@ -330,9 +330,9 @@ export default function InternalProjectPage() {
   const router = useRouter();
   
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
-  const projectId = params.projectId as string;
+  const taskId = params.taskId as string;
   
-  const { data: project, isLoading, refetch: fetchProject } = useTask(projectId);
+  const { data: project, isLoading, refetch: fetchProject } = useTask(taskId);
   
   // Set default active tab based on project type
   const getDefaultTab = () => {
@@ -354,17 +354,17 @@ export default function InternalProjectPage() {
   // Team management state
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
-  const [currentUserRole, setCurrentUserRole] = useState<ProjectRole>('VIEWER' as ProjectRole);
+  const [currentUserRole, setCurrentUserRole] = useState<TaskRole>('VIEWER' as TaskRole);
   
   // Lazy load team members only when team tab is active
   const { 
     data: teamMembersData = [],
     isLoading: loadingTeam,
     refetch: refetchTeam 
-  } = useTaskTeam(projectId, activeTab === 'team');
+  } = useTaskTeam(taskId, activeTab === 'team');
   
   // Convert TaskTeamMember[] to TaskTeam[] format
-  const teamMembers: TaskTeam[] = teamMembersData.map((member: { id: number; taskId: number; userId: string; role: ProjectRole; createdAt: string; User: { id: string; name: string | null; email: string; image?: string | null } }) => ({
+  const teamMembers: TaskTeam[] = teamMembersData.map((member: { id: number; taskId: number; userId: string; role: TaskRole; createdAt: string; User: { id: string; name: string | null; email: string; image?: string | null } }) => ({
     id: member.id,
     taskId: member.taskId,
     userId: member.userId,
@@ -389,11 +389,11 @@ export default function InternalProjectPage() {
     if (activeTab === 'team') {
       fetchCurrentUserRole();
     }
-  }, [activeTab, projectId]);
+  }, [activeTab, taskId]);
 
   const fetchCurrentUserRole = async () => {
     try {
-      const response = await fetch(`/api/tasks/${projectId}`);
+      const response = await fetch(`/api/tasks/${taskId}`);
       const data = await response.json();
       const projectUsers = data.data?.TaskTeam || data.data?.team || data.data?.users || [];
       if (data.success && projectUsers.length > 0) {
@@ -417,7 +417,7 @@ export default function InternalProjectPage() {
 
   const renderContent = () => {
     // Create params object for child pages
-    const childParams = { id: projectId };
+    const childParams = { id: taskId };
     
     switch (activeTab) {
       // Tax Calculation tabs
@@ -493,7 +493,7 @@ export default function InternalProjectPage() {
                 </div>
               ) : (
                 <TaskUserList
-                  taskId={parseInt(projectId)}
+                  taskId={parseInt(taskId)}
                   users={teamMembers}
                   currentUserId={currentUserId}
                   currentUserRole={currentUserRole}
@@ -503,7 +503,7 @@ export default function InternalProjectPage() {
               )}
 
               <UserSearchModal
-                taskId={parseInt(projectId)}
+                taskId={parseInt(taskId)}
                 isOpen={showAddUserModal}
                 onClose={() => setShowAddUserModal(false)}
                 onUserAdded={() => {
@@ -566,8 +566,8 @@ export default function InternalProjectPage() {
                 <div className="flex items-center space-x-3 mb-2">
                   <h1 className="text-2xl font-bold text-forvis-gray-900">{project?.name}</h1>
                   {project && (
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getProjectTypeColor(project.projectType)}`}>
-                      {formatProjectType(project.projectType)}
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getTaskTypeColor(project.projectType)}`}>
+                      {formatTaskType(project.projectType)}
                     </span>
                   )}
                 </div>

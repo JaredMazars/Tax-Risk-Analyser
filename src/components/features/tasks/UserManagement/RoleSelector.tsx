@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { ProjectRole } from '@/types';
+import { TaskRole } from '@/types';
 import { AlertModal } from '@/components/shared/AlertModal';
 
 interface RoleSelectorProps {
   taskId: number;
   userId: string;
-  currentRole: ProjectRole;
+  currentRole: TaskRole;
   onChange: () => void;
 }
 
@@ -27,13 +27,13 @@ export function RoleSelector({ taskId, userId, currentRole, onChange }: RoleSele
     variant: 'info',
   });
 
-  const handleRoleChange = async (newRole: ProjectRole) => {
+  const handleRoleChange = async (newRole: TaskRole) => {
     if (newRole === currentRole) return;
 
     setUpdating(true);
 
     try {
-      const response = await fetch(`/api/projects/${taskId}/users/${userId}`, {
+      const response = await fetch(`/api/tasks/${taskId}/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole }),
@@ -67,7 +67,7 @@ export function RoleSelector({ taskId, userId, currentRole, onChange }: RoleSele
     <>
       <select
         value={currentRole}
-        onChange={(e) => handleRoleChange(e.target.value as ProjectRole)}
+        onChange={(e) => handleRoleChange(e.target.value as TaskRole)}
         disabled={updating}
         className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
       >

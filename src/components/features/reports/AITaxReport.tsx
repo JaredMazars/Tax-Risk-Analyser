@@ -11,11 +11,11 @@ import {
 } from '@heroicons/react/24/outline';
 
 interface AITaxReportProps {
-  projectId: number;
+  taskId: number;
   onReportLoaded?: (report: AITaxReportData | null) => void;
 }
 
-export default function AITaxReport({ projectId, onReportLoaded }: AITaxReportProps) {
+export default function AITaxReport({ taskId, onReportLoaded }: AITaxReportProps) {
   const [report, setReport] = useState<AITaxReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export default function AITaxReport({ projectId, onReportLoaded }: AITaxReportPr
   useEffect(() => {
     fetchExistingReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [taskId]);
 
   // Notify parent when report changes
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function AITaxReport({ projectId, onReportLoaded }: AITaxReportPr
 
   const fetchExistingReport = async () => {
     try {
-      const response = await fetch(`/api/projects/${projectId}/ai-tax-report`);
+      const response = await fetch(`/api/tasks/${taskId}/ai-tax-report`);
       if (response.ok) {
         const data = await response.json();
         setReport(data);
@@ -54,7 +54,7 @@ export default function AITaxReport({ projectId, onReportLoaded }: AITaxReportPr
     setError(null);
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/ai-tax-report`, {
+      const response = await fetch(`/api/tasks/${taskId}/ai-tax-report`, {
         method: 'POST',
       });
 

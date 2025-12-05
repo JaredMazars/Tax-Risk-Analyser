@@ -67,8 +67,8 @@ export default function ServiceLineSubGroupsPage() {
     );
   }
 
-  const totalActiveProjects = subGroups?.reduce((sum, group) => sum + group.activeProjects, 0) || 0;
-  const totalProjects = subGroups?.reduce((sum, group) => sum + group.totalProjects, 0) || 0;
+  const totalActiveTasks = subGroups?.reduce((sum, group) => sum + group.activeTasks, 0) || 0;
+  const totalTasks = subGroups?.reduce((sum, group) => sum + group.totalTasks, 0) || 0;
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
@@ -94,11 +94,11 @@ export default function ServiceLineSubGroupsPage() {
           </p>
           <div className="mt-4 flex gap-6">
             <div>
-              <div className="text-2xl font-bold text-forvis-blue-600">{totalActiveProjects}</div>
+              <div className="text-2xl font-bold text-forvis-blue-600">{totalActiveTasks}</div>
               <div className="text-sm text-forvis-gray-600">Active Tasks</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-forvis-gray-900">{totalProjects}</div>
+              <div className="text-2xl font-bold text-forvis-gray-900">{totalTasks}</div>
               <div className="text-sm text-forvis-gray-600">Total Tasks</div>
             </div>
           </div>
@@ -146,7 +146,7 @@ export default function ServiceLineSubGroupsPage() {
                           Active Tasks
                         </div>
                         <div className="text-xl font-bold text-forvis-blue-600">
-                          {group.activeProjects}
+                          {group.activeTasks}
                         </div>
                       </div>
                       <div>
@@ -154,7 +154,7 @@ export default function ServiceLineSubGroupsPage() {
                           Total Tasks
                         </div>
                         <div className="text-xl font-bold text-forvis-gray-900">
-                          {group.totalProjects}
+                          {group.totalTasks}
                         </div>
                       </div>
                     </div>

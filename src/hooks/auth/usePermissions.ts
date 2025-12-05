@@ -4,24 +4,25 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { Project } from '@/types';
+import { Task } from '@/types';
 
 /**
- * Check if current user can approve acceptance/engagement letter for a project
+ * Check if current user can approve acceptance/engagement letter for a task
  */
-export function useCanApproveAcceptance(project: Project | null | undefined) {
+export function useCanApproveAcceptance(task: Task | null | undefined) {
   return useQuery({
-    queryKey: ['canApproveAcceptance', project?.id],
+    queryKey: ['canApproveAcceptance', task?.id],
     queryFn: async () => {
-      if (!project) return false;
+      if (!task) return false;
 
-      const response = await fetch(`/api/projects/${project.id}/permissions/approve-acceptance`);
+      const response = await fetch(`/api/tasks/${task.id}/permissions/approve-acceptance`);
       if (!response.ok) return false;
 
       const data = await response.json();
       return data.data?.allowed || false;
     },
-    enabled: !!project,
+    enabled: !!task && !!task.id,
+    retry: 2, // Limit retries to prevent infinite loading
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -64,26 +65,26 @@ export function useUserServiceLineRole(serviceLine: string | null | undefined) {
 }
 
 /**
- * Check if user has a specific feature permission on a project
+ * Check if user has a specific feature permission on a task
  */
 export function useHasFeaturePermission(
-  projectId: number | null | undefined,
+  taskId: number | null | undefined,
   feature: string
 ) {
   return useQuery({
-    queryKey: ['featurePermission', projectId, feature],
+    queryKey: ['featurePermission', taskId, feature],
     queryFn: async () => {
-      if (!projectId) return false;
+      if (!taskId) return false;
 
       const response = await fetch(
-        `/api/projects/${projectId}/permissions/check?feature=${feature}`
+        `/api/tasks/${taskId}/permissions/check?feature=${feature}`
       );
       if (!response.ok) return false;
 
       const data = await response.json();
       return data.data?.allowed || false;
     },
-    enabled: !!projectId && !!feature,
+    enabled: !!taskId && !!feature,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

@@ -11,7 +11,7 @@ interface TaxAdjustment {
 }
 
 interface ExportData {
-  projectName: string;
+  taskName: string;
   accountingProfit: number;
   adjustments: TaxAdjustment[];
   taxableIncome: number;
@@ -64,7 +64,7 @@ export class ExcelExporter {
     const totalAllowances = allowanceAdjustments.reduce((sum, a) => sum + Math.abs(a.amount), 0);
 
     worksheet.addRow(['TAX COMPUTATION - IT14', '']);
-    worksheet.addRow(['Project:', data.projectName]);
+    worksheet.addRow(['Task:', data.taskName]);
     worksheet.addRow(['Date:', new Date().toLocaleDateString()]);
     worksheet.addRow(['', '']);
     worksheet.addRow(['Description', 'Amount (R)']);
@@ -178,9 +178,9 @@ export class ExcelExporter {
   /**
    * Generate filename for export
    */
-  static generateFileName(projectName: string): string {
+  static generateFileName(taskName: string): string {
     const date = new Date().toISOString().split('T')[0];
-    const sanitizedName = projectName.replace(/[^a-zA-Z0-9]/g, '_');
+    const sanitizedName = taskName.replace(/[^a-zA-Z0-9]/g, '_');
     return `Tax_Computation_${sanitizedName}_${date}.xlsx`;
   }
 }

@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { AddTaskTeamSchema } from '@/lib/validation/schemas';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { emailService } from '@/lib/services/email/emailService';
 import { notificationService } from '@/lib/services/notifications/notificationService';
 import { createUserAddedNotification } from '@/lib/services/notifications/templates';
@@ -86,13 +87,13 @@ export async function POST(
     const taskId = parseTaskId(params?.id);
 
     // Get project details
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { serviceLine: true },
     });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     // Check authorization: user must be a project member OR service line admin
@@ -183,7 +184,7 @@ export async function POST(
     // Send email notification (non-blocking)
     try {
       // Get project details for email
-      const project = await prisma.project.findUnique({
+      const task = await prisma.task.findUnique({
         where: { id: taskId },
         select: { name: true, projectType: true },
       });
@@ -213,7 +214,7 @@ export async function POST(
 
     // Create in-app notification (non-blocking)
     try {
-      const project = await prisma.project.findUnique({
+      const task = await prisma.task.findUnique({
         where: { id: taskId },
         select: { name: true },
       });

@@ -9,7 +9,7 @@ import {
   ExclamationTriangleIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline';
-import { Project } from '@/types';
+import { Task } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { useQueryClient } from '@tanstack/react-query';
 import { taskKeys } from '@/hooks/tasks/useTaskData';
@@ -17,7 +17,7 @@ import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { TemplateSelector } from '@/components/features/templates/TemplateSelector';
 
 interface EngagementLetterTabProps {
-  project: Project;
+  task: Task;
   currentUserRole: string;
   onUploadComplete: () => void;
 }
@@ -28,7 +28,7 @@ interface SectionUsed {
   wasAiAdapted?: boolean;
 }
 
-export function EngagementLetterTab({ project, currentUserRole, onUploadComplete }: EngagementLetterTabProps) {
+export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }: EngagementLetterTabProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [letterContent, setLetterContent] = useState<string | null>(null);
@@ -42,26 +42,26 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
 
   // Load saved engagement letter content on mount
   useEffect(() => {
-    if (project.engagementLetterGenerated && project.engagementLetterContent) {
-      setLetterContent(project.engagementLetterContent);
-      if (project.engagementLetterTemplateId) {
-        setSelectedTemplateId(project.engagementLetterTemplateId);
+    if (task.engagementLetterGenerated && task.engagementLetterContent) {
+      setLetterContent(task.engagementLetterContent);
+      if (task.engagementLetterTemplateId) {
+        setSelectedTemplateId(task.engagementLetterTemplateId);
       }
     }
-  }, [project]);
+  }, [task]);
 
   // Check if user can manage engagement letters (Partners and System Admins only)
-  const { data: canManage = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(project);
-  const isGenerated = project.engagementLetterGenerated || letterContent !== null;
-  const isUploaded = project.engagementLetterUploaded;
-  const acceptanceApproved = project.acceptanceApproved;
+  const { data: canManage = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(task);
+  const isGenerated = task.engagementLetterGenerated || letterContent !== null;
+  const isUploaded = task.engagementLetterUploaded;
+  const acceptanceApproved = task.acceptanceApproved;
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/projects/${project.id}/engagement-letter/generate`, {
+      const response = await fetch(`/api/tasks/${task.id}/engagement-letter/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,7 +112,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch(`/api/projects/${project.id}/engagement-letter`, {
+      const response = await fetch(`/api/tasks/${task.id}/engagement-letter`, {
         method: 'POST',
         body: formData,
       });
@@ -123,9 +123,9 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
         throw new Error(data.error || 'Failed to upload engagement letter');
       }
 
-      // Invalidate and refetch the project data
+      // Invalidate and refetch the task data
       await queryClient.invalidateQueries({ 
-        queryKey: taskKeys.detail(project.id.toString()) 
+        queryKey: taskKeys.detail(task.id.toString()) 
       });
 
       setSelectedFile(null);
@@ -147,7 +147,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `engagement-letter-${project.name.replace(/\s+/g, '-')}.md`;
+    a.download = `engagement-letter-${(task.name || 'task').replace(/\s+/g, '-')}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -156,7 +156,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
 
   const handleDownloadUploaded = async () => {
     try {
-      const response = await fetch(`/api/projects/${project.id}/engagement-letter/download`);
+      const response = await fetch(`/api/tasks/${task.id}/engagement-letter/download`);
       if (!response.ok) {
         throw new Error('Failed to download engagement letter');
       }
@@ -281,7 +281,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
               {!letterContent ? (
                 <div className="space-y-6">
                   <p className="text-sm text-forvis-gray-700">
-                    Select a template and generate an engagement letter pre-filled with client and project information.
+                    Select a template and generate an engagement letter pre-filled with client and task information.
                   </p>
                   
                   {canManage ? (
@@ -289,8 +289,8 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
                       {/* Template Selection */}
                       <div className="border-2 border-forvis-gray-200 rounded-lg p-4">
                         <TemplateSelector
-                          serviceLine={project.serviceLine}
-                          projectType={project.projectType}
+                          serviceLine={task.serviceLine || task.ServLineCode}
+                          projectType={task.projectType}
                           selectedTemplateId={selectedTemplateId}
                           onSelect={setSelectedTemplateId}
                         />
@@ -311,7 +311,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
                             Use AI to customize sections
                           </label>
                           <p className="text-xs text-purple-700 mt-1">
-                            AI will adapt marked sections to be specific to this client and project while maintaining the professional structure and tone.
+                            AI will adapt marked sections to be specific to this client and task while maintaining the professional structure and tone.
                           </p>
                         </div>
                       </div>
@@ -437,11 +437,11 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
                     Engagement Letter Complete
                   </h3>
                   <dl className="space-y-2">
-                    {project.engagementLetterUploadedAt && (
+                    {task.engagementLetterUploadedAt && (
                       <div>
                         <dt className="text-sm font-medium text-green-800 inline">Uploaded on: </dt>
                         <dd className="text-sm text-green-700 inline">
-                          {new Date(project.engagementLetterUploadedAt).toLocaleString('en-US', {
+                          {new Date(task.engagementLetterUploadedAt).toLocaleString('en-US', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric',
@@ -451,11 +451,11 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
                         </dd>
                       </div>
                     )}
-                    {project.engagementLetterPath && (
+                    {task.engagementLetterPath && (
                       <div className="flex items-center gap-3">
                         <dt className="text-sm font-medium text-green-800">File: </dt>
                         <dd className="text-sm text-green-700">
-                          {project.engagementLetterPath.split('/').pop()}
+                          {task.engagementLetterPath.split('/').pop()}
                         </dd>
                         <button
                           onClick={handleDownloadUploaded}
@@ -468,7 +468,7 @@ export function EngagementLetterTab({ project, currentUserRole, onUploadComplete
                     )}
                   </dl>
                   <p className="text-sm text-green-700 mt-3">
-                    You can now access all project work tabs and begin the engagement.
+                    You can now access all task work tabs and begin the engagement.
                   </p>
                 </div>
               </div>

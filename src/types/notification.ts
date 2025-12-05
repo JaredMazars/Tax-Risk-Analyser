@@ -34,7 +34,7 @@ export interface NotificationMetadata {
 export interface InAppNotification {
   id: number;
   userId: string;
-  projectId: number | null;
+  taskId: number | null;
   type: string;
   title: string;
   message: string;

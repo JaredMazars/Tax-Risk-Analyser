@@ -18,9 +18,9 @@ interface RequireAllProps {
  * @example
  * <RequireAll>
  *   <PermissionGate resource="projects.delete" action="DELETE">
- *   <ProjectRoleGate projectId={123} minimumRole="ADMIN">
+ *   <TaskRoleGate projectId={123} minimumRole="ADMIN">
  *     <DeleteProjectButton />
- *   </ProjectRoleGate>
+ *   </TaskRoleGate>
  *   </PermissionGate>
  * </RequireAll>
  */

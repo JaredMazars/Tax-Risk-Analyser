@@ -65,13 +65,13 @@ export interface ClientWithProjects extends Client {
       taxAdjustments: number;
     };
   }>;
-  projectPagination?: {
+  taskPagination?: {
     page: number;
     limit: number;
     total: number;
     totalPages: number;
   };
-  projectCountsByServiceLine?: {
+  taskCountsByServiceLine?: {
     TAX: number;
     AUDIT: number;
     ACCOUNTING: number;
@@ -150,8 +150,8 @@ export function useClients(params: UseClientsParams = {}) {
 }
 
 export interface UseClientParams {
-  projectPage?: number;
-  projectLimit?: number;
+  taskPage?: number;
+  taskLimit?: number;
   serviceLine?: string;
   includeArchived?: boolean;
   enabled?: boolean;
@@ -165,8 +165,8 @@ export function useClient(
   params: UseClientParams = {}
 ) {
   const {
-    projectPage = 1,
-    projectLimit = 20,
+    taskPage = 1,
+    taskLimit = 20,
     serviceLine,
     includeArchived = false,
     enabled = true,
@@ -174,15 +174,15 @@ export function useClient(
 
   return useQuery<ClientWithProjects>({
     queryKey: clientKeys.detail(clientId, {
-      projectPage,
-      projectLimit,
+      taskPage,
+      taskLimit,
       serviceLine,
       includeArchived,
     }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      searchParams.set('projectPage', projectPage.toString());
-      searchParams.set('projectLimit', projectLimit.toString());
+      searchParams.set('taskPage', taskPage.toString());
+      searchParams.set('taskLimit', taskLimit.toString());
       if (serviceLine) searchParams.set('serviceLine', serviceLine);
       if (includeArchived) searchParams.set('includeArchived', 'true');
 

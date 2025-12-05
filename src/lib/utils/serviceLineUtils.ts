@@ -2,13 +2,13 @@
  * Service Line Utility Functions
  */
 
-import { ServiceLine, ProjectType } from '@/types';
-import { SERVICE_LINE_CONFIGS, getServiceLineForProjectType } from '@/types/service-line';
+import { ServiceLine, TaskType } from '@/types';
+import { SERVICE_LINE_CONFIGS, getServiceLineForTaskType } from '@/types/service-line';
 
 /**
- * Format project type name for display
+ * Format task type name for display
  */
-export function formatProjectType(projectType: ProjectType | string): string {
+export function formatTaskType(taskType: TaskType | string): string {
   const typeMap: Record<string, string> = {
     // Tax
     TAX_CALCULATION: 'Tax Calculation',
@@ -48,15 +48,15 @@ export function formatProjectType(projectType: ProjectType | string): string {
     HR_POLICY: 'Policy Development',
   };
 
-  return typeMap[projectType] || projectType;
+  return typeMap[taskType] || taskType;
 }
 
 /**
- * Get color classes for project type badge
+ * Get color classes for task type badge
  */
-export function getProjectTypeColor(projectType: ProjectType | string): string {
-  // Determine service line from project type
-  const serviceLine = getServiceLineForProjectType(projectType as ProjectType);
+export function getTaskTypeColor(taskType: TaskType | string): string {
+  // Determine service line from task type
+  const serviceLine = getServiceLineForTaskType(taskType as TaskType);
   
   if (!serviceLine) {
     return 'bg-gray-100 text-gray-700 border-gray-200';
@@ -78,10 +78,10 @@ export function getProjectTypeColor(projectType: ProjectType | string): string {
 }
 
 /**
- * Get border color classes for project type
+ * Get border color classes for task type
  */
-export function getProjectTypeBorderColor(projectType: ProjectType | string): string {
-  const serviceLine = getServiceLineForProjectType(projectType as ProjectType);
+export function getTaskTypeBorderColor(taskType: TaskType | string): string {
+  const serviceLine = getServiceLineForTaskType(taskType as TaskType);
   
   if (!serviceLine) {
     return 'border-gray-200';
@@ -176,24 +176,24 @@ export function isValidServiceLine(serviceLine: string): serviceLine is ServiceL
 }
 
 /**
- * Validate project type for service line
+ * Validate task type for service line
  */
-export function isValidProjectTypeForServiceLine(
-  projectType: ProjectType | string,
+export function isValidTaskTypeForServiceLine(
+  taskType: TaskType | string,
   serviceLine: ServiceLine | string
 ): boolean {
   const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
   if (!config) return false;
   
-  return config.projectTypes.includes(projectType as ProjectType);
+  return config.taskTypes.includes(taskType as TaskType);
 }
 
 /**
- * Get all project types for a service line
+ * Get all task types for a service line
  */
-export function getProjectTypesForServiceLine(serviceLine: ServiceLine | string): ProjectType[] {
+export function getTaskTypesForServiceLine(serviceLine: ServiceLine | string): TaskType[] {
   const config = SERVICE_LINE_CONFIGS[serviceLine as ServiceLine];
-  return config?.projectTypes || [];
+  return config?.taskTypes || [];
 }
 
 /**

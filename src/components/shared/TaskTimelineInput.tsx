@@ -2,7 +2,7 @@
 
 import { ServiceLine } from '@/types';
 
-interface ProjectTimelineInputProps {
+interface TaskTimelineInputProps {
   serviceLine: ServiceLine | string;
   taxYear?: number | null;
   taxPeriodStart?: Date | null;
@@ -12,7 +12,7 @@ interface ProjectTimelineInputProps {
   onChange: (field: string, value: number | string | Date | null) => void;
 }
 
-export function ProjectTimelineInput({
+export function TaskTimelineInput({
   serviceLine,
   taxYear,
   taxPeriodStart,
@@ -20,7 +20,7 @@ export function ProjectTimelineInput({
   assessmentYear,
   submissionDeadline,
   onChange,
-}: ProjectTimelineInputProps) {
+}: TaskTimelineInputProps) {
   const formatDateForInput = (date: Date | null | undefined): string => {
     if (!date) return '';
     const d = new Date(date);
@@ -118,14 +118,10 @@ export function ProjectTimelineInput({
       {!isTaxServiceLine && (
         <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md">
           <p className="text-xs text-gray-600">
-            <strong>Note:</strong> These fields are optional but help with project planning and tracking.
+            <strong>Note:</strong> These fields are optional but help with task planning and tracking.
           </p>
         </div>
       )}
     </div>
   );
 }
-
-
-
-

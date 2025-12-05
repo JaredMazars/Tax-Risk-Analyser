@@ -414,7 +414,7 @@ function hasRolePermission(userRole: string, requiredRole: string): boolean {
  */
 export async function checkProjectAccess(
   userId: string,
-  projectId: number,
+  taskId: number,
   requiredRole?: string
 ): Promise<boolean> {
   try {
@@ -427,7 +427,7 @@ export async function checkProjectAccess(
     const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
 
     // Get the project's service line
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: projectId },
       select: { serviceLine: true },
     });
@@ -461,10 +461,10 @@ export async function checkProjectAccess(
     }
 
     // Get user's project membership
-    const projectUser = await prisma.projectUser.findUnique({
+    const projectUser = await prisma.taskTeam.findUnique({
       where: {
-        projectId_userId: {
-          projectId,
+        taskId_userId: {
+          taskId,
           userId,
         },
       },
@@ -519,16 +519,18 @@ export async function checkClientAccess(
       return false;
     }
 
-    // Get all unique service lines from projects for this client
-    const projectServiceLines = await prisma.project.findMany({
-      where: { clientId },
-      select: { serviceLine: true },
-      distinct: ['serviceLine'],
+    // Get all unique service lines from tasks for this client
+    const taskServiceLines = await prisma.task.findMany({
+      where: { 
+        Client: { id: clientId }
+      },
+      select: { ServLineCode: true },
+      distinct: ['ServLineCode'],
     });
 
-    // If client has projects, check if user has access to any of those service lines
-    if (projectServiceLines.length > 0) {
-      const serviceLines = projectServiceLines.map(p => p.serviceLine);
+    // If client has tasks, check if user has access to any of those service lines
+    if (taskServiceLines.length > 0) {
+      const serviceLines = taskServiceLines.map(t => t.ServLineCode);
       
       const serviceLineAccess = await prisma.serviceLineUser.findFirst({
         where: {
@@ -542,17 +544,17 @@ export async function checkClientAccess(
       }
     }
 
-    // Check if user is assigned to any project for this client
-    const projectAccess = await prisma.projectUser.findFirst({
+    // Check if user is assigned to any task for this client
+    const taskAccess = await prisma.taskTeam.findFirst({
       where: {
         userId,
-        Project: {
-          clientId,
+        Task: {
+          Client: { id: clientId },
         },
       },
     });
 
-    return !!projectAccess;
+    return !!taskAccess;
   } catch (error) {
     log.error('Error checking client access', error);
     return false;
@@ -562,15 +564,15 @@ export async function checkClientAccess(
 /**
  * Get user's role on a project
  */
-export async function getUserProjectRole(
+export async function getUserTaskRole(
   userId: string,
-  projectId: number
+  taskId: number
 ): Promise<string | null> {
   try {
-    const projectUser = await prisma.projectUser.findUnique({
+    const projectUser = await prisma.taskTeam.findUnique({
       where: {
-        projectId_userId: {
-          projectId,
+        taskId_userId: {
+          taskId,
           userId,
         },
       },
@@ -613,12 +615,12 @@ export async function requireAdmin(userId: string): Promise<void> {
 /**
  * Require specific project role - throws error if insufficient permissions
  */
-export async function requireProjectRole(
+export async function requireTaskRole(
   userId: string,
-  projectId: number,
+  taskId: number,
   requiredRole: string
 ): Promise<void> {
-  const hasAccess = await checkProjectAccess(userId, projectId, requiredRole);
+  const hasAccess = await checkProjectAccess(userId, taskId, requiredRole);
   
   if (!hasAccess) {
     throw new Error(`Insufficient permissions. Required role: ${requiredRole}`);
@@ -682,10 +684,10 @@ export async function getUserProjects(
 }>> {
   if (includeCounts) {
     // Optimized query with counts in single query
-    const projectUsers = await prisma.projectUser.findMany({
+    const projectUsers = await prisma.taskTeam.findMany({
       where: { userId },
       include: {
-        Project: {
+        Task: {
           include: {
             _count: {
               select: {
@@ -701,10 +703,10 @@ export async function getUserProjects(
     return projectUsers.map(pu => pu.Project);
   } else {
     // Backward compatible - no counts
-    const projectUsers = await prisma.projectUser.findMany({
+    const projectUsers = await prisma.taskTeam.findMany({
       where: { userId },
       include: {
-        Project: true,
+        Task: true,
       },
     });
 

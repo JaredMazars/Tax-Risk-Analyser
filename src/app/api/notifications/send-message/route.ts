@@ -32,21 +32,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If projectId is provided, verify both users have access to the project
-    if (validated.projectId) {
+    // If taskId is provided, verify both users have access to the task
+    if (validated.taskId) {
       const [senderAccess, recipientAccess] = await Promise.all([
-        prisma.projectUser.findUnique({
+        prisma.taskTeam.findUnique({
           where: {
-            projectId_userId: {
-              projectId: validated.projectId,
+            taskId_userId: {
+              taskId: validated.taskId,
               userId: user.id,
             },
           },
         }),
-        prisma.projectUser.findUnique({
+        prisma.taskTeam.findUnique({
           where: {
-            projectId_userId: {
-              projectId: validated.projectId,
+            taskId_userId: {
+              taskId: validated.taskId,
               userId: validated.recipientUserId,
             },
           },
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       validated.recipientUserId,
       validated.title,
       validated.message,
-      validated.projectId,
+      validated.taskId,
       validated.actionUrl
     );
 

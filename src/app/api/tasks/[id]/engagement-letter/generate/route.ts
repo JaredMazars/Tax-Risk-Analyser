@@ -39,26 +39,27 @@ export async function POST(
       );
     }
 
-    // Get project with client details
-    const project = await prisma.project.findUnique({
+    // Get task with client details
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
         Client: true,
+        TaskAcceptance: true,
       },
     });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    if (!project.clientId || !project.Client) {
+    if (!task.Client) {
       return NextResponse.json(
-        { error: 'Engagement letter is only available for client projects' },
+        { error: 'Engagement letter is only available for client tasks' },
         { status: 400 }
       );
     }
 
-    if (!project.acceptanceApproved) {
+    if (!task.TaskAcceptance?.acceptanceApproved) {
       return NextResponse.json(
         { error: 'Client acceptance must be approved before generating engagement letter' },
         { status: 400 }
@@ -73,18 +74,18 @@ export async function POST(
     // Get template ID - use provided or find best match
     let finalTemplateId = templateId;
     if (!finalTemplateId) {
-      finalTemplateId = await getBestTemplateForProject(taskId, 'ENGAGEMENT_LETTER');
+      finalTemplateId = await getBestTemplateForTask(taskId, 'ENGAGEMENT_LETTER');
     }
 
     if (!finalTemplateId) {
       return NextResponse.json(
-        { error: 'No engagement letter template available for this project type' },
+        { error: 'No engagement letter template available for this task type' },
         { status: 404 }
       );
     }
 
-    // Get project context
-    const projectContext = await getProjectContext(taskId);
+    // Get task context
+    const taskContext = await getTaskContext(taskId);
 
     // Generate from template with AI adaptation
     const generated = await generateFromTemplate(
@@ -94,7 +95,7 @@ export async function POST(
     );
 
     // Save generated content to database
-    await prisma.project.update({
+    await prisma.task.update({
       where: { id: taskId },
       data: {
         engagementLetterGenerated: true,

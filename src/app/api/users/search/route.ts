@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
     const limit = Number.parseInt(searchParams.get('limit') || '20');
-    const projectId = searchParams.get('projectId');
+    const taskId = searchParams.get('taskId');
 
     // Validate limit
     if (limit < 1 || limit > 100) {
@@ -58,15 +58,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // If projectId is provided, filter out users already in the project
-    if (projectId) {
-      const projectUsers = await prisma.projectUser.findMany({
-        where: { projectId: Number.parseInt(projectId) },
+    // If taskId is provided, filter out users already in the task
+    if (taskId) {
+      const taskUsers = await prisma.taskTeam.findMany({
+        where: { taskId: Number.parseInt(taskId) },
         select: { userId: true },
       });
       
-      const projectUserIds = new Set(projectUsers.map(pu => pu.userId));
-      users = users.filter(u => !projectUserIds.has(u.id));
+      const taskUserIds = new Set(taskUsers.map(tu => tu.userId));
+      users = users.filter(u => !taskUserIds.has(u.id));
     }
 
     // Transform to expected format

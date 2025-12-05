@@ -11,14 +11,14 @@ interface UploadedDocument {
 }
 
 interface DocumentUploaderProps {
-  projectId: number;
+  taskId: number;
   adjustmentId: number;
   onUploadComplete?: (document: UploadedDocument) => void;
   onUploadError?: (error: string) => void;
 }
 
 export default function DocumentUploader({
-  projectId,
+  taskId,
   adjustmentId,
   onUploadComplete,
   onUploadError,
@@ -90,7 +90,7 @@ export default function DocumentUploader({
       formData.append('context', 'Tax adjustment supporting document');
 
       const response = await fetch(
-        `/api/projects/${projectId}/tax-adjustments/${adjustmentId}/documents`,
+        `/api/tasks/${projectId}/tax-adjustments/${adjustmentId}/documents`,
         {
           method: 'POST',
           body: formData,

@@ -220,7 +220,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
                   </p>
                 </div>
                 <a
-                  href={`/api/projects/${taskId}/acceptance/documents/${doc.id}`}
+                  href={`/api/tasks/${taskId}/acceptance/documents/${doc.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition-all shadow-lg hover:shadow-xl"

@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { parseTaskId, successResponse, getProjectOrThrow } from '@/lib/utils/apiUtils';
+import { parseTaskId, successResponse, getTaskOrThrow } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
 interface TaxAdjustment {
@@ -23,7 +23,7 @@ export async function GET(
     const taskId = parseTaskId(params?.id);
     
     // Verify project exists
-    await getProjectOrThrow(taskId);
+    await getTaskOrThrow(taskId);
     
     // Get the project's income statement data (only income statement accounts)
     const mappedAccounts = await prisma.mappedAccount.findMany({

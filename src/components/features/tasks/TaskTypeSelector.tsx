@@ -1,63 +1,63 @@
 'use client';
 
-import { ProjectType, ServiceLine } from '@/types';
-import { formatProjectType } from '@/lib/utils/serviceLineUtils';
-import { getProjectTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
+import { TaskType, ServiceLine } from '@/types';
+import { formatTaskType } from '@/lib/utils/serviceLineUtils';
+import { getTaskTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
 
 interface TaskTypeSelectorProps {
-  value: ProjectType;
-  onChange: (type: ProjectType) => void;
+  value: TaskType;
+  onChange: (type: TaskType) => void;
   serviceLine?: ServiceLine | string;
 }
 
-const PROJECT_TYPE_DESCRIPTIONS: Record<ProjectType, string> = {
+const PROJECT_TYPE_DESCRIPTIONS: Record<TaskType, string> = {
   // Tax
-  [ProjectType.TAX_CALCULATION]: 'Calculate tax liability and adjustments',
-  [ProjectType.TAX_OPINION]: 'Provide tax advice and opinions',
-  [ProjectType.TAX_ADMINISTRATION]: 'Tax compliance and administration',
+  [TaskType.TAX_CALCULATION]: 'Calculate tax liability and adjustments',
+  [TaskType.TAX_OPINION]: 'Provide tax advice and opinions',
+  [TaskType.TAX_ADMINISTRATION]: 'Tax compliance and administration',
   // Audit
-  [ProjectType.AUDIT_ENGAGEMENT]: 'Full audit engagement services',
-  [ProjectType.AUDIT_REVIEW]: 'Review and assess audit findings',
-  [ProjectType.AUDIT_REPORT]: 'Prepare audit reports and documentation',
+  [TaskType.AUDIT_ENGAGEMENT]: 'Full audit engagement services',
+  [TaskType.AUDIT_REVIEW]: 'Review and assess audit findings',
+  [TaskType.AUDIT_REPORT]: 'Prepare audit reports and documentation',
   // Accounting
-  [ProjectType.FINANCIAL_STATEMENTS]: 'Prepare financial statements',
-  [ProjectType.BOOKKEEPING]: 'Bookkeeping and record keeping',
-  [ProjectType.MANAGEMENT_ACCOUNTS]: 'Management accounting and reporting',
+  [TaskType.FINANCIAL_STATEMENTS]: 'Prepare financial statements',
+  [TaskType.BOOKKEEPING]: 'Bookkeeping and record keeping',
+  [TaskType.MANAGEMENT_ACCOUNTS]: 'Management accounting and reporting',
   // Advisory
-  [ProjectType.ADVISORY_PROJECT]: 'General advisory services',
-  [ProjectType.CONSULTING_ENGAGEMENT]: 'Consulting and strategic advice',
-  [ProjectType.STRATEGY_REVIEW]: 'Strategic review and planning',
+  [TaskType.ADVISORY_PROJECT]: 'General advisory services',
+  [TaskType.CONSULTING_ENGAGEMENT]: 'Consulting and strategic advice',
+  [TaskType.STRATEGY_REVIEW]: 'Strategic review and planning',
   // QRM
-  [ProjectType.QRM_AUDIT]: 'Quality and risk management audit',
-  [ProjectType.QRM_COMPLIANCE]: 'Compliance review and monitoring',
-  [ProjectType.QRM_RISK_ASSESSMENT]: 'Risk assessment and mitigation',
+  [TaskType.QRM_AUDIT]: 'Quality and risk management audit',
+  [TaskType.QRM_COMPLIANCE]: 'Compliance review and monitoring',
+  [TaskType.QRM_RISK_ASSESSMENT]: 'Risk assessment and mitigation',
   // Business Development
-  [ProjectType.BD_CAMPAIGN]: 'Marketing campaign development',
-  [ProjectType.BD_PROPOSAL]: 'Proposal development and management',
-  [ProjectType.BD_MARKET_RESEARCH]: 'Market research and analysis',
+  [TaskType.BD_CAMPAIGN]: 'Marketing campaign development',
+  [TaskType.BD_PROPOSAL]: 'Proposal development and management',
+  [TaskType.BD_MARKET_RESEARCH]: 'Market research and analysis',
   // IT
-  [ProjectType.IT_IMPLEMENTATION]: 'IT system implementation',
-  [ProjectType.IT_SUPPORT]: 'IT support and maintenance',
-  [ProjectType.IT_INFRASTRUCTURE]: 'Infrastructure planning and setup',
+  [TaskType.IT_IMPLEMENTATION]: 'IT system implementation',
+  [TaskType.IT_SUPPORT]: 'IT support and maintenance',
+  [TaskType.IT_INFRASTRUCTURE]: 'Infrastructure planning and setup',
   // Finance
-  [ProjectType.FINANCE_REPORTING]: 'Financial reporting and analysis',
-  [ProjectType.FINANCE_BUDGETING]: 'Budget planning and management',
-  [ProjectType.FINANCE_ANALYSIS]: 'Financial analysis and forecasting',
+  [TaskType.FINANCE_REPORTING]: 'Financial reporting and analysis',
+  [TaskType.FINANCE_BUDGETING]: 'Budget planning and management',
+  [TaskType.FINANCE_ANALYSIS]: 'Financial analysis and forecasting',
   // HR
-  [ProjectType.HR_RECRUITMENT]: 'Recruitment and hiring',
-  [ProjectType.HR_TRAINING]: 'Training and development',
-  [ProjectType.HR_POLICY]: 'Policy development and implementation',
+  [TaskType.HR_RECRUITMENT]: 'Recruitment and hiring',
+  [TaskType.HR_TRAINING]: 'Training and development',
+  [TaskType.HR_POLICY]: 'Policy development and implementation',
 };
 
 export function TaskTypeSelector({ value, onChange, serviceLine }: TaskTypeSelectorProps) {
   // Filter project types based on service line
   const availableTypes = serviceLine
-    ? getProjectTypesForServiceLine(serviceLine as ServiceLine)
-    : Object.values(ProjectType);
+    ? getTaskTypesForServiceLine(serviceLine as ServiceLine)
+    : Object.values(TaskType);
 
   const projectTypes = availableTypes.map(type => ({
     value: type,
-    label: formatProjectType(type),
+    label: formatTaskType(type),
     description: PROJECT_TYPE_DESCRIPTIONS[type] || '',
   }));
   return (

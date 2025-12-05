@@ -41,12 +41,12 @@ export async function GET(request: NextRequest) {
         role: true, // System role (SYSTEM_ADMIN or USER)
         createdAt: true,
         updatedAt: true,
-        ProjectUser: {
+        TaskTeam: {
           select: {
             id: true,
             role: true,
             createdAt: true,
-            Project: {
+            Task: {
               select: {
                 id: true,
                 name: true,
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      projects: user.ProjectUser.map(pu => ({
+      projects: user.TaskTeam.map(pu => ({
         ...pu,
         project: {
           id: pu.Project.id,
@@ -112,9 +112,9 @@ export async function GET(request: NextRequest) {
         },
       })),
       serviceLines: user.ServiceLineUser,
-      projectCount: user.ProjectUser.length,
+      projectCount: user.TaskTeam.length,
       lastActivity: user.Session[0]?.expires || user.updatedAt,
-      roles: [...new Set(user.ProjectUser.map(p => p.role))],
+      roles: [...new Set(user.TaskTeam.map(p => p.role))],
     }));
 
     return NextResponse.json({

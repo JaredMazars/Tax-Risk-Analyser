@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { ProjectType, Task } from '@/types';
+import { TaskType, Task } from '@/types';
 import { 
   ChevronRightIcon,
   TableCellsIcon,
@@ -32,8 +32,8 @@ import ReportingPage from '@/app/dashboard/tasks/[id]/reporting/page';
 import OpinionDraftingPage from '@/app/dashboard/tasks/[id]/opinion-drafting/page';
 import { useTask } from '@/hooks/tasks/useTaskData';
 import { useTaskTeam } from '@/hooks/tasks/useTaskTeam';
-import { formatDate } from '@/lib/utils/projectUtils';
-import { getProjectTypeColor, formatProjectType } from '@/lib/utils/serviceLineUtils';
+import { formatDate } from '@/lib/utils/taskUtils';
+import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
 import { TaskTypeSelector } from '@/components/features/tasks/TaskTypeSelector';
@@ -42,8 +42,8 @@ import { TaskUserList } from '@/components/features/tasks/UserManagement/TaskUse
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 import { AcceptanceTab } from '@/components/features/tasks/AcceptanceTab';
 import { EngagementLetterTab } from '@/components/features/tasks/EngagementLetterTab';
-import { ProjectUser, ProjectRole } from '@/types';
-import { canAccessWorkTabs, isClientProject, getBlockedTabMessage } from '@/lib/utils/projectWorkflow';
+import { TaskTeam, TaskRole } from '@/types';
+import { canAccessWorkTabs, isClientTask, getBlockedTabMessage } from '@/lib/utils/taskWorkflow';
 
 interface TabProps {
   selected: boolean;
@@ -90,23 +90,23 @@ function Tab({ selected, children, onClick, icon: Icon, disabled = false, toolti
 }
 
 interface SettingsTabProps {
-  project: Task;
+  task: Task;
   onUpdate: () => void;
 }
 
-function SettingsTab({ project, onUpdate }: SettingsTabProps) {
+function SettingsTab({ task, onUpdate }: SettingsTabProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-    name: project.name,
-    description: project.description || '',
-    clientId: project.clientId || null,
-    projectType: project.projectType as ProjectType,
-    taxYear: project.taxYear || new Date().getFullYear(),
-    taxPeriodStart: project.taxPeriodStart instanceof Date ? project.taxPeriodStart : (project.taxPeriodStart ? new Date(project.taxPeriodStart) : null),
-    taxPeriodEnd: project.taxPeriodEnd instanceof Date ? project.taxPeriodEnd : (project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null),
-    assessmentYear: project.assessmentYear || '',
-    submissionDeadline: project.submissionDeadline instanceof Date ? project.submissionDeadline : (project.submissionDeadline ? new Date(project.submissionDeadline) : null),
+    name: task.name,
+    description: task.description || '',
+    clientId: task.clientId || null,
+    projectType: task.projectType as TaskType,
+    taxYear: task.taxYear || new Date().getFullYear(),
+    taxPeriodStart: task.taxPeriodStart instanceof Date ? task.taxPeriodStart : (task.taxPeriodStart ? new Date(task.taxPeriodStart) : null),
+    taxPeriodEnd: task.taxPeriodEnd instanceof Date ? task.taxPeriodEnd : (task.taxPeriodEnd ? new Date(task.taxPeriodEnd) : null),
+    assessmentYear: task.assessmentYear || '',
+    submissionDeadline: task.submissionDeadline instanceof Date ? task.submissionDeadline : (task.submissionDeadline ? new Date(task.submissionDeadline) : null),
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -114,13 +114,13 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch(`/api/tasks/${project.id}`, {
+      const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editData),
       });
 
-      if (!response.ok) throw new Error('Failed to update project');
+      if (!response.ok) throw new Error('Failed to update task');
       
       setIsEditing(false);
       onUpdate();
@@ -133,11 +133,11 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   const handleArchive = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch(`/api/tasks/${project.id}`, {
+      const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'DELETE',
       });
 
-      if (!response.ok) throw new Error('Failed to archive project');
+      if (!response.ok) throw new Error('Failed to archive task');
       
       router.push('/dashboard');
     } catch (error) {
@@ -170,7 +170,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                 </label>
                 <input
                   type="text"
-                  value={editData.name}
+                  value={editData.name ?? ''}
                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                   className="input-field"
                 />
@@ -220,15 +220,15 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                   onClick={() => {
                     setIsEditing(false);
                     setEditData({
-                      name: project.name,
-                      description: project.description || '',
-                      clientId: project.clientId || null,
-                      projectType: project.projectType as ProjectType,
-                      taxYear: project.taxYear || new Date().getFullYear(),
-                      taxPeriodStart: project.taxPeriodStart instanceof Date ? project.taxPeriodStart : (project.taxPeriodStart ? new Date(project.taxPeriodStart) : null),
-                      taxPeriodEnd: project.taxPeriodEnd instanceof Date ? project.taxPeriodEnd : (project.taxPeriodEnd ? new Date(project.taxPeriodEnd) : null),
-                      assessmentYear: project.assessmentYear || '',
-                      submissionDeadline: project.submissionDeadline instanceof Date ? project.submissionDeadline : (project.submissionDeadline ? new Date(project.submissionDeadline) : null),
+                      name: task.name,
+                      description: task.description || '',
+                      clientId: task.clientId || null,
+                      projectType: task.projectType as TaskType,
+                      taxYear: task.taxYear || new Date().getFullYear(),
+                      taxPeriodStart: task.taxPeriodStart instanceof Date ? task.taxPeriodStart : (task.taxPeriodStart ? new Date(task.taxPeriodStart) : null),
+                      taxPeriodEnd: task.taxPeriodEnd instanceof Date ? task.taxPeriodEnd : (task.taxPeriodEnd ? new Date(task.taxPeriodEnd) : null),
+                      assessmentYear: task.assessmentYear || '',
+                      submissionDeadline: task.submissionDeadline instanceof Date ? task.submissionDeadline : (task.submissionDeadline ? new Date(task.submissionDeadline) : null),
                     });
                   }}
                   className="btn-secondary"
@@ -248,22 +248,22 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
             <dl className="space-y-4">
               <div>
                 <dt className="text-sm font-medium text-forvis-gray-600">Name</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">{project.name}</dd>
+                <dd className="mt-1 text-sm text-forvis-gray-900">{task.name}</dd>
               </div>
               <div>
                 <dt className="text-sm font-medium text-forvis-gray-600">Description</dt>
                 <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {project.description || 'No description provided'}
+                  {task.description || 'No description provided'}
                 </dd>
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div>
                   <dt className="text-sm font-medium text-forvis-gray-600">Created</dt>
-                  <dd className="mt-1 text-sm text-forvis-gray-900">{formatDate(project.createdAt)}</dd>
+                  <dd className="mt-1 text-sm text-forvis-gray-900">{formatDate(task.createdAt)}</dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-forvis-gray-600">Last Updated</dt>
-                  <dd className="mt-1 text-sm text-forvis-gray-900">{formatDate(project.updatedAt)}</dd>
+                  <dd className="mt-1 text-sm text-forvis-gray-900">{formatDate(task.updatedAt)}</dd>
                 </div>
               </div>
             </dl>
@@ -281,13 +281,13 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
             <div className="bg-forvis-blue-50 rounded-lg p-3 border border-forvis-blue-100">
               <dt className="text-xs font-medium text-forvis-blue-800">Mapped Accounts</dt>
               <dd className="mt-1 text-xl font-semibold text-forvis-blue-600">
-                {project._count?.mappings ?? 0}
+                {task._count?.mappings ?? 0}
               </dd>
             </div>
             <div className="bg-forvis-blue-100 rounded-lg p-3 border border-forvis-blue-200">
               <dt className="text-xs font-medium text-forvis-blue-900">Tax Adjustments</dt>
               <dd className="mt-1 text-xl font-semibold text-forvis-blue-700">
-                {project._count?.taxAdjustments ?? 0}
+                {task._count?.taxAdjustments ?? 0}
               </dd>
             </div>
           </dl>
@@ -302,9 +302,9 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xs font-medium text-forvis-gray-900">Archive this project</h3>
+              <h3 className="text-xs font-medium text-forvis-gray-900">Archive this task</h3>
               <p className="text-xs text-forvis-gray-600 mt-1">
-                Once archived, this project will be hidden from your dashboard. You can restore it later.
+                Once archived, this task will be hidden from your dashboard. You can restore it later.
               </p>
             </div>
             <button
@@ -322,10 +322,10 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-corporate-lg p-4 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-3 text-forvis-gray-900">Archive Project</h2>
+            <h2 className="text-xl font-bold mb-3 text-forvis-gray-900">Archive Task</h2>
             <p className="text-sm text-forvis-gray-700 mb-4">
-              Are you sure you want to archive <span className="font-semibold">{project.name}</span>? 
-              This will hide the project from your main view.
+              Are you sure you want to archive <span className="font-semibold">{task.name}</span>? 
+              This will hide the task from your main view.
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -358,26 +358,26 @@ export default function ClientProjectPage() {
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const clientId = params.id as string;
-  const projectId = params.projectId as string;
+  const taskId = params.taskId as string;
   
-  const { data: project, isLoading, refetch: fetchProject } = useTask(projectId);
+  const { data: task, isLoading, refetch: fetchTask } = useTask(taskId);
   
-  // Set default active tab based on project type and workflow status
+  // Set default active tab based on task type and workflow status
   const getDefaultTab = () => {
-    if (!project) return 'acceptance';
+    if (!task) return 'acceptance';
     
-    // For client projects, start with acceptance if not approved
-    if (isClientProject(project)) {
-      if (!project.acceptanceApproved) {
+    // For client tasks, start with acceptance if not approved
+    if (isClientTask(task)) {
+      if (!task.acceptanceApproved) {
         return 'acceptance';
       }
-      if (!project.engagementLetterUploaded) {
+      if (!task.engagementLetterUploaded) {
         return 'engagement-letter';
       }
     }
     
-    // Otherwise, default to project type tab
-    switch (project.projectType) {
+    // Otherwise, default to task type tab
+    switch (task.projectType) {
       case 'TAX_CALCULATION':
         return 'mapping';
       case 'TAX_OPINION':
@@ -394,54 +394,54 @@ export default function ClientProjectPage() {
   // Team management state
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
-  const [currentUserRole, setCurrentUserRole] = useState<ProjectRole>('VIEWER' as ProjectRole);
+  const [currentUserRole, setCurrentUserRole] = useState<TaskRole>('VIEWER' as TaskRole);
   
   // Lazy load team members only when team tab is active
   const { 
     data: teamMembersData = [],
     isLoading: loadingTeam,
     refetch: refetchTeam 
-  } = useTaskTeam(projectId, activeTab === 'team');
+  } = useTaskTeam(taskId, activeTab === 'team');
   
-  // Convert ProjectTeamMember[] to ProjectUser[] format
-  const teamMembers: ProjectUser[] = teamMembersData.map(member => ({
+  // Convert ProjectTeamMember[] to TaskTeam[] format
+  const teamMembers: TaskTeam[] = teamMembersData.map(member => ({
     id: member.id,
-    projectId: member.projectId,
+    taskId: member.taskId,
     userId: member.userId,
     role: member.role,
     createdAt: new Date(member.createdAt),
     User: member.User,
   }));
 
-  // Handle tab query parameter and update default tab when project loads
+  // Handle tab query parameter and update default tab when task loads
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) {
       setActiveTab(tab);
-    } else if (project) {
-      // Set default tab based on project type when project loads
+    } else if (task) {
+      // Set default tab based on task type when task loads
       setActiveTab(getDefaultTab());
     }
-  }, [searchParams, project]);
+  }, [searchParams, task]);
 
-  // Fetch current user role when project loads
+  // Fetch current user role when task loads
   useEffect(() => {
-    if (project) {
+    if (task) {
       fetchCurrentUserRole();
     }
-  }, [projectId, project]);
+  }, [taskId, task]);
 
 
   const fetchCurrentUserRole = async () => {
     try {
-      const response = await fetch(`/api/tasks/${projectId}`);
+      const response = await fetch(`/api/tasks/${taskId}`);
       const data = await response.json();
-      const projectUsers = data.data?.ProjectUser || data.data?.projectUser || data.data?.users || [];
+      const projectUsers = data.data?.TaskTeam || data.data?.projectUser || data.data?.users || [];
       if (data.success && projectUsers.length > 0) {
         const sessionResponse = await fetch('/api/auth/session');
         const sessionData = await sessionResponse.json();
         if (sessionData.user) {
-          const currentUser = projectUsers.find((u: ProjectUser) => {
+          const currentUser = projectUsers.find((u: TaskTeam) => {
             const userId = u.User?.id || u.user?.id || u.userId;
             return userId === sessionData.user.id;
           });
@@ -458,24 +458,24 @@ export default function ClientProjectPage() {
 
   const renderContent = () => {
     // Create params object for child pages
-    const childParams = { id: projectId };
+    const childParams = { id: taskId };
     
     switch (activeTab) {
       // Workflow tabs
       case 'acceptance':
-        return project ? (
+        return task ? (
           <AcceptanceTab 
-            project={project} 
+            task={task} 
             currentUserRole={currentUserRole}
-            onApprovalComplete={fetchProject}
+            onApprovalComplete={fetchTask}
           />
         ) : null;
       case 'engagement-letter':
-        return project ? (
+        return task ? (
           <EngagementLetterTab 
-            project={project} 
+            task={task} 
             currentUserRole={currentUserRole}
-            onUploadComplete={fetchProject}
+            onUploadComplete={fetchTask}
           />
         ) : null;
       
@@ -516,7 +516,7 @@ export default function ClientProjectPage() {
                     <h2 className="text-2xl font-bold text-forvis-gray-900">Team Members</h2>
                     <p className="text-sm text-forvis-gray-600 mt-1">
                       {currentUserRole === 'ADMIN' 
-                        ? 'Manage project access and roles' 
+                        ? 'Manage task access and roles' 
                         : `View team members • Your role: ${currentUserRole || 'Loading...'}`
                       }
                     </p>
@@ -538,7 +538,7 @@ export default function ClientProjectPage() {
                       <svg className="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
-                      Only project members can add team members
+                      Only task members can add team members
                     </div>
                   )}
                 </div>
@@ -552,7 +552,7 @@ export default function ClientProjectPage() {
                 </div>
               ) : (
                 <TaskUserList
-                  projectId={parseInt(projectId)}
+                  taskId={parseInt(taskId)}
                   users={teamMembers}
                   currentUserId={currentUserId}
                   currentUserRole={currentUserRole}
@@ -562,7 +562,7 @@ export default function ClientProjectPage() {
               )}
 
               <UserSearchModal
-                projectId={parseInt(projectId)}
+                taskId={parseInt(taskId)}
                 isOpen={showAddUserModal}
                 onClose={() => setShowAddUserModal(false)}
                 onUserAdded={() => {
@@ -574,7 +574,7 @@ export default function ClientProjectPage() {
           </div>
         );
       case 'settings':
-        return project ? <SettingsTab project={project} onUpdate={fetchProject} /> : null;
+        return task ? <SettingsTab task={task} onUpdate={fetchTask} /> : null;
       default:
         return null;
     }
@@ -626,26 +626,26 @@ export default function ClientProjectPage() {
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {project?.client?.clientNameFull || project?.client?.clientCode || 'Client'}
+            {task?.client?.clientNameFull || task?.client?.clientCode || 'Client'}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           
-          <span className="text-forvis-gray-900 font-medium">{project?.name}</span>
+          <span className="text-forvis-gray-900 font-medium">{task?.name}</span>
         </nav>
 
         {/* Workflow Status Banner */}
-        {project && isClientProject(project) && !canAccessWorkTabs(project) && (
+        {task && isClientTask(task) && !canAccessWorkTabs(task) && (
           <div className="mb-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 shadow-corporate">
             <div className="flex items-start">
               <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-yellow-900 mb-1">
-                  Project Setup Required
+                  Task Setup Required
                 </h3>
                 <p className="text-sm text-yellow-800">
-                  {!project.acceptanceApproved 
-                    ? 'Complete client acceptance and continuance to continue with this project.'
-                    : 'Upload the signed engagement letter to access project work tabs.'
+                  {!task.acceptanceApproved 
+                    ? 'Complete client acceptance and continuance to continue with this task.'
+                    : 'Upload the signed engagement letter to access task work tabs.'
                   }
                 </p>
               </div>
@@ -659,53 +659,53 @@ export default function ClientProjectPage() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
-                  <h1 className="text-2xl font-bold text-forvis-gray-900">{project?.name}</h1>
-                  {project && (
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getProjectTypeColor(project.projectType)}`}>
-                      {formatProjectType(project.projectType)}
+                  <h1 className="text-2xl font-bold text-forvis-gray-900">{task?.name}</h1>
+                  {task && (
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getTaskTypeColor(task.projectType)}`}>
+                      {formatTaskType(task.projectType)}
                     </span>
                   )}
                 </div>
                 
-                {project?.client && (
+                {task?.client && (
                   <Link 
                     href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}`}
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                   >
-                    {project.client.clientNameFull || project.client.clientCode}
+                    {task.client.clientNameFull || task.client.clientCode}
                   </Link>
                 )}
                 
-                {project?.description && (
-                  <p className="mt-1 text-sm text-forvis-gray-700">{project.description}</p>
+                {task?.description && (
+                  <p className="mt-1 text-sm text-forvis-gray-700">{task.description}</p>
                 )}
                 
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-forvis-gray-600">
-                  {project?.taxYear && (
+                  {task?.taxYear && (
                     <div className="flex items-center">
                       <span className="font-medium text-forvis-gray-700">Tax Year:</span>
-                      <span className="ml-1">{project.taxYear}</span>
+                      <span className="ml-1">{task.taxYear}</span>
                     </div>
                   )}
-                  {project?.taxPeriodStart && project?.taxPeriodEnd && (
+                  {task?.taxPeriodStart && task?.taxPeriodEnd && (
                     <div className="flex items-center">
                       <span className="font-medium text-forvis-gray-700">Period:</span>
                       <span className="ml-1">
-                        {formatDate(project.taxPeriodStart)} - {formatDate(project.taxPeriodEnd)}
+                        {formatDate(task.taxPeriodStart)} - {formatDate(task.taxPeriodEnd)}
                       </span>
                     </div>
                   )}
-                  {project?.submissionDeadline && (
+                  {task?.submissionDeadline && (
                     <div className="flex items-center">
                       <span className="font-medium text-forvis-gray-700">Due:</span>
-                      <span className="ml-1">{formatDate(project.submissionDeadline)}</span>
+                      <span className="ml-1">{formatDate(task.submissionDeadline)}</span>
                     </div>
                   )}
                   <span>•</span>
-                  <span>{project?._count?.mappings ?? 0} accounts</span>
-                  <span>{project?._count?.taxAdjustments ?? 0} adjustments</span>
-                  {project?.users && (
-                    <span>{project.users.length} team members</span>
+                  <span>{task?._count?.mappings ?? 0} accounts</span>
+                  <span>{task?._count?.taxAdjustments ?? 0} adjustments</span>
+                  {task?.users && (
+                    <span>{task.users.length} team members</span>
                   )}
                 </div>
               </div>
@@ -716,7 +716,7 @@ export default function ClientProjectPage() {
           <div className="border-t border-forvis-gray-200">
             <nav className="flex space-x-6 px-4 overflow-x-auto" aria-label="Tabs">
               {/* Workflow Tabs - Only for client projects */}
-              {project && isClientProject(project) && (
+              {task && isClientTask(task) && (
                 <>
                   <Tab
                     onClick={() => setActiveTab('acceptance')}
@@ -729,8 +729,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('engagement-letter')}
                     selected={activeTab === 'engagement-letter'}
                     icon={DocumentTextIcon}
-                    disabled={!project.acceptanceApproved}
-                    tooltip={!project.acceptanceApproved ? 'Complete client acceptance first' : undefined}
+                    disabled={!task.acceptanceApproved}
+                    tooltip={!task.acceptanceApproved ? 'Complete client acceptance first' : undefined}
                   >
                     Engagement Letter
                   </Tab>
@@ -738,14 +738,14 @@ export default function ClientProjectPage() {
               )}
               
               {/* Tax Calculation Tabs - Only for TAX service line */}
-              {project?.projectType === 'TAX_CALCULATION' && (!project?.serviceLine || project?.serviceLine === 'TAX') && (
+              {task?.projectType === 'TAX_CALCULATION' && (!task?.serviceLine || task?.serviceLine === 'TAX') && (
                 <>
                   <Tab
                     onClick={() => setActiveTab('mapping')}
                     selected={activeTab === 'mapping'}
                     icon={TableCellsIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     Mapping
                   </Tab>
@@ -753,8 +753,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('balance-sheet')}
                     selected={activeTab === 'balance-sheet'}
                     icon={DocumentTextIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     Balance Sheet
                   </Tab>
@@ -762,8 +762,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('income-statement')}
                     selected={activeTab === 'income-statement'}
                     icon={DocumentTextIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     Income Statement
                   </Tab>
@@ -771,8 +771,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('tax-calculation')}
                     selected={activeTab === 'tax-calculation'}
                     icon={CalculatorIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     Tax Calculation
                   </Tab>
@@ -780,8 +780,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('reporting')}
                     selected={activeTab === 'reporting'}
                     icon={ClipboardDocumentListIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     Reporting
                   </Tab>
@@ -789,27 +789,27 @@ export default function ClientProjectPage() {
               )}
               
               {/* Tax Opinion Tab - Only for TAX service line */}
-              {project?.projectType === 'TAX_OPINION' && (!project?.serviceLine || project?.serviceLine === 'TAX') && (
+              {task?.projectType === 'TAX_OPINION' && (!task?.serviceLine || task?.serviceLine === 'TAX') && (
                 <Tab
                   onClick={() => setActiveTab('tax-opinion')}
                   selected={activeTab === 'tax-opinion'}
                   icon={BookOpenIcon}
-                  disabled={!canAccessWorkTabs(project)}
-                  tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                  disabled={!canAccessWorkTabs(task)}
+                  tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                 >
                   Tax Opinion
                 </Tab>
               )}
               
               {/* Tax Administration Tabs - Only for TAX service line */}
-              {project?.projectType === 'TAX_ADMINISTRATION' && (!project?.serviceLine || project?.serviceLine === 'TAX') && (
+              {task?.projectType === 'TAX_ADMINISTRATION' && (!task?.serviceLine || task?.serviceLine === 'TAX') && (
                 <>
                   <Tab
                     onClick={() => setActiveTab('sars-responses')}
                     selected={activeTab === 'sars-responses'}
                     icon={EnvelopeIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     SARS Responses
                   </Tab>
@@ -817,8 +817,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('document-management')}
                     selected={activeTab === 'document-management'}
                     icon={FolderIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     Document Management
                   </Tab>
@@ -826,8 +826,8 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('compliance-checklist')}
                     selected={activeTab === 'compliance-checklist'}
                     icon={ClipboardDocumentCheckIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     Compliance Checklist
                   </Tab>
@@ -835,15 +835,15 @@ export default function ClientProjectPage() {
                     onClick={() => setActiveTab('filing-status')}
                     selected={activeTab === 'filing-status'}
                     icon={DocumentCheckIcon}
-                    disabled={!canAccessWorkTabs(project)}
-                    tooltip={!canAccessWorkTabs(project) ? getBlockedTabMessage(project) : undefined}
+                    disabled={!canAccessWorkTabs(task)}
+                    tooltip={!canAccessWorkTabs(task) ? getBlockedTabMessage(task) : undefined}
                   >
                     Filing Status
                   </Tab>
                 </>
               )}
               
-              {/* Common Tabs for all project types */}
+              {/* Common Tabs for all task types */}
               <Tab
                 onClick={() => setActiveTab('team')}
                 selected={activeTab === 'team'}

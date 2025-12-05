@@ -6,27 +6,27 @@
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 
-export type ProjectRole = 'VIEWER' | 'USER' | 'MANAGER' | 'ADMIN';
+export type TaskRole = 'VIEWER' | 'USER' | 'MANAGER' | 'ADMIN';
 
 /**
  * Validate that a user has access to a project
  * Returns true if user has access (either through project membership or SYSTEM_ADMIN role)
  */
 export async function validateAcceptanceAccess(
-  projectId: number,
+  taskId: number,
   userId: string,
-  requiredRole?: ProjectRole
+  requiredRole?: TaskRole
 ): Promise<boolean> {
   try {
     // Check if user has access to project
-    const access = await prisma.projectUser.findFirst({
+    const access = await prisma.taskTeam.findFirst({
       where: {
-        projectId,
+        taskId,
         userId,
       },
       select: {
         role: true,
-        Project: {
+        Task: {
           select: {
             serviceLine: true,
           },
@@ -44,7 +44,7 @@ export async function validateAcceptanceAccess(
       if (user?.role !== 'SYSTEM_ADMIN') {
         logger.warn('User access denied', {
           userId,
-          projectId,
+          taskId,
           reason: 'No project membership and not SYSTEM_ADMIN',
         });
         return false;
@@ -56,20 +56,20 @@ export async function validateAcceptanceAccess(
 
     // Check role if specified
     if (requiredRole) {
-      const roleHierarchy: Record<ProjectRole, number> = {
+      const roleHierarchy: Record<TaskRole, number> = {
         VIEWER: 0,
         USER: 1,
         MANAGER: 2,
         ADMIN: 3,
       };
 
-      const userRoleLevel = roleHierarchy[access.role as ProjectRole] || 0;
+      const userRoleLevel = roleHierarchy[access.role as TaskRole] || 0;
       const requiredRoleLevel = roleHierarchy[requiredRole];
 
       if (userRoleLevel < requiredRoleLevel) {
         logger.warn('User role insufficient', {
           userId,
-          projectId,
+          taskId,
           userRole: access.role,
           requiredRole,
         });
@@ -82,7 +82,7 @@ export async function validateAcceptanceAccess(
     logger.error('Error validating acceptance access', {
       error,
       userId,
-      projectId,
+      taskId,
     });
     return false;
   }
@@ -92,7 +92,7 @@ export async function validateAcceptanceAccess(
  * Validate that a user can approve acceptance (Partner/Administrator or SYSTEM_ADMIN only)
  */
 export async function canApproveAcceptanceValidation(
-  projectId: number,
+  taskId: number,
   userId: string
 ): Promise<boolean> {
   try {
@@ -107,7 +107,7 @@ export async function canApproveAcceptanceValidation(
     }
 
     // Check if user is Partner/Administrator for the project's service line
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: projectId },
       select: { serviceLine: true },
     });
@@ -131,7 +131,7 @@ export async function canApproveAcceptanceValidation(
     logger.error('Error checking approval permission', {
       error,
       userId,
-      projectId,
+      taskId,
     });
     return false;
   }
@@ -151,7 +151,7 @@ export async function validateDocumentAccess(
       select: {
         ClientAcceptanceResponse: {
           select: {
-            projectId: true,
+            taskId: true,
           },
         },
       },
@@ -161,8 +161,8 @@ export async function validateDocumentAccess(
       return { hasAccess: false };
     }
 
-    const projectId = document.ClientAcceptanceResponse.projectId;
-    const hasAccess = await validateAcceptanceAccess(projectId, userId);
+    const taskId = document.ClientAcceptanceResponse.projectId;
+    const hasAccess = await validateAcceptanceAccess(taskId, userId);
 
     return { hasAccess, projectId };
   } catch (error) {

@@ -30,7 +30,7 @@ export enum EmailStatus {
 export interface NotificationPreference {
   id: number;
   userId: string;
-  projectId: number | null;
+  taskId: number | null;
   notificationType: string;
   emailEnabled: boolean;
   createdAt: Date;
@@ -63,33 +63,33 @@ export interface EmailUser {
 }
 
 /**
- * Project info for email templates
+ * Task info for email templates
  */
-export interface EmailProject {
+export interface EmailTask {
   id: number;
   name: string;
-  projectType: string;
+  taskType: string;
 }
 
 /**
  * User added email data
  */
 export interface UserAddedEmailData {
-  project: EmailProject;
+  task: EmailTask;
   addedUser: EmailUser;
   addedBy: EmailUser;
   role: string;
-  projectUrl: string;
+  taskUrl: string;
 }
 
 /**
  * User removed email data
  */
 export interface UserRemovedEmailData {
-  project: EmailProject;
+  task: EmailTask;
   removedUser: EmailUser;
   removedBy: EmailUser;
-  projectUrl: string;
+  taskUrl: string;
 }
 
 /**

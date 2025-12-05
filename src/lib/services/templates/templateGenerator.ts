@@ -3,15 +3,15 @@ import { logger } from '@/lib/utils/logger';
 import { getApplicableTemplates } from './templateService';
 import { adaptSection } from './aiAdaptation';
 
-export interface ProjectContext {
-  projectId: number;
-  projectName: string;
-  projectType: string;
+export interface TaskContext {
+  taskId: number;
+  taskName: string;
+  taskType: string;
   serviceLine: string;
   taxYear?: number;
   taxPeriodStart?: Date;
   taxPeriodEnd?: Date;
-  projectDescription?: string;
+  taskDescription?: string;
   clientCode?: string;
   clientName?: string;
   partnerName?: string;
@@ -27,11 +27,11 @@ export interface GeneratedTemplate {
 }
 
 /**
- * Generate a document from template for a specific project
+ * Generate a document from template for a specific task
  */
 export async function generateFromTemplate(
   templateId: number,
-  projectContext: ProjectContext,
+  taskContext: TaskContext,
   useAiAdaptation: boolean = true
 ): Promise<GeneratedTemplate> {
   try {
@@ -49,25 +49,25 @@ export async function generateFromTemplate(
       throw new Error('Template not found');
     }
 
-    // Filter sections applicable to this project
+    // Filter sections applicable to this task
     const applicableSections = template.TemplateSection.filter((section) => {
       // If section has no applicability constraints, it's always included
-      if (!section.applicableServiceLines && !section.applicableProjectTypes) {
+      if (!section.applicableServiceLines && !section.applicableTaskTypes) {
         return true;
       }
 
       // Check service line applicability
       if (section.applicableServiceLines) {
         const serviceLines = JSON.parse(section.applicableServiceLines);
-        if (!serviceLines.includes(projectContext.serviceLine)) {
+        if (!serviceLines.includes(taskContext.serviceLine)) {
           return false;
         }
       }
 
-      // Check project type applicability
-      if (section.applicableProjectTypes) {
-        const projectTypes = JSON.parse(section.applicableProjectTypes);
-        if (!projectTypes.includes(projectContext.projectType)) {
+      // Check task type applicability
+      if (section.applicableTaskTypes) {
+        const taskTypes = JSON.parse(section.applicableTaskTypes);
+        if (!taskTypes.includes(taskContext.taskType)) {
           return false;
         }
       }
@@ -76,7 +76,7 @@ export async function generateFromTemplate(
     });
 
     // Build context data for placeholder replacement
-    const contextData = buildContextData(projectContext);
+    const contextData = buildContextData(taskContext);
 
     // Process sections
     const processedSections: Array<{
@@ -96,7 +96,7 @@ export async function generateFromTemplate(
       // Apply AI adaptation if needed
       if (useAiAdaptation && section.isAiAdaptable) {
         try {
-          content = await adaptSection(section.title, content, projectContext);
+          content = await adaptSection(section.title, content, taskContext);
           wasAiAdapted = true;
         } catch (error) {
           logger.error(`Failed to adapt section ${section.title}:`, error);
@@ -134,29 +134,29 @@ export async function generateFromTemplate(
 /**
  * Get the best matching template for a project
  */
-export async function getBestTemplateForProject(
-  projectId: number,
+export async function getBestTemplateForTask(
+  taskId: number,
   templateType: string = 'ENGAGEMENT_LETTER'
 ): Promise<number | null> {
   try {
     // Get project details
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
       select: {
         projectType: true,
         serviceLine: true,
       },
     });
 
-    if (!project) {
+    if (!task) {
       throw new Error('Project not found');
     }
 
     // Get applicable templates
     const templates = await getApplicableTemplates(
       templateType,
-      project.serviceLine,
-      project.projectType
+      task.ServLineCode,
+      task.projectType
     );
 
     if (templates.length === 0) {
@@ -170,17 +170,17 @@ export async function getBestTemplateForProject(
     // 4. Global template
 
     const exactMatch = templates.find(
-      (t) => t.serviceLine === project.serviceLine && t.projectType === project.projectType
+      (t) => t.serviceLine === task.ServLineCode && t.projectType === task.projectType
     );
     if (exactMatch) return exactMatch.id;
 
     const serviceLineMatch = templates.find(
-      (t) => t.serviceLine === project.serviceLine && !t.projectType
+      (t) => t.serviceLine === task.ServLineCode && !t.projectType
     );
     if (serviceLineMatch) return serviceLineMatch.id;
 
     const projectTypeMatch = templates.find(
-      (t) => !t.serviceLine && t.projectType === project.projectType
+      (t) => !t.serviceLine && t.projectType === task.projectType
     );
     if (projectTypeMatch) return projectTypeMatch.id;
 
@@ -199,7 +199,7 @@ export async function getBestTemplateForProject(
 /**
  * Build context data from project for placeholder replacement
  */
-function buildContextData(context: ProjectContext): Record<string, string> {
+function buildContextData(context: TaskContext): Record<string, string> {
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -207,7 +207,7 @@ function buildContextData(context: ProjectContext): Record<string, string> {
   });
 
   return {
-    projectName: context.projectName || '',
+    taskName: context.taskName || '',
     projectType: context.projectType?.replace(/_/g, ' ') || '',
     serviceLine: context.serviceLine || '',
     taxYear: context.taxYear?.toString() || '',
@@ -247,24 +247,24 @@ function replacePlaceholders(
 /**
  * Get project context from database
  */
-export async function getProjectContext(projectId: number): Promise<ProjectContext> {
+export async function getTaskContext(taskId: number): Promise<TaskContext> {
   try {
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
       include: {
         Client: true,
       },
     });
 
-    if (!project) {
+    if (!task) {
       throw new Error('Project not found');
     }
 
     return {
-      projectId: project.id,
-      projectName: project.name,
-      projectType: project.projectType,
-      serviceLine: project.serviceLine,
+      taskId: project.id,
+      taskName: project.name,
+      projectType: task.projectType,
+      serviceLine: task.ServLineCode,
       taxYear: project.taxYear || undefined,
       taxPeriodStart: project.taxPeriodStart || undefined,
       taxPeriodEnd: project.taxPeriodEnd || undefined,

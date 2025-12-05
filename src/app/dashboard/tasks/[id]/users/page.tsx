@@ -2,18 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { ProjectUser, ProjectRole } from '@/types';
+import { TaskTeam, TaskRole } from '@/types';
 import { TaskUserList } from '@/components/features/tasks/UserManagement/TaskUserList';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 
-export default function ProjectUsersPage() {
+export default function TaskTeamsPage() {
   const params = useParams();
   const taskId = parseInt(params.id as string);
-  const [users, setUsers] = useState<ProjectUser[]>([]);
+  const [users, setUsers] = useState<TaskTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
-  const [currentUserRole, setCurrentUserRole] = useState<ProjectRole>('VIEWER' as ProjectRole);
+  const [currentUserRole, setCurrentUserRole] = useState<TaskRole>('VIEWER' as TaskRole);
 
   useEffect(() => {
     fetchUsers();
@@ -43,7 +43,7 @@ export default function ProjectUsersPage() {
       if (data.success) {
         // Get current user from session (you might need to adjust this based on your auth setup)
         // For now, we'll just use the first admin user
-        const adminUser = data.data.users.find((u: ProjectUser) => u.role === 'ADMIN');
+        const adminUser = data.data.users.find((u: TaskTeam) => u.role === 'ADMIN');
         if (adminUser) {
           setCurrentUserId(adminUser.userId);
           setCurrentUserRole(adminUser.role);

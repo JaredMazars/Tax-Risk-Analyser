@@ -11,7 +11,7 @@ import { Prisma } from '@prisma/client';
 type ProjectWithIncludes = Prisma.ProjectGetPayload<{
   include: {
     Client: true;
-    ProjectUser: true;
+    TaskTeam: true;
     _count: {
       select: {
         MappedAccount: true;
@@ -55,9 +55,9 @@ export interface TransformedProject {
  * Handles Client → client transformation and _count field mapping
  */
 export function transformProjectResponse(
-  project: Partial<ProjectWithIncludes> & { Client?: unknown; ProjectUser?: unknown[] }
+  project: Partial<ProjectWithIncludes> & { Client?: unknown; TaskTeam?: unknown[] }
 ): TransformedProject {
-  const { Client, ProjectUser, _count, ...rest } = project;
+  const { Client, TaskTeam, _count, ...rest } = project;
 
   return {
     ...rest,
@@ -70,7 +70,7 @@ export function transformProjectResponse(
     createdAt: project.createdAt!,
     updatedAt: project.updatedAt!,
     client: Client as TransformedProject['client'],
-    users: ProjectUser,
+    users: TaskTeam,
     _count: _count
       ? {
           mappings: (_count as { MappedAccount?: number }).MappedAccount || 0,
@@ -84,7 +84,7 @@ export function transformProjectResponse(
  * Transform array of projects
  */
 export function transformProjectsResponse(
-  projects: (Partial<ProjectWithIncludes> & { Client?: unknown; ProjectUser?: unknown[] })[]
+  projects: (Partial<ProjectWithIncludes> & { Client?: unknown; TaskTeam?: unknown[] })[]
 ): TransformedProject[] {
   return projects.map(transformProjectResponse);
 }

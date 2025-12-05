@@ -47,11 +47,11 @@ export async function POST(
 
     // Add user to all specified projects
     const results = await Promise.allSettled(
-      projectIds.map((projectId: number) =>
-        prisma.projectUser.upsert({
+      projectIds.map((taskId: number) =>
+        prisma.taskTeam.upsert({
           where: {
-            projectId_userId: {
-              projectId,
+            taskId_userId: {
+              taskId,
               userId: params.userId,
             },
           },
@@ -59,7 +59,7 @@ export async function POST(
             role,
           },
           create: {
-            projectId,
+            taskId,
             userId: params.userId,
             role,
           },
@@ -114,10 +114,10 @@ export async function PUT(
     }
 
     // Update role for specified projects
-    await prisma.projectUser.updateMany({
+    await prisma.taskTeam.updateMany({
       where: {
         userId: params.userId,
-        projectId: { in: projectIds },
+        taskId: { in: projectIds },
       },
       data: {
         role,
@@ -163,10 +163,10 @@ export async function DELETE(
     }
 
     // Remove user from specified projects
-    await prisma.projectUser.deleteMany({
+    await prisma.taskTeam.deleteMany({
       where: {
         userId: params.userId,
-        projectId: { in: projectIds },
+        taskId: { in: projectIds },
       },
     });
 

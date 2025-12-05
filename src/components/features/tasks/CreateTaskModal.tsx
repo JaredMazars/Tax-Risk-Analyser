@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ProjectType, ServiceLine } from '@/types';
+import { TaskType, ServiceLine } from '@/types';
 import { ClientSelector } from '../../features/clients/ClientSelector';
 import { TaskTypeSelector } from './TaskTypeSelector';
-import { ProjectTimelineInput } from '../../shared/ProjectTimelineInput';
+import { TaskTimelineInput } from '../../shared/TaskTimelineInput';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
-import { getProjectTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
+import { getTaskTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
 import { useCreateTask } from '@/hooks/tasks/useCreateTask';
 
 interface TaskCreatedResult {
@@ -35,17 +35,17 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   const isServiceLineLocked = !!initialServiceLine; // Lock when explicitly provided
   
   // Get default project type based on service line
-  const getDefaultProjectType = (serviceLine?: ServiceLine): ProjectType => {
+  const getDefaultTaskType = (serviceLine?: ServiceLine): TaskType => {
     const sl = serviceLine || effectiveServiceLine;
-    const types = getProjectTypesForServiceLine(sl);
-    return types[0] || ProjectType.TAX_CALCULATION;
+    const types = getTaskTypesForServiceLine(sl);
+    return types[0] || TaskType.TAX_CALCULATION;
   };
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     clientId: initialClientId || null,
-    projectType: getDefaultProjectType(effectiveServiceLine),
+    projectType: getDefaultTaskType(effectiveServiceLine),
     serviceLine: effectiveServiceLine,
     taxYear: new Date().getFullYear(),
     taxPeriodStart: null as Date | null,
@@ -65,7 +65,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   useEffect(() => {
     if (isOpen) {
       const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
-      const defaultType = getDefaultProjectType(sl);
+      const defaultType = getDefaultTaskType(sl);
       setFormData(prev => ({
         ...prev,
         serviceLine: sl,
@@ -74,7 +74,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     }
   }, [isOpen, initialServiceLine, currentServiceLine]);
 
-  const handleFieldChange = (field: string, value: string | number | Date | null | ProjectType | ServiceLine) => {
+  const handleFieldChange = (field: string, value: string | number | Date | null | TaskType | ServiceLine) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -118,7 +118,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       
       // Reset form
       const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
-      const defaultType = getDefaultProjectType(sl);
+      const defaultType = getDefaultTaskType(sl);
       setFormData({
         name: '',
         description: '',
@@ -144,7 +144,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
   const handleClose = () => {
     const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
-    const defaultType = getDefaultProjectType(sl);
+    const defaultType = getDefaultTaskType(sl);
     setFormData({
       name: '',
       description: '',
@@ -275,7 +275,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
           {/* Step 3: Timeline */}
           {step === 3 && (
             <div className="space-y-4">
-              <ProjectTimelineInput
+              <TaskTimelineInput
                 serviceLine={formData.serviceLine}
                 taxYear={formData.taxYear}
                 taxPeriodStart={formData.taxPeriodStart}

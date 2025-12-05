@@ -11,14 +11,14 @@ import {
   ClockIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { isValidServiceLine, formatServiceLineName, isSharedService, formatProjectType, getProjectTypeColor } from '@/lib/utils/serviceLineUtils';
+import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client } from '@/hooks/clients/useClients';
 import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { formatDate } from '@/lib/utils/projectUtils';
+import { formatDate } from '@/lib/utils/taskUtils';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();

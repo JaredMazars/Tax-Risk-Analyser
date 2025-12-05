@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateReportingPackPDF } from '@/lib/services/export/serverPdfExporter';
-import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { z } from 'zod';
 
 const ExportReportSchema = z.object({
   reportData: z.object({
-    projectName: z.string(),
+    taskName: z.string(),
   }).passthrough(),
   selectedReports: z.array(z.string()),
 });
@@ -40,7 +41,7 @@ export async function POST(
         return new NextResponse(buffer, {
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${validated.reportData.projectName}-reporting-pack.pdf"`,
+                'Content-Disposition': `attachment; filename="${validated.reportData.taskName}-reporting-pack.pdf"`,
             },
         });
     } catch (error) {

@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkUserPermission, PermissionAction } from '@/lib/services/permissions/permissionService';
 import { getServiceLineWhereClause, verifyServiceLineAccess } from '@/lib/utils/serviceLineFilter';
-import { canAccessProject } from '@/lib/utils/projectAccess';
+import { canAccessTask } from '@/lib/utils/taskAccess';
 import { isSystemAdmin } from '@/lib/utils/systemAdmin';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
@@ -222,27 +222,27 @@ export function withProjectAccess<T extends { id: string }>(
       }
 
       const { id } = await routeContext.params;
-      const projectId = Number.parseInt(id);
+      const taskId = Number.parseInt(id);
 
-      if (Number.isNaN(projectId)) {
+      if (Number.isNaN(taskId)) {
         return NextResponse.json(
-          { error: 'Invalid project ID' },
+          { error: 'Invalid task ID' },
           { status: 400 }
         );
       }
 
-      const access = await canAccessProject(user.id, projectId, requiredRole);
+      const access = await canAccessTask(user.id, taskId, requiredRole);
       
       if (!access.canAccess) {
         return NextResponse.json(
-          { error: 'Forbidden - No access to this project' },
+          { error: 'Forbidden - No access to this task' },
           { status: 403 }
         );
       }
 
       return handler(request, { user }, routeContext);
     } catch (error) {
-      return handleApiError(error, 'withProjectAccess');
+      return handleApiError(error, 'withTaskAccess');
     }
   };
 }
@@ -254,7 +254,7 @@ export function withProjectAccess<T extends { id: string }>(
  * 
  * @example
  * export const GET = withServiceLineFilter(async (request, { user, serviceLineFilter }) => {
- *   const projects = await prisma.project.findMany({
+ *   const projects = await prisma.task.findMany({
  *     where: serviceLineFilter,
  *   });
  *   return NextResponse.json(successResponse(projects));

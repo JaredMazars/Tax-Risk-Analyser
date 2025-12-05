@@ -1,12 +1,12 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { useProjectAccess } from '@/hooks/permissions/useProjectAccess';
+import { useTaskAccess } from '@/hooks/permissions/useTaskAccess';
 
-interface ProjectRoleGateProps {
-  /** Project ID to check access for */
-  projectId: number;
-  /** Minimum role required in project */
+interface TaskRoleGateProps {
+  /** Task ID to check access for */
+  taskId: number;
+  /** Minimum role required in task */
   minimumRole?: string;
   /** Children to render if user has access */
   children: ReactNode;
@@ -19,23 +19,23 @@ interface ProjectRoleGateProps {
 }
 
 /**
- * ProjectRoleGate component
- * Conditionally renders children based on user's project role
+ * TaskRoleGate component
+ * Conditionally renders children based on user's task role
  * 
  * @example
- * <ProjectRoleGate projectId={123} minimumRole="EDITOR">
+ * <TaskRoleGate taskId={123} minimumRole="EDITOR">
  *   <EditButton />
- * </ProjectRoleGate>
+ * </TaskRoleGate>
  */
-export function ProjectRoleGate({
-  projectId,
+export function TaskRoleGate({
+  taskId,
   minimumRole,
   children,
   fallback = null,
   showLoading = false,
   loadingComponent = null,
-}: ProjectRoleGateProps) {
-  const { hasAccess, isLoading } = useProjectAccess(projectId, minimumRole);
+}: TaskRoleGateProps) {
+  const { hasAccess, isLoading } = useTaskAccess(taskId, minimumRole);
 
   if (isLoading && showLoading) {
     return <>{loadingComponent}</>;
@@ -47,5 +47,3 @@ export function ProjectRoleGate({
 
   return <>{children}</>;
 }
-
-

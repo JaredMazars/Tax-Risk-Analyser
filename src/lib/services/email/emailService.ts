@@ -45,7 +45,7 @@ export class EmailService {
    */
   async checkNotificationPreference(
     userId: string,
-    projectId: number | null,
+    taskId: number | null,
     notificationType: string
   ): Promise<boolean> {
     try {
@@ -54,7 +54,7 @@ export class EmailService {
         const projectPref = await prisma.notificationPreference.findFirst({
           where: {
             userId,
-            projectId,
+            taskId,
             notificationType,
           },
         });
@@ -68,7 +68,7 @@ export class EmailService {
       const globalPref = await prisma.notificationPreference.findFirst({
         where: {
           userId,
-          projectId: null,
+          taskId: null,
           notificationType,
         },
       });
@@ -176,8 +176,8 @@ export class EmailService {
    * Send user added to project notification
    */
   async sendUserAddedEmail(
-    projectId: number,
-    projectName: string,
+    taskId: number,
+    taskName: string,
     projectType: string,
     addedUser: EmailUser,
     addedBy: EmailUser,
@@ -187,31 +187,31 @@ export class EmailService {
       // Check if user wants to receive this notification
       const enabled = await this.checkNotificationPreference(
         addedUser.id,
-        projectId,
+        taskId,
         EmailNotificationType.USER_ADDED
       );
 
       if (!enabled) {
         logger.info('User has disabled USER_ADDED notifications', {
           userId: addedUser.id,
-          projectId,
+          taskId,
         });
         return { success: true, messageId: 'skipped' };
       }
 
       const data: UserAddedEmailData = {
         project: {
-          id: projectId,
-          name: projectName,
+          id: taskId,
+          name: taskName,
           projectType,
         },
         addedUser,
         addedBy,
         role,
-        projectUrl: `${this.baseUrl}/dashboard/projects/${projectId}`,
+        taskUrl: `${this.baseUrl}/dashboard/projects/${projectId}`,
       };
 
-      const subject = `Added to Project: ${projectName}`;
+      const subject = `Added to Task: ${taskName}`;
       const htmlContent = generateUserAddedHtml(data);
       const textContent = generateUserAddedText(data);
 
@@ -231,8 +231,8 @@ export class EmailService {
         result.success ? EmailStatus.SENT : EmailStatus.FAILED,
         result.error,
         {
-          projectId,
-          projectName,
+          taskId,
+          taskName,
           role,
           addedById: addedBy.id,
         }
@@ -252,8 +252,8 @@ export class EmailService {
    * Send user removed from project notification
    */
   async sendUserRemovedEmail(
-    projectId: number,
-    projectName: string,
+    taskId: number,
+    taskName: string,
     projectType: string,
     removedUser: EmailUser,
     removedBy: EmailUser
@@ -262,30 +262,30 @@ export class EmailService {
       // Check if user wants to receive this notification
       const enabled = await this.checkNotificationPreference(
         removedUser.id,
-        projectId,
+        taskId,
         EmailNotificationType.USER_REMOVED
       );
 
       if (!enabled) {
         logger.info('User has disabled USER_REMOVED notifications', {
           userId: removedUser.id,
-          projectId,
+          taskId,
         });
         return { success: true, messageId: 'skipped' };
       }
 
       const data: UserRemovedEmailData = {
         project: {
-          id: projectId,
-          name: projectName,
+          id: taskId,
+          name: taskName,
           projectType,
         },
         removedUser,
         removedBy,
-        projectUrl: `${this.baseUrl}/dashboard/projects/${projectId}`,
+        taskUrl: `${this.baseUrl}/dashboard/projects/${projectId}`,
       };
 
-      const subject = `Removed from Project: ${projectName}`;
+      const subject = `Removed from Task: ${taskName}`;
       const htmlContent = generateUserRemovedHtml(data);
       const textContent = generateUserRemovedText(data);
 
@@ -305,8 +305,8 @@ export class EmailService {
         result.success ? EmailStatus.SENT : EmailStatus.FAILED,
         result.error,
         {
-          projectId,
-          projectName,
+          taskId,
+          taskName,
           removedById: removedBy.id,
         }
       );

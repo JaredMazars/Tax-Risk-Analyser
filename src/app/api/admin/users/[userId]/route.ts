@@ -31,9 +31,9 @@ export async function GET(
     const user = await prisma.user.findUnique({
       where: { id: params.userId },
       include: {
-        ProjectUser: {
+        TaskTeam: {
           include: {
-            Project: {
+            Task: {
               include: {
                 Client: true,
               },
@@ -85,7 +85,7 @@ export async function DELETE(
 
     const params = await context.params;
     // Remove user from all projects
-    await prisma.projectUser.deleteMany({
+    await prisma.taskTeam.deleteMany({
       where: { userId: params.userId },
     });
 

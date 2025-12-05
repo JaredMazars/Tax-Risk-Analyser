@@ -172,7 +172,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
   if (!sections || sections.length === 0) {
     return (
       <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-        <p className="text-sm text-yellow-800">No questionnaire configured for this project type.</p>
+        <p className="text-sm text-yellow-800">No questionnaire configured for this task type.</p>
       </div>
     );
   }

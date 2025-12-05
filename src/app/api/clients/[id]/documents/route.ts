@@ -27,7 +27,7 @@ export async function GET(
     }
 
     // Get all projects for this client
-    const projects = await prisma.project.findMany({
+    const projects = await prisma.task.findMany({
       where: { clientId },
       select: {
         id: true,
@@ -60,23 +60,23 @@ export async function GET(
     // Fetch all documents in parallel for performance
     const [adminDocs, adjustmentDocs, opinionDocs, sarsDocs] = await Promise.all([
       prisma.administrationDocument.findMany({
-        where: { projectId: { in: projectIds } },
+        where: { taskId: { in: projectIds } },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.adjustmentDocument.findMany({
-        where: { projectId: { in: projectIds } },
+        where: { taskId: { in: projectIds } },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.opinionDocument.findMany({
         where: {
           OpinionDraft: {
-            projectId: { in: projectIds },
+            taskId: { in: projectIds },
           },
         },
         include: {
           OpinionDraft: {
             select: {
-              projectId: true,
+              taskId: true,
             },
           },
         },
@@ -84,7 +84,7 @@ export async function GET(
       }),
       prisma.sarsResponse.findMany({
         where: {
-          projectId: { in: projectIds },
+          taskId: { in: projectIds },
           documentPath: { not: null },
         },
         orderBy: { createdAt: 'desc' },
@@ -139,8 +139,8 @@ export async function GET(
           fileType: fileName.split('.').pop() || 'pdf',
           fileSize: 0,
           filePath: project.engagementLetterPath,
-          projectId: project.id,
-          projectName: project.name,
+          taskId: project.id,
+          taskName: project.name,
           uploadedBy: project.engagementLetterUploadedBy ? userMap.get(project.engagementLetterUploadedBy) || project.engagementLetterUploadedBy : null,
           createdAt: project.engagementLetterUploadedAt || new Date(),
         });
@@ -155,8 +155,8 @@ export async function GET(
       fileType: doc.fileType,
       fileSize: doc.fileSize,
       filePath: doc.filePath,
-      projectId: doc.projectId,
-      projectName: projectMap.get(doc.projectId) || 'Unknown Project',
+      taskId: doc.taskId,
+      taskName: projectMap.get(doc.projectId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       category: doc.category,
@@ -172,8 +172,8 @@ export async function GET(
       fileType: doc.fileType,
       fileSize: doc.fileSize,
       filePath: doc.filePath,
-      projectId: doc.projectId,
-      projectName: projectMap.get(doc.projectId) || 'Unknown Project',
+      taskId: doc.taskId,
+      taskName: projectMap.get(doc.projectId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       extractionStatus: doc.extractionStatus,
@@ -187,8 +187,8 @@ export async function GET(
       fileType: doc.fileType,
       fileSize: doc.fileSize,
       filePath: doc.filePath,
-      projectId: doc.OpinionDraft.projectId,
-      projectName: projectMap.get(doc.OpinionDraft.projectId) || 'Unknown Project',
+      taskId: doc.OpinionDraft.taskId,
+      taskName: projectMap.get(doc.OpinionDraft.projectId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       category: doc.category,
@@ -207,8 +207,8 @@ export async function GET(
           fileType: fileName.split('.').pop() || 'pdf',
           fileSize: 0,
           filePath: doc.documentPath!,
-          projectId: doc.projectId,
-          projectName: projectMap.get(doc.projectId) || 'Unknown Project',
+          taskId: doc.taskId,
+          taskName: projectMap.get(doc.projectId) || 'Unknown Project',
           uploadedBy: doc.createdBy ? userMap.get(doc.createdBy) || doc.createdBy : null,
           createdAt: doc.createdAt,
           referenceNumber: doc.referenceNumber,

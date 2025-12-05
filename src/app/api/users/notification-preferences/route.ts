@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const preferences = await prisma.notificationPreference.findMany({
       where: { userId: user.id },
       orderBy: [
-        { projectId: 'asc' },
+        { taskId: 'asc' },
         { notificationType: 'asc' },
       ],
     });
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.notificationPreference.findFirst({
       where: {
         userId: user.id,
-        projectId: validated.projectId ?? null,
+        taskId: validated.taskId ?? null,
         notificationType: validated.notificationType,
       },
     });
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const preference = await prisma.notificationPreference.create({
       data: {
         userId: user.id,
-        projectId: validated.projectId || null,
+        taskId: validated.taskId || null,
         notificationType: validated.notificationType,
         emailEnabled: validated.emailEnabled,
       },
@@ -87,7 +87,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
+    const taskIdStr = searchParams.get('taskId');
     const notificationType = searchParams.get('notificationType');
 
     if (!notificationType) {
@@ -101,11 +101,11 @@ export async function PUT(request: NextRequest) {
     const validated = UpdateNotificationPreferenceSchema.parse(body);
 
     // Try to find existing preference
-    const parsedProjectId = projectId ? Number.parseInt(projectId, 10) : null;
+    const parsedTaskId = taskIdStr ? Number.parseInt(taskIdStr, 10) : null;
     const existing = await prisma.notificationPreference.findFirst({
       where: {
         userId: user.id,
-        projectId: parsedProjectId,
+        taskId: parsedTaskId,
         notificationType,
       },
     });
@@ -124,7 +124,7 @@ export async function PUT(request: NextRequest) {
       const created = await prisma.notificationPreference.create({
         data: {
           userId: user.id,
-          projectId: projectId ? Number.parseInt(projectId, 10) : null,
+          taskId: parsedTaskId,
           notificationType,
           emailEnabled: validated.emailEnabled,
         },

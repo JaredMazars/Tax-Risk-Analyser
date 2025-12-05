@@ -15,16 +15,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let projectId: number | undefined;
+    let taskId: number | undefined;
 
     try {
       const body = await request.json();
-      projectId = body.projectId;
+      taskId = body.taskId;
     } catch {
       // Body is optional
     }
 
-    const updatedCount = await notificationService.markAllAsRead(user.id, projectId);
+    const updatedCount = await notificationService.markAllAsRead(user.id, taskId);
 
     return NextResponse.json(
       successResponse({

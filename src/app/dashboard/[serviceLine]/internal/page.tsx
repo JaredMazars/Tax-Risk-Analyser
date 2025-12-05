@@ -10,7 +10,7 @@ import {
   ChevronRightIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline';
-import { isValidServiceLine, formatServiceLineName, formatProjectType } from '@/lib/utils/serviceLineUtils';
+import { isValidServiceLine, formatServiceLineName, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useTasks, type TaskListItem, taskListKeys } from '@/hooks/tasks/useTasks';
@@ -260,7 +260,7 @@ export default function InternalProjectsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-forvis-gray-600">
-                          {formatProjectType(project.projectType)}
+                          {formatTaskType(project.projectType)}
                         </td>
                         <td className="px-6 py-4">
                           <StatusBadge status={project.status} />

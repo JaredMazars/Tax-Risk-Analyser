@@ -37,7 +37,7 @@ export interface PaginationMeta {
  * Tax computation export data types
  */
 export interface TaxExportData {
-  projectName: string;
+  taskName: string;
   accountingProfit: number;
   adjustments: TaxAdjustmentExport[];
   taxableIncome: number;
@@ -60,7 +60,7 @@ export interface TaxAdjustmentExport {
 export interface ExtractionContext {
   adjustmentType: string;
   adjustmentDescription: string;
-  projectId: number;
+  taskId: number;
 }
 
 /**

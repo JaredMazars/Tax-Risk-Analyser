@@ -55,7 +55,7 @@ export async function POST(
     }
 
     // Get project details for metadata
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
         Client: true,
@@ -65,7 +65,7 @@ export async function POST(
     if (format === 'docx') {
       // Export as Word document
       const buffer = await WordExporter.exportOpinion(draft.title, sections, {
-        projectName: project?.name,
+        taskName: project?.name,
         clientName: project?.Client?.clientNameFull || project?.Client?.clientCode,
       });
 
@@ -85,7 +85,7 @@ export async function POST(
         draft.title,
         sections,
         {
-          projectName: project?.name,
+          taskName: project?.name,
           clientName: project?.Client?.clientNameFull || project?.Client?.clientCode,
         }
       );
@@ -115,7 +115,7 @@ export async function POST(
 async function generateOpinionPDF(
   title: string,
   sections: any[],
-  metadata?: { projectName?: string; clientName?: string }
+  metadata?: { taskName?: string; clientName?: string }
 ): Promise<Buffer> {
   const blob = await pdf(
     React.createElement(OpinionPDF, { title, sections, metadata }) as any

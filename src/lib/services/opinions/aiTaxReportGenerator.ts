@@ -21,7 +21,7 @@ export interface AITaxReportData {
 }
 
 export interface ProjectTaxData {
-  projectName: string;
+  taskName: string;
   trialBalance: {
     totalCurrentYear: number;
     totalPriorYear: number;
@@ -94,7 +94,7 @@ CRITICAL: You MUST use ONLY the exact figures provided in the data - NEVER recal
 
     return `Analyze the following South African corporate tax data and provide a comprehensive tax report in JSON format.
 
-PROJECT: ${data.projectName}
+PROJECT: ${data.taskName}
 
 =================================================================================
 KEY FIGURES REFERENCE - USE THESE EXACT AMOUNTS IN YOUR ANALYSIS

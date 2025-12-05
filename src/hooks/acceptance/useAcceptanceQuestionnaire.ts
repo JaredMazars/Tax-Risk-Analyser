@@ -6,20 +6,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export const acceptanceKeys = {
   all: ['acceptance'] as const,
-  questionnaire: (projectId: string) => [...acceptanceKeys.all, 'questionnaire', projectId] as const,
-  status: (projectId: string) => [...acceptanceKeys.all, 'status', projectId] as const,
-  documents: (projectId: string) => [...acceptanceKeys.all, 'documents', projectId] as const,
+  questionnaire: (taskId: string) => [...acceptanceKeys.all, 'questionnaire', taskId] as const,
+  status: (taskId: string) => [...acceptanceKeys.all, 'status', taskId] as const,
+  documents: (taskId: string) => [...acceptanceKeys.all, 'documents', taskId] as const,
 };
 
 /**
  * Initialize and fetch questionnaire
  * Optimized with reduced stale time and refetch strategies
  */
-export function useQuestionnaire(projectId: string) {
+export function useQuestionnaire(taskId: string) {
   return useQuery({
-    queryKey: acceptanceKeys.questionnaire(projectId),
+    queryKey: acceptanceKeys.questionnaire(taskId),
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}/acceptance/initialize`, {
+      // Guard: Never run if taskId is empty
+      if (!taskId || taskId === '' || taskId === 'undefined') {
+        throw new Error('Task ID is required');
+      }
+
+      const res = await fetch(`/api/tasks/${taskId}/acceptance/initialize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -32,6 +37,7 @@ export function useQuestionnaire(projectId: string) {
 
       return res.json();
     },
+    enabled: !!taskId && taskId !== '' && taskId !== 'undefined', // Only run when taskId is valid
     staleTime: 1000 * 60 * 2, // 2 minutes (reduced from 5)
     refetchOnWindowFocus: true, // Refetch when user returns to tab
     refetchOnReconnect: true, // Refetch on network reconnect
@@ -42,11 +48,16 @@ export function useQuestionnaire(projectId: string) {
  * Get questionnaire status
  * Optimized with shorter stale time
  */
-export function useQuestionnaireStatus(projectId: string) {
+export function useQuestionnaireStatus(taskId: string) {
   return useQuery({
-    queryKey: acceptanceKeys.status(projectId),
+    queryKey: acceptanceKeys.status(taskId),
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}/acceptance/status`);
+      // Guard: Never run if taskId is empty
+      if (!taskId || taskId === '') {
+        throw new Error('Task ID is required');
+      }
+
+      const res = await fetch(`/api/tasks/${taskId}/acceptance/status`);
 
       if (!res.ok) {
         const error = await res.json();
@@ -55,8 +66,11 @@ export function useQuestionnaireStatus(projectId: string) {
 
       return res.json();
     },
+    enabled: !!taskId && taskId !== '' && taskId !== 'undefined', // Only run when taskId is valid
+    retry: 2, // Limit retries to prevent infinite loading
     staleTime: 1000 * 15, // 15 seconds (reduced from 30)
-    refetchInterval: 1000 * 30, // Poll every 30 seconds for status updates
+    refetchInterval: false, // Disable polling to prevent background requests
+    refetchOnWindowFocus: false, // Disable auto-refetch on focus
   });
 }
 
@@ -64,12 +78,12 @@ export function useQuestionnaireStatus(projectId: string) {
  * Save answers (autosave)
  * Optimized with better cache management and error rollback
  */
-export function useSaveAnswers(projectId: string) {
+export function useSaveAnswers(taskId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (answers: Array<{ questionKey: string; answer: string; comment?: string }>) => {
-      const res = await fetch(`/api/projects/${projectId}/acceptance/answers`, {
+      const res = await fetch(`/api/tasks/${taskId}/acceptance/answers`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers }),
@@ -84,10 +98,10 @@ export function useSaveAnswers(projectId: string) {
     },
     onMutate: async (answers) => {
       // Cancel any outgoing refetches to prevent overwriting our optimistic update
-      await queryClient.cancelQueries({ queryKey: acceptanceKeys.questionnaire(projectId) });
+      await queryClient.cancelQueries({ queryKey: acceptanceKeys.questionnaire(taskId) });
 
       // Snapshot the previous value
-      const previousData = queryClient.getQueryData(acceptanceKeys.questionnaire(projectId));
+      const previousData = queryClient.getQueryData(acceptanceKeys.questionnaire(taskId));
 
       // Return context with snapshot
       return { previousData };
@@ -95,12 +109,12 @@ export function useSaveAnswers(projectId: string) {
     onError: (_error, _variables, context) => {
       // Rollback to previous data on error
       if (context?.previousData) {
-        queryClient.setQueryData(acceptanceKeys.questionnaire(projectId), context.previousData);
+        queryClient.setQueryData(acceptanceKeys.questionnaire(taskId), context.previousData);
       }
     },
     onSuccess: (data) => {
       // Update risk assessment without refetching (prevents state jumping)
-      queryClient.setQueryData(acceptanceKeys.questionnaire(projectId), (oldData: unknown) => {
+      queryClient.setQueryData(acceptanceKeys.questionnaire(taskId), (oldData: unknown) => {
         if (
           !oldData ||
           typeof oldData !== 'object' ||
@@ -119,7 +133,7 @@ export function useSaveAnswers(projectId: string) {
       });
       
       // Only invalidate status (lightweight query)
-      queryClient.invalidateQueries({ queryKey: acceptanceKeys.status(projectId) });
+      queryClient.invalidateQueries({ queryKey: acceptanceKeys.status(taskId) });
     },
   });
 }
@@ -127,12 +141,12 @@ export function useSaveAnswers(projectId: string) {
 /**
  * Submit questionnaire for review
  */
-export function useSubmitQuestionnaire(projectId: string) {
+export function useSubmitQuestionnaire(taskId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}/acceptance/submit`, {
+      const res = await fetch(`/api/tasks/${taskId}/acceptance/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -145,8 +159,8 @@ export function useSubmitQuestionnaire(projectId: string) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: acceptanceKeys.questionnaire(projectId) });
-      queryClient.invalidateQueries({ queryKey: acceptanceKeys.status(projectId) });
+      queryClient.invalidateQueries({ queryKey: acceptanceKeys.questionnaire(taskId) });
+      queryClient.invalidateQueries({ queryKey: acceptanceKeys.status(taskId) });
     },
   });
 }
@@ -154,11 +168,16 @@ export function useSubmitQuestionnaire(projectId: string) {
 /**
  * Get supporting documents
  */
-export function useAcceptanceDocuments(projectId: string) {
+export function useAcceptanceDocuments(taskId: string) {
   return useQuery({
-    queryKey: acceptanceKeys.documents(projectId),
+    queryKey: acceptanceKeys.documents(taskId),
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}/acceptance/documents`);
+      // Guard: Never run if taskId is empty
+      if (!taskId || taskId === '' || taskId === 'undefined') {
+        throw new Error('Task ID is required');
+      }
+
+      const res = await fetch(`/api/tasks/${taskId}/acceptance/documents`);
 
       if (!res.ok) {
         const error = await res.json();
@@ -167,6 +186,7 @@ export function useAcceptanceDocuments(projectId: string) {
 
       return res.json();
     },
+    enabled: !!taskId && taskId !== '' && taskId !== 'undefined', // Only run when taskId is valid
     staleTime: 1000 * 60, // 1 minute
   });
 }
@@ -174,7 +194,7 @@ export function useAcceptanceDocuments(projectId: string) {
 /**
  * Upload supporting document
  */
-export function useUploadDocument(projectId: string) {
+export function useUploadDocument(taskId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -183,7 +203,7 @@ export function useUploadDocument(projectId: string) {
       formData.append('file', file);
       formData.append('documentType', documentType);
 
-      const res = await fetch(`/api/projects/${projectId}/acceptance/documents`, {
+      const res = await fetch(`/api/tasks/${taskId}/acceptance/documents`, {
         method: 'POST',
         body: formData,
       });
@@ -196,7 +216,7 @@ export function useUploadDocument(projectId: string) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: acceptanceKeys.documents(projectId) });
+      queryClient.invalidateQueries({ queryKey: acceptanceKeys.documents(taskId) });
     },
   });
 }
@@ -204,12 +224,12 @@ export function useUploadDocument(projectId: string) {
 /**
  * Delete supporting document
  */
-export function useDeleteDocument(projectId: string) {
+export function useDeleteDocument(taskId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (documentId: number) => {
-      const res = await fetch(`/api/projects/${projectId}/acceptance/documents?documentId=${documentId}`, {
+      const res = await fetch(`/api/tasks/${taskId}/acceptance/documents?documentId=${documentId}`, {
         method: 'DELETE',
       });
 
@@ -221,7 +241,7 @@ export function useDeleteDocument(projectId: string) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: acceptanceKeys.documents(projectId) });
+      queryClient.invalidateQueries({ queryKey: acceptanceKeys.documents(taskId) });
     },
   });
 }

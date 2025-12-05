@@ -1,5 +1,5 @@
 import { UserRemovedEmailData } from '@/types/email';
-import { formatProjectType } from '@/lib/utils/serviceLineUtils';
+import { formatTaskType } from '@/lib/utils/serviceLineUtils';
 
 /**
  * Generate HTML email content for user removed notification
@@ -81,7 +81,7 @@ export function generateUserRemovedHtml(data: UserRemovedEmailData): string {
         <strong>Project Details:</strong>
         <p style="margin: 5px 0 0 0;">
           <strong>Name:</strong> ${data.project.name}<br>
-          <strong>Type:</strong> ${formatProjectType(data.project.projectType)}<br>
+          <strong>Type:</strong> ${formatTaskType(data.project.projectType)}<br>
           <strong>Removed By:</strong> ${data.removedBy.name || data.removedBy.email}
         </p>
       </div>
@@ -118,7 +118,7 @@ You have been removed from a project on the Mazars Tax Platform.
 
 Project Details:
 - Name: ${data.project.name}
-- Type: ${formatProjectType(data.project.projectType)}
+- Type: ${formatTaskType(data.project.projectType)}
 - Removed By: ${data.removedBy.name || data.removedBy.email}
 
 You no longer have access to this project.

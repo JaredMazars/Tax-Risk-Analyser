@@ -70,7 +70,7 @@ export async function getServiceLineWhereClause(userId: string): Promise<{ servi
  * @example
  * // Simple usage
  * const where = await buildServiceLineFilter(userId);
- * const projects = await prisma.project.findMany({ where });
+ * const projects = await prisma.task.findMany({ where });
  * 
  * @example
  * // With additional conditions
@@ -79,7 +79,7 @@ export async function getServiceLineWhereClause(userId: string): Promise<{ servi
  *   archived: false,
  *   status: 'ACTIVE',
  * };
- * const projects = await prisma.project.findMany({ where });
+ * const projects = await prisma.task.findMany({ where });
  */
 export async function buildServiceLineFilter(userId: string): Promise<{ serviceLine: { in: string[] } }> {
   return getServiceLineWhereClause(userId);
@@ -105,7 +105,7 @@ export async function verifyServiceLineAccess(
  * Usage:
  * ```typescript
  * const projects = await withServiceLineFilter(userId, (serviceLines) =>
- *   prisma.project.findMany({
+ *   prisma.task.findMany({
  *     where: {
  *       serviceLine: { in: serviceLines },
  *       // other conditions

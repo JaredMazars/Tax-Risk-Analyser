@@ -43,7 +43,7 @@ export class DocumentExtractor {
   static async saveFile(
     file: File | Buffer,
     fileName: string,
-    projectId: number
+    taskId: number
   ): Promise<string> {
     const buffer =
       file instanceof Buffer

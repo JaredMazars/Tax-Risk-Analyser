@@ -33,7 +33,7 @@ export class NotificationService {
           type,
           title,
           message,
-          projectId: projectId || null,
+          taskId: projectId || null,
           actionUrl: actionUrl || null,
           fromUserId: fromUserId || null,
           metadata: metadata ? JSON.stringify(metadata) : null,
@@ -44,7 +44,7 @@ export class NotificationService {
         userId,
         type,
         title,
-        projectId,
+        taskId,
         fromUserId,
       });
     } catch (error) {
@@ -98,7 +98,7 @@ export class NotificationService {
                 image: true,
               },
             },
-            Project: {
+            Task: {
               select: {
                 id: true,
                 name: true,
@@ -133,7 +133,7 @@ export class NotificationService {
         return {
           id: notification.id,
           userId: notification.userId,
-          projectId: notification.projectId,
+          taskId: notification.taskId,
           type: notification.type,
           title: notification.title,
           message: notification.message,
@@ -235,7 +235,7 @@ export class NotificationService {
 
       logger.info('Notifications marked as read', {
         userId,
-        projectId,
+        taskId,
         count: result.count,
       });
 
@@ -311,7 +311,7 @@ export class NotificationService {
       NotificationType.USER_MESSAGE,
       title,
       message,
-      projectId,
+      taskId,
       actionUrl,
       fromUserId
     );

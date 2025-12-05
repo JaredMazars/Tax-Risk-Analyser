@@ -41,7 +41,7 @@ Your task is to adapt the following engagement letter section to be specific to 
 
 **Client & Project Context:**
 - Client: ${context.clientName || 'Client'} (${context.clientCode || 'N/A'})
-- Project: ${context.projectName}
+- Task: ${context.taskName}
 - Project Type: ${context.projectType.replace(/_/g, ' ')}
 - Service Line: ${context.serviceLine}
 ${context.taxYear ? `- Tax Year: ${context.taxYear}` : ''}

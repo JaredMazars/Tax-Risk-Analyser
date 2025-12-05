@@ -1,35 +1,35 @@
 'use client';
 
 /**
- * Project Stage Indicator Component
+ * Task Stage Indicator Component
  * 
- * Displays the current stage of a project with appropriate styling.
+ * Displays the current stage of a task with appropriate styling.
  * This is a placeholder implementation - future versions will include
  * stage management functionality (dropdown to change stages, etc.)
  */
 
-import { ProjectStage } from '@/types/project-stages';
-import { formatProjectStage, getProjectStageColor } from '@/lib/utils/projectStages';
+import { TaskStage } from '@/types/task-stages';
+import { formatTaskStage, getTaskStageColor } from '@/lib/utils/taskStages';
 
 interface TaskStageIndicatorProps {
-  stage: ProjectStage | string;
+  stage: TaskStage | string;
   className?: string;
 }
 
 export function TaskStageIndicator({ stage, className = '' }: TaskStageIndicatorProps) {
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getProjectStageColor(
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getTaskStageColor(
         stage
       )} ${className}`}
     >
-      {formatProjectStage(stage)}
+      {formatTaskStage(stage)}
     </span>
   );
 }
 
 interface TaskStageIndicatorWithLabelProps {
-  stage: ProjectStage | string;
+  stage: TaskStage | string;
   showLabel?: boolean;
   className?: string;
 }

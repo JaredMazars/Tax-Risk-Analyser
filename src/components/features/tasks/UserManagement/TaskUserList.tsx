@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { TaskTeam, ProjectRole } from '@/types';
+import { TaskTeam, TaskRole } from '@/types';
 import { RoleSelector } from './RoleSelector';
 import { SendMessageModal } from '@/components/features/notifications/SendMessageModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -12,7 +12,7 @@ interface TaskUserListProps {
   taskId: number;
   users: TaskTeam[];
   currentUserId: string;
-  currentUserRole: ProjectRole;
+  currentUserRole: TaskRole;
   onUserRemoved: () => void;
   onRoleChanged: () => void;
 }
@@ -28,7 +28,7 @@ export function TaskUserList({
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<TaskTeam | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [messageRecipient, setMessageRecipient] = useState<{ userId: string; name: string; taskId: number; projectName?: string } | null>(null);
+  const [messageRecipient, setMessageRecipient] = useState<{ userId: string; name: string; taskId: number; taskName?: string } | null>(null);
 
   // Modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -102,7 +102,7 @@ export function TaskUserList({
 
   const canManageUsers = currentUserRole === 'ADMIN';
 
-  const getRoleBadgeColor = (role: ProjectRole) => {
+  const getRoleBadgeColor = (role: TaskRole) => {
     switch (role) {
       case 'ADMIN':
         return 'bg-purple-100 text-purple-800 border-purple-300';
@@ -117,7 +117,7 @@ export function TaskUserList({
     }
   };
 
-  const getRoleDescription = (role: ProjectRole) => {
+  const getRoleDescription = (role: TaskRole) => {
     switch (role) {
       case 'ADMIN':
         return 'Full project control, can manage team members';

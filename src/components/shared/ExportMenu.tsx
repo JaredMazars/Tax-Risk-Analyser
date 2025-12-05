@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { AlertModal } from '@/components/shared/AlertModal';
 
 interface ExportMenuProps {
-  projectId: number;
+  taskId: number;
 }
 
 export default function ExportMenu({ projectId }: ExportMenuProps) {
@@ -30,7 +30,7 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
       setIsOpen(false);
 
       const response = await fetch(
-        `/api/projects/${projectId}/tax-calculation/export?format=${format}`
+        `/api/tasks/${projectId}/tax-calculation/export?format=${format}`
       );
 
       if (!response.ok) {

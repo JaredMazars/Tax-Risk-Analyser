@@ -30,13 +30,13 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     
-    // Pagination params for tasks (referred to as "projects" in frontend)
-    const projectPage = Number.parseInt(searchParams.get('projectPage') || '1');
-    const projectLimit = Math.min(Number.parseInt(searchParams.get('projectLimit') || '20'), 50);
+    // Pagination params for tasks
+    const taskPage = Number.parseInt(searchParams.get('taskPage') || '1');
+    const taskLimit = Math.min(Number.parseInt(searchParams.get('taskLimit') || '20'), 50);
     const serviceLine = searchParams.get('serviceLine') || undefined;
     const includeArchived = searchParams.get('includeArchived') === 'true';
     
-    const projectSkip = (projectPage - 1) * projectLimit;
+    const taskSkip = (taskPage - 1) * taskLimit;
 
     // Get ServLineCodes for the requested service line
     let servLineCodes: string[] | undefined;
@@ -83,8 +83,8 @@ export async function GET(
     const tasks = await prisma.task.findMany({
       where: taskWhere,
       orderBy: { updatedAt: 'desc' },
-      skip: projectSkip,
-      take: projectLimit,
+      skip: taskSkip,
+      take: taskLimit,
       select: {
         id: true,
         TaskDesc: true,
@@ -174,13 +174,13 @@ export async function GET(
       _count: {
         Task: totalAcrossAllServiceLines, // Total across all service lines (not filtered by active tab)
       },
-      projectPagination: {
-        page: projectPage,
-        limit: projectLimit,
+      taskPagination: {
+        page: taskPage,
+        limit: taskLimit,
         total: totalTasks, // Filtered count for pagination
-        totalPages: Math.ceil(totalTasks / projectLimit),
+        totalPages: Math.ceil(totalTasks / taskLimit),
       },
-      projectCountsByServiceLine: {
+      taskCountsByServiceLine: {
         TAX: taskCountsByServiceLine[0],
         AUDIT: taskCountsByServiceLine[1],
         ACCOUNTING: taskCountsByServiceLine[2],

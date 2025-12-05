@@ -22,7 +22,7 @@ export async function GET(
     const { documentId } = await context.params;
     const docId = Number.parseInt(documentId);
 
-    // Validate user has access to the document's project
+    // Validate user has access to the document's task
     const { hasAccess, taskId } = await validateDocumentAccess(docId, user.id);
     
     if (!hasAccess || !taskId) {

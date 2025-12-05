@@ -15,10 +15,10 @@ import {
   MagnifyingGlassIcon,
   PresentationChartLineIcon,
 } from '@heroicons/react/24/outline';
-import { formatDate } from '@/lib/utils/projectUtils';
-import { getProjectTypeColor, formatProjectType } from '@/lib/utils/serviceLineUtils';
+import { formatDate } from '@/lib/utils/taskUtils';
+import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { TaskStageIndicator } from '@/components/features/tasks/TaskStageIndicator';
-import { ProjectStage } from '@/types/project-stages';
+import { TaskStage } from '@/types/task-stages';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { ServiceLine } from '@/types';
 import { CreateTaskModal } from '@/components/features/tasks/CreateTaskModal';
@@ -45,15 +45,15 @@ export default function ServiceLineClientDetailPage() {
     initialIsSharedService ? 'shared-services' : 'service-lines'
   );
   const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(initialServiceLineTab);
-  const [projectPage, setProjectPage] = useState(1);
-  const [projectLimit] = useState(20);
+  const [taskPage, setTaskPage] = useState(1);
+  const [taskLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Fetch client using React Query hook with project pagination
+  // Fetch client using React Query hook with task pagination
   const { data: clientData, isLoading, isFetching, error } = useClient(clientId, {
-    projectPage,
-    projectLimit,
+    taskPage,
+    taskLimit,
     serviceLine: activeServiceLineTab,
   });
 
@@ -69,7 +69,7 @@ export default function ServiceLineClientDetailPage() {
     };
   }, [clientData]);
   
-  const projectPagination = clientData?.projectPagination;
+  const taskPagination = clientData?.taskPagination;
 
   // Update active tab when URL serviceLine changes
   useEffect(() => {
@@ -79,9 +79,9 @@ export default function ServiceLineClientDetailPage() {
     }
   }, [serviceLine]);
 
-  // Reset project page when service line tab changes
+  // Reset task page when service line tab changes
   useEffect(() => {
-    setProjectPage(1);
+    setTaskPage(1);
   }, [activeServiceLineTab]);
 
   // Ensure activeServiceLineTab is valid for the current main tab
@@ -132,17 +132,17 @@ export default function ServiceLineClientDetailPage() {
   };
 
   // Placeholder function - returns random stage for demo
-  const getProjectStage = (projectId: number): ProjectStage => {
-    const stages: ProjectStage[] = [
-      ProjectStage.DRAFT,
-      ProjectStage.IN_PROGRESS,
-      ProjectStage.UNDER_REVIEW,
-      ProjectStage.COMPLETED,
-      ProjectStage.ARCHIVED,
+  const getProjectStage = (taskId: number): TaskStage => {
+    const stages: TaskStage[] = [
+      TaskStage.DRAFT,
+      TaskStage.IN_PROGRESS,
+      TaskStage.UNDER_REVIEW,
+      TaskStage.COMPLETED,
+      TaskStage.ARCHIVED,
     ];
     // Simple hash to keep stage consistent per project
-    const stage = stages[projectId % stages.length];
-    return stage || ProjectStage.DRAFT;
+    const stage = stages[taskId % stages.length];
+    return stage || TaskStage.DRAFT;
   };
 
   const handleProjectCreated = (project: any) => {
@@ -163,10 +163,10 @@ export default function ServiceLineClientDetailPage() {
     return client.projects || [];
   };
 
-  // Get project count for each service line from API response
-  const getProjectCountByServiceLine = (sl: ServiceLine) => {
-    if (!clientData?.projectCountsByServiceLine) return 0;
-    return (clientData.projectCountsByServiceLine as Record<string, number>)[sl] || 0;
+  // Get task count for each service line from API response
+  const getTaskCountByServiceLine = (sl: ServiceLine) => {
+    if (!clientData?.taskCountsByServiceLine) return 0;
+    return (clientData.taskCountsByServiceLine as Record<string, number>)[sl] || 0;
   };
 
   // Define main service lines and shared services
@@ -187,11 +187,11 @@ export default function ServiceLineClientDetailPage() {
 
   // Calculate total counts for main tabs
   const getServiceLinesTotalCount = () => {
-    return mainServiceLines.reduce((total, sl) => total + getProjectCountByServiceLine(sl), 0);
+    return mainServiceLines.reduce((total, sl) => total + getTaskCountByServiceLine(sl), 0);
   };
 
   const getSharedServicesTotalCount = () => {
-    return sharedServices.reduce((total, sl) => total + getProjectCountByServiceLine(sl), 0);
+    return sharedServices.reduce((total, sl) => total + getTaskCountByServiceLine(sl), 0);
   };
 
   // Get active tab list based on main tab selection
@@ -492,7 +492,7 @@ export default function ServiceLineClientDetailPage() {
               <div className="border-b border-forvis-gray-200 flex-shrink-0 overflow-x-auto bg-forvis-gray-50">
                 <nav className="flex -mb-px px-4 min-w-max" aria-label="Service Line Tabs">
                   {activeTabList.map((sl) => {
-                    const count = getProjectCountByServiceLine(sl);
+                    const count = getTaskCountByServiceLine(sl);
                     const isActive = activeServiceLineTab === sl;
                     
                     return (
@@ -584,8 +584,8 @@ export default function ServiceLineClientDetailPage() {
                                 <h3 className="text-sm font-semibold text-forvis-gray-900">
                                   {project.name}
                                 </h3>
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${getProjectTypeColor(project.projectType)}`}>
-                                  {formatProjectType(project.projectType)}
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${getTaskTypeColor(project.projectType)}`}>
+                                  {formatTaskType(project.projectType)}
                                 </span>
                                 {project.taxYear && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">

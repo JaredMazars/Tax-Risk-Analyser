@@ -24,7 +24,7 @@ export async function POST(
     const { id } = await context.params;
     const taskId = toTaskId(id);
 
-    // Get the active questionnaire response for this project
+    // Get the active questionnaire response for this task
     const response = await prisma.clientAcceptanceResponse.findFirst({
       where: { taskId },
       orderBy: { createdAt: 'desc' },

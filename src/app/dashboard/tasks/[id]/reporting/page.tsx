@@ -72,7 +72,7 @@ export default function ReportingPage({ params }: ReportingPageProps) {
   const { data: taxCalcData, isLoading: isLoadingTaxCalc, error: taxCalcError } = useTaxCalculation(params.id);
   const { data: adjustments = [], isLoading: isLoadingAdjustments, error: adjustmentsError } = useTaxAdjustments(params.id);
 
-  const projectName = project?.name || '';
+  const taskName = project?.name || '';
   const accountingProfit = taxCalcData?.netProfit || 0;
 
   // Determine overall loading and error states
@@ -122,7 +122,7 @@ export default function ReportingPage({ params }: ReportingPageProps) {
 
       // Prepare report data
       const reportData = {
-        projectName,
+        taskName,
         trialBalance: selectedReports.trialBalance && trialBalanceData ? trialBalanceData : undefined,
         balanceSheet: selectedReports.balanceSheet ? { mappedData, totals: {} } : undefined,
         incomeStatement: selectedReports.incomeStatement ? { mappedData, totals: {} } : undefined,
@@ -163,7 +163,7 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${projectName}-reporting-pack-${new Date().toISOString().split('T')[0]}.pdf`;
+      link.download = `${taskName}-reporting-pack-${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

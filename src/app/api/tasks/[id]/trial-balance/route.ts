@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { parseTaskId, getProjectOrThrow, successResponse } from '@/lib/utils/apiUtils';
+import { parseTaskId, getTaskOrThrow, successResponse } from '@/lib/utils/apiUtils';
 
 /**
  * GET /api/tasks/[id]/trial-balance
@@ -21,7 +21,7 @@ export async function GET(
     const taskId = parseTaskId(params?.id);
     
     // Verify project exists
-    await getProjectOrThrow(taskId);
+    await getTaskOrThrow(taskId);
     
     // Fetch all mapped accounts for this project
     const accounts = await prisma.mappedAccount.findMany({

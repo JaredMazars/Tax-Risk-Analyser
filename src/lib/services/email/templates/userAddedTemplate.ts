@@ -1,6 +1,6 @@
 import { UserAddedEmailData } from '@/types/email';
-import { formatProjectType } from '@/lib/utils/serviceLineUtils';
-import { formatRole } from '@/lib/utils/projectUtils';
+import { formatTaskType } from '@/lib/utils/serviceLineUtils';
+import { formatRole } from '@/lib/utils/taskUtils';
 
 /**
  * Generate HTML email content for user added notification
@@ -102,7 +102,7 @@ export function generateUserAddedHtml(data: UserAddedEmailData): string {
         <strong>Project Details:</strong>
         <p style="margin: 5px 0 0 0;">
           <strong>Name:</strong> ${data.project.name}<br>
-          <strong>Type:</strong> ${formatProjectType(data.project.projectType)}<br>
+          <strong>Type:</strong> ${formatTaskType(data.project.projectType)}<br>
           <strong>Your Role:</strong> <span class="role-badge">${formatRole(data.role)}</span><br>
           <strong>Added By:</strong> ${data.addedBy.name || data.addedBy.email}
         </p>
@@ -111,7 +111,7 @@ export function generateUserAddedHtml(data: UserAddedEmailData): string {
       <p>You can now access this project and collaborate with your team.</p>
       
       <center>
-        <a href="${data.projectUrl}" class="button">View Project</a>
+        <a href="${data.taskUrl}" class="button">View Project</a>
       </center>
       
       <p style="margin-top: 30px; color: #666; font-size: 14px;">
@@ -144,13 +144,13 @@ You have been added to a project on the Mazars Tax Platform.
 
 Project Details:
 - Name: ${data.project.name}
-- Type: ${formatProjectType(data.project.projectType)}
+- Type: ${formatTaskType(data.project.projectType)}
 - Your Role: ${formatRole(data.role)}
 - Added By: ${data.addedBy.name || data.addedBy.email}
 
 You can now access this project and collaborate with your team.
 
-View Project: ${data.projectUrl}
+View Task: ${data.taskUrl}
 
 If you have any questions about this project, please contact ${data.addedBy.name || data.addedBy.email}.
 

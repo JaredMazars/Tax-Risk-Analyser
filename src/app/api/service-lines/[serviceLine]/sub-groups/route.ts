@@ -36,8 +36,8 @@ export async function GET(
     const cached = await cache.get<Array<{
       code: string;
       description: string;
-      activeProjects: number;
-      totalProjects: number;
+      activeTasks: number;
+      totalTasks: number;
       masterCode: string;
     }>>(cacheKey);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ADUser, ProjectRole } from '@/types';
+import { ADUser, TaskRole } from '@/types';
 
 interface UserSearchModalProps {
   taskId: number;
@@ -15,7 +15,7 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
   const [searchResults, setSearchResults] = useState<ADUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ADUser | null>(null);
-  const [selectedRole, setSelectedRole] = useState<ProjectRole>('VIEWER' as ProjectRole);
+  const [selectedRole, setSelectedRole] = useState<TaskRole>('VIEWER' as TaskRole);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -225,7 +225,7 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
               </label>
               <select
                 value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as ProjectRole)}
+                onChange={(e) => setSelectedRole(e.target.value as TaskRole)}
                 className="w-full px-4 py-3 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 bg-white font-medium shadow-corporate"
               >
                 <option value="VIEWER">👁️ Viewer - Read-only access</option>

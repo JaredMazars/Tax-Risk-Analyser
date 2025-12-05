@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { generateObject } from 'ai';
 import { models } from '@/lib/ai/config';
 import { AccountMappingSchema } from '@/lib/ai/schemas';
-import { mappingGuide } from '@/lib/services/projects/mappingGuide';
+import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { prisma } from '@/lib/db/prisma';
 import { logInfo, logError } from '@/lib/utils/logger';
 import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
@@ -34,7 +34,7 @@ function sheetToJson(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
   return data;
 }
 
-async function handleStreamingRequest(trialBalanceFile: File, projectId: number) {
+async function handleStreamingRequest(trialBalanceFile: File, taskId: number) {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -163,14 +163,14 @@ Do not include any explanation, commentary, or text outside the JSON array.
         await prisma.$transaction(async (tx) => {
           // Delete existing mapped accounts for this project
           await tx.mappedAccount.deleteMany({
-            where: { projectId }
+            where: { taskId }
           });
 
           // Use createMany for better performance and to avoid transaction timeout
           if (enrichedResults.length > 0) {
             await tx.mappedAccount.createMany({
               data: enrichedResults.map(item => ({
-                projectId,
+                taskId,
                 accountCode: item.accountCode.toString(),
                 accountName: item.accountName,
                 section: item.section,
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
     const trialBalanceFile = formData.get('trialBalance') as File;
     const projectIdStr = formData.get('projectId') as string;
     const streamProgress = formData.get('stream') === 'true';
-    logInfo('Processing mapping request', { projectId: projectIdStr, stream: streamProgress });
+    logInfo('Processing mapping request', { taskId: projectIdStr, stream: streamProgress });
 
     if (!trialBalanceFile) {
       return NextResponse.json(
@@ -235,30 +235,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert projectId to number
-    const projectId = Number.parseInt(projectIdStr, 10);
-    if (Number.isNaN(projectId)) {
+    // Convert taskId to number
+    const taskId = Number.parseInt(projectIdStr, 10);
+    if (Number.isNaN(taskId)) {
       return NextResponse.json(
-        { error: 'Invalid Project ID format.' },
+        { error: 'Invalid Task ID format.' },
         { status: 400 }
       );
     }
 
-    // Verify project exists
-    const project = await prisma.project.findUnique({
-      where: { id: projectId }
+    // Verify task exists
+    const task = await prisma.task.findUnique({
+      where: { id: taskId }
     });
 
-    if (!project) {
+    if (!task) {
       return NextResponse.json(
-        { error: 'Project not found.' },
+        { error: 'Task not found.' },
         { status: 404 }
       );
     }
 
     // If streaming is requested, return a streaming response
     if (streamProgress) {
-      return handleStreamingRequest(trialBalanceFile, projectId);
+      return handleStreamingRequest(trialBalanceFile, taskId);
     }
 
     // Parse Trial Balance
@@ -398,12 +398,12 @@ Do not include any explanation, commentary, or text outside the JSON array.
     await prisma.$transaction(async (tx) => {
       // Delete existing mapped accounts for this project
       await tx.mappedAccount.deleteMany({
-        where: { projectId }
+        where: { taskId }
       });
 
       // Log the data we're about to insert
       logInfo('Inserting mapped accounts to database', {
-        projectId,
+        taskId,
         accountCount: enrichedResults.length
       });
 
@@ -411,7 +411,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
       if (enrichedResults.length > 0) {
         await tx.mappedAccount.createMany({
           data: enrichedResults.map(item => ({
-            projectId,
+            taskId,
             accountCode: item.accountCode.toString(),
             accountName: item.accountName,
             section: item.section,

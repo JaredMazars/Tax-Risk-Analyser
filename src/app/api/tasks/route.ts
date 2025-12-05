@@ -339,7 +339,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create project with user as admin
-    const project = await prisma.project.create({
+    const task = await prisma.project.create({
       data: {
         name: validatedData.name,
         description: validatedData.description,

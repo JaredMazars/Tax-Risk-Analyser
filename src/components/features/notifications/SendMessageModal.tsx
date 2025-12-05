@@ -12,7 +12,7 @@ interface SendMessageModalProps {
   recipientUserId?: string;
   recipientName?: string;
   projectId?: number;
-  projectName?: string;
+  taskName?: string;
 }
 
 export function SendMessageModal({
@@ -20,14 +20,14 @@ export function SendMessageModal({
   onClose,
   recipientUserId: initialRecipientId,
   recipientName: initialRecipientName,
-  projectId: initialProjectId,
-  projectName: initialProjectName,
+  taskId: initialProjectId,
+  taskName: initialProjectName,
 }: SendMessageModalProps) {
   const [recipientUserId, setRecipientUserId] = useState(initialRecipientId || '');
   const [recipientName, setRecipientName] = useState(initialRecipientName || '');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [projectId, setProjectId] = useState<number | undefined>(initialProjectId);
+  const [taskId, setProjectId] = useState<number | undefined>(initialProjectId);
   const [actionUrl, setActionUrl] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,7 +119,7 @@ export function SendMessageModal({
       recipientUserId,
       title: title.trim(),
       message: message.trim(),
-      projectId,
+      taskId,
       actionUrl: actionUrl.trim() || undefined,
     };
 

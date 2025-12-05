@@ -32,7 +32,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const documentType = searchParams.get('documentType') as DocumentType;
     const documentId = Number.parseInt(searchParams.get('documentId') || '');
-    const projectId = Number.parseInt(searchParams.get('projectId') || '');
+    const taskId = Number.parseInt(searchParams.get('projectId') || '');
 
     if (!documentType || Number.isNaN(documentId)) {
       return NextResponse.json(
@@ -56,9 +56,9 @@ export async function GET(
 
     switch (documentType) {
       case DocumentType.ENGAGEMENT_LETTER: {
-        const project = await prisma.project.findFirst({
+        const task = await prisma.project.findFirst({
           where: {
-            id: projectId,
+            id: taskId,
             clientId,
           },
           select: {
@@ -85,7 +85,7 @@ export async function GET(
         const doc = await prisma.administrationDocument.findFirst({
           where: {
             id: documentId,
-            Project: {
+            Task: {
               clientId,
             },
           },
@@ -107,7 +107,7 @@ export async function GET(
         const doc = await prisma.adjustmentDocument.findFirst({
           where: {
             id: documentId,
-            Project: {
+            Task: {
               clientId,
             },
           },
@@ -130,7 +130,7 @@ export async function GET(
           where: {
             id: documentId,
             OpinionDraft: {
-              Project: {
+              Task: {
                 clientId,
               },
             },
@@ -153,7 +153,7 @@ export async function GET(
         const doc = await prisma.sarsResponse.findFirst({
           where: {
             id: documentId,
-            Project: {
+            Task: {
               clientId,
             },
           },

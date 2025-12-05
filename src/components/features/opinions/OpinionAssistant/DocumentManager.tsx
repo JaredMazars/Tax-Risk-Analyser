@@ -13,7 +13,7 @@ import { OpinionDocument } from '@/types';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface DocumentManagerProps {
-  projectId: number;
+  taskId: number;
   draftId: number;
 }
 
@@ -26,7 +26,7 @@ const DOCUMENT_CATEGORIES = [
   'Other',
 ];
 
-export default function DocumentManager({ projectId, draftId }: DocumentManagerProps) {
+export default function DocumentManager({ taskId, draftId }: DocumentManagerProps) {
   const [documents, setDocuments] = useState<OpinionDocument[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -68,7 +68,7 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
     if (!silent) setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/projects/${projectId}/opinion-drafts/${draftId}/documents`
+        `/api/tasks/${projectId}/opinion-drafts/${draftId}/documents`
       );
       if (!response.ok) throw new Error('Failed to fetch documents');
       const data = await response.json();
@@ -127,7 +127,7 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
       formData.append('category', category);
 
       const response = await fetch(
-        `/api/projects/${projectId}/opinion-drafts/${draftId}/documents`,
+        `/api/tasks/${projectId}/opinion-drafts/${draftId}/documents`,
         {
           method: 'POST',
           body: formData,
@@ -156,7 +156,7 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
       onConfirm: async () => {
         try {
           const response = await fetch(
-            `/api/projects/${projectId}/opinion-drafts/${draftId}/documents?documentId=${documentId}`,
+            `/api/tasks/${projectId}/opinion-drafts/${draftId}/documents?documentId=${documentId}`,
             { method: 'DELETE' }
           );
 

@@ -339,7 +339,7 @@ export async function PATCH(
       );
     }
     
-    const taskId = parseProjectId(params?.id);
+    const taskId = parseTaskId(params?.id);
 
     // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
@@ -398,7 +398,7 @@ export async function DELETE(
       );
     }
     
-    const taskId = parseProjectId(params?.id);
+    const taskId = parseTaskId(params?.id);
 
     // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');

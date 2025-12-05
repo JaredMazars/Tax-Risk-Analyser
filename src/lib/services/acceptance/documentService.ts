@@ -42,7 +42,7 @@ export async function uploadAcceptanceDocument(
   // Verify response exists
   const response = await prisma.clientAcceptanceResponse.findUnique({
     where: { id: responseId },
-    select: { id: true, projectId: true },
+    select: { id: true, taskId: true },
   });
 
   if (!response) {
@@ -52,7 +52,7 @@ export async function uploadAcceptanceDocument(
   logger.info(`Uploading acceptance document: ${file.name} for response ${responseId}`);
 
   // Upload to Azure Blob Storage
-  const blobName = await uploadFile(file.data, file.name, response.projectId);
+  const blobName = await uploadFile(file.data, file.name, response.taskId);
   
   logger.info(`Uploaded acceptance document to blob storage: ${blobName}`);
 

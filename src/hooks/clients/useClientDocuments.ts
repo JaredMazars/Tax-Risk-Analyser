@@ -38,13 +38,13 @@ export function downloadClientDocument(
   clientId: string | number,
   documentType: string,
   documentId: number,
-  projectId: number,
+  taskId: number,
   fileName: string
 ) {
   const params = new URLSearchParams({
     documentType,
     documentId: documentId.toString(),
-    projectId: projectId.toString(),
+    taskId: projectId.toString(),
   });
 
   const url = `/api/clients/${clientId}/documents/download?${params.toString()}`;

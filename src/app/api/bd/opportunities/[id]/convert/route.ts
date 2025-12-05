@@ -27,7 +27,7 @@ export async function POST(
     const validated = ConvertBDOpportunitySchema.parse(body);
 
     const result = await convertOpportunityToClient(opportunityId, user.id, {
-      createProject: validated.createProject,
+      createTask: validated.createProject,
       projectType: validated.projectType,
     });
 

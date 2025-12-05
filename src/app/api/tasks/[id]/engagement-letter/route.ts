@@ -37,7 +37,7 @@ export async function POST(
     }
 
     // Get project
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
         clientId: true,
@@ -46,8 +46,8 @@ export async function POST(
       },
     });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     if (!project.clientId) {
@@ -100,7 +100,7 @@ export async function POST(
     const relativePath = path.join('uploads', 'engagement-letters', taskId.toString(), filename);
 
     // Update project
-    const updatedProject = await prisma.project.update({
+    const updatedProject = await prisma.task.update({
       where: { id: taskId },
       data: {
         engagementLetterUploaded: true,
@@ -157,7 +157,7 @@ export async function GET(
     const taskId = toTaskId(id);
 
     // Get project
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
         engagementLetterGenerated: true,
@@ -168,8 +168,8 @@ export async function GET(
       },
     });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     return NextResponse.json(successResponse(project), { status: 200 });

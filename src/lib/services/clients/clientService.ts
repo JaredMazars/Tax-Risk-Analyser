@@ -27,7 +27,7 @@ export interface ClientListResult {
     createdAt: Date;
     updatedAt: Date;
     _count: {
-      Project: number;
+      Task: number;
     };
   }>;
   pagination: {
@@ -39,8 +39,8 @@ export interface ClientListResult {
 }
 
 export interface ClientDetailFilters {
-  projectPage?: number;
-  projectLimit?: number;
+  taskPage?: number;
+  taskLimit?: number;
   serviceLine?: string;
   includeArchived?: boolean;
 }
@@ -117,7 +117,7 @@ export async function getClientsWithPagination(
           updatedAt: true,
           _count: {
             select: {
-              Project: true,
+              Task: true,
             },
           },
         },
@@ -148,14 +148,14 @@ export async function getClientWithProjects(
   return withRetry(
     async () => {
       const {
-        projectPage = 1,
-        projectLimit = 20,
+        taskPage = 1,
+        taskLimit = 20,
         serviceLine,
         includeArchived = false,
       } = filters;
 
-      const projectSkip = (projectPage - 1) * Math.min(projectLimit, 50);
-      const projectTake = Math.min(projectLimit, 50);
+      const taskSkip = (taskPage - 1) * Math.min(taskLimit, 50);
+      const taskTake = Math.min(taskLimit, 50);
 
       // Build task where clause
       interface TaskWhereClause {
@@ -176,8 +176,8 @@ export async function getClientWithProjects(
           Task: {
             where: taskWhere,
             orderBy: { updatedAt: 'desc' },
-            skip: projectSkip,
-            take: projectTake,
+            skip: taskSkip,
+            take: taskTake,
             select: {
               id: true,
               TaskDesc: true,
@@ -209,7 +209,7 @@ export async function getClientWithProjects(
       }
 
       // Get total task count with filters
-      const totalProjects = await prisma.task.count({
+      const totalTasks = await prisma.task.count({
         where: {
           ClientCode: client.clientCode,
           ...taskWhere,
@@ -218,17 +218,17 @@ export async function getClientWithProjects(
 
       return {
         client,
-        totalProjects,
-        projectPagination: {
-          page: projectPage,
-          limit: projectTake,
-          total: totalProjects,
-          totalPages: Math.ceil(totalProjects / projectTake),
+        totalTasks,
+        taskPagination: {
+          page: taskPage,
+          limit: taskTake,
+          total: totalTasks,
+          totalPages: Math.ceil(totalTasks / taskTake),
         },
       };
     },
     RetryPresets.AZURE_SQL_COLD_START,
-    'Get client with projects'
+    'Get client with tasks'
   );
 }
 

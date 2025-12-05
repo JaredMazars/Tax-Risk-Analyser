@@ -9,7 +9,7 @@ import { getQuestionnaireType, getQuestionnaireStructure } from '@/lib/services/
 
 /**
  * POST /api/tasks/[id]/acceptance/initialize
- * Initialize or retrieve questionnaire for a project
+ * Initialize or retrieve questionnaire for a task
  */
 export async function POST(
   request: NextRequest,
@@ -24,21 +24,21 @@ export async function POST(
     const { id } = await context.params;
     const taskId = toTaskId(id);
 
-    // Get project with client
-    const project = await prisma.project.findUnique({
+    // Get task with client
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
         Client: true,
       },
     });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    if (!project.clientId || !project.Client) {
+    if (!task.Client) {
       return NextResponse.json(
-        { error: 'Client acceptance is only required for client projects' },
+        { error: 'Client acceptance is only required for client tasks' },
         { status: 400 }
       );
     }
@@ -48,7 +48,7 @@ export async function POST(
     const validated = InitializeQuestionnaireSchema.parse(body);
 
     // Determine questionnaire type
-    const typeResult = await getQuestionnaireType(taskId, project.clientId);
+    const typeResult = await getQuestionnaireType(taskId, task.Client.id);
     const questionnaireType = validated.questionnaireType || typeResult.recommendedType;
 
     // Check if response already exists - fetch only essential fields
@@ -79,7 +79,7 @@ export async function POST(
       response = await prisma.clientAcceptanceResponse.create({
         data: {
           taskId,
-          clientId: project.clientId,
+          clientId: task.Client.id,
           questionnaireType,
         },
         select: {

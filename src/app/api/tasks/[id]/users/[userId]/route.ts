@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateTaskTeamSchema } from '@/lib/validation/schemas';
 import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser, checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { emailService } from '@/lib/services/email/emailService';
 import { notificationService } from '@/lib/services/notifications/notificationService';
 import { createUserRemovedNotification, createUserRoleChangedNotification } from '@/lib/services/notifications/templates';
@@ -175,7 +176,7 @@ export async function PUT(
 
     // Create in-app notification (non-blocking)
     try {
-      const project = await prisma.project.findUnique({
+      const task = await prisma.task.findUnique({
         where: { id: taskId },
         select: { name: true },
       });
@@ -300,7 +301,7 @@ export async function DELETE(
     }
 
     // Get project details for email before deletion
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { name: true, projectType: true },
     });

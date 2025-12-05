@@ -452,8 +452,8 @@ export async function getServiceLineStats(serviceLine: ServiceLine | string) {
     ]);
 
     return {
-      totalProjects: totalTasks,
-      activeProjects: activeTasks,
+      totalTasks: totalTasks,
+      activeTasks: activeTasks,
       archivedProjects: inactiveTasks,
       totalUsers,
       recentProjects: recentTasks,

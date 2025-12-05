@@ -222,8 +222,8 @@ export async function getSubServiceLineGroupsByMaster(
 ): Promise<Array<{
   code: string;
   description: string;
-  activeProjects: number;
-  totalProjects: number;
+  activeTasks: number;
+  totalTasks: number;
   masterCode: string;
 }>> {
   try {
@@ -265,8 +265,8 @@ export async function getSubServiceLineGroupsByMaster(
           return {
             code: group.SubServlineGroupCode,
             description: group.SubServlineGroupDesc || '',
-            activeProjects: 0,
-            totalProjects: 0,
+            activeTasks: 0,
+            totalTasks: 0,
             masterCode,
           };
         }
@@ -289,8 +289,8 @@ export async function getSubServiceLineGroupsByMaster(
         return {
           code: group.SubServlineGroupCode,
           description: group.SubServlineGroupDesc || '',
-          activeProjects: activeCount,
-          totalProjects: totalCount,
+          activeTasks: activeCount,
+          totalTasks: totalCount,
           masterCode,
         };
       })
@@ -344,7 +344,7 @@ export async function getServLineCodesBySubGroup(
  * @returns True if project has tasks in this SubServLineGroup
  */
 export async function isProjectInSubGroup(
-  projectId: number,
+  taskId: number,
   subGroupCode: string,
   masterCode?: string
 ): Promise<boolean> {
@@ -359,7 +359,7 @@ export async function isProjectInSubGroup(
     // Check if project has any tasks with these ServLineCodes
     const taskCount = await prisma.task.count({
       where: {
-        projectId,
+        taskId,
         ServLineCode: { in: servLineCodes },
       },
     });
@@ -367,7 +367,7 @@ export async function isProjectInSubGroup(
     return taskCount > 0;
   } catch (error) {
     logger.error('Error checking if project is in SubServLineGroup', { 
-      projectId, 
+      taskId, 
       subGroupCode, 
       masterCode, 
       error 

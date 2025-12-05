@@ -4,7 +4,7 @@
  * Centralized role hierarchy logic for the three-tier security model:
  * 1. System Level (User.role) - SYSTEM_ADMIN, USER
  * 2. Service Line Level (ServiceLineUser.role) - ADMINISTRATOR, PARTNER, MANAGER, SUPERVISOR, USER, VIEWER
- * 3. Project Level (ProjectUser.role) - ADMIN, REVIEWER, EDITOR, VIEWER
+ * 3. Task Level (TaskTeam.role) - ADMIN, REVIEWER, EDITOR, VIEWER
  */
 
 /**
@@ -30,13 +30,13 @@ export enum ServiceLineRole {
 }
 
 /**
- * Project Roles - ProjectUser.role
- * Used to control access within a specific project
+ * Task Roles - TaskTeam.role
+ * Used to control access within a specific task
  */
-export enum ProjectRole {
-  ADMIN = 'ADMIN',       // Full project control
+export enum TaskRole {
+  ADMIN = 'ADMIN',       // Full task control
   REVIEWER = 'REVIEWER', // Can review and approve work
-  EDITOR = 'EDITOR',     // Can edit project data
+  EDITOR = 'EDITOR',     // Can edit task data
   VIEWER = 'VIEWER',     // Read-only access
 }
 
@@ -54,14 +54,14 @@ const SERVICE_LINE_HIERARCHY: Record<string, number> = {
 };
 
 /**
- * Project Role Hierarchy
+ * Task Role Hierarchy
  * Higher numbers = more privileges
  */
-const PROJECT_ROLE_HIERARCHY: Record<string, number> = {
-  [ProjectRole.VIEWER]: 1,
-  [ProjectRole.EDITOR]: 2,
-  [ProjectRole.REVIEWER]: 3,
-  [ProjectRole.ADMIN]: 4,
+const TASK_ROLE_HIERARCHY: Record<string, number> = {
+  [TaskRole.VIEWER]: 1,
+  [TaskRole.EDITOR]: 2,
+  [TaskRole.REVIEWER]: 3,
+  [TaskRole.ADMIN]: 4,
 };
 
 /**
@@ -80,17 +80,17 @@ export function hasServiceLineRole(
 }
 
 /**
- * Check if a project role meets or exceeds the required role
+ * Check if a task role meets or exceeds the required role
  * @param userRole - The user's current role
  * @param requiredRole - The minimum required role
  * @returns true if user role is sufficient
  */
-export function hasProjectRole(
+export function hasTaskRole(
   userRole: string,
   requiredRole: string
 ): boolean {
-  const userLevel = PROJECT_ROLE_HIERARCHY[userRole] || 0;
-  const requiredLevel = PROJECT_ROLE_HIERARCHY[requiredRole] || 0;
+  const userLevel = TASK_ROLE_HIERARCHY[userRole] || 0;
+  const requiredLevel = TASK_ROLE_HIERARCHY[requiredRole] || 0;
   return userLevel >= requiredLevel;
 }
 
@@ -104,12 +104,12 @@ export function getServiceLineRoleLevel(role: string): number {
 }
 
 /**
- * Get project role hierarchy level
+ * Get task role hierarchy level
  * @param role - The role to check
  * @returns Numeric level (higher = more privileges)
  */
-export function getProjectRoleLevel(role: string): number {
-  return PROJECT_ROLE_HIERARCHY[role] || 0;
+export function getTaskRoleLevel(role: string): number {
+  return TASK_ROLE_HIERARCHY[role] || 0;
 }
 
 /**
@@ -131,12 +131,12 @@ export function isValidServiceLineRole(role: string): boolean {
 }
 
 /**
- * Check if role is a valid project role
+ * Check if role is a valid task role
  * @param role - The role to validate
- * @returns true if valid project role
+ * @returns true if valid task role
  */
-export function isValidProjectRole(role: string): boolean {
-  return role in PROJECT_ROLE_HIERARCHY;
+export function isValidTaskRole(role: string): boolean {
+  return role in TASK_ROLE_HIERARCHY;
 }
 
 /**
@@ -164,19 +164,19 @@ export function formatServiceLineRole(role: string): string {
 }
 
 /**
- * Format project role for display
+ * Format task role for display
  * @param role - The role to format
  * @returns Formatted role name
  */
-export function formatProjectRole(role: string): string {
+export function formatTaskRole(role: string): string {
   switch (role) {
-    case ProjectRole.ADMIN:
+    case TaskRole.ADMIN:
       return 'Admin';
-    case ProjectRole.REVIEWER:
+    case TaskRole.REVIEWER:
       return 'Reviewer';
-    case ProjectRole.EDITOR:
+    case TaskRole.EDITOR:
       return 'Editor';
-    case ProjectRole.VIEWER:
+    case TaskRole.VIEWER:
       return 'Viewer';
     default:
       return role;
@@ -215,15 +215,15 @@ export function getServiceLineRolesOrdered(): ServiceLineRole[] {
 }
 
 /**
- * Get all project roles in hierarchy order (lowest to highest)
- * @returns Array of project roles
+ * Get all task roles in hierarchy order (lowest to highest)
+ * @returns Array of task roles
  */
-export function getProjectRolesOrdered(): ProjectRole[] {
+export function getTaskRolesOrdered(): TaskRole[] {
   return [
-    ProjectRole.VIEWER,
-    ProjectRole.EDITOR,
-    ProjectRole.REVIEWER,
-    ProjectRole.ADMIN,
+    TaskRole.VIEWER,
+    TaskRole.EDITOR,
+    TaskRole.REVIEWER,
+    TaskRole.ADMIN,
   ];
 }
 
@@ -248,12 +248,12 @@ export function isAdministrativeRole(role: string): boolean {
 }
 
 /**
- * Check if a service line role can manage projects
- * Manager and above can manage projects
+ * Check if a service line role can manage tasks
+ * Manager and above can manage tasks
  * @param role - The role to check
- * @returns true if can manage projects
+ * @returns true if can manage tasks
  */
-export function canManageProjects(role: string): boolean {
+export function canManageTasks(role: string): boolean {
   return hasServiceLineRole(role, ServiceLineRole.MANAGER);
 }
 

@@ -25,12 +25,12 @@ export async function GET(
     const format = searchParams.get('format') || 'excel';
 
     // Fetch project
-    const project = await prisma.project.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
 
-    if (!project) {
-      throw new AppError(404, 'Project not found', ErrorCodes.NOT_FOUND);
+    if (!task) {
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     // Fetch approved/modified adjustments
@@ -69,7 +69,7 @@ export async function GET(
     const taxLiability = Math.max(0, taxableIncome) * 0.27;
 
     const exportData: TaxExportData = {
-      projectName: project.name,
+      taskName: project.name,
       accountingProfit,
       adjustments: adjustments.map(adj => ({
         id: adj.id,
@@ -108,7 +108,7 @@ export async function GET(
  */
 async function exportToExcel(data: TaxExportData): Promise<NextResponse> {
   const buffer = await ExcelExporter.exportTaxComputation(data);
-  const fileName = ExcelExporter.generateFileName(data.projectName);
+  const fileName = ExcelExporter.generateFileName(data.taskName);
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {

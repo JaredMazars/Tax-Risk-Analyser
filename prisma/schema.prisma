@@ -826,6 +826,7 @@ model TaskTeam {
   id        Int      @id @default(autoincrement())
   taskId    Int
   userId    String
+
   role      String   @default("VIEWER")
   createdAt DateTime @default(now())
   Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)

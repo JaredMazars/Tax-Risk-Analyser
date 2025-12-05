@@ -19,15 +19,15 @@ export interface QuestionnaireTypeResult {
 }
 
 /**
- * Helper: Get basic project and client data
+ * Helper: Get basic task and client data
  */
-async function getProjectData(projectId: number, clientId: number) {
-  const [project, previousProjectsCount] = await Promise.all([
-    prisma.project.findUnique({
-      where: { id: projectId },
+async function getTaskData(taskId: number, clientId: number) {
+  const [task, previousTasksCount] = await Promise.all([
+    prisma.task.findUnique({
+      where: { id: taskId },
       select: {
         id: true,
-        projectType: true,
+        ClientCode: true,
         Client: {
           select: {
             id: true,
@@ -35,22 +35,31 @@ async function getProjectData(projectId: number, clientId: number) {
             groupCode: true,
           },
         },
+        TaskAcceptance: {
+          select: {
+            acceptanceApproved: true,
+          },
+        },
       },
     }),
-    prisma.project.count({
+    prisma.task.count({
       where: {
-        clientId,
-        id: { not: projectId },
-        acceptanceApproved: true,
+        Client: {
+          id: clientId,
+        },
+        id: { not: taskId },
+        TaskAcceptance: {
+          acceptanceApproved: true,
+        },
       },
     }),
   ]);
 
-  if (!project) {
-    throw new Error(`Project ${projectId} not found`);
+  if (!task) {
+    throw new Error(`Task ${taskId} not found`);
   }
 
-  return { project, isNewClient: previousProjectsCount === 0 };
+  return { task, isNewClient: previousTasksCount === 0 };
 }
 
 /**
@@ -87,15 +96,15 @@ function determineQuestionnaireType(isNewClient: boolean, isLiteEligible: boolea
 }
 
 /**
- * Determine the appropriate questionnaire type for a project/client
+ * Determine the appropriate questionnaire type for a task/client
  * Refactored to reduce cognitive complexity
  */
 export async function getQuestionnaireType(
-  projectId: number,
+  taskId: number,
   clientId: number
 ): Promise<QuestionnaireTypeResult> {
-  const { project, isNewClient } = await getProjectData(projectId, clientId);
-  const isLiteEligible = await checkLiteEligibility(project);
+  const { task, isNewClient } = await getTaskData(taskId, clientId);
+  const isLiteEligible = await checkLiteEligibility(task);
   const { type, reason } = determineQuestionnaireType(isNewClient, isLiteEligible);
 
   return {
@@ -107,13 +116,14 @@ export async function getQuestionnaireType(
 }
 
 /**
- * Check if a project meets LITE eligibility criteria
+ * Check if a task meets LITE eligibility criteria
  * Based on SharePoint AC Lite criteria questions
  */
-async function checkLiteEligibility(project: {
+async function checkLiteEligibility(task: {
   id: number;
-  projectType: string;
+  ClientCode: string;
   Client: { id: number; clientCode: string; groupCode: string } | null;
+  TaskAcceptance: { acceptanceApproved: boolean } | null;
 }): Promise<boolean> {
   // LITE criteria (simplified):
   // 1. Standalone client (not part of group) - check if groupCode matches clientCode
@@ -123,20 +133,19 @@ async function checkLiteEligibility(project: {
   // 5. No PEPs
   // 6. Not restricted entity
 
-  if (!project.Client) {
+  if (!task.Client) {
     return false;
   }
 
   // Check if standalone (group code same as client code typically means standalone)
-  const isStandalone = project.Client.groupCode === project.Client.clientCode;
+  const isStandalone = task.Client.groupCode === task.Client.clientCode;
 
   // For now, we'll use simple heuristics
   // In production, this would check additional data
-  const isNotPIE = !project.projectType.includes('PIE'); // Simple check
-  const isLessComplex = true; // Would need additional project complexity data
+  const isLessComplex = true; // Would need additional task complexity data
 
-  // Return true if meets basic criteria
-  return isStandalone && isNotPIE && isLessComplex;
+  // Return true if meets basic criteria (removed PIE check since projectType doesn't exist)
+  return isStandalone && isLessComplex;
 }
 
 /**
@@ -218,10 +227,10 @@ export function validateQuestionnaireResponses(
 }
 
 /**
- * Get or create a questionnaire response for a project
+ * Get or create a questionnaire response for a task
  */
 export async function getOrCreateResponse(
-  projectId: number,
+  taskId: number,
   clientId: number,
   questionnaireType: QuestionnaireType,
   userId: string
@@ -229,7 +238,7 @@ export async function getOrCreateResponse(
   // Check for existing response
   const existing = await prisma.clientAcceptanceResponse.findFirst({
     where: {
-      projectId,
+      taskId,
       questionnaireType,
     },
     include: {
@@ -249,7 +258,7 @@ export async function getOrCreateResponse(
   // Create new response
   return await prisma.clientAcceptanceResponse.create({
     data: {
-      projectId,
+      taskId,
       clientId,
       questionnaireType,
     },
@@ -298,9 +307,9 @@ export async function markQuestionnaireCompleted(
 /**
  * Get questionnaire completion status
  */
-export async function getQuestionnaireStatus(projectId: number) {
+export async function getQuestionnaireStatus(taskId: number) {
   const response = await prisma.clientAcceptanceResponse.findFirst({
-    where: { projectId },
+    where: { taskId },
     include: {
       AcceptanceAnswer: true,
       AcceptanceDocument: true,

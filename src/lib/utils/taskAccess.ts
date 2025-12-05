@@ -1,8 +1,8 @@
 /**
- * Project Access Utilities
+ * Task Access Utilities
  * 
- * Simplified and clear project access checking with detailed access metadata.
- * Consolidates the complex project access logic from auth.ts into a single,
+ * Simplified and clear task access checking with detailed access metadata.
+ * Consolidates the complex task access logic from auth.ts into a single,
  * easy-to-understand API.
  */
 
@@ -12,56 +12,56 @@ import { hasServiceLineRole } from './roleHierarchy';
 import { logger } from './logger';
 
 /**
- * Project access type - indicates HOW the user has access
+ * Task access type - indicates HOW the user has access
  */
-export enum ProjectAccessType {
+export enum TaskAccessType {
   /** User is a SYSTEM_ADMIN with global access */
   SYSTEM_ADMIN = 'SYSTEM_ADMIN',
-  /** User is Partner/Admin in project's service line (can see all projects) */
+  /** User is Partner/Admin in task's service line (can see all tasks) */
   SERVICE_LINE_ADMIN = 'SERVICE_LINE_ADMIN',
-  /** User is explicitly assigned as ProjectUser member */
-  PROJECT_MEMBER = 'PROJECT_MEMBER',
+  /** User is explicitly assigned as TaskTeam member */
+  TASK_MEMBER = 'TASK_MEMBER',
   /** User has no access */
   NO_ACCESS = 'NO_ACCESS',
 }
 
 /**
- * Project access result with detailed metadata
+ * Task access result with detailed metadata
  */
-export interface ProjectAccessResult {
+export interface TaskAccessResult {
   /** Whether user has access */
   canAccess: boolean;
   /** How the user has access */
-  accessType: ProjectAccessType;
-  /** User's role in project (if applicable) */
-  projectRole?: string;
+  accessType: TaskAccessType;
+  /** User's role in task (if applicable) */
+  taskRole?: string;
   /** User's role in service line (if applicable) */
   serviceLineRole?: string;
-  /** Service line the project belongs to */
+  /** Service line the task belongs to */
   serviceLine?: string;
   /** Whether user is SYSTEM_ADMIN */
   isSystemAdmin: boolean;
 }
 
 /**
- * Check if user can access a project
+ * Check if user can access a task
  * 
  * Returns detailed information about HOW the user has access.
  * 
  * Access Rules:
  * 1. SYSTEM_ADMIN → Full access (global)
- * 2. ADMIN/PARTNER in project's service line → Can see all projects
- * 3. ProjectUser member → Access based on role
+ * 2. ADMIN/PARTNER in task's service line → Can see all tasks
+ * 3. TaskTeam member → Access based on role
  * 
  * @param userId - User ID to check
- * @param projectId - Project ID to check access for
- * @param requiredRole - Optional minimum project role required
+ * @param taskId - Task ID to check access for
+ * @param requiredRole - Optional minimum task role required
  * @returns Detailed access result
  */
 /**
  * Helper: Check if user is system admin
  */
-async function checkSystemAdminAccess(userId: string): Promise<ProjectAccessResult | null> {
+async function checkSystemAdminAccess(userId: string): Promise<TaskAccessResult | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true },
@@ -70,7 +70,7 @@ async function checkSystemAdminAccess(userId: string): Promise<ProjectAccessResu
   if (!user) {
     return {
       canAccess: false,
-      accessType: ProjectAccessType.NO_ACCESS,
+      accessType: TaskAccessType.NO_ACCESS,
       isSystemAdmin: false,
     };
   }
@@ -78,7 +78,7 @@ async function checkSystemAdminAccess(userId: string): Promise<ProjectAccessResu
   if (isSystemAdmin(user)) {
     return {
       canAccess: true,
-      accessType: ProjectAccessType.SYSTEM_ADMIN,
+      accessType: TaskAccessType.SYSTEM_ADMIN,
       isSystemAdmin: true,
     };
   }
@@ -105,57 +105,57 @@ async function checkServiceLineAccess(
 }
 
 /**
- * Helper: Check project membership and role
+ * Helper: Check task membership and role
  */
-async function checkProjectMembership(
+async function checkTaskMembership(
   userId: string,
-  projectId: number,
+  taskId: number,
   requiredRole?: string
 ): Promise<{ hasAccess: boolean; role?: string; meetsRoleRequirement?: boolean }> {
-  const projectUser = await prisma.projectUser.findUnique({
+  const taskTeam = await prisma.taskTeam.findUnique({
     where: {
-      projectId_userId: { projectId, userId },
+      taskId_userId: { taskId, userId },
     },
     select: { role: true },
   });
 
-  if (!projectUser) {
+  if (!taskTeam) {
     return { hasAccess: false };
   }
 
   if (requiredRole) {
-    const { hasProjectRole } = await import('./roleHierarchy');
-    const meetsRoleRequirement = hasProjectRole(projectUser.role, requiredRole);
-    return { hasAccess: true, role: projectUser.role, meetsRoleRequirement };
+    const { hasTaskRole } = await import('./roleHierarchy');
+    const meetsRoleRequirement = hasTaskRole(taskTeam.role, requiredRole);
+    return { hasAccess: true, role: taskTeam.role, meetsRoleRequirement };
   }
 
-  return { hasAccess: true, role: projectUser.role, meetsRoleRequirement: true };
+  return { hasAccess: true, role: taskTeam.role, meetsRoleRequirement: true };
 }
 
 /**
- * Main function: Check if user can access project
+ * Main function: Check if user can access task
  * Refactored to reduce cognitive complexity
  */
-export async function canAccessProject(
+export async function canAccessTask(
   userId: string,
-  projectId: number,
+  taskId: number,
   requiredRole?: string
-): Promise<ProjectAccessResult> {
+): Promise<TaskAccessResult> {
   try {
     // Check system admin access first
     const adminAccess = await checkSystemAdminAccess(userId);
     if (adminAccess) return adminAccess;
 
-    // Get project info
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { serviceLine: true },
+    // Get task info
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { ServLineCode: true },
     });
 
-    if (!project) {
+    if (!task) {
       return {
         canAccess: false,
-        accessType: ProjectAccessType.NO_ACCESS,
+        accessType: TaskAccessType.NO_ACCESS,
         isSystemAdmin: false,
       };
     }
@@ -163,27 +163,27 @@ export async function canAccessProject(
     // Check service line admin access
     const { isAdmin: isServiceLineAdmin, role: serviceLineRole } = await checkServiceLineAccess(
       userId,
-      project.serviceLine
+      task.ServLineCode
     );
 
     if (isServiceLineAdmin) {
       return {
         canAccess: true,
-        accessType: ProjectAccessType.SERVICE_LINE_ADMIN,
+        accessType: TaskAccessType.SERVICE_LINE_ADMIN,
         serviceLineRole,
-        serviceLine: project.serviceLine,
+        serviceLine: task.ServLineCode,
         isSystemAdmin: false,
       };
     }
 
-    // Check project membership
-    const membership = await checkProjectMembership(userId, projectId, requiredRole);
+    // Check task membership
+    const membership = await checkTaskMembership(userId, taskId, requiredRole);
 
     if (!membership.hasAccess) {
       return {
         canAccess: false,
-        accessType: ProjectAccessType.NO_ACCESS,
-        serviceLine: project.serviceLine,
+        accessType: TaskAccessType.NO_ACCESS,
+        serviceLine: task.ServLineCode,
         isSystemAdmin: false,
       };
     }
@@ -191,9 +191,9 @@ export async function canAccessProject(
     if (requiredRole && !membership.meetsRoleRequirement) {
       return {
         canAccess: false,
-        accessType: ProjectAccessType.PROJECT_MEMBER,
-        projectRole: membership.role,
-        serviceLine: project.serviceLine,
+        accessType: TaskAccessType.TASK_MEMBER,
+        taskRole: membership.role,
+        serviceLine: task.ServLineCode,
         serviceLineRole,
         isSystemAdmin: false,
       };
@@ -201,128 +201,128 @@ export async function canAccessProject(
 
     return {
       canAccess: true,
-      accessType: ProjectAccessType.PROJECT_MEMBER,
-      projectRole: membership.role,
-      serviceLine: project.serviceLine,
+      accessType: TaskAccessType.TASK_MEMBER,
+      taskRole: membership.role,
+      serviceLine: task.ServLineCode,
       serviceLineRole,
       isSystemAdmin: false,
     };
   } catch (error) {
-    logger.error('Error checking project access', { userId, projectId, error });
+    logger.error('Error checking task access', { userId, taskId, error });
     return {
       canAccess: false,
-      accessType: ProjectAccessType.NO_ACCESS,
+      accessType: TaskAccessType.NO_ACCESS,
       isSystemAdmin: false,
     };
   }
 }
 
 /**
- * Simple boolean check for project access
+ * Simple boolean check for task access
  * @param userId - User ID
- * @param projectId - Project ID
+ * @param taskId - Task ID
  * @param requiredRole - Optional minimum role required
- * @returns true if user can access project
+ * @returns true if user can access task
  */
-export async function hasProjectAccess(
+export async function hasTaskAccess(
   userId: string,
-  projectId: number,
+  taskId: number,
   requiredRole?: string
 ): Promise<boolean> {
-  const result = await canAccessProject(userId, projectId, requiredRole);
+  const result = await canAccessTask(userId, taskId, requiredRole);
   return result.canAccess;
 }
 
 /**
- * Require project access, throw error if user doesn't have access
+ * Require task access, throw error if user doesn't have access
  * @param userId - User ID
- * @param projectId - Project ID
+ * @param taskId - Task ID
  * @param requiredRole - Optional minimum role required
  * @throws Error if user doesn't have access
  */
-export async function requireProjectAccess(
+export async function requireTaskAccess(
   userId: string,
-  projectId: number,
+  taskId: number,
   requiredRole?: string
 ): Promise<void> {
-  const result = await canAccessProject(userId, projectId, requiredRole);
+  const result = await canAccessTask(userId, taskId, requiredRole);
   
   if (!result.canAccess) {
     const message = requiredRole
       ? `Access denied: ${requiredRole} role required`
-      : 'Access denied: Not a project member';
+      : 'Access denied: Not a task member';
     throw new Error(message);
   }
 }
 
 /**
- * Get user's effective role in project
+ * Get user's effective role in task
  * 
  * Returns the highest applicable role:
  * - SYSTEM_ADMIN → 'SYSTEM_ADMIN'
  * - Service Line Administrator → 'ADMINISTRATOR'
- * - Project Member → Project role
+ * - Task Member → Task role
  * 
  * @param userId - User ID
- * @param projectId - Project ID
+ * @param taskId - Task ID
  * @returns Effective role or null if no access
  */
-export async function getEffectiveProjectRole(
+export async function getEffectiveTaskRole(
   userId: string,
-  projectId: number
+  taskId: number
 ): Promise<string | null> {
-  const access = await canAccessProject(userId, projectId);
+  const access = await canAccessTask(userId, taskId);
   
   if (!access.canAccess) {
     return null;
   }
   
   switch (access.accessType) {
-    case ProjectAccessType.SYSTEM_ADMIN:
+    case TaskAccessType.SYSTEM_ADMIN:
       return 'SYSTEM_ADMIN';
-    case ProjectAccessType.SERVICE_LINE_ADMIN:
-      return 'ADMINISTRATOR'; // Service line administrators have admin-level project access
-    case ProjectAccessType.PROJECT_MEMBER:
-      return access.projectRole || null;
+    case TaskAccessType.SERVICE_LINE_ADMIN:
+      return 'ADMINISTRATOR'; // Service line administrators have admin-level task access
+    case TaskAccessType.TASK_MEMBER:
+      return access.taskRole || null;
     default:
       return null;
   }
 }
 
 /**
- * Check if user can manage project (assign users, delete, etc.)
+ * Check if user can manage task (assign users, delete, etc.)
  * 
  * Management access requires:
  * - SYSTEM_ADMIN, OR
  * - Service Line ADMIN/PARTNER/MANAGER, OR
- * - Project ADMIN role
+ * - Task ADMIN role
  * 
  * @param userId - User ID
- * @param projectId - Project ID
- * @returns true if user can manage project
+ * @param taskId - Task ID
+ * @returns true if user can manage task
  */
-export async function canManageProject(
+export async function canManageTask(
   userId: string,
-  projectId: number
+  taskId: number
 ): Promise<boolean> {
-  const access = await canAccessProject(userId, projectId);
+  const access = await canAccessTask(userId, taskId);
   
   if (!access.canAccess) {
     return false;
   }
   
-  // SYSTEM_ADMIN can manage all projects
+  // SYSTEM_ADMIN can manage all tasks
   if (access.isSystemAdmin) {
     return true;
   }
   
-  // Service line ADMIN/PARTNER/MANAGER can manage projects
+  // Service line ADMIN/PARTNER/MANAGER can manage tasks
   if (access.serviceLineRole && hasServiceLineRole(access.serviceLineRole, 'MANAGER')) {
     return true;
   }
   
-  // Project ADMIN can manage
-  if (access.projectRole === 'ADMIN') {
+  // Task ADMIN can manage
+  if (access.taskRole === 'ADMIN') {
     return true;
   }
   
@@ -330,43 +330,43 @@ export async function canManageProject(
 }
 
 /**
- * Check if user can delete project
+ * Check if user can delete task
  * 
  * Delete access requires:
  * - SYSTEM_ADMIN, OR
  * - Service Line ADMIN/PARTNER/MANAGER, OR
- * - Project ADMIN role
+ * - Task ADMIN role
  * 
  * @param userId - User ID
- * @param projectId - Project ID
- * @returns true if user can delete project
+ * @param taskId - Task ID
+ * @returns true if user can delete task
  */
-export async function canDeleteProject(
+export async function canDeleteTask(
   userId: string,
-  projectId: number
+  taskId: number
 ): Promise<boolean> {
   // Same rules as manage for now
-  return canManageProject(userId, projectId);
+  return canManageTask(userId, taskId);
 }
 
 /**
- * Check if user can assign team members to project
+ * Check if user can assign team members to task
  * 
  * Assignment access requires:
  * - SYSTEM_ADMIN, OR
  * - Service Line ADMIN/PARTNER/MANAGER, OR
- * - Project ADMIN role
+ * - Task ADMIN role
  * 
  * @param userId - User ID
- * @param projectId - Project ID
+ * @param taskId - Task ID
  * @returns true if user can assign team members
  */
 export async function canAssignTeamMembers(
   userId: string,
-  projectId: number
+  taskId: number
 ): Promise<boolean> {
   // Same rules as manage for now
-  return canManageProject(userId, projectId);
+  return canManageTask(userId, taskId);
 }
 
 /**
@@ -374,15 +374,15 @@ export async function canAssignTeamMembers(
  * @param accessType - Access type
  * @returns Formatted string
  */
-export function formatAccessType(accessType: ProjectAccessType): string {
+export function formatAccessType(accessType: TaskAccessType): string {
   switch (accessType) {
-    case ProjectAccessType.SYSTEM_ADMIN:
+    case TaskAccessType.SYSTEM_ADMIN:
       return 'System Administrator';
-    case ProjectAccessType.SERVICE_LINE_ADMIN:
+    case TaskAccessType.SERVICE_LINE_ADMIN:
       return 'Service Line Administrator';
-    case ProjectAccessType.PROJECT_MEMBER:
-      return 'Project Member';
-    case ProjectAccessType.NO_ACCESS:
+    case TaskAccessType.TASK_MEMBER:
+      return 'Task Member';
+    case TaskAccessType.NO_ACCESS:
       return 'No Access';
     default:
       return 'Unknown';
@@ -391,25 +391,22 @@ export function formatAccessType(accessType: ProjectAccessType): string {
 
 /**
  * Get detailed access summary for UI display
- * @param result - Project access result
+ * @param result - Task access result
  * @returns Human-readable access summary
  */
-export function getAccessSummary(result: ProjectAccessResult): string {
+export function getAccessSummary(result: TaskAccessResult): string {
   if (!result.canAccess) {
-    return 'You do not have access to this project.';
+    return 'You do not have access to this task.';
   }
   
   switch (result.accessType) {
-    case ProjectAccessType.SYSTEM_ADMIN:
+    case TaskAccessType.SYSTEM_ADMIN:
       return 'You have full access as a System Administrator.';
-    case ProjectAccessType.SERVICE_LINE_ADMIN:
+    case TaskAccessType.SERVICE_LINE_ADMIN:
       return `You have access as a ${result.serviceLineRole} in the ${result.serviceLine} service line.`;
-    case ProjectAccessType.PROJECT_MEMBER:
-      return `You are a project member with ${result.projectRole} role.`;
+    case TaskAccessType.TASK_MEMBER:
+      return `You are a task member with ${result.taskRole} role.`;
     default:
-      return 'You have access to this project.';
+      return 'You have access to this task.';
   }
 }
-
-
-

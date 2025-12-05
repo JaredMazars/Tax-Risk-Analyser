@@ -1,31 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
 
-interface ProjectAccessResult {
+interface TaskAccessResult {
   hasAccess: boolean;
   isLoading: boolean;
   accessType?: string;
-  projectRole?: string;
+  taskRole?: string;
   serviceLineRole?: string;
 }
 
 /**
- * Hook to check if user has access to a project
- * @param projectId - Project ID to check
- * @param requiredRole - Optional minimum project role required
+ * Hook to check if user has access to a task
+ * @param taskId - Task ID to check
+ * @param requiredRole - Optional minimum task role required
  * @returns Object with hasAccess and isLoading
  */
-export function useProjectAccess(
-  projectId: number,
+export function useTaskAccess(
+  taskId: number,
   requiredRole?: string
-): ProjectAccessResult {
+): TaskAccessResult {
   const { data, isLoading } = useQuery({
-    queryKey: ['projectAccess', projectId, requiredRole],
+    queryKey: ['taskAccess', taskId, requiredRole],
     queryFn: async () => {
       const response = await fetch(
-        `/api/projects/${projectId}/access${requiredRole ? `?role=${requiredRole}` : ''}`
+        `/api/tasks/${taskId}/access${requiredRole ? `?role=${requiredRole}` : ''}`
       );
       if (!response.ok) {
-        throw new Error('Failed to fetch project access');
+        throw new Error('Failed to fetch task access');
       }
       const data = await response.json();
       return data.data;
@@ -40,10 +40,7 @@ export function useProjectAccess(
     hasAccess: data?.canAccess || false,
     isLoading: false,
     accessType: data?.accessType,
-    projectRole: data?.projectRole,
+    taskRole: data?.taskRole,
     serviceLineRole: data?.serviceLineRole,
   };
 }
-
-
-

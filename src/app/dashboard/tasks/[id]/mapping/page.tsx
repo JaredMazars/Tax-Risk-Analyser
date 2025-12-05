@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { formatAmount } from '@/lib/utils/formatters';
 import { MappedData } from '@/types';
 import ExcelJS from 'exceljs';
-import { mappingGuide } from '@/lib/services/projects/mappingGuide';
+import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { ProcessingModal } from '@/components/shared/ProcessingModal';
 import RemappingModal from '@/components/features/tax-adjustments/RemappingModal';
 import { useMappedAccounts, useUpdateMappedAccount, useTask } from '@/hooks/tasks/useTaskData';
@@ -314,7 +314,7 @@ export default function MappingPage({ params }: { params: { id: string } }) {
     }
   ]);
 
-  const projectName = project?.name || '';
+  const taskName = project?.name || '';
 
   // Reset stages to initial state when not uploading
   useEffect(() => {
@@ -453,7 +453,7 @@ export default function MappingPage({ params }: { params: { id: string } }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${projectName.toLowerCase().replace(/\s+/g, '-')}-mapped-data.json`;
+    a.download = `${taskName.toLowerCase().replace(/\s+/g, '-')}-mapped-data.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -482,7 +482,7 @@ export default function MappingPage({ params }: { params: { id: string } }) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${projectName.toLowerCase().replace(/\s+/g, '-')}-mapped-data.xlsx`;
+    a.download = `${taskName.toLowerCase().replace(/\s+/g, '-')}-mapped-data.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

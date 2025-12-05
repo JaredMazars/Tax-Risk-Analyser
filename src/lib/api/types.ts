@@ -43,7 +43,7 @@ export type ProjectHandler<
 > = (
   request: NextRequest,
   context: AuthenticatedContext<TParams>,
-  projectId: number
+  taskId: number
 ) => Promise<NextResponse<ApiResponse<TResponse>>>;
 
 

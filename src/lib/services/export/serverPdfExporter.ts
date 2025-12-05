@@ -24,7 +24,7 @@ export interface TaxAdjustment {
 }
 
 export interface ReportData {
-  projectName: string;
+  taskName: string;
   trialBalance?: {
     accounts: MappedAccount[];
     totals: { currentYear: number; priorYear: number };

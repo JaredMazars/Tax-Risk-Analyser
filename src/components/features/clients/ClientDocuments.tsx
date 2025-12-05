@@ -10,7 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useClientDocuments, downloadClientDocument } from '@/hooks/clients/useClientDocuments';
 import { DocumentType, ClientDocument } from '@/types';
-import { formatDate } from '@/lib/utils/projectUtils';
+import { formatDate } from '@/lib/utils/taskUtils';
 
 interface ClientDocumentsProps {
   clientId: string | number;
@@ -42,7 +42,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
       clientId,
       doc.documentType,
       doc.id,
-      doc.projectId,
+      doc.taskId,
       doc.fileName
     );
   };
@@ -77,7 +77,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
     return docs.filter((doc) => {
       return (
         doc.fileName?.toLowerCase().includes(searchLower) ||
-        doc.projectName?.toLowerCase().includes(searchLower) ||
+        doc.taskName?.toLowerCase().includes(searchLower) ||
         doc.uploadedBy?.toLowerCase().includes(searchLower) ||
         doc.category?.toLowerCase().includes(searchLower) ||
         doc.referenceNumber?.toLowerCase().includes(searchLower) ||
@@ -302,7 +302,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="text-sm text-forvis-gray-600">{doc.projectName}</span>
+                      <span className="text-sm text-forvis-gray-600">{doc.taskName}</span>
                     </td>
                     {activeTab === DocumentType.ADMINISTRATION && (
                       <td className="px-4 py-3 whitespace-nowrap">

@@ -1,4 +1,4 @@
-import { mappingGuide } from '@/lib/services/projects/mappingGuide';
+import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { logWarn } from '@/lib/utils/logger';
 
 export function determineSectionAndSubsection(sarsItem: string, balance: number): { section: string; subsection: string } {

@@ -1,11 +1,11 @@
 /**
- * Project Workflow Utility Functions
+ * Task Workflow Utility Functions
  * 
  * Helper functions for managing client acceptance and engagement letter workflow.
  */
 
-export interface ProjectWorkflowStatus {
-  isClientProject: boolean;
+export interface TaskWorkflowStatus {
+  isClientTask: boolean;
   acceptanceApproved: boolean;
   engagementLetterComplete: boolean;
   canAccessWorkTabs: boolean;
@@ -13,7 +13,7 @@ export interface ProjectWorkflowStatus {
   nextStep: string;
 }
 
-export interface ProjectWorkflowData {
+export interface TaskWorkflowData {
   clientId?: number | null;
   acceptanceApproved?: boolean;
   acceptanceApprovedBy?: string | null;
@@ -26,37 +26,37 @@ export interface ProjectWorkflowData {
 }
 
 /**
- * Check if a project is a client project (requires workflow)
+ * Check if a task is a client task (requires workflow)
  */
-export function isClientProject(project: ProjectWorkflowData | null | undefined): boolean {
-  if (!project) return false;
-  return project.clientId !== null && project.clientId !== undefined;
+export function isClientTask(task: TaskWorkflowData | null | undefined): boolean {
+  if (!task) return false;
+  return task.clientId !== null && task.clientId !== undefined;
 }
 
 /**
  * Check if work tabs can be accessed (acceptance approved AND engagement letter uploaded)
  */
-export function canAccessWorkTabs(project: ProjectWorkflowData | null | undefined): boolean {
-  if (!project) return false;
+export function canAccessWorkTabs(task: TaskWorkflowData | null | undefined): boolean {
+  if (!task) return false;
   
-  // Internal projects (no client) can always access work tabs
-  if (!isClientProject(project)) {
+  // Internal tasks (no client) can always access work tabs
+  if (!isClientTask(task)) {
     return true;
   }
   
-  // Client projects need both acceptance and engagement letter complete
-  return Boolean(project.acceptanceApproved && project.engagementLetterUploaded);
+  // Client tasks need both acceptance and engagement letter complete
+  return Boolean(task.acceptanceApproved && task.engagementLetterUploaded);
 }
 
 /**
  * Get the current workflow status
  */
-export function getWorkflowStatus(project: ProjectWorkflowData | null | undefined): ProjectWorkflowStatus {
-  const isClient = isClientProject(project);
+export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): TaskWorkflowStatus {
+  const isClient = isClientTask(task);
   
   if (!isClient) {
     return {
-      isClientProject: false,
+      isClientTask: false,
       acceptanceApproved: true,
       engagementLetterComplete: true,
       canAccessWorkTabs: true,
@@ -65,8 +65,8 @@ export function getWorkflowStatus(project: ProjectWorkflowData | null | undefine
     };
   }
   
-  const acceptanceApproved = Boolean(project?.acceptanceApproved);
-  const engagementLetterComplete = Boolean(project?.engagementLetterUploaded);
+  const acceptanceApproved = Boolean(task?.acceptanceApproved);
+  const engagementLetterComplete = Boolean(task?.engagementLetterUploaded);
   
   let currentStep: 'acceptance' | 'engagement' | 'complete';
   let nextStep: string;
@@ -83,7 +83,7 @@ export function getWorkflowStatus(project: ProjectWorkflowData | null | undefine
   }
   
   return {
-    isClientProject: true,
+    isClientTask: true,
     acceptanceApproved,
     engagementLetterComplete,
     canAccessWorkTabs: acceptanceApproved && engagementLetterComplete,
@@ -95,12 +95,12 @@ export function getWorkflowStatus(project: ProjectWorkflowData | null | undefine
 /**
  * Get message to display for blocked tabs
  */
-export function getBlockedTabMessage(project: ProjectWorkflowData | null | undefined): string {
-  if (!project || !isClientProject(project)) {
+export function getBlockedTabMessage(task: TaskWorkflowData | null | undefined): string {
+  if (!task || !isClientTask(task)) {
     return '';
   }
   
-  const status = getWorkflowStatus(project);
+  const status = getWorkflowStatus(task);
   
   if (!status.acceptanceApproved) {
     return 'Complete client acceptance and continuance to access this tab';
@@ -116,49 +116,31 @@ export function getBlockedTabMessage(project: ProjectWorkflowData | null | undef
 /**
  * Check if engagement letter can be generated/uploaded
  */
-export function canManageEngagementLetter(project: ProjectWorkflowData | null | undefined): boolean {
-  if (!project || !isClientProject(project)) {
+export function canManageEngagementLetter(task: TaskWorkflowData | null | undefined): boolean {
+  if (!task || !isClientTask(task)) {
     return false;
   }
   
-  return Boolean(project.acceptanceApproved);
+  return Boolean(task.acceptanceApproved);
 }
 
 /**
  * Get workflow progress percentage
  */
-export function getWorkflowProgress(project: ProjectWorkflowData | null | undefined): number {
-  if (!project || !isClientProject(project)) {
+export function getWorkflowProgress(task: TaskWorkflowData | null | undefined): number {
+  if (!task || !isClientTask(task)) {
     return 100;
   }
   
   let progress = 0;
   
-  if (project.acceptanceApproved) {
+  if (task.acceptanceApproved) {
     progress += 50;
   }
   
-  if (project.engagementLetterUploaded) {
+  if (task.engagementLetterUploaded) {
     progress += 50;
   }
   
   return progress;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

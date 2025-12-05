@@ -193,7 +193,7 @@ export const ReportingPackPDF: React.FC<ReportingPackPDFProps> = ({ data, select
             <Page size="A4" style={styles.page}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={styles.title}>Financial Reporting Pack</Text>
-                    <Text style={styles.subtitle}>{data.projectName}</Text>
+                    <Text style={styles.subtitle}>{data.taskName}</Text>
                     <Text style={styles.date}>{new Date().toLocaleDateString()}</Text>
                 </View>
             </Page>

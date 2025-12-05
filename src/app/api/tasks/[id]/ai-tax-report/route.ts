@@ -55,13 +55,13 @@ export async function POST(
     const params = await context.params;
     const taskId = Number.parseInt(params.id);
 
-    // Fetch project details
-    const project = await prisma.project.findUnique({
+    // Fetch task details
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     // Fetch mapped accounts for trial balance
@@ -161,7 +161,7 @@ export async function POST(
 
     // Prepare project data for AI analysis
     const projectData: ProjectTaxData = {
-      projectName: project.name,
+      taskName: project.name,
       trialBalance: {
         totalCurrentYear: trialBalanceTotals.totalCurrentYear,
         totalPriorYear: trialBalanceTotals.totalPriorYear,

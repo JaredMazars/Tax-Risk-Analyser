@@ -6,7 +6,7 @@ import DocumentUploader from '../../shared/DocumentUploader';
 interface AddAdjustmentModalProps {
   isOpen: boolean;
   adjustmentType: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT';
-  projectId: number;
+  taskId: number;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -14,7 +14,7 @@ interface AddAdjustmentModalProps {
 export default function AddAdjustmentModal({
   isOpen,
   adjustmentType,
-  projectId,
+  taskId,
   onClose,
   onSuccess,
 }: AddAdjustmentModalProps) {
@@ -57,7 +57,7 @@ export default function AddAdjustmentModal({
       setIsSubmitting(true);
       setError(null);
 
-      const response = await fetch(`/api/projects/${projectId}/tax-adjustments`, {
+      const response = await fetch(`/api/tasks/${projectId}/tax-adjustments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

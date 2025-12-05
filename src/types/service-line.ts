@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { ServiceLine, ProjectType } from './index';
+import { ServiceLine, TaskType } from './index';
 import {
   DocumentTextIcon,
   ClipboardDocumentCheckIcon,
@@ -27,7 +27,7 @@ export interface ServiceLineConfig {
   color: string;
   borderColor: string;
   bgColor: string;
-  projectTypes: ProjectType[];
+  taskTypes: TaskType[];
 }
 
 /**
@@ -42,10 +42,10 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-blue-600',
     borderColor: 'border-blue-200',
     bgColor: 'bg-blue-50',
-    projectTypes: [
-      ProjectType.TAX_CALCULATION,
-      ProjectType.TAX_OPINION,
-      ProjectType.TAX_ADMINISTRATION,
+    taskTypes: [
+      TaskType.TAX_CALCULATION,
+      TaskType.TAX_OPINION,
+      TaskType.TAX_ADMINISTRATION,
     ],
   },
   [ServiceLine.AUDIT]: {
@@ -56,10 +56,10 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-green-600',
     borderColor: 'border-green-200',
     bgColor: 'bg-green-50',
-    projectTypes: [
-      ProjectType.AUDIT_ENGAGEMENT,
-      ProjectType.AUDIT_REVIEW,
-      ProjectType.AUDIT_REPORT,
+    taskTypes: [
+      TaskType.AUDIT_ENGAGEMENT,
+      TaskType.AUDIT_REVIEW,
+      TaskType.AUDIT_REPORT,
     ],
   },
   [ServiceLine.ACCOUNTING]: {
@@ -70,10 +70,10 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-purple-600',
     borderColor: 'border-purple-200',
     bgColor: 'bg-purple-50',
-    projectTypes: [
-      ProjectType.FINANCIAL_STATEMENTS,
-      ProjectType.BOOKKEEPING,
-      ProjectType.MANAGEMENT_ACCOUNTS,
+    taskTypes: [
+      TaskType.FINANCIAL_STATEMENTS,
+      TaskType.BOOKKEEPING,
+      TaskType.MANAGEMENT_ACCOUNTS,
     ],
   },
   [ServiceLine.ADVISORY]: {
@@ -84,10 +84,10 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-orange-600',
     borderColor: 'border-orange-200',
     bgColor: 'bg-orange-50',
-    projectTypes: [
-      ProjectType.ADVISORY_PROJECT,
-      ProjectType.CONSULTING_ENGAGEMENT,
-      ProjectType.STRATEGY_REVIEW,
+    taskTypes: [
+      TaskType.ADVISORY_PROJECT,
+      TaskType.CONSULTING_ENGAGEMENT,
+      TaskType.STRATEGY_REVIEW,
     ],
   },
   [ServiceLine.QRM]: {
@@ -98,10 +98,10 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-red-600',
     borderColor: 'border-red-200',
     bgColor: 'bg-red-50',
-    projectTypes: [
-      ProjectType.QRM_AUDIT,
-      ProjectType.QRM_COMPLIANCE,
-      ProjectType.QRM_RISK_ASSESSMENT,
+    taskTypes: [
+      TaskType.QRM_AUDIT,
+      TaskType.QRM_COMPLIANCE,
+      TaskType.QRM_RISK_ASSESSMENT,
     ],
   },
   [ServiceLine.BUSINESS_DEV]: {
@@ -112,10 +112,10 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-teal-600',
     borderColor: 'border-teal-200',
     bgColor: 'bg-teal-50',
-    projectTypes: [
-      ProjectType.BD_CAMPAIGN,
-      ProjectType.BD_PROPOSAL,
-      ProjectType.BD_MARKET_RESEARCH,
+    taskTypes: [
+      TaskType.BD_CAMPAIGN,
+      TaskType.BD_PROPOSAL,
+      TaskType.BD_MARKET_RESEARCH,
     ],
   },
   [ServiceLine.IT]: {
@@ -126,10 +126,10 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-indigo-600',
     borderColor: 'border-indigo-200',
     bgColor: 'bg-indigo-50',
-    projectTypes: [
-      ProjectType.IT_IMPLEMENTATION,
-      ProjectType.IT_SUPPORT,
-      ProjectType.IT_INFRASTRUCTURE,
+    taskTypes: [
+      TaskType.IT_IMPLEMENTATION,
+      TaskType.IT_SUPPORT,
+      TaskType.IT_INFRASTRUCTURE,
     ],
   },
   [ServiceLine.FINANCE]: {
@@ -140,10 +140,10 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-yellow-600',
     borderColor: 'border-yellow-200',
     bgColor: 'bg-yellow-50',
-    projectTypes: [
-      ProjectType.FINANCE_REPORTING,
-      ProjectType.FINANCE_BUDGETING,
-      ProjectType.FINANCE_ANALYSIS,
+    taskTypes: [
+      TaskType.FINANCE_REPORTING,
+      TaskType.FINANCE_BUDGETING,
+      TaskType.FINANCE_ANALYSIS,
     ],
   },
   [ServiceLine.HR]: {
@@ -154,20 +154,20 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     color: 'text-pink-600',
     borderColor: 'border-pink-200',
     bgColor: 'bg-pink-50',
-    projectTypes: [
-      ProjectType.HR_RECRUITMENT,
-      ProjectType.HR_TRAINING,
-      ProjectType.HR_POLICY,
+    taskTypes: [
+      TaskType.HR_RECRUITMENT,
+      TaskType.HR_TRAINING,
+      TaskType.HR_POLICY,
     ],
   },
 };
 
 /**
- * Get service line for a project type
+ * Get service line for a task type
  */
-export function getServiceLineForProjectType(projectType: ProjectType): ServiceLine | null {
+export function getServiceLineForTaskType(taskType: TaskType): ServiceLine | null {
   for (const [line, config] of Object.entries(SERVICE_LINE_CONFIGS)) {
-    if (config.projectTypes.includes(projectType)) {
+    if (config.taskTypes.includes(taskType)) {
       return line as ServiceLine;
     }
   }
@@ -188,7 +188,7 @@ export interface ServiceLineDetails {
   name: string;
   description: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  projectTypes: ProjectType[];
+  taskTypes: TaskType[];
   colorClass: string;
   bgColorClass: string;
   borderColorClass: string;
@@ -202,10 +202,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Tax',
     description: 'Tax compliance, calculations, opinions, and administration',
     icon: DocumentTextIcon,
-    projectTypes: [
-      ProjectType.TAX_CALCULATION,
-      ProjectType.TAX_OPINION,
-      ProjectType.TAX_ADMINISTRATION,
+    taskTypes: [
+      TaskType.TAX_CALCULATION,
+      TaskType.TAX_OPINION,
+      TaskType.TAX_ADMINISTRATION,
     ],
     colorClass: 'text-blue-600',
     bgColorClass: 'bg-blue-50',
@@ -215,10 +215,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Audit',
     description: 'Audit engagements, reviews, and reporting',
     icon: ClipboardDocumentCheckIcon,
-    projectTypes: [
-      ProjectType.AUDIT_ENGAGEMENT,
-      ProjectType.AUDIT_REVIEW,
-      ProjectType.AUDIT_REPORT,
+    taskTypes: [
+      TaskType.AUDIT_ENGAGEMENT,
+      TaskType.AUDIT_REVIEW,
+      TaskType.AUDIT_REPORT,
     ],
     colorClass: 'text-green-600',
     bgColorClass: 'bg-green-50',
@@ -228,10 +228,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Accounting',
     description: 'Financial statements, bookkeeping, and management accounts',
     icon: CalculatorIcon,
-    projectTypes: [
-      ProjectType.FINANCIAL_STATEMENTS,
-      ProjectType.BOOKKEEPING,
-      ProjectType.MANAGEMENT_ACCOUNTS,
+    taskTypes: [
+      TaskType.FINANCIAL_STATEMENTS,
+      TaskType.BOOKKEEPING,
+      TaskType.MANAGEMENT_ACCOUNTS,
     ],
     colorClass: 'text-purple-600',
     bgColorClass: 'bg-purple-50',
@@ -241,10 +241,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Advisory',
     description: 'Consulting, strategy, and advisory services',
     icon: LightBulbIcon,
-    projectTypes: [
-      ProjectType.ADVISORY_PROJECT,
-      ProjectType.CONSULTING_ENGAGEMENT,
-      ProjectType.STRATEGY_REVIEW,
+    taskTypes: [
+      TaskType.ADVISORY_PROJECT,
+      TaskType.CONSULTING_ENGAGEMENT,
+      TaskType.STRATEGY_REVIEW,
     ],
     colorClass: 'text-orange-600',
     bgColorClass: 'bg-orange-50',
@@ -254,10 +254,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Quality & Risk Management',
     description: 'Quality assurance, risk management, and compliance oversight',
     icon: ShieldCheckIcon,
-    projectTypes: [
-      ProjectType.QRM_AUDIT,
-      ProjectType.QRM_COMPLIANCE,
-      ProjectType.QRM_RISK_ASSESSMENT,
+    taskTypes: [
+      TaskType.QRM_AUDIT,
+      TaskType.QRM_COMPLIANCE,
+      TaskType.QRM_RISK_ASSESSMENT,
     ],
     colorClass: 'text-red-600',
     bgColorClass: 'bg-red-50',
@@ -267,10 +267,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Business Development & Marketing',
     description: 'Marketing campaigns, proposals, and market research',
     icon: MegaphoneIcon,
-    projectTypes: [
-      ProjectType.BD_CAMPAIGN,
-      ProjectType.BD_PROPOSAL,
-      ProjectType.BD_MARKET_RESEARCH,
+    taskTypes: [
+      TaskType.BD_CAMPAIGN,
+      TaskType.BD_PROPOSAL,
+      TaskType.BD_MARKET_RESEARCH,
     ],
     colorClass: 'text-teal-600',
     bgColorClass: 'bg-teal-50',
@@ -280,10 +280,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Information Technology',
     description: 'IT implementations, support, and infrastructure management',
     icon: ComputerDesktopIcon,
-    projectTypes: [
-      ProjectType.IT_IMPLEMENTATION,
-      ProjectType.IT_SUPPORT,
-      ProjectType.IT_INFRASTRUCTURE,
+    taskTypes: [
+      TaskType.IT_IMPLEMENTATION,
+      TaskType.IT_SUPPORT,
+      TaskType.IT_INFRASTRUCTURE,
     ],
     colorClass: 'text-indigo-600',
     bgColorClass: 'bg-indigo-50',
@@ -293,10 +293,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Finance',
     description: 'Financial reporting, budgeting, and analysis',
     icon: BanknotesIcon,
-    projectTypes: [
-      ProjectType.FINANCE_REPORTING,
-      ProjectType.FINANCE_BUDGETING,
-      ProjectType.FINANCE_ANALYSIS,
+    taskTypes: [
+      TaskType.FINANCE_REPORTING,
+      TaskType.FINANCE_BUDGETING,
+      TaskType.FINANCE_ANALYSIS,
     ],
     colorClass: 'text-yellow-600',
     bgColorClass: 'bg-yellow-50',
@@ -306,10 +306,10 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
     name: 'Human Resources',
     description: 'Recruitment, training, and policy development',
     icon: UserGroupIcon,
-    projectTypes: [
-      ProjectType.HR_RECRUITMENT,
-      ProjectType.HR_TRAINING,
-      ProjectType.HR_POLICY,
+    taskTypes: [
+      TaskType.HR_RECRUITMENT,
+      TaskType.HR_TRAINING,
+      TaskType.HR_POLICY,
     ],
     colorClass: 'text-pink-600',
     bgColorClass: 'bg-pink-50',

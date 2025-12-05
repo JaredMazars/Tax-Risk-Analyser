@@ -32,11 +32,11 @@ export async function convertOpportunityToClient(
   options: {
     createProject?: boolean;
     projectType?: string;
-    projectName?: string;
+    taskName?: string;
     projectDescription?: string;
   } = {}
 ): Promise<ConversionResult> {
-  const { createProject = false, projectType, projectName, projectDescription } = options;
+  const { createProject = false, projectType, taskName, projectDescription } = options;
 
   // Get the opportunity
   const opportunity = await prisma.bDOpportunity.findUnique({
@@ -110,7 +110,7 @@ export async function convertOpportunityToClient(
   let project;
   if (createProject && projectType) {
     // Create an initial project for this client
-    const finalProjectName = projectName || `${opportunity.title} - ${opportunity.companyName}`;
+    const finalProjectName = taskName || `${opportunity.title} - ${opportunity.companyName}`;
 
     project = await prisma.project.create({
       data: {

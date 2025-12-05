@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { MappedData } from '@/types';
-import { mappingGuide } from '@/lib/services/projects/mappingGuide';
+import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { formatAmount } from '@/lib/utils/formatters';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';

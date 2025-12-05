@@ -151,7 +151,7 @@ export async function GET(
     const { id } = await context.params;
     const taskId = toTaskId(id);
 
-    // Validate user has access to project
+    // Validate user has access to task
     const hasAccess = await validateAcceptanceAccess(taskId, user.id);
     if (!hasAccess) {
       return NextResponse.json(
@@ -160,7 +160,7 @@ export async function GET(
       );
     }
 
-    // Get the active questionnaire response for this project
+    // Get the active questionnaire response for this task
     const response = await prisma.clientAcceptanceResponse.findFirst({
       where: { taskId },
       orderBy: { createdAt: 'desc' },
@@ -208,7 +208,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Document ID required' }, { status: 400 });
     }
 
-    // Validate user has access to project
+    // Validate user has access to task
     const hasAccess = await validateAcceptanceAccess(taskId, user.id);
     if (!hasAccess) {
       return NextResponse.json(

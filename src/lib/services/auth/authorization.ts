@@ -133,7 +133,7 @@ export async function hasServiceLineAccess(
  */
 export async function canApproveAcceptance(
   userId: string,
-  projectId: number
+  taskId: number
 ): Promise<boolean> {
   try {
     // Check if user is a system admin
@@ -141,25 +141,25 @@ export async function canApproveAcceptance(
     if (isAdmin) return true;
 
     // Get the project's service line
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
       select: { serviceLine: true },
     });
 
-    if (!project) {
-      logger.warn('Project not found for approval check', { projectId });
+    if (!task) {
+      logger.warn('Task not found for approval check', { taskId });
       return false;
     }
 
     // Check if user is an Administrator or Partner in the project's service line
-    const isServiceLinePartner = await isPartner(userId, project.serviceLine);
+    const isServiceLinePartner = await isPartner(userId, task.serviceLine);
     
     // Also verify they have project access
     if (isServiceLinePartner) {
-      const hasProjectAccess = await prisma.projectUser.findUnique({
+      const hasProjectAccess = await prisma.taskTeam.findUnique({
         where: {
-          projectId_userId: {
-            projectId,
+          taskId_userId: {
+            taskId,
             userId,
           },
         },
@@ -170,7 +170,7 @@ export async function canApproveAcceptance(
 
     return false;
   } catch (error) {
-    logger.error('Error checking approval permission', { userId, projectId, error });
+    logger.error('Error checking approval permission', { userId, taskId, error });
     return false;
   }
 }
@@ -181,10 +181,10 @@ export async function canApproveAcceptance(
  */
 export async function canApproveEngagementLetter(
   userId: string,
-  projectId: number
+  taskId: number
 ): Promise<boolean> {
   // Same logic as acceptance approval
-  return canApproveAcceptance(userId, projectId);
+  return canApproveAcceptance(userId, taskId);
 }
 
 /**

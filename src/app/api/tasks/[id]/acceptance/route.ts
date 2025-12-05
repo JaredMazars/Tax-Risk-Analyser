@@ -9,7 +9,7 @@ import { logAcceptanceApproved } from '@/lib/services/acceptance/auditLog';
 
 /**
  * POST /api/tasks/[id]/acceptance
- * Approve client acceptance and continuance for a project
+ * Approve client acceptance and continuance for a task
  */
 export async function POST(
   request: NextRequest,
@@ -25,7 +25,7 @@ export async function POST(
     const taskId = toTaskId(id);
 
     // Check if user can approve acceptance
-    // Rules: SYSTEM_ADMIN OR Partner/Administrator (ServiceLineUser.role = ADMINISTRATOR or PARTNER for project's service line)
+    // Rules: SYSTEM_ADMIN OR Partner/Administrator (ServiceLineUser.role = ADMINISTRATOR or PARTNER for task's service line)
     const hasApprovalPermission = await canApproveAcceptance(user.id, taskId);
 
     if (!hasApprovalPermission) {
@@ -35,24 +35,27 @@ export async function POST(
       );
     }
 
-    // Check if this is a client project
-    const project = await prisma.project.findUnique({
+    // Check if this is a client task
+    const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { clientId: true, acceptanceApproved: true },
+      include: {
+        Client: true,
+        TaskAcceptance: true,
+      },
     });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    if (!project.clientId) {
+    if (!task.Client) {
       return NextResponse.json(
-        { error: 'Client acceptance is only required for client projects' },
+        { error: 'Client acceptance is only required for client tasks' },
         { status: 400 }
       );
     }
 
-    if (project.acceptanceApproved) {
+    if (task.TaskAcceptance?.acceptanceApproved) {
       return NextResponse.json(
         { error: 'Client acceptance already approved', code: AcceptanceErrorCodes.ALREADY_APPROVED },
         { status: 400 }
@@ -96,7 +99,7 @@ export async function POST(
           reviewedAt: new Date(),
         },
       }),
-      prisma.project.update({
+      prisma.task.update({
         where: { id: taskId },
         data: {
           acceptanceApproved: true,

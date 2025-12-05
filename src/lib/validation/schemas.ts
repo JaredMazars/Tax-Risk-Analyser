@@ -56,12 +56,12 @@ export const CreateTaskSchema = z.object({
 /**
  * Project User Management validation schemas
  */
-export const AddProjectUserSchema = z.object({
+export const AddTaskTeamSchema = z.object({
   userId: z.string().min(1),
   role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).optional().default('VIEWER'),
 }).strict();
 
-export const UpdateProjectUserSchema = z.object({
+export const UpdateTaskTeamSchema = z.object({
   role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']),
 }).strict();
 
@@ -137,7 +137,7 @@ export const UpdateTaxAdjustmentSchema = z.object({
 }).strict();
 
 export const CreateTaxAdjustmentSchema = z.object({
-  projectId: z.number().int().positive(),
+  taskId: z.number().int().positive(),
   type: z.string().max(100),
   description: z.string().max(1000),
   amount: z.number(),
@@ -162,7 +162,7 @@ export const PaginationSchema = z.object({
  * Opinion Draft schemas
  */
 export const CreateOpinionDraftSchema = z.object({
-  projectId: z.number().int().positive(),
+  taskId: z.number().int().positive(),
   title: z.string().min(1).max(500),
   content: z.string().optional(),
   version: z.number().int().positive().default(1),
@@ -183,7 +183,7 @@ export const UpdateNotificationPreferenceSchema = z.object({
 }).strict();
 
 export const CreateNotificationPreferenceSchema = z.object({
-  projectId: z.number().int().positive().nullable().optional(),
+  taskId: z.number().int().positive().nullable().optional(),
   notificationType: z.string().min(1).max(100),
   emailEnabled: z.boolean().default(true),
 }).strict();
@@ -199,13 +199,13 @@ export const SendUserMessageSchema = z.object({
   recipientUserId: z.string().min(1),
   title: z.string().min(1).max(200),
   message: z.string().min(1).max(1000),
-  projectId: z.number().int().positive().optional(),
+  taskId: z.number().int().positive().optional(),
   actionUrl: z.string().max(500).optional(),
 }).strict();
 
 export const NotificationFiltersSchema = z.object({
   isRead: z.boolean().optional(),
-  projectId: z.number().int().positive().optional(),
+  taskId: z.number().int().positive().optional(),
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
 }).strict();
@@ -241,7 +241,7 @@ export const CreateTemplateSectionSchema = z.object({
   isAiAdaptable: z.boolean().default(false),
   order: z.number().int().positive(),
   applicableServiceLines: z.array(z.string()).optional(),
-  applicableProjectTypes: z.array(z.string()).optional(),
+  applicableTaskTypes: z.array(z.string()).optional(),
 }).strict();
 
 export const UpdateTemplateSectionSchema = z.object({
@@ -252,7 +252,7 @@ export const UpdateTemplateSectionSchema = z.object({
   isAiAdaptable: z.boolean().optional(),
   order: z.number().int().positive().optional(),
   applicableServiceLines: z.array(z.string()).nullable().optional(),
-  applicableProjectTypes: z.array(z.string()).nullable().optional(),
+  applicableTaskTypes: z.array(z.string()).nullable().optional(),
 }).strict();
 
 /**
@@ -532,7 +532,7 @@ export const MoveBDOpportunityStageSchema = z.object({
 }).strict();
 
 export const ConvertBDOpportunitySchema = z.object({
-  createProject: z.boolean().default(false),
+  createTask: z.boolean().default(false),
   projectType: z.string().optional(), // Required if createProject = true
 }).strict();
 

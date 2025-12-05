@@ -185,7 +185,7 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
             Tax Adjustment Details
           </h1>
           <p className="text-forvis-gray-600 text-sm mt-0.5">
-            Project: {adjustment.project.name}
+            Task: {adjustment.project.name}
           </p>
         </div>
 
