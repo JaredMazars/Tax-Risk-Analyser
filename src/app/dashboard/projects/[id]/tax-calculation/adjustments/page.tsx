@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatAmount } from '@/lib/utils/formatters';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface AdjustmentsListProps {
   params: Promise<{ id: string }>;
@@ -31,6 +32,20 @@ export default function AdjustmentsListPage({ params }: { params: { id: string }
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchAdjustments();
@@ -74,22 +89,30 @@ export default function AdjustmentsListPage({ params }: { params: { id: string }
   };
 
   const handleDelete = async (adjustmentId: number) => {
-    if (!confirm('Are you sure you want to delete this adjustment?')) return;
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Tax Adjustment',
+      message: 'Are you sure you want to delete this adjustment? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(
+            `/api/projects/${params.id}/tax-adjustments/${adjustmentId}`,
+            {
+              method: 'DELETE',
+            }
+          );
 
-    try {
-      const response = await fetch(
-        `/api/projects/${params.id}/tax-adjustments/${adjustmentId}`,
-        {
-          method: 'DELETE',
+          if (!response.ok) throw new Error('Failed to delete adjustment');
+
+          await fetchAdjustments();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to delete');
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         }
-      );
-
-      if (!response.ok) throw new Error('Failed to delete adjustment');
-
-      await fetchAdjustments();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete');
-    }
+      },
+    });
   };
 
   // Filter adjustments
@@ -506,6 +529,16 @@ export default function AdjustmentsListPage({ params }: { params: { id: string }
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
       </div>
     </div>
   );

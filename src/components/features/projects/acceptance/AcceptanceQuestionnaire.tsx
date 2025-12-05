@@ -6,6 +6,7 @@ import { QuestionField } from './QuestionField';
 import { DocumentUpload } from './DocumentUpload';
 import { useQuestionnaire, useSaveAnswers, useSubmitQuestionnaire } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { QuestionSection } from '@/constants/acceptance-questions';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface AcceptanceQuestionnaireProps {
   projectId: string;
@@ -23,6 +24,20 @@ export function AcceptanceQuestionnaire({ projectId, onSubmitSuccess }: Acceptan
   const [activeTab, setActiveTab] = useState(0);
   const [answers, setAnswers] = useState<AnswerState>({});
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const { data: questionnaireData, isLoading } = useQuestionnaire(projectId);
   const saveAnswersMutation = useSaveAnswers(projectId);
@@ -80,16 +95,24 @@ export function AcceptanceQuestionnaire({ projectId, onSubmitSuccess }: Acceptan
   }, []);
 
   const handleSubmit = async () => {
-    if (confirm('Are you sure you want to submit this questionnaire for review? You will not be able to make changes after submission.')) {
-      try {
-        await submitMutation.mutateAsync();
-        if (onSubmitSuccess) {
-          onSubmitSuccess();
+    setConfirmModal({
+      isOpen: true,
+      title: 'Submit Questionnaire',
+      message: 'Are you sure you want to submit this questionnaire for review? You will not be able to make changes after submission.',
+      variant: 'warning',
+      onConfirm: async () => {
+        try {
+          await submitMutation.mutateAsync();
+          if (onSubmitSuccess) {
+            onSubmitSuccess();
+          }
+        } catch (error) {
+          console.error('Failed to submit:', error);
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         }
-      } catch (error) {
-        console.error('Failed to submit:', error);
-      }
-    }
+      },
+    });
   };
 
   // Calculate completion for each section (accounting for conditional questions)
@@ -369,6 +392,16 @@ export function AcceptanceQuestionnaire({ projectId, onSubmitSuccess }: Acceptan
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

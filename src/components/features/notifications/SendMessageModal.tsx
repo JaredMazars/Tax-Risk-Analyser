@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { useSendMessage } from '@/hooks/notifications/useNotifications';
 import { SendMessageData } from '@/types/notification';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface SendMessageModalProps {
   isOpen: boolean;
@@ -32,6 +33,19 @@ export function SendMessageModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
   
   const sendMessage = useSendMessage();
 
@@ -112,8 +126,12 @@ export function SendMessageModal({
     try {
       await sendMessage.mutateAsync(data);
       onClose();
-      // Show success message (could use a toast library)
-      alert('Message sent successfully!');
+      setAlertModal({
+        isOpen: true,
+        title: 'Success',
+        message: 'Message sent successfully!',
+        variant: 'success',
+      });
     } catch (error) {
       setErrors({ submit: error instanceof Error ? error.message : 'Failed to send message' });
     }
@@ -313,6 +331,15 @@ export function SendMessageModal({
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </div>
   );
 }

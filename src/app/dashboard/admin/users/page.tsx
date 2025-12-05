@@ -14,6 +14,8 @@ import {
 import { formatRole, formatDate } from '@/lib/utils/projectUtils';
 import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
 import { UserSearchModal } from '@/components/features/projects/UserManagement/UserSearchModal';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { AlertModal } from '@/components/shared/AlertModal';
 import { ADUser, ServiceLine, ServiceLineRole } from '@/types';
 import { ServiceLineUser } from '@/types';
 import { SERVICE_LINE_DETAILS } from '@/types/service-line';
@@ -65,6 +67,16 @@ export default function UserManagementPage() {
   const [loadingServiceLines, setLoadingServiceLines] = useState(false);
   const [showAddServiceLineDropdown, setShowAddServiceLineDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const updateUserServiceLinesState = (userId: string, serviceLines: ServiceLineUser[]) => {
+    setSelectedUser((current) =>
+      current && current.id === userId ? { ...current, serviceLines } : current
+    );
+    setSystemUsers((current) =>
+      current.map((user) =>
+        user.id === userId ? { ...user, serviceLines } : user
+      )
+    );
+  };
   
   // System Role Management
   const [updatingSystemRole, setUpdatingSystemRole] = useState(false);
@@ -75,6 +87,32 @@ export default function UserManagementPage() {
   const [adSearchQuery, setAdSearchQuery] = useState('');
   const [adSearchResults, setAdSearchResults] = useState<ADUser[]>([]);
   const [adLoading, setAdLoading] = useState(false);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
 
   useEffect(() => {
     if (activeTab === 'system') {
@@ -160,7 +198,7 @@ export default function UserManagementPage() {
     }
   };
 
-  const fetchUserServiceLines = async (userId: string) => {
+  const fetchUserServiceLines = async (userId: string): Promise<ServiceLineUser[]> => {
     setLoadingServiceLines(true);
     try {
       const response = await fetch(`/api/admin/service-line-access?userId=${userId}`, {
@@ -168,14 +206,17 @@ export default function UserManagementPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        const serviceLines = data.success ? data.data : [];
+        const serviceLines: ServiceLineUser[] = data.success ? data.data : [];
         setUserServiceLines(serviceLines);
+        return serviceLines;
       }
     } catch (error) {
       // Silently handle error
+      return [];
     } finally {
       setLoadingServiceLines(false);
     }
+    return [];
   };
 
   const handleAddServiceLine = async (serviceLine: ServiceLine, role: ServiceLineRole = ServiceLineRole.USER) => {
@@ -194,7 +235,8 @@ export default function UserManagementPage() {
       });
 
       if (response.ok) {
-        await fetchUserServiceLines(selectedUser.id);
+        const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
+        updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
         setShowAddServiceLineDropdown(false);
       }
     } catch (error) {
@@ -204,21 +246,31 @@ export default function UserManagementPage() {
 
   const handleRemoveServiceLine = async (serviceLineUserId: number) => {
     if (!selectedUser) return;
-    if (!confirm('Remove this service line access?')) return;
 
-    try {
-      const url = `/api/admin/service-line-access?id=${serviceLineUserId}`;
-      const response = await fetch(url, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Service Line Access',
+      message: 'Are you sure you want to remove this service line access?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const url = `/api/admin/service-line-access?id=${serviceLineUserId}`;
+          const response = await fetch(url, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
 
-      if (response.ok) {
-        await fetchUserServiceLines(selectedUser.id);
-      }
-    } catch (error) {
-      // Silently handle error
-    }
+          if (response.ok) {
+            const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
+            updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
+          }
+        } catch (error) {
+          // Silently handle error
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleUpdateServiceLineRole = async (serviceLineUserId: number, newRole: ServiceLineRole) => {
@@ -238,7 +290,8 @@ export default function UserManagementPage() {
       });
 
       if (response.ok) {
-        await fetchUserServiceLines(selectedUser.id);
+        const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
+        updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
       }
     } catch (error) {
       // Silently handle error
@@ -246,22 +299,28 @@ export default function UserManagementPage() {
   };
 
   const handleRemoveFromAllProjects = async (userId: string) => {
-    if (!confirm('Are you sure you want to remove this user from ALL projects?')) {
-      return;
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove User from All Projects',
+      message: 'Are you sure you want to remove this user from ALL projects? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchSystemUsers();
-        setShowDetailModal(false);
-      }
-    } catch (error) {
-      // Failed to remove user
-    }
+          if (response.ok) {
+            fetchSystemUsers();
+            setShowDetailModal(false);
+          }
+        } catch (error) {
+          // Failed to remove user
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleUpdateSystemRole = async (userId: string, newRole: 'USER' | 'SYSTEM_ADMIN') => {
@@ -270,35 +329,52 @@ export default function UserManagementPage() {
       ? 'Are you sure you want to make this user a System Administrator? They will have full access to all features and service lines.'
       : 'Are you sure you want to remove System Administrator privileges from this user?';
     
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: newRole === 'SYSTEM_ADMIN' ? 'Grant System Administrator' : 'Remove System Administrator',
+      message: confirmMessage,
+      variant: 'warning',
+      onConfirm: async () => {
+        setUpdatingSystemRole(true);
+        try {
+          const response = await fetch(`/api/admin/users/${userId}/system-role`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ systemRole: newRole }),
+          });
 
-    setUpdatingSystemRole(true);
-    try {
-      const response = await fetch(`/api/admin/users/${userId}/system-role`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ systemRole: newRole }),
-      });
-
-      if (response.ok) {
-        // Refresh the user list
-        await fetchSystemUsers();
-        // Update the selected user
-        if (selectedUser) {
-          setSelectedUser({ ...selectedUser, role: newRole });
+          if (response.ok) {
+            // Refresh the user list
+            await fetchSystemUsers();
+            // Refresh service lines for the modal (important for system admin changes)
+            const updatedServiceLines = await fetchUserServiceLines(userId);
+            // Update the selected user with new role and service lines
+            if (selectedUser) {
+              setSelectedUser({ ...selectedUser, role: newRole, serviceLines: updatedServiceLines });
+            }
+          } else {
+            const data = await response.json();
+            setAlertModal({
+              isOpen: true,
+              title: 'Error',
+              message: data.error || `Failed to ${action} user`,
+              variant: 'error',
+            });
+          }
+        } catch (error) {
+          setAlertModal({
+            isOpen: true,
+            title: 'Error',
+            message: `An error occurred while trying to ${action} the user`,
+            variant: 'error',
+          });
+        } finally {
+          setUpdatingSystemRole(false);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         }
-      } else {
-        const data = await response.json();
-        alert(data.error || `Failed to ${action} user`);
-      }
-    } catch (error) {
-      alert(`An error occurred while trying to ${action} the user`);
-    } finally {
-      setUpdatingSystemRole(false);
-    }
+      },
+    });
   };
 
   // Open modal and fetch service lines
@@ -574,8 +650,12 @@ export default function UserManagementPage() {
                       <button
                         className="btn-primary"
                         onClick={() => {
-                          // Would open a modal to add user to projects
-                          alert('Add to projects feature - would open modal to select projects and role');
+                          setAlertModal({
+                            isOpen: true,
+                            title: 'Feature Coming Soon',
+                            message: 'Add to projects feature - would open modal to select projects and role',
+                            variant: 'info',
+                          });
                         }}
                       >
                         <UserPlusIcon className="h-5 w-5 mr-2" />
@@ -745,16 +825,20 @@ export default function UserManagementPage() {
                     <div className="text-2xl font-bold text-forvis-gray-900">{selectedUser.projectCount}</div>
                   </div>
                   <div className="card p-4">
-                    <div className="text-sm text-forvis-gray-600">Roles</div>
+                    <div className="text-sm text-forvis-gray-600">Project Roles</div>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {selectedUser.roles.map(role => (
-                        <span
-                          key={role}
-                          className={`px-2 py-1 rounded text-xs font-medium ${getRoleBadgeColor(role)}`}
-                        >
-                          {formatRole(role)}
-                        </span>
-                      ))}
+                      {selectedUser.roles && selectedUser.roles.length > 0 ? (
+                        selectedUser.roles.map(role => (
+                          <span
+                            key={role}
+                            className={`px-2 py-1 rounded text-xs font-medium ${getRoleBadgeColor(role)}`}
+                          >
+                            {formatRole(role)}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-forvis-gray-500 italic">No project assignments</span>
+                      )}
                     </div>
                   </div>
                   <div className="card p-4">
@@ -1018,6 +1102,24 @@ export default function UserManagementPage() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </div>
   );
 }

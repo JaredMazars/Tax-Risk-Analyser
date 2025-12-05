@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ProjectRole } from '@/types';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface RoleSelectorProps {
   projectId: number;
@@ -12,6 +13,19 @@ interface RoleSelectorProps {
 
 export function RoleSelector({ projectId, userId, currentRole, onChange }: RoleSelectorProps) {
   const [updating, setUpdating] = useState(false);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
 
   const handleRoleChange = async (newRole: ProjectRole) => {
     if (newRole === currentRole) return;
@@ -30,27 +44,47 @@ export function RoleSelector({ projectId, userId, currentRole, onChange }: RoleS
       if (data.success) {
         onChange();
       } else {
-        alert(data.error || 'Failed to update role');
+        setAlertModal({
+          isOpen: true,
+          title: 'Error',
+          message: data.error || 'Failed to update role',
+          variant: 'error',
+        });
       }
     } catch (err) {
-      alert('An error occurred while updating role');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'An error occurred while updating role. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setUpdating(false);
     }
   };
 
   return (
-    <select
-      value={currentRole}
-      onChange={(e) => handleRoleChange(e.target.value as ProjectRole)}
-      disabled={updating}
-      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-    >
-      <option value="VIEWER">Viewer</option>
-      <option value="EDITOR">Editor</option>
-      <option value="REVIEWER">Reviewer</option>
-      <option value="ADMIN">Admin</option>
-    </select>
+    <>
+      <select
+        value={currentRole}
+        onChange={(e) => handleRoleChange(e.target.value as ProjectRole)}
+        disabled={updating}
+        className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+      >
+        <option value="VIEWER">Viewer</option>
+        <option value="EDITOR">Editor</option>
+        <option value="REVIEWER">Reviewer</option>
+        <option value="ADMIN">Admin</option>
+      </select>
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
+    </>
   );
 }
 

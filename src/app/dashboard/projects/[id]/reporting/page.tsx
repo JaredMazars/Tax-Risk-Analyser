@@ -7,6 +7,7 @@ import BalanceSheetReport from '@/components/features/reports/BalanceSheetReport
 import IncomeStatementReport from '@/components/features/reports/IncomeStatementReport';
 import TaxCalculationReport from '@/components/features/reports/TaxCalculationReport';
 import AITaxReport from '@/components/features/reports/AITaxReport';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 import { MappedData } from '@/types';
 import { AITaxReportData } from '@/lib/services/opinions/aiTaxReportGenerator';
@@ -51,6 +52,19 @@ export default function ReportingPage({ params }: ReportingPageProps) {
   // Note: In client components, params is already resolved (not a Promise)
   const [activeTab, setActiveTab] = useState('trialBalance');
   const [isExporting, setIsExporting] = useState(false);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
 
   const { data: project } = useProject(params.id);
   const { data: trialBalanceData, isLoading: isLoadingTrialBalance, error: trialBalanceError } = useTrialBalance(params.id);
@@ -121,7 +135,12 @@ export default function ReportingPage({ params }: ReportingPageProps) {
         .map(([key]) => key);
 
       if (selectedReportsList.length === 0) {
-        alert('Please select at least one report to export');
+        setAlertModal({
+          isOpen: true,
+          title: 'No Reports Selected',
+          message: 'Please select at least one report to export',
+          variant: 'warning',
+        });
         return;
       }
 
@@ -151,7 +170,12 @@ export default function ReportingPage({ params }: ReportingPageProps) {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert('Failed to export PDF. Please try again.');
+      setAlertModal({
+        isOpen: true,
+        title: 'Export Failed',
+        message: 'Failed to export PDF. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsExporting(false);
     }
@@ -350,6 +374,15 @@ export default function ReportingPage({ params }: ReportingPageProps) {
           {activeTabData?.component}
         </div>
       </div>
+
+      {/* Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </div>
   );
 }

@@ -368,3 +368,4 @@ A: Yes, commit `prisma/migrations/` to git so team members get the same schema.
 **Status: ✅ Complete**
 
 All scripts created, tested, and documented. Ready for use.
+

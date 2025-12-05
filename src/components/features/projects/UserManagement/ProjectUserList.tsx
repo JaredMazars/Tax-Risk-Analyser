@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { ProjectUser, ProjectRole } from '@/types';
 import { RoleSelector } from './RoleSelector';
 import { SendMessageModal } from '@/components/features/notifications/SendMessageModal';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { AlertModal } from '@/components/shared/AlertModal';
 import { UserCircleIcon, EnvelopeIcon, BriefcaseIcon, BuildingOfficeIcon, CalendarIcon, XMarkIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
 
 interface ProjectUserListProps {
@@ -28,33 +30,74 @@ export function ProjectUserList({
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageRecipient, setMessageRecipient] = useState<{ userId: string; name: string; projectId: number; projectName?: string } | null>(null);
 
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
+
   const handleRemoveUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to remove this user from the project?')) {
-      return;
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove User from Project',
+      message: 'Are you sure you want to remove this user from the project? They will lose all access to project data.',
+      variant: 'danger',
+      onConfirm: async () => {
+        setRemovingUserId(userId);
 
-    setRemovingUserId(userId);
+        try {
+          const response = await fetch(`/api/projects/${projectId}/users/${userId}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const response = await fetch(`/api/projects/${projectId}/users/${userId}`, {
-        method: 'DELETE',
-      });
+          const data = await response.json();
 
-      const data = await response.json();
-
-      if (data.success) {
-        onUserRemoved();
-        if (selectedUser?.userId === userId) {
-          setSelectedUser(null);
+          if (data.success) {
+            onUserRemoved();
+            if (selectedUser?.userId === userId) {
+              setSelectedUser(null);
+            }
+          } else {
+            setAlertModal({
+              isOpen: true,
+              title: 'Error',
+              message: data.error || 'Failed to remove user',
+              variant: 'error',
+            });
+          }
+        } catch (err) {
+          setAlertModal({
+            isOpen: true,
+            title: 'Error',
+            message: 'An error occurred while removing user. Please try again.',
+            variant: 'error',
+          });
+        } finally {
+          setRemovingUserId(null);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         }
-      } else {
-        alert(data.error || 'Failed to remove user');
-      }
-    } catch (err) {
-      alert('An error occurred while removing user');
-    } finally {
-      setRemovingUserId(null);
-    }
+      },
+    });
   };
 
   const canManageUsers = currentUserRole === 'ADMIN';
@@ -315,6 +358,24 @@ export function ProjectUserList({
           projectId={messageRecipient.projectId}
         />
       )}
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </>
   );
 }

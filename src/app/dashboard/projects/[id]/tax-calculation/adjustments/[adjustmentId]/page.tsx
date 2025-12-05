@@ -6,6 +6,7 @@ import { formatAmount } from '@/lib/utils/formatters';
 import DocumentUploader from '@/components/shared/DocumentUploader';
 import ExtractionResults from '@/components/shared/ExtractionResults';
 import CalculationBreakdown from '@/components/shared/CalculationBreakdown';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { 
   useTaxAdjustment, 
   useUpdateTaxAdjustment, 
@@ -51,6 +52,20 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   
   // React Query hooks
   const { data: adjustment, isLoading, error: queryError, refetch } = useTaxAdjustment(params.id, params.adjustmentId);
@@ -113,14 +128,22 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this adjustment?')) return;
-
-    try {
-      await deleteAdjustment.mutateAsync(parseInt(params.adjustmentId));
-      router.push(`/dashboard/projects/${params.id}?tab=tax-calculation`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Tax Adjustment',
+      message: 'Are you sure you want to delete this adjustment? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteAdjustment.mutateAsync(parseInt(params.adjustmentId));
+          router.push(`/dashboard/projects/${params.id}?tab=tax-calculation`);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to delete');
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleDocumentUpload = async () => {
@@ -319,7 +342,7 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
                 {adjustment.sarsSection && (
                   <div>
                     <span className="text-xs font-semibold text-forvis-gray-600 uppercase tracking-wide">SARS Section</span>
-                    <p className="font-medium text-forvis-gray-900 mt-1 inline-flex items-center px-3 py-1 rounded-full bg-forvis-blue-100 text-forvis-blue-800 border border-forvis-blue-200">
+                    <p className="font-medium mt-1 inline-flex items-center px-3 py-1 rounded-full bg-forvis-blue-100 text-forvis-blue-800 border border-forvis-blue-200">
                       {adjustment.sarsSection}
                     </p>
                   </div>
@@ -485,6 +508,16 @@ export default function AdjustmentDetailPage({ params }: AdjustmentDetailProps) 
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
       </div>
     </div>
   );

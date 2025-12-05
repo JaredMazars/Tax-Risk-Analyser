@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { MappedData } from '@/types';
 import { mappingGuide } from '@/lib/services/projects/mappingGuide';
 import { formatAmount } from '@/lib/utils/formatters';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface RemappingModalProps {
   isOpen: boolean;
@@ -50,6 +52,32 @@ export default function RemappingModal({ isOpen, onClose, mappedData, onMappingU
   const [expandedSubsections, setExpandedSubsections] = useState<Record<string, boolean>>({});
   const [isRemapping, setIsRemapping] = useState(false);
   const [remappingProgress, setRemappingProgress] = useState({ current: 0, total: 0 });
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -214,33 +242,45 @@ export default function RemappingModal({ isOpen, onClose, mappedData, onMappingU
     if (!targetSarsItem || selectedAccountIds.length === 0) return;
 
     const confirmMessage = `Remap ${selectedAccountIds.length} account${selectedAccountIds.length > 1 ? 's' : ''} to "${targetSarsItem.sarsItem}"?`;
-    if (!confirm(confirmMessage)) return;
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Remapping',
+      message: confirmMessage,
+      variant: 'warning',
+      onConfirm: async () => {
+        setIsRemapping(true);
+        setRemappingProgress({ current: 0, total: selectedAccountIds.length });
 
-    setIsRemapping(true);
-    setRemappingProgress({ current: 0, total: selectedAccountIds.length });
+        try {
+          for (let i = 0; i < selectedAccountIds.length; i++) {
+            const accountId = selectedAccountIds[i];
+            if (accountId === undefined) continue; // Skip undefined entries
+            await onMappingUpdate(
+              accountId,
+              targetSarsItem.sarsItem,
+              targetSarsItem.section,
+              targetSarsItem.subsection
+            );
+            setRemappingProgress({ current: i + 1, total: selectedAccountIds.length });
+          }
 
-    try {
-      for (let i = 0; i < selectedAccountIds.length; i++) {
-        const accountId = selectedAccountIds[i];
-        if (accountId === undefined) continue; // Skip undefined entries
-        await onMappingUpdate(
-          accountId,
-          targetSarsItem.sarsItem,
-          targetSarsItem.section,
-          targetSarsItem.subsection
-        );
-        setRemappingProgress({ current: i + 1, total: selectedAccountIds.length });
-      }
-
-      // Success - close modal
-      setTimeout(() => {
-        onClose();
-      }, 500);
-    } catch (error) {
-      alert('Error remapping accounts. Please try again.');
-    } finally {
-      setIsRemapping(false);
-    }
+          // Success - close modal
+          setTimeout(() => {
+            onClose();
+          }, 500);
+        } catch (error) {
+          setAlertModal({
+            isOpen: true,
+            title: 'Error',
+            message: 'Error remapping accounts. Please try again.',
+            variant: 'error',
+          });
+        } finally {
+          setIsRemapping(false);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   if (!isOpen) return null;
@@ -686,6 +726,24 @@ export default function RemappingModal({ isOpen, onClose, mappedData, onMappingU
             </div>
           )}
         </div>
+
+        {/* Modals */}
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant={confirmModal.variant}
+        />
+
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+          title={alertModal.title}
+          message={alertModal.message}
+          variant={alertModal.variant}
+        />
       </div>
     </div>
   );

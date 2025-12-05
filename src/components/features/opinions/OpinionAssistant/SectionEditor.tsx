@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { OpinionSection } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface SectionEditorProps {
   projectId: number;
@@ -72,6 +73,20 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchSections();
@@ -302,37 +317,42 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
   };
 
   const handleRegenerate = async (sectionId: number) => {
-    if (!confirm('Regenerate this section with AI? The current content will be replaced.')) {
-      return;
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Regenerate Section',
+      message: 'Regenerate this section with AI? The current content will be replaced.',
+      variant: 'warning',
+      onConfirm: async () => {
+        setIsLoading(true);
+        setError(null);
 
-    setIsLoading(true);
-    setError(null);
+        try {
+          const response = await fetch(
+            `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'regenerate',
+                sectionId,
+              }),
+            }
+          );
 
-    try {
-      const response = await fetch(
-        `/api/projects/${projectId}/opinion-drafts/${draftId}/sections`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'regenerate',
-            sectionId,
-          }),
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to regenerate section');
+          }
+
+          await fetchSections();
+        } catch (error) {
+          setError(error instanceof Error ? error.message : 'Failed to regenerate section');
+        } finally {
+          setIsLoading(false);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to regenerate section');
-      }
-
-      await fetchSections();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to regenerate section');
-    } finally {
-      setIsLoading(false);
-    }
+      },
+    });
   };
 
   const handleEditSection = (section: OpinionSection) => {
@@ -368,20 +388,28 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
   };
 
   const handleDeleteSection = async (sectionId: number) => {
-    if (!confirm('Delete this section? This cannot be undone.')) return;
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Section',
+      message: 'Delete this section? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(
+            `/api/projects/${projectId}/opinion-drafts/${draftId}/sections?sectionId=${sectionId}`,
+            { method: 'DELETE' }
+          );
 
-    try {
-      const response = await fetch(
-        `/api/projects/${projectId}/opinion-drafts/${draftId}/sections?sectionId=${sectionId}`,
-        { method: 'DELETE' }
-      );
+          if (!response.ok) throw new Error('Failed to delete section');
 
-      if (!response.ok) throw new Error('Failed to delete section');
-
-      await fetchSections();
-    } catch (error) {
-      setError('Failed to delete section');
-    }
+          await fetchSections();
+        } catch (error) {
+          setError('Failed to delete section');
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleMoveSection = async (sectionId: number, direction: 'up' | 'down') => {
@@ -783,6 +811,16 @@ export default function SectionEditor({ projectId, draftId }: SectionEditorProps
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

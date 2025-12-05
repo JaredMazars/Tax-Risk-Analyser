@@ -10,6 +10,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { OpinionDocument } from '@/types';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface DocumentManagerProps {
   projectId: number;
@@ -31,6 +32,20 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchDocuments();
@@ -133,20 +148,28 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
   };
 
   const deleteDocument = async (documentId: number) => {
-    if (!confirm('Are you sure you want to delete this document?')) return;
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(
+            `/api/projects/${projectId}/opinion-drafts/${draftId}/documents?documentId=${documentId}`,
+            { method: 'DELETE' }
+          );
 
-    try {
-      const response = await fetch(
-        `/api/projects/${projectId}/opinion-drafts/${draftId}/documents?documentId=${documentId}`,
-        { method: 'DELETE' }
-      );
+          if (!response.ok) throw new Error('Failed to delete document');
 
-      if (!response.ok) throw new Error('Failed to delete document');
-
-      await fetchDocuments();
-    } catch (error) {
-      setError('Failed to delete document');
-    }
+          await fetchDocuments();
+        } catch (error) {
+          setError('Failed to delete document');
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const formatFileSize = (bytes: number) => {
@@ -323,6 +346,16 @@ export default function DocumentManager({ projectId, draftId }: DocumentManagerP
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

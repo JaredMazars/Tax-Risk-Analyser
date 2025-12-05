@@ -8,6 +8,7 @@ import {
 } from '@/hooks/notifications/useNotifications';
 import { NotificationItem } from '@/components/features/notifications/NotificationItem';
 import { CheckIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 type FilterTab = 'all' | 'unread';
 
@@ -15,6 +16,20 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const filters = {
     page: currentPage,
@@ -31,10 +46,17 @@ export default function NotificationsPage() {
   };
 
   const handleDeleteAllRead = async () => {
-    if (confirm('Are you sure you want to delete all read notifications?')) {
-      await deleteAllRead.mutateAsync();
-      if (currentPage > 1) setCurrentPage(1);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete All Read Notifications',
+      message: 'Are you sure you want to delete all read notifications? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        await deleteAllRead.mutateAsync();
+        if (currentPage > 1) setCurrentPage(1);
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
   };
 
   const totalPages = data ? Math.ceil(data.totalCount / pageSize) : 1;
@@ -201,6 +223,16 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

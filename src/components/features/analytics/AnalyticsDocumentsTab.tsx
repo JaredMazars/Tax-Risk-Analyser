@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DocumentTextIcon, MagnifyingGlassIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useAnalyticsDocuments, useDeleteAnalyticsDocument, useDeleteCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { DeleteDocumentWithRatingsModal } from './DeleteDocumentWithRatingsModal';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface AnalyticsDocumentsTabProps {
   clientId: string | number;
@@ -25,6 +26,20 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
   }
   const [affectedRatings, setAffectedRatings] = useState<AffectedRating[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   
   const { data: documentsData, isLoading } = useAnalyticsDocuments(clientId);
   const deleteMutation = useDeleteAnalyticsDocument();
@@ -43,28 +58,34 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
   const documentTypes = ['ALL', ...Array.from(new Set(documents.map((d) => d.documentType)))];
 
   const handleDelete = async (documentId: number, fileName: string) => {
-    if (!confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    setDeleteError(null);
-    try {
-      await deleteMutation.mutateAsync({ clientId, documentId });
-    } catch (error) {
-      // Check if this is a 409 conflict (document used in ratings)
-      if (error && typeof error === 'object' && 'status' in error && error.status === 409 && 'ratingsAffected' in error) {
-        // Show modal with affected ratings
-        setDocumentToDelete({ id: documentId, name: fileName });
-        setAffectedRatings((error as { ratingsAffected: AffectedRating[] }).ratingsAffected);
-        setShowDeleteRatingsModal(true);
-      } else {
-        // Show error for other failures
-        const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
-        setDeleteError(errorMessage);
-        // Auto-dismiss error after 10 seconds
-        setTimeout(() => setDeleteError(null), 10000);
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Document',
+      message: `Are you sure you want to delete "${fileName}"? This action cannot be undone.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeleteError(null);
+        try {
+          await deleteMutation.mutateAsync({ clientId, documentId });
+        } catch (error) {
+          // Check if this is a 409 conflict (document used in ratings)
+          if (error && typeof error === 'object' && 'status' in error && error.status === 409 && 'ratingsAffected' in error) {
+            // Show modal with affected ratings
+            setDocumentToDelete({ id: documentId, name: fileName });
+            setAffectedRatings((error as { ratingsAffected: AffectedRating[] }).ratingsAffected);
+            setShowDeleteRatingsModal(true);
+          } else {
+            // Show error for other failures
+            const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
+            setDeleteError(errorMessage);
+            // Auto-dismiss error after 10 seconds
+            setTimeout(() => setDeleteError(null), 10000);
+          }
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleConfirmDeleteWithRatings = async () => {
@@ -284,6 +305,16 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
         documentName={documentToDelete?.name || ''}
         affectedRatings={affectedRatings}
         isDeleting={isDeleting}
+      />
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
       />
     </div>
   );

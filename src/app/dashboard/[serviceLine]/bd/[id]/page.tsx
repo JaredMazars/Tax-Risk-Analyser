@@ -20,6 +20,7 @@ import { formatAmount } from '@/lib/utils/formatters';
 import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
 import { useQuery } from '@tanstack/react-query';
 import type { ActivityWithRelations } from '@/lib/services/bd/activityService';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 export default function OpportunityDetailPage() {
   const params = useParams();
@@ -31,6 +32,19 @@ export default function OpportunityDetailPage() {
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [selectedServiceLine, setSelectedServiceLine] = useState<string>('');
   const [createProject, setCreateProject] = useState(false);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
 
   const { data: opportunity, isLoading } = useOpportunity(opportunityId);
   const { data: activitiesData } = useActivities({ opportunityId, page: 1, pageSize: 10 });
@@ -94,7 +108,12 @@ export default function OpportunityDetailPage() {
       }
     } catch (error) {
       console.error('Failed to convert opportunity:', error);
-      alert('Failed to convert opportunity to client. Please try again.');
+      setAlertModal({
+        isOpen: true,
+        title: 'Conversion Failed',
+        message: 'Failed to convert opportunity to client. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -525,6 +544,15 @@ export default function OpportunityDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </div>
   );
 }

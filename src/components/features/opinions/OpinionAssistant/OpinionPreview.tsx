@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { OpinionSection, OpinionDraft } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface OpinionPreviewProps {
   projectId: number;
@@ -28,6 +29,19 @@ export default function OpinionPreview({
   const [draft, setDraft] = useState<OpinionDraft | null>(null);
   const [showMarkFinalModal, setShowMarkFinalModal] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
 
   useEffect(() => {
     fetchSections();
@@ -80,7 +94,12 @@ export default function OpinionPreview({
       await fetchDraft();
       setShowMarkFinalModal(false);
     } catch (error) {
-      alert('Failed to mark as final');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to mark as final. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -102,7 +121,12 @@ export default function OpinionPreview({
       
       await fetchDraft();
     } catch (error) {
-      alert('Failed to mark as under review');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to mark as under review. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -132,7 +156,12 @@ export default function OpinionPreview({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      alert('Failed to export PDF');
+      setAlertModal({
+        isOpen: true,
+        title: 'Export Failed',
+        message: 'Failed to export PDF. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setExporting(false);
     }
@@ -162,7 +191,12 @@ export default function OpinionPreview({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      alert('Failed to export Word document');
+      setAlertModal({
+        isOpen: true,
+        title: 'Export Failed',
+        message: 'Failed to export Word document. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setExporting(false);
     }
@@ -415,6 +449,15 @@ export default function OpinionPreview({
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </div>
   );
 }

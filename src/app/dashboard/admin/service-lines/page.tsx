@@ -15,6 +15,8 @@ import {
   useUpdateServiceLineRole,
   useRevokeServiceLineAccess,
 } from '@/hooks/service-lines/useServiceLines';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface ServiceLineUser {
   id: number;
@@ -41,6 +43,32 @@ export default function ServiceLineAdminPage() {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ServiceLineUser | null>(null);
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
   
   // React Query mutations
   const grantAccessMutation = useGrantServiceLineAccess();
@@ -98,7 +126,12 @@ export default function ServiceLineAdminPage() {
       await fetchServiceLineData();
       setShowGrantModal(false);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to grant access');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to grant access',
+        variant: 'error',
+      });
     }
   };
 
@@ -110,19 +143,37 @@ export default function ServiceLineAdminPage() {
       });
       await fetchServiceLineData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update role');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to update role',
+        variant: 'error',
+      });
     }
   };
 
   const handleRevokeAccess = async (serviceLineUserId: number) => {
-    if (!confirm('Are you sure you want to revoke access?')) return;
-
-    try {
-      await revokeAccessMutation.mutateAsync(serviceLineUserId);
-      await fetchServiceLineData();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to revoke access');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Revoke Service Line Access',
+      message: 'Are you sure you want to revoke this user\'s access to the service line?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await revokeAccessMutation.mutateAsync(serviceLineUserId);
+          await fetchServiceLineData();
+        } catch (error) {
+          setAlertModal({
+            isOpen: true,
+            title: 'Error',
+            message: error instanceof Error ? error.message : 'Failed to revoke access',
+            variant: 'error',
+          });
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const availableUsers = allUsers.filter(
@@ -351,6 +402,24 @@ export default function ServiceLineAdminPage() {
             </div>
           </div>
         )}
+
+        {/* Modals */}
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant={confirmModal.variant}
+        />
+
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+          title={alertModal.title}
+          message={alertModal.message}
+          variant={alertModal.variant}
+        />
       </div>
     </div>
   );

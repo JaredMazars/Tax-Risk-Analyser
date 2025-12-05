@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { CloudArrowUpIcon, DocumentIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useUploadDocument, useAcceptanceDocuments, useDeleteDocument } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface DocumentUploadProps {
   projectId: string;
@@ -13,6 +14,20 @@ interface DocumentUploadProps {
 export function DocumentUpload({ projectId, documentType = 'OTHER', disabled }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const { data: documentsData } = useAcceptanceDocuments(projectId);
   const uploadMutation = useUploadDocument(projectId);
@@ -50,13 +65,21 @@ export function DocumentUpload({ projectId, documentType = 'OTHER', disabled }: 
   };
 
   const handleDelete = async (documentId: number) => {
-    if (confirm('Are you sure you want to delete this document?')) {
-      try {
-        await deleteMutation.mutateAsync(documentId);
-      } catch (error) {
-        console.error('Failed to delete document:', error);
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteMutation.mutateAsync(documentId);
+        } catch (error) {
+          console.error('Failed to delete document:', error);
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   return (
@@ -146,6 +169,16 @@ export function DocumentUpload({ projectId, documentType = 'OTHER', disabled }: 
           ))}
         </div>
       )}
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
     </div>
   );
 }

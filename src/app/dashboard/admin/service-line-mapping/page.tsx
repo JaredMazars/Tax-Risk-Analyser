@@ -9,6 +9,7 @@ import {
   ChartBarIcon,
   LinkIcon,
 } from '@heroicons/react/24/outline';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface ExternalServiceLine {
   id: number;
@@ -59,6 +60,19 @@ export default function ServiceLineMappingPage() {
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -87,7 +101,12 @@ export default function ServiceLineMappingPage() {
       }
     } catch (error) {
       console.error('Failed to fetch service line data:', error);
-      alert('Failed to load service line mapping data');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error Loading Data',
+        message: 'Failed to load service line mapping data. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +127,12 @@ export default function ServiceLineMappingPage() {
       setSelectedExternal([]);
     } catch (error) {
       console.error('Failed to update mapping:', error);
-      alert('Failed to update mapping');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to update mapping. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -136,7 +160,12 @@ export default function ServiceLineMappingPage() {
       setShowBulkConfirm(false);
     } catch (error) {
       console.error('Failed to bulk map:', error);
-      alert('Failed to bulk map service lines');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to bulk map service lines. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -562,6 +591,15 @@ export default function ServiceLineMappingPage() {
             </div>
           </div>
         )}
+
+        {/* Modals */}
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+          title={alertModal.title}
+          message={alertModal.message}
+          variant={alertModal.variant}
+        />
       </div>
     </div>
   );

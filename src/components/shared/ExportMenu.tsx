@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface ExportMenuProps {
   projectId: number;
@@ -9,6 +10,19 @@ interface ExportMenuProps {
 export default function ExportMenu({ projectId }: ExportMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
 
   const handleExport = async (format: 'excel' | 'pdf' | 'xml') => {
     try {
@@ -45,7 +59,12 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Export failed');
+      setAlertModal({
+        isOpen: true,
+        title: 'Export Failed',
+        message: error instanceof Error ? error.message : 'Export failed. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsExporting(false);
     }
@@ -153,6 +172,15 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
           </div>
         </>
       )}
+
+      {/* Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </div>
   );
 }
