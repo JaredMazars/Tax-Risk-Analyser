@@ -42,3 +42,4 @@ export function useSubServiceLineGroups({
     gcTime: 15 * 60 * 1000, // 15 minutes (formerly cacheTime)
   });
 }
+

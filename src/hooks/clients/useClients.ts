@@ -32,8 +32,8 @@ export interface Client {
   };
 }
 
-export interface ClientWithProjects extends Client {
-  tasks?: Array<{
+export interface ClientWithTasks extends Client {
+  tasks: Array<{
     id: number;
     TaskDesc: string;
     TaskCode: string;
@@ -44,25 +44,14 @@ export interface ClientWithProjects extends Client {
     ExternalTaskID: string;
     TaskDateOpen: string;
     TaskDateTerminate?: string | null;
+    TaskPartner: string;
+    TaskPartnerName: string;
+    TaskManager: string;
+    TaskManagerName: string;
+    masterServiceLine: string | null;
     _count: {
       MappedAccount: number;
       TaxAdjustment: number;
-    };
-  }>;
-  projects: Array<{
-    id: number;
-    name: string;
-    description?: string | null;
-    projectType: string;
-    serviceLine: string;
-    taxYear?: number | null;
-    status: string;
-    archived: boolean;
-    createdAt: string;
-    updatedAt: string;
-    _count: {
-      mappings: number;
-      taxAdjustments: number;
     };
   }>;
   taskPagination?: {
@@ -172,7 +161,7 @@ export function useClient(
     enabled = true,
   } = params;
 
-  return useQuery<ClientWithProjects>({
+  return useQuery<ClientWithTasks>({
     queryKey: clientKeys.detail(clientId, {
       taskPage,
       taskLimit,

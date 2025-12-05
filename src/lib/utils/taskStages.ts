@@ -49,3 +49,4 @@ export function getAllTaskStages(): TaskStage[] {
 export function getDefaultTaskStage(): TaskStage {
   return TaskStage.DRAFT;
 }
+

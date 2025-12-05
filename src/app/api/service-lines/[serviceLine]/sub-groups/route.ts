@@ -57,3 +57,4 @@ export async function GET(
     return handleApiError(error, 'GET /api/service-lines/[serviceLine]/sub-groups');
   }
 }
+

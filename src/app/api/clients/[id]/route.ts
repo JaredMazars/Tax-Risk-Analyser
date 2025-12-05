@@ -96,6 +96,10 @@ export async function GET(
         ExternalTaskID: true,
         TaskDateOpen: true,
         TaskDateTerminate: true,
+        TaskPartner: true,
+        TaskPartnerName: true,
+        TaskManager: true,
+        TaskManagerName: true,
         _count: {
           select: {
             MappedAccount: true,
@@ -144,7 +148,7 @@ export async function GET(
     // Calculate total across all service lines
     const totalAcrossAllServiceLines = taskCountsByServiceLine.reduce((sum, count) => sum + count, 0);
 
-    // Get mapping from ServLineCode to masterCode for deriving serviceLine
+    // Get mapping from ServLineCode to masterCode for deriving masterServiceLine
     const allServLineCodes = tasks.map(t => t.ServLineCode);
     const serviceLineMapping: Record<string, string> = {};
     if (allServLineCodes.length > 0) {
@@ -159,18 +163,15 @@ export async function GET(
       });
     }
 
-    // Transform Task to projects for frontend compatibility
+    // Add masterServiceLine to each task
+    const tasksWithMasterServiceLine = tasks.map(task => ({
+      ...task,
+      masterServiceLine: serviceLineMapping[task.ServLineCode] || null,
+    }));
+
     const responseData = {
       ...client,
-      tasks, // Also include raw tasks
-      projects: tasks.map(task => ({
-        ...task,
-        serviceLine: serviceLineMapping[task.ServLineCode] || 'UNKNOWN',
-        _count: {
-          mappings: task._count.MappedAccount,
-          taxAdjustments: task._count.TaxAdjustment,
-        },
-      })),
+      tasks: tasksWithMasterServiceLine,
       _count: {
         Task: totalAcrossAllServiceLines, // Total across all service lines (not filtered by active tab)
       },

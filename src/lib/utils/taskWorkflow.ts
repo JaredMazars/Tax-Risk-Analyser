@@ -144,3 +144,4 @@ export function getWorkflowProgress(task: TaskWorkflowData | null | undefined): 
   
   return progress;
 }
+

@@ -410,3 +410,4 @@ export function getAccessSummary(result: TaskAccessResult): string {
       return 'You have access to this task.';
   }
 }
+

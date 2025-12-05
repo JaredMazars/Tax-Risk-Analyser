@@ -23,7 +23,7 @@ import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineU
 import { ServiceLine } from '@/types';
 import { CreateTaskModal } from '@/components/features/tasks/CreateTaskModal';
 import { ClientHeader } from '@/components/features/clients/ClientHeader';
-import { useClient, clientKeys, type ClientWithProjects } from '@/hooks/clients/useClients';
+import { useClient, clientKeys, type ClientWithTasks } from '@/hooks/clients/useClients';
 import { taskListKeys } from '@/hooks/tasks/useTasks';
 import { useLatestCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRatingGrade } from '@/types/analytics';
@@ -60,13 +60,10 @@ export default function ServiceLineClientDetailPage() {
   // Fetch latest credit rating
   const { data: latestRating, isLoading: isLoadingRating } = useLatestCreditRating(clientId);
   
-  // Transform client data to match expected format
+  // Use client data directly
   const client: any = useMemo(() => {
     if (!clientData) return null;
-    return {
-      ...clientData,
-      Task: clientData.tasks || [],
-    };
+    return clientData;
   }, [clientData]);
   
   const taskPagination = clientData?.taskPagination;
@@ -145,22 +142,22 @@ export default function ServiceLineClientDetailPage() {
     return stage || TaskStage.DRAFT;
   };
 
-  const handleProjectCreated = (project: any) => {
+  const handleTaskCreated = (task: any) => {
     setShowCreateModal(false);
-    // Invalidate client query to refetch and show the new project
+    // Invalidate client query to refetch and show the new task
     queryClient.invalidateQueries({ queryKey: clientKeys.detail(clientId) });
-    // Also invalidate projects list so it shows up there too
+    // Also invalidate task list so it shows up there too
     queryClient.invalidateQueries({ queryKey: taskListKeys.all });
-    // Optionally, if the new project is in a different service line tab, switch to it
-    if (project.serviceLine) {
-      setActiveServiceLineTab(project.serviceLine.toUpperCase() as ServiceLine);
+    // Optionally, if the new task is in a different service line tab, switch to it
+    if (task.serviceLine) {
+      setActiveServiceLineTab(task.serviceLine.toUpperCase() as ServiceLine);
     }
   };
 
-  // Get projects for active tab (already filtered by API based on activeServiceLineTab)
-  const getProjectsForTab = () => {
+  // Get tasks for active tab (already filtered by API based on activeServiceLineTab)
+  const getTasksForTab = () => {
     if (!client) return [];
-    return client.projects || [];
+    return client.tasks || [];
   };
 
   // Get task count for each service line from API response
@@ -197,19 +194,17 @@ export default function ServiceLineClientDetailPage() {
   // Get active tab list based on main tab selection
   const activeTabList = mainTab === 'service-lines' ? mainServiceLines : sharedServices;
 
-  // Filter projects by search term
-  const filteredProjects = useMemo(() => {
-    const projects = getProjectsForTab();
-    if (!debouncedSearch) return projects;
+  // Filter tasks by search term
+  const filteredTasks = useMemo(() => {
+    const tasks = getTasksForTab();
+    if (!debouncedSearch) return tasks;
     
     const searchLower = debouncedSearch.toLowerCase();
-    return projects.filter((project: any) => {
+    return tasks.filter((task: any) => {
       return (
-        project.name?.toLowerCase().includes(searchLower) ||
-        project.description?.toLowerCase().includes(searchLower) ||
-        project.projectType?.toLowerCase().includes(searchLower) ||
-        project.taxYear?.toString().includes(searchLower) ||
-        project.status?.toLowerCase().includes(searchLower)
+        task.TaskDesc?.toLowerCase().includes(searchLower) ||
+        task.TaskCode?.toLowerCase().includes(searchLower) ||
+        task.Active?.toLowerCase().includes(searchLower)
       );
     });
   }, [debouncedSearch, client]);
@@ -272,11 +267,11 @@ export default function ServiceLineClientDetailPage() {
         {/* Client Header */}
         <ClientHeader client={client} />
 
-        {/* Create Project Modal */}
+        {/* Create Task Modal */}
         <CreateTaskModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
-          onSuccess={handleProjectCreated}
+          onSuccess={handleTaskCreated}
           initialClientId={client ? client.id : null}
           initialServiceLine={serviceLine as ServiceLine}
         />
@@ -539,14 +534,14 @@ export default function ServiceLineClientDetailPage() {
                 )}
               </div>
 
-              {/* Scrollable Projects List */}
+              {/* Scrollable Tasks List */}
               <div className="p-4 overflow-y-auto flex-1">
                 {isFetching && !isLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600 mx-auto"></div>
-                    <p className="mt-2 text-sm text-forvis-gray-600">Loading projects...</p>
+                    <p className="mt-2 text-sm text-forvis-gray-600">Loading tasks...</p>
                   </div>
-                ) : filteredProjects.length === 0 ? (
+                ) : filteredTasks.length === 0 ? (
                   <div className="text-center py-8">
                     <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
                     <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
@@ -561,16 +556,16 @@ export default function ServiceLineClientDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredProjects.map((project: any) => {
-                      const projectStage = getProjectStage(project.id);
-                      const isAccessible = project.serviceLine?.toUpperCase() === serviceLine.toUpperCase();
-                      const ProjectWrapper: any = isAccessible ? Link : 'div';
+                    {filteredTasks.map((task: any) => {
+                      const taskStage = getProjectStage(task.id);
+                      const isAccessible = task.masterServiceLine?.toUpperCase() === serviceLine.toUpperCase();
+                      const TaskWrapper: any = isAccessible ? Link : 'div';
                       
                       return (
-                        <ProjectWrapper
-                          key={project.id}
+                        <TaskWrapper
+                          key={task.id}
                           {...(isAccessible ? {
-                            href: `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}/tasks/${project.id}`,
+                            href: `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}/tasks/${task.id}`,
                           } : {})}
                           className={`block p-3 border border-forvis-gray-200 rounded-lg transition-all ${
                             isAccessible
@@ -582,50 +577,41 @@ export default function ServiceLineClientDetailPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center space-x-2 mb-1 flex-wrap">
                                 <h3 className="text-sm font-semibold text-forvis-gray-900">
-                                  {project.name}
+                                  {task.TaskDesc}
                                 </h3>
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${getTaskTypeColor(project.projectType)}`}>
-                                  {formatTaskType(project.projectType)}
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                                  {task.TaskCode}
                                 </span>
-                                {project.taxYear && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                    {project.taxYear}
-                                  </span>
-                                )}
-                                {!isAccessible && (
+                                {!isAccessible && task.masterServiceLine && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                                    Available in {formatServiceLineName(project.serviceLine)}
+                                    Available in {formatServiceLineName(task.masterServiceLine)}
                                   </span>
                                 )}
-                                {project.archived && (
+                                {task.Active !== 'Yes' && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
-                                    Archived
+                                    Inactive
                                   </span>
                                 )}
                               </div>
-                              {project.description && (
-                                <p className="text-xs text-forvis-gray-600 line-clamp-1">
-                                  {project.description}
-                                </p>
-                              )}
                             </div>
                           </div>
                           
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3 text-xs text-forvis-gray-500">
-                              <span className="flex items-center">
-                                <FolderIcon className="h-3.5 w-3.5 mr-1" />
-                                {project._count.mappings} accounts
+                              <span title="Partner">
+                                Partner: {task.TaskPartnerName || task.TaskPartner}
                               </span>
-                              <span>{project._count.taxAdjustments} adjustments</span>
+                              <span title="Manager">
+                                Manager: {task.TaskManagerName || task.TaskManager}
+                              </span>
                               <span className="flex items-center">
                                 <ClockIcon className="h-3.5 w-3.5 mr-1" />
-                                {formatDate(project.updatedAt)}
+                                {formatDate(task.updatedAt)}
                               </span>
                             </div>
-                            <TaskStageIndicator stage={projectStage} />
+                            <TaskStageIndicator stage={taskStage} />
                           </div>
-                        </ProjectWrapper>
+                        </TaskWrapper>
                       );
                     })}
                   </div>
