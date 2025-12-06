@@ -1,6 +1,6 @@
 import { generateObject } from 'ai';
-import { models } from '../../ai/config';
-import { AITaxReportSchema } from '../../ai/schemas';
+import { models } from '@/lib/ai/config';
+import { AITaxReportSchema } from '@/lib/ai/schemas';
 
 export interface AITaxReportData {
   executiveSummary: string;

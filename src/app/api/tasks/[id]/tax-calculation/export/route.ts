@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { parseTaskId } from '@/lib/utils/apiUtils';
+import { toTaskId } from '@/types/branded';
 import { exportTaxCalculation } from '@/lib/tools/tax-calculation/api/exportHandler';
 import { getTaxCalculationData } from '@/lib/tools/tax-calculation/api/taxCalculationHandler';
 
@@ -19,7 +19,7 @@ export async function GET(
     }
 
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') || 'excel';
 

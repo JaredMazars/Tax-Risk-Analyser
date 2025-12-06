@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
-import { ResearchAgent } from '@/lib/agents/researchAgent';
+import { ResearchAgent } from '@/lib/tools/tax-opinion/agents/researchAgent';
 import { generateText } from 'ai';
 import { models, getModelParams } from '@/lib/ai/config';
 import { logger } from '@/lib/utils/logger';
@@ -130,7 +130,7 @@ export async function POST(
           } else {
             // Documents exist but search returned no results
             // Check if RAG is configured
-            const ragEngine = await import('@/lib/services/opinions/ragEngine').then(m => m.ragEngine);
+            const ragEngine = await import('@/lib/tools/tax-opinion/services/ragEngine').then(m => m.ragEngine);
             const isRagReady = ragEngine?.isReady();
             
             if (!isRagReady) {

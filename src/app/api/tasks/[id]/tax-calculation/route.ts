@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { parseTaskId, successResponse, getTaskOrThrow } from '@/lib/utils/apiUtils';
+import { successResponse, getTaskOrThrow } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getTaxCalculationData } from '@/lib/tools/tax-calculation/api/taxCalculationHandler';
+import { toTaskId } from '@/types/branded';
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +15,7 @@ export async function GET(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     
     // Verify project exists
     await getTaskOrThrow(taskId);

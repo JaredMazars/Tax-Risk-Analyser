@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
-import { SectionGenerator, SectionGenerationState } from '@/lib/agents/sectionGenerator';
+import { SectionGenerator, SectionGenerationState } from '@/lib/tools/tax-opinion/agents/sectionGenerator';
 import { logger } from '@/lib/utils/logger';
 import { uploadFile } from '@/lib/services/documents/blobStorage';
-import { ragEngine } from '@/lib/services/opinions/ragEngine';
+import { ragEngine } from '@/lib/tools/tax-opinion/services/ragEngine';
 
 /**
  * GET /api/tasks/[id]/opinion-drafts/[draftId]/sections
@@ -390,7 +390,7 @@ export async function POST(
           
           // Use the SectionGenerator's search method (we need to make it public or create a helper)
           // For now, let's do a direct search using ResearchAgent
-          const { ResearchAgent } = await import('@/lib/agents/researchAgent');
+          const { ResearchAgent } = await import('@/lib/tools/tax-opinion/agents/researchAgent');
           
           let searchQuery = '';
           switch (generationState.sectionType.toLowerCase()) {

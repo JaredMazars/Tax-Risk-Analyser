@@ -1,9 +1,9 @@
 import { SearchClient, AzureKeyCredential } from '@azure/search-documents';
 import { embedMany } from 'ai';
-import { models } from '../../ai/config';
-import { logger } from '../../utils/logger';
-import { downloadFile } from '../documents/blobStorage';
-import { documentIntelligence, DocumentIntelligence } from '../documents/documentIntelligence';
+import { models } from '@/lib/ai/config';
+import { logger } from '@/lib/utils/logger';
+import { downloadFile } from '@/lib/services/documents/blobStorage';
+import { documentIntelligence, DocumentIntelligence } from '@/lib/services/documents/documentIntelligence';
 
 // Azure AI Search configuration
 const searchEndpoint = process.env.AZURE_SEARCH_ENDPOINT || '';

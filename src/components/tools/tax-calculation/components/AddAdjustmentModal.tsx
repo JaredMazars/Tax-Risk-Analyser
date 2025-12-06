@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DocumentUploader from '../../shared/DocumentUploader';
+import DocumentUploader from '../../../shared/DocumentUploader';
 
 interface AddAdjustmentModalProps {
   isOpen: boolean;

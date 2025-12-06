@@ -1,4 +1,4 @@
-import { ragEngine } from '../opinions/ragEngine';
+import { ragEngine } from '@/lib/tools/tax-opinion/services/ragEngine';
 import { bingSearchService } from './bingSearchService';
 import { logger } from '@/lib/utils/logger';
 import { 

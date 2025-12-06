@@ -10,7 +10,7 @@ import { AITaxReport } from '@/components/tools/tax-opinion';
 import { AlertModal } from '@/components/shared/AlertModal';
 
 import { MappedData } from '@/types';
-import { AITaxReportData } from '@/lib/services/opinions/aiTaxReportGenerator';
+import { AITaxReportData } from '@/lib/tools/tax-opinion/services/aiTaxReportGenerator';
 import { useTask, useMappedAccounts, useTaxAdjustments, useTaxCalculation, useTrialBalance } from '@/hooks/tasks/useTaskData';
 
 interface ReportingPageProps {

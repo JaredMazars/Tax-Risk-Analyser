@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AITaxReportData } from '@/lib/services/opinions/aiTaxReportGenerator';
+import { AITaxReportData } from '@/lib/tools/tax-opinion/services/aiTaxReportGenerator';
 import { 
   ExclamationTriangleIcon, 
   CheckCircleIcon, 

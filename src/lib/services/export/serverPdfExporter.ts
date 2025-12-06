@@ -1,7 +1,7 @@
 import React from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { ReportingPackPDF } from '../../../components/pdf/ReportingPackPDF';
-import { AITaxReportData } from '../opinions/aiTaxReportGenerator';
+import { AITaxReportData } from '@/lib/tools/tax-opinion/services/aiTaxReportGenerator';
 
 export interface MappedAccount {
   accountCode: string;

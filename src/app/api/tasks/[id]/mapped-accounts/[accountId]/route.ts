@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
+import { determineSectionAndSubsection } from '@/lib/tools/tax-opinion/services/sectionMapper';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
 export async function PATCH(

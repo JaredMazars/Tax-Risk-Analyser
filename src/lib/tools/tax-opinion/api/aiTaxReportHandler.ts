@@ -179,16 +179,29 @@ export async function generateAITaxReport(taskId: TaskId) {
   // Prepare task data for AI analysis
   const taskData: ProjectTaxData = {
     taskName: task.TaskDesc,
-    financialData: {
-      revenue,
-      expenses,
+    trialBalance: {
+      totalCurrentYear: trialBalanceTotals.totalCurrentYear,
+      totalPriorYear: trialBalanceTotals.totalPriorYear,
+      accountCount: mappedAccounts.length,
+    },
+    balanceSheet: {
+      totalAssets: assets,
+      totalEquity: equity,
+      totalLiabilities: liabilities,
+    },
+    incomeStatement: {
+      totalRevenue: revenue,
+      totalExpenses: expenses,
       netProfit,
-      assets,
-      liabilities,
-      equity,
     },
     taxCalculation: {
       accountingProfit,
+      totalDebitAdjustments: totalDebits,
+      totalCreditAdjustments: totalCredits,
+      totalAllowances,
+      totalRecoupments,
+      taxableIncome,
+      taxLiability,
       adjustments: adjustments.map((adj) => ({
         type: adj.type as 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT',
         description: adj.description,
@@ -197,8 +210,6 @@ export async function generateAITaxReport(taskId: TaskId) {
         notes: adj.notes || '',
         confidenceScore: adj.confidenceScore || undefined,
       })),
-      taxableIncome,
-      taxLiability,
     },
   };
 

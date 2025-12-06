@@ -1,6 +1,6 @@
 import { generateText } from 'ai';
-import { models, getModelParams } from '../ai/config';
-import { logger } from '../utils/logger';
+import { models, getModelParams } from '@/lib/ai/config';
+import { logger } from '@/lib/utils/logger';
 import { OpinionChatMessage } from '@/types';
 
 export interface InterviewQuestion {
