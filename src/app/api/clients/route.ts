@@ -4,6 +4,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
+import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,10 +27,27 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100); // Max 100 per page
     const sortBy = searchParams.get('sortBy') || 'clientNameFull';
     const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
-    const subServiceLineGroup = searchParams.get('subServiceLineGroup');
-    const serviceLine = searchParams.get('serviceLine');
+    const subServiceLineGroup = searchParams.get('subServiceLineGroup') || undefined;
+    const serviceLine = searchParams.get('serviceLine') || undefined;
     
     const skip = (page - 1) * limit;
+
+    // Try to get cached data
+    const cacheParams = {
+      endpoint: 'clients' as const,
+      page,
+      limit,
+      serviceLine,
+      subServiceLineGroup,
+      search,
+      sortBy,
+      sortOrder,
+    };
+    
+    const cached = await getCachedList(cacheParams);
+    if (cached) {
+      return NextResponse.json(successResponse(cached));
+    }
 
     // Build where clause with improved search
     interface WhereClause {
@@ -97,7 +115,8 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await prisma.client.count({ where });
 
-    // Get clients with project and task counts - optimized field selection
+    // Get clients with task counts - optimized field selection for list view
+    // Only select fields actually displayed in the UI to minimize data transfer
     const clients = await prisma.client.findMany({
       where,
       skip,
@@ -108,16 +127,10 @@ export async function GET(request: NextRequest) {
         ClientID: true,
         clientCode: true,
         clientNameFull: true,
-        groupCode: true,
         groupDesc: true,
         clientPartner: true,
-        clientManager: true,
-        clientIncharge: true,
         industry: true,
         sector: true,
-        active: true,
-        typeCode: true,
-        typeDesc: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -128,17 +141,20 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      successResponse({
-        clients,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      })
-    );
+    const responseData = {
+      clients,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+
+    // Cache the response
+    await setCachedList(cacheParams, responseData);
+
+    return NextResponse.json(successResponse(responseData));
   } catch (error) {
     return handleApiError(error, 'Get Clients');
   }

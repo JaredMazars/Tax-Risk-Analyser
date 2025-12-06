@@ -10,6 +10,7 @@ import { getServLineCodesBySubGroup, getExternalServiceLinesByMaster } from '@/l
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { sanitizeObject } from '@/lib/utils/sanitization';
+import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,8 +32,8 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
     const search = searchParams.get('search') || '';
     const includeArchived = searchParams.get('includeArchived') === 'true';
-    const serviceLine = searchParams.get('serviceLine');
-    const subServiceLineGroup = searchParams.get('subServiceLineGroup');
+    const serviceLine = searchParams.get('serviceLine') || undefined;
+    const subServiceLineGroup = searchParams.get('subServiceLineGroup') || undefined;
     const internalOnly = searchParams.get('internalOnly') === 'true';
     const clientTasksOnly = searchParams.get('clientTasksOnly') === 'true';
     const myTasksOnly = searchParams.get('myTasksOnly') === 'true';
@@ -40,6 +41,30 @@ export async function GET(request: NextRequest) {
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
 
     const skip = (page - 1) * limit;
+
+    // Try to get cached data (skip cache for myTasksOnly as it's user-specific)
+    const cacheParams = {
+      endpoint: 'tasks' as const,
+      page,
+      limit,
+      serviceLine,
+      subServiceLineGroup,
+      search,
+      sortBy,
+      sortOrder,
+      includeArchived,
+      internalOnly,
+      clientTasksOnly,
+      myTasksOnly,
+    };
+    
+    // Don't cache user-specific queries
+    if (!myTasksOnly) {
+      const cached = await getCachedList(cacheParams);
+      if (cached) {
+        return NextResponse.json(successResponse(cached));
+      }
+    }
 
     // Get user's accessible service lines (returns master codes like 'TAX', 'ACCOUNTING')
     const userServiceLines = await getUserServiceLines(user.id);
@@ -201,6 +226,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Run count and data queries in parallel for better performance
+    // Optimized field selection - only return fields used in the list view
     const [total, tasks] = await Promise.all([
       prisma.task.count({ where }),
       prisma.task.findMany({
@@ -210,14 +236,10 @@ export async function GET(request: NextRequest) {
         orderBy,
         select: {
           id: true,
-          TaskCode: true,
           TaskDesc: true,
-          ClientCode: true,
           ServLineCode: true,
           ServLineDesc: true,
           Active: true,
-          TaskDateOpen: true,
-          TaskDateTerminate: true,
           createdAt: true,
           updatedAt: true,
           Client: {
@@ -228,22 +250,23 @@ export async function GET(request: NextRequest) {
               clientCode: true,
             },
           },
-          TaskTeam: {
-            where: {
-              userId: user.id,
+          // Only fetch team info if querying for myTasksOnly
+          ...(myTasksOnly && {
+            TaskTeam: {
+              where: {
+                userId: user.id,
+              },
+              select: {
+                role: true,
+              },
             },
-            select: {
-              role: true,
-            },
-          },
+          }),
         },
       }),
     ]);
 
     // Transform tasks to match expected format
     const tasksWithCounts = tasks.map(task => {
-      const isTeamMember = task.TaskTeam.length > 0;
-
       return {
         id: task.id,
         name: task.TaskDesc,
@@ -262,22 +285,27 @@ export async function GET(request: NextRequest) {
           clientNameFull: task.Client.clientNameFull,
           clientCode: task.Client.clientCode,
         } : null,
-        userRole: task.TaskTeam[0]?.role || null,
+        userRole: myTasksOnly && 'TaskTeam' in task ? (task.TaskTeam as Array<{role: string}>)[0]?.role || null : null,
         canAccess: true,
       };
     });
     
-    return NextResponse.json(
-      successResponse({
-        tasks: tasksWithCounts,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      })
-    );
+    const responseData = {
+      tasks: tasksWithCounts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+
+    // Cache the response (skip for myTasksOnly)
+    if (!myTasksOnly) {
+      await setCachedList(cacheParams, responseData);
+    }
+
+    return NextResponse.json(successResponse(responseData));
   } catch (error) {
     return handleApiError(error, 'Get Tasks');
   }

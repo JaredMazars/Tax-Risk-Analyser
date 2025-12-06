@@ -87,7 +87,7 @@ interface ClientsResponse {
 export interface UseClientsParams {
   search?: string;
   page?: number;
-  limit?: number;
+  limit?: number; // Note: For virtual scrolling, use higher limits (100-500) to minimize API calls
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   subServiceLineGroup?: string;

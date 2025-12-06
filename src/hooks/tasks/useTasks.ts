@@ -46,7 +46,7 @@ export interface TasksResponse {
 export interface UseTasksParams {
   search?: string;
   page?: number;
-  limit?: number;
+  limit?: number; // Note: For virtual scrolling, use higher limits (100-500) to minimize API calls
   serviceLine?: string;
   subServiceLineGroup?: string;
   includeArchived?: boolean;

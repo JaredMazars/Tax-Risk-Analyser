@@ -124,7 +124,8 @@ export default function SubServiceLineWorkspacePage() {
     return <ServiceLineSelector />;
   }
 
-  if (isLoading) {
+  // Only show full page loader on initial load
+  if (isLoading && !isFetching) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
@@ -137,7 +138,17 @@ export default function SubServiceLineWorkspacePage() {
   const totalCount = isFetching && !pagination ? '...' : (pagination?.total ?? 0);
 
   return (
-    <div className="min-h-screen bg-forvis-gray-50">
+    <div className="min-h-screen bg-forvis-gray-50 relative">
+      {/* Loading overlay for tab switches */}
+      {isFetching && !isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600 mx-auto"></div>
+            <p className="mt-4 text-sm text-forvis-gray-700">Loading...</p>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 py-4 mb-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -22,6 +22,7 @@ export default function ServiceLineSubGroupsPage() {
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const { setCurrentServiceLine } = useServiceLine();
   const queryClient = useQueryClient();
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
 
   // Validate service line
   useEffect(() => {
@@ -192,9 +193,21 @@ export default function ServiceLineSubGroupsPage() {
               <Link
                 key={group.code}
                 href={`/dashboard/${serviceLine.toLowerCase()}/${group.code}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setNavigatingTo(group.code);
+                  router.push(`/dashboard/${serviceLine.toLowerCase()}/${group.code}`);
+                }}
                 onMouseEnter={() => prefetchTasksForSubGroup(group.code)}
-                className="group block bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 hover:border-forvis-blue-500"
+                className="group block bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 hover:border-forvis-blue-500 relative"
               >
+                {/* Loading overlay */}
+                {navigatingTo === group.code && (
+                  <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
+                  </div>
+                )}
+                
                 <div className="p-6">
                   {/* Icon */}
                   <div className="flex items-center justify-between mb-4">

@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client';
 import { sanitizeText } from '@/lib/utils/sanitization';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 
 export async function GET(
   request: NextRequest,
@@ -292,6 +293,7 @@ export async function PUT(
 
     // Invalidate cache after update
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+    await invalidateTaskListCache(Number(taskId));
     
     // Invalidate client cache if client association changed
     if (task.ClientCode) {
@@ -386,6 +388,7 @@ export async function PATCH(
 
       // Invalidate cache after restore
       await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+      await invalidateTaskListCache(Number(taskId));
       if (task.ClientCode) {
         await invalidateClientCache(task.ClientCode);
       }
@@ -447,6 +450,7 @@ export async function DELETE(
 
     // Invalidate cache after archive
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
+    await invalidateTaskListCache(Number(taskId));
     if (task.ClientCode) {
       await invalidateClientCache(task.ClientCode);
     }

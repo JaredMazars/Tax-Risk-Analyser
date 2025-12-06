@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   DocumentTextIcon,
   ClipboardDocumentCheckIcon,
@@ -40,12 +42,20 @@ interface ServiceLineCardProps {
 
 export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
   const { serviceLine, activeTaskCount, taskCount } = serviceLineData;
+  const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
   
   const Icon = iconMap[serviceLine as ServiceLine] || DocumentTextIcon;
   const name = formatServiceLineName(serviceLine);
   const color = getServiceLineColor(serviceLine);
   const bgColor = getServiceLineBgColor(serviceLine);
   const borderColor = getServiceLineBorderColor(serviceLine);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsNavigating(true);
+    router.push(`/dashboard/${serviceLine.toLowerCase()}`);
+  };
 
   const getDescription = (line: ServiceLine | string) => {
     switch (line) {
@@ -75,8 +85,16 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
   return (
     <Link
       href={`/dashboard/${serviceLine.toLowerCase()}`}
-      className="group block bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 hover:border-forvis-blue-500"
+      onClick={handleClick}
+      className="group block bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 hover:border-forvis-blue-500 relative"
     >
+      {/* Loading overlay */}
+      {isNavigating && (
+        <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
+        </div>
+      )}
+      
       <div className="p-4">
         <div className="flex flex-col h-full">
           {/* Icon and Arrow */}

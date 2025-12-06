@@ -321,6 +321,9 @@ model Client {
   @@index([groupCode])
   @@index([groupDesc])
   @@index([updatedAt(sort: Desc)])
+  @@index([groupDesc, clientNameFull])
+  @@index([industry])
+  @@index([sector])
 }
 
 model ClientAcceptanceResponse {
@@ -823,6 +826,9 @@ model Task {
   @@index([TaskPartner])
   @@index([ServLineCode, Active])
   @@index([updatedAt(sort: Desc)])
+  @@index([ServLineCode, Active, updatedAt(sort: Desc)])
+  @@index([ClientCode, Active, updatedAt(sort: Desc)])
+  @@index([TaskDesc])
 }
 
 model TaskTeam {
@@ -840,6 +846,7 @@ model TaskTeam {
   @@index([userId])
   @@index([role])
   @@index([userId, taskId])
+  @@index([userId, taskId, role])
 }
 
 model TaskAcceptance {

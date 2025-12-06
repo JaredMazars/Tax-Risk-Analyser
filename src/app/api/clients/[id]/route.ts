@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
 import { getTaskCountsByServiceLine, getTotalTaskCount } from '@/lib/services/tasks/taskAggregation';
 import { getCachedClient, setCachedClient, invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 
 export async function GET(
   request: NextRequest,
@@ -264,6 +265,7 @@ export async function PUT(
 
     // Invalidate cache after update
     await invalidateClientCache(clientID);
+    await invalidateClientListCache(clientID);
 
     return NextResponse.json(successResponse(client));
   } catch (error) {
