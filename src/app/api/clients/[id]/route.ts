@@ -173,10 +173,47 @@ export async function GET(
       });
     }
 
-    // Add masterServiceLine to each task
+    // Fetch WIP data for this client
+    const tasksWipData = await prisma.wipLTD.findMany({
+      where: {
+        ClientCode: client.ClientID,
+      },
+      select: {
+        ServLineCode: true,
+        BalWIP: true,
+        BalTime: true,
+        BalDisb: true,
+      },
+    });
+
+    // Create a map of WIP data by ServLineCode
+    const wipByServiceLine = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
+    tasksWipData.forEach(wip => {
+      const key = wip.ServLineCode || 'ALL';
+      
+      if (!wipByServiceLine.has(key)) {
+        wipByServiceLine.set(key, { balWIP: 0, balTime: 0, balDisb: 0 });
+      }
+      
+      const wipEntry = wipByServiceLine.get(key)!;
+      wipEntry.balWIP += wip.BalWIP || 0;
+      wipEntry.balTime += wip.BalTime || 0;
+      wipEntry.balDisb += wip.BalDisb || 0;
+    });
+
+    // Calculate total WIP for fallback
+    const totalWip = { balWIP: 0, balTime: 0, balDisb: 0 };
+    tasksWipData.forEach(wip => {
+      totalWip.balWIP += wip.BalWIP || 0;
+      totalWip.balTime += wip.BalTime || 0;
+      totalWip.balDisb += wip.BalDisb || 0;
+    });
+
+    // Add masterServiceLine and WIP data to each task
     const tasksWithMasterServiceLine = tasks.map(task => ({
       ...task,
       masterServiceLine: serviceLineMapping[task.ServLineCode] || null,
+      wip: wipByServiceLine.get(task.ServLineCode) || totalWip,
     }));
 
     const responseData = {

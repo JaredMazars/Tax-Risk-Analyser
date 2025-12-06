@@ -107,6 +107,26 @@ export async function GET(
     }
 
     if (dataType === 'tasks') {
+      // Filter accessible service line codes by master service line if provided
+      let filteredServLineCodes = accessibleServLineCodes;
+      
+      if (serviceLine) {
+        // Get ServLineCodes that match the requested master service line
+        const serviceLineExternalsForMaster = await prisma.serviceLineExternal.findMany({
+          where: {
+            masterCode: serviceLine,
+            ServLineCode: { in: accessibleServLineCodes },
+          },
+          select: {
+            ServLineCode: true,
+          },
+        });
+        
+        filteredServLineCodes = serviceLineExternalsForMaster
+          .map(sl => sl.ServLineCode)
+          .filter((code): code is string => code !== null);
+      }
+
       // Fetch tasks for all clients in this group
       interface TaskWhereClause {
         Client: {
@@ -116,9 +136,6 @@ export async function GET(
           in: string[];
         };
         OR?: Array<Record<string, { contains: string }>>;
-        ServiceLineExternal?: {
-          masterCode?: string;
-        };
       }
 
       const taskWhere: TaskWhereClause = {
@@ -126,16 +143,9 @@ export async function GET(
           groupCode,
         },
         ServLineCode: {
-          in: accessibleServLineCodes, // Security filter
+          in: filteredServLineCodes, // Security filter + optional master service line filter
         },
       };
-
-      // Filter by master service line if provided
-      if (serviceLine) {
-        taskWhere.ServiceLineExternal = {
-          masterCode: serviceLine,
-        };
-      }
 
       if (search) {
         taskWhere.OR = [
@@ -196,20 +206,77 @@ export async function GET(
         serviceLineExternalData.map(sl => [sl.ServLineCode, sl.masterCode])
       );
 
-      // Map tasks with master service line info
-      const tasks = tasksRaw.map(task => ({
-        id: task.id,
-        TaskDesc: task.TaskDesc,
-        TaskCode: task.TaskCode,
-        Active: task.Active,
-        ServLineCode: task.ServLineCode,
-        ServLineDesc: task.ServLineDesc,
-        SLGroup: task.SLGroup,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
-        Client: task.Client,
-        masterServiceLine: serviceLineMap.get(task.ServLineCode) || null,
-      }));
+      // Fetch WIP data for all clients of these tasks
+      const taskClientIDs = [...new Set(tasksRaw.map(t => t.Client.ClientID))];
+      const tasksWipData = taskClientIDs.length > 0 ? await prisma.wipLTD.findMany({
+        where: {
+          ClientCode: {
+            in: taskClientIDs,
+          },
+        },
+        select: {
+          ClientCode: true,
+          ServLineCode: true,
+          BalWIP: true,
+          BalTime: true,
+          BalDisb: true,
+        },
+      }) : [];
+
+      // Create a map of client WIP data by ClientCode and ServLineCode
+      const wipByClientAndServiceLine = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
+      tasksWipData.forEach(wip => {
+        if (!wip.ClientCode) return;
+        const key = `${wip.ClientCode}_${wip.ServLineCode || 'ALL'}`;
+        
+        if (!wipByClientAndServiceLine.has(key)) {
+          wipByClientAndServiceLine.set(key, { balWIP: 0, balTime: 0, balDisb: 0 });
+        }
+        
+        const wipEntry = wipByClientAndServiceLine.get(key)!;
+        wipEntry.balWIP += wip.BalWIP || 0;
+        wipEntry.balTime += wip.BalTime || 0;
+        wipEntry.balDisb += wip.BalDisb || 0;
+      });
+
+      // Also create a map of total WIP by client (for fallback)
+      const wipByClient = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
+      tasksWipData.forEach(wip => {
+        if (!wip.ClientCode) return;
+        
+        if (!wipByClient.has(wip.ClientCode)) {
+          wipByClient.set(wip.ClientCode, { balWIP: 0, balTime: 0, balDisb: 0 });
+        }
+        
+        const clientWip = wipByClient.get(wip.ClientCode)!;
+        clientWip.balWIP += wip.BalWIP || 0;
+        clientWip.balTime += wip.BalTime || 0;
+        clientWip.balDisb += wip.BalDisb || 0;
+      });
+
+      // Map tasks with master service line info and WIP data
+      const tasks = tasksRaw.map(task => {
+        // Try to get WIP for specific service line, fallback to client total
+        const servLineKey = `${task.Client.ClientID}_${task.ServLineCode || 'ALL'}`;
+        const wip = wipByClientAndServiceLine.get(servLineKey) || 
+                    wipByClient.get(task.Client.ClientID) || 
+                    { balWIP: 0, balTime: 0, balDisb: 0 };
+        
+        return {
+          id: task.id,
+          TaskDesc: task.TaskDesc,
+          TaskCode: task.TaskCode,
+          Active: task.Active,
+          ServLineCode: task.ServLineCode,
+          ServLineDesc: task.ServLineDesc,
+          SLGroup: task.SLGroup,
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+          Client: task.Client,
+          masterServiceLine: serviceLineMap.get(task.ServLineCode) || null,
+          wip,
+        };
+      });
 
       // Get unique master service line codes and fetch their details
       const uniqueMasterCodes = [...new Set(tasks.map(t => t.masterServiceLine).filter(Boolean))];
@@ -308,10 +375,47 @@ export async function GET(
       }),
     ]);
 
+    // Fetch WIP data for all clients in this page
+    const clientIDs = clients.map(c => c.ClientID);
+    const wipData = clientIDs.length > 0 ? await prisma.wipLTD.findMany({
+      where: {
+        ClientCode: {
+          in: clientIDs,
+        },
+      },
+      select: {
+        ClientCode: true,
+        BalWIP: true,
+        BalTime: true,
+        BalDisb: true,
+      },
+    }) : [];
+
+    // Aggregate WIP data by client
+    const wipByClient = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
+    wipData.forEach(wip => {
+      if (!wip.ClientCode) return;
+      
+      if (!wipByClient.has(wip.ClientCode)) {
+        wipByClient.set(wip.ClientCode, { balWIP: 0, balTime: 0, balDisb: 0 });
+      }
+      
+      const clientWip = wipByClient.get(wip.ClientCode)!;
+      clientWip.balWIP += wip.BalWIP || 0;
+      clientWip.balTime += wip.BalTime || 0;
+      clientWip.balDisb += wip.BalDisb || 0;
+    });
+
+    // Add WIP data to clients
+    const clientsWithWip = clients.map(client => ({
+      ...client,
+      wip: wipByClient.get(client.ClientID) || { balWIP: 0, balTime: 0, balDisb: 0 },
+    }));
+
     const responseData = {
       groupCode: groupInfo.groupCode,
       groupDesc: groupInfo.groupDesc,
-      clients,
+      clients: clientsWithWip,
       pagination: {
         page,
         limit,

@@ -622,6 +622,15 @@ export default function ServiceLineClientDetailPage() {
                       const isAccessible = task.masterServiceLine?.toUpperCase() === serviceLine.toUpperCase();
                       const TaskWrapper: any = isAccessible ? Link : 'div';
                       
+                      const formatCurrency = (amount: number) => {
+                        return new Intl.NumberFormat('en-ZA', {
+                          style: 'currency',
+                          currency: 'ZAR',
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        }).format(amount);
+                      };
+                      
                       return (
                         <TaskWrapper
                           key={task.id}
@@ -672,6 +681,26 @@ export default function ServiceLineClientDetailPage() {
                             </div>
                             <TaskStageIndicator stage={taskStage} />
                           </div>
+                          
+                          {/* WIP Balances */}
+                          {task.wip && (
+                            <div className="mt-2 pt-2 border-t border-forvis-gray-200">
+                              <div className="flex items-center space-x-3">
+                                <div className="flex-1">
+                                  <p className="text-xs font-medium text-forvis-gray-600">WIP Balance</p>
+                                  <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balWIP)}</p>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-xs font-medium text-forvis-gray-600">Time</p>
+                                  <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balTime)}</p>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-xs font-medium text-forvis-gray-600">Disb</p>
+                                  <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balDisb)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </TaskWrapper>
                       );
                     })}
