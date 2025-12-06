@@ -94,6 +94,8 @@ export function VirtualizedTable<T>({
               <tbody className="bg-white divide-y divide-forvis-gray-200">
                 {virtualItems.map((virtualRow) => {
                   const item = data[virtualRow.index];
+                  if (!item) return null;
+                  
                   return (
                     <tr
                       key={getRowKey(item)}
@@ -130,16 +132,22 @@ export function VirtualizedTable<T>({
       <div className="px-4 py-3 bg-forvis-gray-50 border-t border-forvis-gray-200">
         <div className="text-sm text-forvis-gray-700">
           Showing <span className="font-medium">{data.length}</span> items
-          {virtualItems.length > 0 && (
-            <>
-              {' '}
-              (rendering{' '}
-              <span className="font-medium">
-                {virtualItems[0].index + 1}-{Math.min(virtualItems[virtualItems.length - 1].index + 1, data.length)}
-              </span>
-              )
-            </>
-          )}
+          {(() => {
+            const firstItem = virtualItems[0];
+            const lastItem = virtualItems[virtualItems.length - 1];
+            if (!firstItem || !lastItem) return null;
+            
+            return (
+              <>
+                {' '}
+                (rendering{' '}
+                <span className="font-medium">
+                  {firstItem.index + 1}-{Math.min(lastItem.index + 1, data.length)}
+                </span>
+                )
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>

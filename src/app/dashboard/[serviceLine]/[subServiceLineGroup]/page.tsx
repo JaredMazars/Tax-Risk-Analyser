@@ -16,6 +16,7 @@ import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client } from '@/hooks/clients/useClients';
 import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks'; // Updated with ClientID
+import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
@@ -32,6 +33,16 @@ export default function SubServiceLineWorkspacePage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+
+  // Fetch sub-service line groups to get the description
+  const { data: subGroups } = useSubServiceLineGroups({
+    serviceLine: serviceLine || '',
+    enabled: !!serviceLine && isValidServiceLine(serviceLine),
+  });
+  
+  // Find the current sub-service line group to get its description
+  const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
+  const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
 
   // Debounce search input
   useEffect(() => {
@@ -164,21 +175,21 @@ export default function SubServiceLineWorkspacePage() {
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">
-            {subServiceLineGroup}
+            {subServiceLineGroupDescription}
           </span>
         </nav>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
           <div>
             <h1 className="text-3xl font-bold text-forvis-gray-900">
-              {subServiceLineGroup}
+              {subServiceLineGroupDescription}
             </h1>
             <p className="mt-1 text-sm text-forvis-gray-700">
               {activeTab === 'clients' 
                 ? 'All clients across the organization'
                 : activeTab === 'tasks'
-                ? `Tasks in ${subServiceLineGroup}`
-                : `Your tasks in ${subServiceLineGroup}`}
+                ? `Tasks in ${subServiceLineGroupDescription}`
+                : `Your tasks in ${subServiceLineGroupDescription}`}
             </p>
           </div>
           
@@ -470,8 +481,8 @@ export default function SubServiceLineWorkspacePage() {
                 {searchTerm 
                   ? 'No tasks match your search.' 
                   : activeTab === 'my-tasks'
-                  ? `You are not a team member on any tasks in ${subServiceLineGroup}.`
-                  : `No tasks available in ${subServiceLineGroup}.`}
+                  ? `You are not a team member on any tasks in ${subServiceLineGroupDescription}.`
+                  : `No tasks available in ${subServiceLineGroupDescription}.`}
               </p>
             </div>
           ) : (

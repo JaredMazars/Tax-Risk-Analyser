@@ -27,6 +27,7 @@ import { useClient, clientKeys, type ClientWithTasks } from '@/hooks/clients/use
 import { taskListKeys } from '@/hooks/tasks/useTasks';
 import { useLatestCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRatingGrade } from '@/types/analytics';
+import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -48,6 +49,16 @@ export default function ServiceLineClientDetailPage() {
   const [taskPage, setTaskPage] = useState(1);
   const [taskLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Fetch sub-service line groups to get the description
+  const { data: subGroups } = useSubServiceLineGroups({
+    serviceLine: serviceLine || '',
+    enabled: !!serviceLine,
+  });
+  
+  // Find the current sub-service line group to get its description
+  const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
+  const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Fetch client using React Query hook with task pagination
@@ -308,7 +319,7 @@ export default function ServiceLineClientDetailPage() {
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {subServiceLineGroup}
+            {subServiceLineGroupDescription}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">{client.clientNameFull || client.clientCode}</span>

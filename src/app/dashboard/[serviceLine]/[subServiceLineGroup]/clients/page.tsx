@@ -16,6 +16,7 @@ import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client, clientKeys } from '@/hooks/clients/useClients';
 import { useTasks, type TaskListItem, taskListKeys } from '@/hooks/tasks/useTasks';
+import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
 
@@ -32,6 +33,16 @@ export default function ServiceLineClientsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+
+  // Fetch sub-service line groups to get the description
+  const { data: subGroups } = useSubServiceLineGroups({
+    serviceLine: serviceLine || '',
+    enabled: !!serviceLine && isValidServiceLine(serviceLine),
+  });
+  
+  // Find the current sub-service line group to get its description
+  const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
+  const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
 
   // Prefetch client details on hover for faster navigation
   const prefetchClient = (clientID: string) => {
@@ -220,7 +231,7 @@ export default function ServiceLineClientsPage() {
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {subServiceLineGroup}
+            {subServiceLineGroupDescription}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">
@@ -231,7 +242,7 @@ export default function ServiceLineClientsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
           <div>
             <h1 className="text-3xl font-bold text-forvis-gray-900">
-              {formatServiceLineName(serviceLine)} - {subServiceLineGroup}
+              {formatServiceLineName(serviceLine)} - {subServiceLineGroupDescription}
             </h1>
             <p className="mt-1 text-sm text-forvis-gray-700">
               {activeTab === 'clients' 

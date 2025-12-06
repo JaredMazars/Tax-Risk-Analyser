@@ -35,6 +35,7 @@ import { useTaskTeam } from '@/hooks/tasks/useTaskTeam';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
 import { TaskTypeSelector } from '@/components/features/tasks/TaskTypeSelector';
 import { TaxYearInput } from '@/components/shared/TaxYearInput';
@@ -360,6 +361,16 @@ export default function ClientProjectPage() {
   const clientId = params.id as string;
   const taskId = params.taskId as string;
   
+  // Fetch sub-service line groups to get the description
+  const { data: subGroups } = useSubServiceLineGroups({
+    serviceLine: serviceLine || '',
+    enabled: !!serviceLine,
+  });
+  
+  // Find the current sub-service line group to get its description
+  const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
+  const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
+  
   const { data: task, isLoading, refetch: fetchTask } = useTask(taskId);
   
   // Set default active tab based on task type and workflow status
@@ -659,7 +670,7 @@ export default function ClientProjectPage() {
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {subServiceLineGroup}
+            {subServiceLineGroupDescription}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           

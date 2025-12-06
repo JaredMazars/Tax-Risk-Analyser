@@ -11,6 +11,7 @@ import { UploadAnalyzeTab } from '@/components/features/analytics/UploadAnalyzeT
 import { CreditRatingsTab } from '@/components/features/analytics/CreditRatingsTab';
 import { FinancialRatiosTab } from '@/components/features/analytics/FinancialRatiosTab';
 import { AnalyticsDocumentsTab } from '@/components/features/analytics/AnalyticsDocumentsTab';
+import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 
 type TabType = 'upload' | 'ratings' | 'ratios' | 'documents';
 
@@ -20,6 +21,16 @@ function ClientAnalyticsContent() {
   const serviceLine = (params?.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params?.subServiceLineGroup as string;
   const [activeTab, setActiveTab] = useState<TabType>('upload');
+
+  // Fetch sub-service line groups to get the description
+  const { data: subGroups } = useSubServiceLineGroups({
+    serviceLine: serviceLine || '',
+    enabled: !!serviceLine,
+  });
+  
+  // Find the current sub-service line group to get its description
+  const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
+  const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
 
   // Fetch client data
   const { data: clientData, isLoading } = useClient(clientId, {
@@ -115,7 +126,7 @@ function ClientAnalyticsContent() {
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`}
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {subServiceLineGroup}
+            {subServiceLineGroupDescription}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link

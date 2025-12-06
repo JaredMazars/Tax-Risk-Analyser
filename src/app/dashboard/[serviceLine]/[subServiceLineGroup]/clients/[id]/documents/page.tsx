@@ -8,6 +8,7 @@ import { ClientHeader } from '@/components/features/clients/ClientHeader';
 import { useClient } from '@/hooks/clients/useClients';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { Suspense, useMemo } from 'react';
+import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 
 function ClientDocumentsContent() {
   const params = useParams();
@@ -15,6 +16,16 @@ function ClientDocumentsContent() {
   const clientId = (params?.id as string) || '';
   const serviceLine = (params?.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params?.subServiceLineGroup as string;
+
+  // Fetch sub-service line groups to get the description
+  const { data: subGroups } = useSubServiceLineGroups({
+    serviceLine: serviceLine || '',
+    enabled: !!serviceLine,
+  });
+  
+  // Find the current sub-service line group to get its description
+  const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
+  const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
 
   // Fetch client data - hooks must be called unconditionally
   const { data: clientData, isLoading } = useClient(clientId, {
@@ -85,7 +96,7 @@ function ClientDocumentsContent() {
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            {subServiceLineGroup}
+            {subServiceLineGroupDescription}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link 
