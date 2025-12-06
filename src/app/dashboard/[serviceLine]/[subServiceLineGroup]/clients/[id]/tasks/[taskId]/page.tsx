@@ -361,13 +361,14 @@ export default function ClientProjectPage() {
   const clientId = params.id as string;
   const taskId = params.taskId as string;
   
-  // Fetch sub-service line groups to get the description
+  // Lazy load sub-service line groups to get the description (non-critical for breadcrumb)
   const { data: subGroups } = useSubServiceLineGroups({
     serviceLine: serviceLine || '',
     enabled: !!serviceLine,
   });
   
   // Find the current sub-service line group to get its description
+  // Use code as fallback if data hasn't loaded yet
   const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
   const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
   
@@ -404,8 +405,10 @@ export default function ClientProjectPage() {
   
   // Team management state
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState('');
-  const [currentUserRole, setCurrentUserRole] = useState<TaskRole>('VIEWER' as TaskRole);
+  
+  // Get current user role from task data (no separate API call needed)
+  const currentUserId = task?.currentUserId || '';
+  const currentUserRole = (task?.currentUserRole as TaskRole) || ('VIEWER' as TaskRole);
   
   // Lazy load team members only when team tab is active
   const { 
@@ -434,38 +437,6 @@ export default function ClientProjectPage() {
       setActiveTab(getDefaultTab());
     }
   }, [searchParams, task]);
-
-  // Fetch current user role when task loads
-  useEffect(() => {
-    if (task) {
-      fetchCurrentUserRole();
-    }
-  }, [taskId, task]);
-
-
-  const fetchCurrentUserRole = async () => {
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`);
-      const data = await response.json();
-      const projectUsers = data.data?.TaskTeam || data.data?.projectUser || data.data?.users || [];
-      if (data.success && projectUsers.length > 0) {
-        const sessionResponse = await fetch('/api/auth/session');
-        const sessionData = await sessionResponse.json();
-        if (sessionData.user) {
-          const currentUser = projectUsers.find((u: TaskTeam) => {
-            const userId = u.User?.id || u.user?.id || u.userId;
-            return userId === sessionData.user.id;
-          });
-          if (currentUser) {
-            setCurrentUserId(sessionData.user.id);
-            setCurrentUserRole(currentUser.role);
-          }
-        }
-      }
-    } catch (error) {
-      // Silently fail - user may not be on team
-    }
-  };
 
   const renderContent = () => {
     // Create params object for child pages

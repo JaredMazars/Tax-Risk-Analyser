@@ -49,8 +49,8 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const includeTeam = searchParams.get('includeTeam') === 'true';
 
-    // Try to get cached task data
-    const cacheKey = `${CACHE_PREFIXES.TASK}detail:${taskId}:${includeTeam}`;
+    // Try to get cached task data (cache key includes user ID for role)
+    const cacheKey = `${CACHE_PREFIXES.TASK}detail:${taskId}:${includeTeam}:user:${user.id}`;
     const cached = await cache.get(cacheKey);
     if (cached) {
       return NextResponse.json(successResponse(cached));
@@ -119,24 +119,31 @@ export async function GET(
             TaxAdjustment: true,
           },
         },
-        // Only include team members if requested
-        ...(includeTeam && {
-          TaskTeam: {
-            select: {
-              id: true,
-              userId: true,
-              role: true,
-              createdAt: true,
-              User: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                },
+        // Always include current user's role, plus all team members if requested
+        TaskTeam: includeTeam ? {
+          select: {
+            id: true,
+            userId: true,
+            role: true,
+            createdAt: true,
+            User: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
               },
             },
           },
-        }),
+        } : {
+          where: {
+            userId: user.id,
+          },
+          select: {
+            userId: true,
+            role: true,
+          },
+          take: 1,
+        },
       },
     });
 
@@ -148,7 +155,13 @@ export async function GET(
     }
 
     // Transform data to match expected format
-    const { Client, TaskAcceptance, TaskEngagementLetter, ...taskData } = task;
+    const { Client, TaskAcceptance, TaskEngagementLetter, TaskTeam, ...taskData } = task;
+    
+    // Extract current user's role from team
+    const currentUserRole = TaskTeam && Array.isArray(TaskTeam) && TaskTeam.length > 0
+      ? TaskTeam.find((member: any) => member.userId === user.id)?.role || null
+      : null;
+    
     const transformedTask = {
       ...taskData,
       name: task.TaskDesc,
@@ -183,7 +196,9 @@ export async function GET(
         mappings: task._count.MappedAccount,
         taxAdjustments: task._count.TaxAdjustment,
       },
-      ...(includeTeam && { users: task.TaskTeam }),
+      currentUserRole, // Include current user's role for permission checks
+      currentUserId: user.id, // Include current user ID for easy access
+      ...(includeTeam && { users: TaskTeam }),
     };
 
     // Cache the response for 5 minutes
