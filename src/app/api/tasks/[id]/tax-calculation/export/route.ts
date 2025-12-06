@@ -69,7 +69,7 @@ export async function GET(
     const taxLiability = Math.max(0, taxableIncome) * 0.27;
 
     const exportData: TaxExportData = {
-      taskName: project.name,
+      taskName: task.TaskDesc,
       accountingProfit,
       adjustments: adjustments.map(adj => ({
         id: adj.id,

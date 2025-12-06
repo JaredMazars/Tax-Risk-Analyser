@@ -52,7 +52,7 @@ export async function initBlobStorage(): Promise<void> {
  * Upload file to Azure Blob Storage
  * @param buffer - File buffer
  * @param fileName - File name
- * @param projectId - Project ID for folder organization
+ * @param taskId - Task ID for folder organization
  * @returns Blob URL
  */
 export async function uploadFile(
@@ -64,7 +64,7 @@ export async function uploadFile(
     const containerClient = getContainerClient();
     const timestamp = Date.now();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const blobName = `${projectId}/${timestamp}_${sanitizedFileName}`;
+    const blobName = `${taskId}/${timestamp}_${sanitizedFileName}`;
 
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
@@ -196,14 +196,14 @@ export async function fileExists(blobName: string): Promise<boolean> {
 }
 
 /**
- * List all files in a project folder
- * @param projectId - Project ID
+ * List all files in a task folder
+ * @param taskId - Task ID
  * @returns Array of blob names
  */
-export async function listProjectFiles(taskId: number): Promise<string[]> {
+export async function listTaskFiles(taskId: number): Promise<string[]> {
   try {
     const containerClient = getContainerClient();
-    const prefix = `${projectId}/`;
+    const prefix = `${taskId}/`;
     const files: string[] = [];
 
     for await (const blob of containerClient.listBlobsFlat({ prefix })) {

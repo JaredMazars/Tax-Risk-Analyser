@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { UpdateTaskTeamSchema } from '@/lib/validation/schemas';
-import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
+import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { emailService } from '@/lib/services/email/emailService';
@@ -11,6 +11,7 @@ import { createUserRemovedNotification, createUserRoleChangedNotification } from
 import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
+import { toTaskId } from '@/types/branded';
 
 export async function GET(
   request: NextRequest,
@@ -24,7 +25,7 @@ export async function GET(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     const targetUserId = params?.userId;
 
     if (!targetUserId) {
@@ -84,7 +85,7 @@ export async function PUT(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     const targetUserId = params?.userId;
 
     if (!targetUserId) {
@@ -178,12 +179,12 @@ export async function PUT(
     try {
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { name: true },
+        select: { TaskDesc: true },
       });
 
-      if (project) {
+      if (task) {
         const notification = createUserRoleChangedNotification(
-          project.name,
+          task.TaskDesc,
           taskId,
           user.name || user.email,
           oldRole,
@@ -230,7 +231,7 @@ export async function DELETE(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     const targetUserId = params?.userId;
 
     if (!targetUserId) {
@@ -303,7 +304,7 @@ export async function DELETE(
     // Get project details for email before deletion
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { name: true, projectType: true },
+      select: { TaskDesc: true },
     });
 
     // Remove user from project
@@ -318,11 +319,11 @@ export async function DELETE(
 
     // Send email notification (non-blocking)
     try {
-      if (project && existingTaskTeam.User) {
+      if (task && existingTaskTeam.User) {
         await emailService.sendUserRemovedEmail(
           taskId,
-          project.name,
-          project.projectType,
+          task.TaskDesc,
+          'N/A',
           {
             id: existingTaskTeam.User.id,
             name: existingTaskTeam.User.name,
@@ -342,9 +343,9 @@ export async function DELETE(
 
     // Create in-app notification (non-blocking)
     try {
-      if (project && existingTaskTeam.User) {
+      if (task && existingTaskTeam.User) {
         const notification = createUserRemovedNotification(
-          project.name,
+          task.TaskDesc,
           taskId,
           user.name || user.email
         );

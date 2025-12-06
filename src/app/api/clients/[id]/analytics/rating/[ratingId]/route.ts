@@ -111,30 +111,42 @@ export async function DELETE(
     }
 
     const { id, ratingId } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
     const ratId = Number.parseInt(ratingId);
 
-    if (Number.isNaN(clientId) || Number.isNaN(ratId)) {
-      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success || Number.isNaN(ratId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, clientID);
     if (!hasAccess) {
       logger.warn('Unauthorized rating deletion attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientId,
+        clientID,
         ratingId: ratId,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Get client by ClientID to get numeric id
+    const client = await prisma.client.findUnique({
+      where: { ClientID: clientID },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
     // Verify rating exists and belongs to client
     const rating = await prisma.clientCreditRating.findFirst({
       where: {
         id: ratId,
-        clientId,
+        clientId: client.id,
       },
     });
 

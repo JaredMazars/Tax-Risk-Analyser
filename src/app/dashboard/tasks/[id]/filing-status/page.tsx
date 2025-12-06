@@ -11,7 +11,7 @@ interface FilingStatusPageProps {
 
 export default function FilingStatusPage({ params }: FilingStatusPageProps) {
   // Note: In client components, params is already resolved (not a Promise)
-  const { data: project } = useTask(params.id);
+  const { data: _task } = useTask(params.id);
   const [filings, setFilings] = useState<FilingStatus[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);

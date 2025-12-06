@@ -119,7 +119,7 @@ export function SendMessageModal({
       recipientUserId,
       title: title.trim(),
       message: message.trim(),
-      taskId,
+      taskId: taskId,
       actionUrl: actionUrl.trim() || undefined,
     };
 

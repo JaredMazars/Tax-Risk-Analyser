@@ -13,7 +13,7 @@ import { OpinionPDF } from '@/components/pdf/OpinionPDF';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; draftId: string } }
+  context: { params: Promise<{ id: string; draftId: string }> }
 ) {
   try {
     const session = await getSession();
@@ -21,6 +21,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const params = await context.params;
     const draftId = parseInt(params.draftId);
     const taskId = parseInt(params.id);
     const body = await request.json();
@@ -65,8 +66,8 @@ export async function POST(
     if (format === 'docx') {
       // Export as Word document
       const buffer = await WordExporter.exportOpinion(draft.title, sections, {
-        taskName: project?.name,
-        clientName: project?.Client?.clientNameFull || project?.Client?.clientCode,
+        taskName: task?.TaskDesc,
+        clientName: task?.Client?.clientNameFull || task?.Client?.clientCode,
       });
 
       return new NextResponse(new Uint8Array(buffer), {
@@ -85,8 +86,8 @@ export async function POST(
         draft.title,
         sections,
         {
-          taskName: project?.name,
-          clientName: project?.Client?.clientNameFull || project?.Client?.clientCode,
+          taskName: task?.TaskDesc,
+          clientName: task?.Client?.clientNameFull || task?.Client?.clientCode,
         }
       );
 

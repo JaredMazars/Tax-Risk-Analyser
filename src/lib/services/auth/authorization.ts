@@ -143,7 +143,7 @@ export async function canApproveAcceptance(
     // Get the task's service line
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { serviceLine: true },
+      select: { ServLineCode: true },
     });
 
     if (!task) {
@@ -152,7 +152,7 @@ export async function canApproveAcceptance(
     }
 
     // Check if user is an Administrator or Partner in the task's service line
-    const isServiceLinePartner = await isPartner(userId, task.serviceLine);
+    const isServiceLinePartner = await isPartner(userId, task.ServLineCode);
     
     // Also verify they have task access
     if (isServiceLinePartner) {

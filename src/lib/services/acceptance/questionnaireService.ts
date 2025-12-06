@@ -122,7 +122,7 @@ export async function getQuestionnaireType(
  */
 async function checkLiteEligibility(task: {
   id: number;
-  ClientCode: string;
+  ClientCode: string | null;
   Client: { id: number; ClientID: string; clientCode: string; groupCode: string } | null;
   TaskAcceptance: { acceptanceApproved: boolean } | null;
 }): Promise<boolean> {

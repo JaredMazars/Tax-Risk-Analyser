@@ -101,8 +101,8 @@ export function generateUserAddedHtml(data: UserAddedEmailData): string {
       <div class="info-box">
         <strong>Project Details:</strong>
         <p style="margin: 5px 0 0 0;">
-          <strong>Name:</strong> ${data.project.name}<br>
-          <strong>Type:</strong> ${formatTaskType(data.project.projectType)}<br>
+          <strong>Name:</strong> ${data.task.name}<br>
+          <strong>Type:</strong> ${formatTaskType(data.task.taskType)}<br>
           <strong>Your Role:</strong> <span class="role-badge">${formatRole(data.role)}</span><br>
           <strong>Added By:</strong> ${data.addedBy.name || data.addedBy.email}
         </p>
@@ -143,8 +143,8 @@ Hi ${data.addedUser.name || data.addedUser.email},
 You have been added to a project on the Mazars Tax Platform.
 
 Project Details:
-- Name: ${data.project.name}
-- Type: ${formatTaskType(data.project.projectType)}
+- Name: ${data.task.name}
+- Type: ${formatTaskType(data.task.taskType)}
 - Your Role: ${formatRole(data.role)}
 - Added By: ${data.addedBy.name || data.addedBy.email}
 

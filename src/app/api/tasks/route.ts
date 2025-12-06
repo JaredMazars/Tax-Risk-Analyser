@@ -309,83 +309,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    const body = await request.json();
-    
-    // Sanitize input before validation
-    const sanitizedBody = sanitizeObject(body, { maxLength: 1000 });
-    
-    // Validate request body
-    const validatedData = CreateTaskSchema.parse(sanitizedBody);
-
-    // Check if user has access to the service line
-    const userServiceLines = await getUserServiceLines(user.id);
-    const hasAccess = userServiceLines.some(
-      sl => sl.serviceLine === validatedData.serviceLine
+    // Task creation is not yet implemented via this endpoint
+    // Tasks are created through BD opportunity conversion or imported from external systems
+    return NextResponse.json(
+      { error: 'Direct task creation is not yet implemented. Tasks are created through BD opportunity conversion.' },
+      { status: 501 }
     );
-
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'You do not have access to this service line' },
-        { status: 403 }
-      );
-    }
-
-    // Create task with user as admin
-    const task = await prisma.task.create({
-      data: {
-        name: validatedData.name,
-        description: validatedData.description,
-        taskType: validatedData.taskType || 'TAX_CALCULATION',
-        serviceLine: validatedData.serviceLine || 'TAX',
-        taxYear: validatedData.taxYear,
-        taxPeriodStart: validatedData.taxPeriodStart,
-        taxPeriodEnd: validatedData.taxPeriodEnd,
-        assessmentYear: validatedData.assessmentYear,
-        submissionDeadline: validatedData.submissionDeadline,
-        clientId: validatedData.clientId,
-        createdBy: user.id,
-        status: 'ACTIVE',
-        TaskTeam: {
-          create: {
-            userId: user.id,
-            role: 'ADMIN',
-          },
-        },
-      },
-      include: {
-        Client: true,
-        TaskTeam: {
-          include: {
-            User: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            MappedAccount: true,
-            TaxAdjustment: true,
-          },
-        },
-      },
-    });
-
-    // Transform data to match expected format
-    const transformedTask = {
-      ...task,
-      client: task.Client, // Transform Client → client for consistency
-      Client: undefined, // Remove original Client field
-      _count: {
-        mappings: task._count.MappedAccount,
-        taxAdjustments: task._count.TaxAdjustment,
-      },
-    };
-
-    return NextResponse.json(successResponse(transformedTask), { status: 201 });
   } catch (error) {
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {

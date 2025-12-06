@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 /**
  * Project response with Prisma includes
  */
-type ProjectWithIncludes = Prisma.ProjectGetPayload<{
+type ProjectWithIncludes = Prisma.TaskGetPayload<{
   include: {
     Client: true;
     TaskTeam: true;
@@ -59,17 +59,21 @@ export function transformProjectResponse(
   project: Partial<ProjectWithIncludes> & { Client?: unknown; TaskTeam?: unknown[] }
 ): TransformedProject {
   const { Client, TaskTeam, _count, ...rest } = project;
+  
+  const task = project as any; // Cast to access Task model fields
 
   return {
     ...rest,
-    id: project.id!,
-    name: project.name!,
-    projectType: project.projectType!,
-    serviceLine: project.serviceLine!,
-    status: project.status!,
-    archived: project.archived!,
-    createdAt: project.createdAt!,
-    updatedAt: project.updatedAt!,
+    id: task.id!,
+    name: task.TaskDesc || '',
+    description: null,
+    projectType: '',
+    serviceLine: task.ServLineCode || '',
+    status: task.Active || 'No',
+    archived: false,
+    taxYear: null,
+    createdAt: task.createdAt!,
+    updatedAt: task.updatedAt!,
     client: Client as TransformedProject['client'],
     users: TaskTeam,
     _count: _count
@@ -94,7 +98,7 @@ export function transformProjectsResponse(
  * Client response transformation (if needed in the future)
  */
 export function transformClientResponse(client: {
-  _count?: { Project?: number };
+  _count?: { Task?: number };
   [key: string]: unknown;
 }) {
   const { _count, ...rest } = client;

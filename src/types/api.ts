@@ -110,7 +110,7 @@ export interface PermissionCheckResult {
 
 export interface PermissionCheckRequest {
   userId: string;
-  projectId?: number;
+  taskId?: number;
   serviceLine?: string;
   feature?: string;
 }

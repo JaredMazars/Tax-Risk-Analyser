@@ -77,7 +77,7 @@ export async function GET(
     const ratios = parseFinancialRatios(latestRating.financialRatios);
 
     logger.info('Financial ratios retrieved', {
-      clientId,
+      clientId: client.id,
       ratingId: latestRating.id,
       ratingDate: latestRating.ratingDate,
       ratiosCount: Object.keys(ratios).filter(key => ratios[key as keyof typeof ratios] !== undefined).length,

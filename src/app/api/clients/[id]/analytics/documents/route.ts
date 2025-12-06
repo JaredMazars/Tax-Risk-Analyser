@@ -225,7 +225,7 @@ export async function POST(
 
     logger.info('Analytics document uploaded', {
       documentId: document.id,
-      clientId,
+      clientId: client.id,
       fileName: file.name,
       uploadedBy: user.email,
     });

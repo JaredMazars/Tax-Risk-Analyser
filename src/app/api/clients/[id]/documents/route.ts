@@ -71,23 +71,23 @@ export async function GET(
       );
     }
 
-    const projectIds = projects.map((p) => p.id);
-    const projectMap = new Map(projects.map((p) => [p.id, p.TaskDesc]));
+    const taskIds = projects.map((p) => p.id);
+    const taskMap = new Map(projects.map((p) => [p.id, p.TaskDesc]));
 
     // Fetch all documents in parallel for performance
     const [adminDocs, adjustmentDocs, opinionDocs, sarsDocs] = await Promise.all([
       prisma.taskDocument.findMany({
-        where: { taskId: { in: projectIds } },
+        where: { taskId: { in: taskIds } },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.adjustmentDocument.findMany({
-        where: { taskId: { in: projectIds } },
+        where: { taskId: { in: taskIds } },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.opinionDocument.findMany({
         where: {
           OpinionDraft: {
-            taskId: { in: projectIds },
+            taskId: { in: taskIds },
           },
         },
         include: {
@@ -101,7 +101,7 @@ export async function GET(
       }),
       prisma.sarsResponse.findMany({
         where: {
-          taskId: { in: projectIds },
+          taskId: { in: taskIds },
           documentPath: { not: null },
         },
         orderBy: { createdAt: 'desc' },
@@ -173,7 +173,7 @@ export async function GET(
       fileSize: doc.fileSize,
       filePath: doc.filePath,
       taskId: doc.taskId,
-      taskName: projectMap.get(doc.taskId) || 'Unknown Project',
+      taskName: taskMap.get(doc.taskId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       category: doc.category,
@@ -190,7 +190,7 @@ export async function GET(
       fileSize: doc.fileSize,
       filePath: doc.filePath,
       taskId: doc.taskId,
-      taskName: projectMap.get(doc.taskId) || 'Unknown Project',
+      taskName: taskMap.get(doc.taskId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       extractionStatus: doc.extractionStatus,
@@ -205,7 +205,7 @@ export async function GET(
       fileSize: doc.fileSize,
       filePath: doc.filePath,
       taskId: doc.OpinionDraft.taskId,
-      taskName: projectMap.get(doc.OpinionDraft.taskId) || 'Unknown Project',
+      taskName: taskMap.get(doc.OpinionDraft.taskId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       category: doc.category,
@@ -225,7 +225,7 @@ export async function GET(
           fileSize: 0,
           filePath: doc.documentPath!,
           taskId: doc.taskId,
-          taskName: projectMap.get(doc.taskId) || 'Unknown Project',
+          taskName: taskMap.get(doc.taskId) || 'Unknown Project',
           uploadedBy: doc.createdBy ? userMap.get(doc.createdBy) || doc.createdBy : null,
           createdAt: doc.createdAt,
           referenceNumber: doc.referenceNumber,

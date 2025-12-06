@@ -21,13 +21,13 @@ export function createUserAddedNotification(
 ): NotificationTemplate {
   return {
     title: `Added to ${taskName}`,
-    message: `${addedByName} added you to the project as ${formatRole(role)}.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}`,
+    message: `${addedByName} added you to the task as ${formatRole(role)}.`,
+    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}`,
   };
 }
 
 /**
- * Create user removed from project notification
+ * Create user removed from task notification
  */
 export function createUserRemovedNotification(
   taskName: string,
@@ -36,7 +36,7 @@ export function createUserRemovedNotification(
 ): NotificationTemplate {
   return {
     title: `Removed from ${taskName}`,
-    message: `${removedByName} removed you from the project.`,
+    message: `${removedByName} removed you from the task.`,
     actionUrl: ROUTES.DASHBOARD.ROOT,
   };
 }
@@ -54,7 +54,7 @@ export function createUserRoleChangedNotification(
   return {
     title: `Role Changed in ${taskName}`,
     message: `${changedByName} changed your role from ${formatRole(oldRole)} to ${formatRole(newRole)}.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}`,
+    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}`,
   };
 }
 
@@ -69,7 +69,7 @@ export function createDocumentProcessedNotification(
   return {
     title: `Document Processed in ${taskName}`,
     message: `"${documentName}" has been successfully processed.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}/document-management`,
+    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}/document-management`,
   };
 }
 
@@ -84,7 +84,7 @@ export function createOpinionDraftReadyNotification(
   return {
     title: `Opinion Draft Ready in ${taskName}`,
     message: `A new opinion draft is ready for review.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}/opinion-drafting`,
+    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}/opinion-drafting`,
   };
 }
 
@@ -98,7 +98,7 @@ export function createTaxCalculationCompleteNotification(
   return {
     title: `Tax Calculation Complete in ${taskName}`,
     message: `Tax calculations have been completed and are ready for review.`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}/tax-calculation`,
+    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}/tax-calculation`,
   };
 }
 
@@ -113,7 +113,7 @@ export function createFilingStatusUpdatedNotification(
   return {
     title: `Filing Status Updated in ${taskName}`,
     message: `Filing status has been updated to: ${newStatus}`,
-    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${projectId}/filing-status`,
+    actionUrl: `${ROUTES.DASHBOARD.PROJECTS}/${taskId}/filing-status`,
   };
 }
 

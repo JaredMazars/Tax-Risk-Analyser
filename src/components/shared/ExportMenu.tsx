@@ -7,7 +7,7 @@ interface ExportMenuProps {
   taskId: number;
 }
 
-export default function ExportMenu({ projectId }: ExportMenuProps) {
+export default function ExportMenu({ taskId }: ExportMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -30,7 +30,7 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
       setIsOpen(false);
 
       const response = await fetch(
-        `/api/tasks/${projectId}/tax-calculation/export?format=${format}`
+        `/api/tasks/${taskId}/tax-calculation/export?format=${format}`
       );
 
       if (!response.ok) {
@@ -40,7 +40,7 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
 
       // Get filename from Content-Disposition header
       const contentDisposition = response.headers.get('Content-Disposition');
-      let fileName = `tax-computation-${projectId}.${format}`;
+      let fileName = `tax-computation-${taskId}.${format}`;
       if (contentDisposition) {
         const matches = /filename="([^"]+)"/.exec(contentDisposition);
         if (matches && matches[1]) {

@@ -170,7 +170,7 @@ export async function GET(
             id: documentId,
             Task: {
               Client: {
-                id: clientId,
+                ClientID: clientID,
               },
             },
           },

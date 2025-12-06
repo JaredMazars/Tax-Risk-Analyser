@@ -21,7 +21,7 @@ export class NotificationService {
     type: NotificationType | string,
     title: string,
     message: string,
-    projectId?: number,
+    taskId?: number,
     actionUrl?: string,
     fromUserId?: string,
     metadata?: NotificationMetadata
@@ -33,7 +33,7 @@ export class NotificationService {
           type,
           title,
           message,
-          taskId: projectId || null,
+          taskId: taskId || null,
           actionUrl: actionUrl || null,
           fromUserId: fromUserId || null,
           metadata: metadata ? JSON.stringify(metadata) : null,
@@ -69,7 +69,7 @@ export class NotificationService {
       const where: {
         userId: string;
         isRead?: boolean;
-        projectId?: number;
+        taskId?: number;
       } = {
         userId,
       };
@@ -78,11 +78,11 @@ export class NotificationService {
         where.isRead = filters.isRead;
       }
 
-      if (filters.projectId !== undefined) {
-        where.projectId = filters.projectId;
+      if (filters.taskId !== undefined) {
+        where.taskId = filters.taskId;
       }
 
-      // Get notifications with user and project details
+      // Get notifications with user and task details
       const [rawNotifications, totalCount, unreadCount] = await Promise.all([
         prisma.inAppNotification.findMany({
           where,
@@ -101,7 +101,7 @@ export class NotificationService {
             Task: {
               select: {
                 id: true,
-                name: true,
+                TaskDesc: true,
               },
             },
           },
@@ -144,7 +144,10 @@ export class NotificationService {
           fromUserId: notification.fromUserId,
           createdAt: notification.createdAt,
           fromUser: notification.User_InAppNotification_fromUserIdToUser || null,
-          project: notification.Project || null,
+          task: notification.Task ? {
+            id: notification.Task.id,
+            name: notification.Task.TaskDesc,
+          } : null,
         };
       });
 
@@ -210,19 +213,19 @@ export class NotificationService {
   /**
    * Mark all notifications as read
    */
-  async markAllAsRead(userId: string, projectId?: number): Promise<number> {
+  async markAllAsRead(userId: string, taskId?: number): Promise<number> {
     try {
       const where: {
         userId: string;
         isRead: boolean;
-        projectId?: number;
+        taskId?: number;
       } = {
         userId,
         isRead: false,
       };
 
-      if (projectId !== undefined) {
-        where.projectId = projectId;
+      if (taskId !== undefined) {
+        where.taskId = taskId;
       }
 
       const result = await prisma.inAppNotification.updateMany({
@@ -303,7 +306,7 @@ export class NotificationService {
     recipientUserId: string,
     title: string,
     message: string,
-    projectId?: number,
+    taskId?: number,
     actionUrl?: string
   ): Promise<void> {
     await this.createNotification(

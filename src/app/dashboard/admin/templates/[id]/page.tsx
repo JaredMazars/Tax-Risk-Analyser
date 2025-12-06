@@ -28,7 +28,7 @@ interface TemplateSection {
   isAiAdaptable: boolean;
   order: number;
   applicableServiceLines: string | null;
-  applicableTaskTypes: string | null;
+  applicableProjectTypes: string | null;
 }
 
 export default function TemplateEditorPage() {

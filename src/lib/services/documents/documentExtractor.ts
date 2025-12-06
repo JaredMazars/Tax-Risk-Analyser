@@ -52,17 +52,17 @@ export class DocumentExtractor {
 
     if (this.useBlobStorage) {
       // Upload to Azure Blob Storage
-      return await uploadToBlob(buffer, fileName, projectId);
+      return await uploadToBlob(buffer, fileName, taskId);
     } else {
       // Fallback to local file system
       await this.init();
-      const projectDir = path.join(this.uploadDir, projectId.toString());
-      await fs.mkdir(projectDir, { recursive: true });
+      const taskDir = path.join(this.uploadDir, taskId.toString());
+      await fs.mkdir(taskDir, { recursive: true });
 
       const timestamp = Date.now();
       const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = path.join(
-        projectDir,
+        taskDir,
         `${timestamp}_${sanitizedFileName}`
       );
 

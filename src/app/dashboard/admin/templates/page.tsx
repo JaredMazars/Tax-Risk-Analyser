@@ -14,7 +14,7 @@ interface TemplateSection {
   isAiAdaptable: boolean;
   order: number;
   applicableServiceLines: string | null;
-  applicableTaskTypes: string | null;
+  applicableProjectTypes: string | null;
   [key: string]: unknown;
 }
 

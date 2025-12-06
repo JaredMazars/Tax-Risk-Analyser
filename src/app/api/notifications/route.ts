@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const page = Number.parseInt(searchParams.get('page') || '1', 10);
     const pageSize = Number.parseInt(searchParams.get('pageSize') || '20', 10);
     const isReadParam = searchParams.get('isRead');
-    const projectIdParam = searchParams.get('projectId');
+    const taskIdParam = searchParams.get('taskId');
 
     const filters: NotificationFilters = {
       page,
@@ -32,11 +32,11 @@ export async function GET(request: NextRequest) {
       filters.isRead = isReadParam === 'true';
     }
 
-    // Only set projectId filter if provided and valid
-    if (projectIdParam !== null && projectIdParam !== undefined) {
-      const parsedProjectId = Number.parseInt(projectIdParam, 10);
-      if (!Number.isNaN(parsedProjectId)) {
-        filters.projectId = parsedProjectId;
+    // Only set taskId filter if provided and valid
+    if (taskIdParam !== null && taskIdParam !== undefined) {
+      const parsedTaskId = Number.parseInt(taskIdParam, 10);
+      if (!Number.isNaN(parsedTaskId)) {
+        filters.taskId = parsedTaskId;
       }
     }
 

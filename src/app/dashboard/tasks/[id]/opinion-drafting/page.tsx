@@ -29,7 +29,7 @@ type TabType = 'chat' | 'documents' | 'sections' | 'preview';
 
 export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps) {
   // Note: In client components, params is already resolved (not a Promise)
-  const { data: project, isLoading: projectLoading } = useTask(params.id);
+  const { data: _task, isLoading: taskLoading } = useTask(params.id);
   const [drafts, setDrafts] = useState<OpinionDraft[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDraft, setSelectedDraft] = useState<OpinionDraft | null>(null);
@@ -183,7 +183,7 @@ export default function OpinionDraftingPage({ params }: OpinionDraftingPageProps
     { id: 'preview' as TabType, label: 'Preview', icon: EyeIcon },
   ];
 
-  if (projectLoading || isLoading) {
+  if (taskLoading || isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>

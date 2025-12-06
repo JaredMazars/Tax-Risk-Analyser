@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { TaxAdjustmentEngine } from '@/lib/services/tax/taxAdjustmentEngine';
-import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
+import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { toTaskId } from '@/types/branded';
 
 /**
  * GET /api/tasks/[id]/tax-adjustments
@@ -27,7 +28,7 @@ export async function GET(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     
     // Check project access (any role can view)
     const hasAccess = await checkTaskAccess(user.id, taskId);
@@ -87,7 +88,7 @@ export async function POST(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     
     // Check project access (requires EDITOR role or higher)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
@@ -168,7 +169,7 @@ export async function DELETE(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     
     // Check project access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');

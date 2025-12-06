@@ -217,9 +217,9 @@ export async function POST(request: NextRequest) {
     logInfo('Starting POST /api/map');
     const formData = await request.formData();
     const trialBalanceFile = formData.get('trialBalance') as File;
-    const projectIdStr = formData.get('projectId') as string;
+    const taskIdStr = formData.get('taskId') as string;
     const streamProgress = formData.get('stream') === 'true';
-    logInfo('Processing mapping request', { taskId: projectIdStr, stream: streamProgress });
+    logInfo('Processing mapping request', { taskId: taskIdStr, stream: streamProgress });
 
     if (!trialBalanceFile) {
       return NextResponse.json(
@@ -228,15 +228,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!projectIdStr) {
+    if (!taskIdStr) {
       return NextResponse.json(
-        { error: 'Project ID is required.' },
+        { error: 'Task ID is required.' },
         { status: 400 }
       );
     }
 
     // Convert taskId to number
-    const taskId = Number.parseInt(projectIdStr, 10);
+    const taskId = Number.parseInt(taskIdStr, 10);
     if (Number.isNaN(taskId)) {
       return NextResponse.json(
         { error: 'Invalid Task ID format.' },

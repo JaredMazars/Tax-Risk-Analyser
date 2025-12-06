@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { enhancedSearchService } from '@/lib/services/search/enhancedSearchService';
 import { logger } from '@/lib/utils/logger';
 import { SearchFilters } from '@/types/search';
+import { toTaskId } from '@/types/branded';
 
 /**
  * GET /api/tasks/[id]/search
@@ -22,7 +23,7 @@ export async function GET(
     }
 
     const params = await context.params;
-    const taskId = parseTaskId(params.id);
+    const taskId = toTaskId(params.id);
 
     // Check project access
     const hasAccess = await checkTaskAccess(user.id, taskId);

@@ -67,7 +67,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
   const fetchMessages = async () => {
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/chat`
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/chat`
       );
       if (!response.ok) throw new Error('Failed to fetch messages');
       const data = await response.json();
@@ -87,7 +87,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
 
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/chat`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/chat`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -150,7 +150,7 @@ export default function ChatInterface({ taskId, draftId }: ChatInterfaceProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           query,
-          projectId 
+          taskId 
         }),
       });
       

@@ -81,11 +81,11 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         const servLineCodes = masterToServLineCodesMap.get(sl) || [];
         
         // Sum up counts for all ServLineCodes mapped to this master code
-        const projectCount = servLineCodes.reduce(
+        const taskCount = servLineCodes.reduce(
           (sum, code) => sum + (taskCountMap.get(code) || 0),
           0
         );
-        const activeProjectCount = servLineCodes.reduce(
+        const activeTaskCount = servLineCodes.reduce(
           (sum, code) => sum + (activeTaskCountMap.get(code) || 0),
           0
         );
@@ -94,8 +94,8 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
           id: -(index + 1), // Use negative IDs for virtual service line access
           serviceLine: sl,
           role: 'ADMINISTRATOR',
-          projectCount,
-          activeProjectCount,
+          taskCount,
+          activeTaskCount,
         };
       });
     }
@@ -149,8 +149,8 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         id: slu.id,
         serviceLine: slu.serviceLine,
         role: slu.role,
-        projectCount: 0,
-        activeProjectCount: 0,
+        taskCount: 0,
+        activeTaskCount: 0,
       }));
     }
 
@@ -186,11 +186,11 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       const servLineCodes = masterToServLineCodesMap.get(slu.serviceLine) || [];
       
       // Sum up counts for all ServLineCodes mapped to this master code
-      const projectCount = servLineCodes.reduce(
+      const taskCount = servLineCodes.reduce(
         (sum, code) => sum + (taskCountMap.get(code) || 0),
         0
       );
-      const activeProjectCount = servLineCodes.reduce(
+      const activeTaskCount = servLineCodes.reduce(
         (sum, code) => sum + (activeTaskCountMap.get(code) || 0),
         0
       );
@@ -199,8 +199,8 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         id: slu.id,
         serviceLine: slu.serviceLine,
         role: slu.role,
-        projectCount,
-        activeProjectCount,
+        taskCount,
+        activeTaskCount,
       };
     });
   } catch (error) {

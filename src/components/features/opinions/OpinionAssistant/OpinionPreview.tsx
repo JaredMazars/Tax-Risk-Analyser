@@ -52,7 +52,7 @@ export default function OpinionPreview({
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`
       );
       if (!response.ok) throw new Error('Failed to fetch sections');
       const data = await response.json();
@@ -67,7 +67,7 @@ export default function OpinionPreview({
   const fetchDraft = async () => {
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}`
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}`
       );
       if (!response.ok) throw new Error('Failed to fetch draft');
       const data = await response.json();
@@ -81,7 +81,7 @@ export default function OpinionPreview({
     setIsUpdatingStatus(true);
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -109,7 +109,7 @@ export default function OpinionPreview({
     setIsUpdatingStatus(true);
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -136,7 +136,7 @@ export default function OpinionPreview({
     setExporting(true);
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/export`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/export`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -171,7 +171,7 @@ export default function OpinionPreview({
     setExporting(true);
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/export`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/export`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -39,7 +39,7 @@ export interface CreateTemplateSectionData {
   isAiAdaptable?: boolean;
   order: number;
   applicableServiceLines?: string[];
-  applicableTaskTypes?: string[];
+  applicableProjectTypes?: string[];
 }
 
 export interface UpdateTemplateSectionData {
@@ -50,7 +50,7 @@ export interface UpdateTemplateSectionData {
   isAiAdaptable?: boolean;
   order?: number;
   applicableServiceLines?: string[] | null;
-  applicableTaskTypes?: string[] | null;
+  applicableProjectTypes?: string[] | null;
 }
 
 /**
@@ -227,8 +227,8 @@ export async function createTemplateSection(data: CreateTemplateSectionData) {
         applicableServiceLines: data.applicableServiceLines
           ? JSON.stringify(data.applicableServiceLines)
           : null,
-        applicableTaskTypes: data.applicableTaskTypes
-          ? JSON.stringify(data.applicableTaskTypes)
+        applicableProjectTypes: data.applicableProjectTypes
+          ? JSON.stringify(data.applicableProjectTypes)
           : null,
       },
     });
@@ -257,7 +257,7 @@ export async function updateTemplateSection(
       isAiAdaptable?: boolean;
       order?: number;
       applicableServiceLines?: string | null;
-      applicableTaskTypes?: string | null;
+      applicableProjectTypes?: string | null;
     }
 
     const updateData: TemplateSectionUpdateData = {};
@@ -274,9 +274,9 @@ export async function updateTemplateSection(
         ? JSON.stringify(data.applicableServiceLines)
         : null;
     }
-    if (data.applicableTaskTypes !== undefined) {
-      updateData.applicableTaskTypes = data.applicableTaskTypes
-        ? JSON.stringify(data.applicableTaskTypes)
+    if (data.applicableProjectTypes !== undefined) {
+      updateData.applicableProjectTypes = data.applicableProjectTypes
+        ? JSON.stringify(data.applicableProjectTypes)
         : null;
     }
 
@@ -446,7 +446,7 @@ export async function copyTemplate(id: number, createdBy: string) {
             isAiAdaptable: section.isAiAdaptable,
             order: section.order,
             applicableServiceLines: section.applicableServiceLines,
-            applicableTaskTypes: section.applicableTaskTypes,
+            applicableProjectTypes: section.applicableProjectTypes,
           })),
         },
       },

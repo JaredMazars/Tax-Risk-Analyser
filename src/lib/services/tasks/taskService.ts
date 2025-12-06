@@ -140,22 +140,17 @@ export async function getTasksWithPagination(
       const total = await prisma.task.count({ where });
 
       // Get tasks with optimized query
-      const tasks = await prisma.task.findMany({
+      const rawTasks = await prisma.task.findMany({
         where,
         skip,
         take,
         orderBy,
         select: {
           id: true,
-          name: true,
-          description: true,
           TaskDesc: true,
-          projectType: true,
           ServLineDesc: true,
-          status: true,
           Active: true,
           ClientCode: true,
-          taxYear: true,
           createdAt: true,
           updatedAt: true,
           Client: {
@@ -174,6 +169,24 @@ export async function getTasksWithPagination(
           },
         },
       });
+
+      // Transform raw tasks to match the interface
+      const tasks = rawTasks.map(task => ({
+        id: task.id,
+        name: task.TaskDesc,
+        description: null,
+        TaskDesc: task.TaskDesc,
+        projectType: '',
+        ServLineDesc: task.ServLineDesc,
+        status: task.Active,
+        archived: false,
+        ClientCode: task.ClientCode || '',
+        taxYear: null,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        Client: task.Client,
+        _count: task._count,
+      }));
 
       return {
         tasks,
@@ -244,19 +257,14 @@ export async function getTasksWithCounts(
       }
 
       // Single optimized query with counts
-      const tasks = await prisma.task.findMany({
+      const rawTasks = await prisma.task.findMany({
         where,
         select: {
           id: true,
-          name: true,
-          description: true,
           TaskDesc: true,
-          projectType: true,
           ServLineDesc: true,
-          status: true,
           Active: true,
           ClientCode: true,
-          taxYear: true,
           createdAt: true,
           updatedAt: true,
           Client: {
@@ -278,6 +286,24 @@ export async function getTasksWithCounts(
           updatedAt: 'desc',
         },
       });
+
+      // Transform raw tasks to match the interface
+      const tasks = rawTasks.map(task => ({
+        id: task.id,
+        name: task.TaskDesc,
+        description: null,
+        TaskDesc: task.TaskDesc,
+        projectType: '',
+        ServLineDesc: task.ServLineDesc,
+        status: task.Active,
+        archived: false,
+        ClientCode: task.ClientCode || '',
+        taxYear: null,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        Client: task.Client,
+        _count: task._count,
+      }));
 
       return tasks;
     },
@@ -314,24 +340,15 @@ export async function getTaskWithCounts(taskId: TaskId): Promise<{
 } | null> {
   return withRetry(
     async () => {
-      return await prisma.task.findUnique({
+      const rawTask = await prisma.task.findUnique({
         where: { id: taskId },
         select: {
           id: true,
-          name: true,
-          description: true,
           TaskDesc: true,
-          projectType: true,
           ServLineCode: true,
           ServLineDesc: true,
-          status: true,
           Active: true,
           ClientCode: true,
-          taxYear: true,
-          taxPeriodStart: true,
-          taxPeriodEnd: true,
-          assessmentYear: true,
-          submissionDeadline: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -342,6 +359,29 @@ export async function getTaskWithCounts(taskId: TaskId): Promise<{
           },
         },
       });
+
+      if (!rawTask) return null;
+
+      return {
+        id: rawTask.id,
+        name: rawTask.TaskDesc,
+        description: null,
+        TaskDesc: rawTask.TaskDesc,
+        projectType: '',
+        ServLineCode: rawTask.ServLineCode,
+        ServLineDesc: rawTask.ServLineDesc,
+        status: rawTask.Active,
+        archived: false,
+        ClientCode: rawTask.ClientCode || '',
+        taxYear: null,
+        taxPeriodStart: null,
+        taxPeriodEnd: null,
+        assessmentYear: null,
+        submissionDeadline: null,
+        createdAt: rawTask.createdAt,
+        updatedAt: rawTask.updatedAt,
+        _count: rawTask._count,
+      };
     },
     RetryPresets.AZURE_SQL_COLD_START,
     'Get task with counts'
@@ -354,25 +394,16 @@ export async function getTaskWithCounts(taskId: TaskId): Promise<{
 export async function getTaskById(taskId: TaskId) {
   return withRetry(
     async () => {
-      return await prisma.task.findUnique({
+      const rawTask = await prisma.task.findUnique({
         where: { id: taskId },
         select: {
           id: true,
-          name: true,
-          description: true,
           TaskDesc: true,
           TaskCode: true,
           ClientCode: true,
           ServLineCode: true,
           ServLineDesc: true,
-          projectType: true,
-          status: true,
           Active: true,
-          taxYear: true,
-          taxPeriodStart: true,
-          taxPeriodEnd: true,
-          assessmentYear: true,
-          submissionDeadline: true,
           TaskPartner: true,
           TaskPartnerName: true,
           TaskManager: true,
@@ -390,6 +421,35 @@ export async function getTaskById(taskId: TaskId) {
           },
         },
       });
+
+      if (!rawTask) return null;
+
+      return {
+        id: rawTask.id,
+        name: rawTask.TaskDesc,
+        description: null,
+        TaskDesc: rawTask.TaskDesc,
+        TaskCode: rawTask.TaskCode,
+        ClientCode: rawTask.ClientCode,
+        ServLineCode: rawTask.ServLineCode,
+        ServLineDesc: rawTask.ServLineDesc,
+        projectType: '',
+        status: rawTask.Active,
+        Active: rawTask.Active,
+        taxYear: null,
+        taxPeriodStart: null,
+        taxPeriodEnd: null,
+        assessmentYear: null,
+        submissionDeadline: null,
+        TaskPartner: rawTask.TaskPartner,
+        TaskPartnerName: rawTask.TaskPartnerName,
+        TaskManager: rawTask.TaskManager,
+        TaskManagerName: rawTask.TaskManagerName,
+        createdBy: rawTask.createdBy,
+        createdAt: rawTask.createdAt,
+        updatedAt: rawTask.updatedAt,
+        Client: rawTask.Client,
+      };
     },
     RetryPresets.AZURE_SQL_COLD_START,
     'Get task by ID'
@@ -457,9 +517,14 @@ export async function updateTask(
 ) {
   return withRetry(
     async () => {
+      // Map the input data to actual Task model fields
+      const updateData: any = {};
+      if (data.name !== undefined) updateData.TaskDesc = data.name;
+      if (data.status !== undefined) updateData.Active = data.status;
+      
       return await prisma.task.update({
         where: { id: taskId },
-        data,
+        data: updateData,
       });
     },
     RetryPresets.AZURE_SQL_COLD_START,

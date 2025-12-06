@@ -219,7 +219,7 @@ export async function PUT(
     const body = await request.json();
 
     // Build update data object
-    const updateData: Prisma.TaskUpdateInput = {};
+    const updateData: Prisma.TaskUncheckedUpdateInput = {};
     
     if (body.name !== undefined) {
       const sanitizedName = sanitizeText(body.name, { maxLength: 200 });
@@ -233,11 +233,14 @@ export async function PUT(
     }
     
     if (body.description !== undefined) {
-      updateData.TaskDesc = sanitizeText(body.description, { 
+      const sanitizedDesc = sanitizeText(body.description, { 
         maxLength: 1000,
         allowHTML: false,
         allowNewlines: true 
       });
+      if (sanitizedDesc !== null) {
+        updateData.TaskDesc = sanitizedDesc;
+      }
     }
     
     // Note: Task model doesn't have these fields, they should be in TaskAcceptance or TaskEngagementLetter
@@ -343,7 +346,7 @@ export async function PATCH(
       );
     }
     
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
 
     // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
@@ -402,7 +405,7 @@ export async function DELETE(
       );
     }
     
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
 
     // Check task access (requires ADMIN role)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');

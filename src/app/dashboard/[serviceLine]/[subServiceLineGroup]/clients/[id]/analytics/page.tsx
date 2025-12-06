@@ -23,8 +23,8 @@ function ClientAnalyticsContent() {
 
   // Fetch client data
   const { data: clientData, isLoading } = useClient(clientId, {
-    projectPage: 1,
-    projectLimit: 1,
+    taskPage: 1,
+    taskLimit: 1,
     enabled: !!params && !!clientId,
   });
 

@@ -96,7 +96,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`
       );
       if (!response.ok) throw new Error('Failed to fetch sections');
       const data = await response.json();
@@ -124,7 +124,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
 
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -159,7 +159,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
 
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -203,7 +203,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
 
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -255,7 +255,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
 
       // Upload document with immediate indexing
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/documents`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/documents`,
         {
           method: 'POST',
           body: formData,
@@ -276,7 +276,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
       // Refresh document context immediately
       try {
         const refreshResponse = await fetch(
-          `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`,
+          `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -328,7 +328,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
 
         try {
           const response = await fetch(
-            `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`,
+            `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -366,7 +366,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
 
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -396,7 +396,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
       onConfirm: async () => {
         try {
           const response = await fetch(
-            `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections?sectionId=${sectionId}`,
+            `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections?sectionId=${sectionId}`,
             { method: 'DELETE' }
           );
 
@@ -432,7 +432,7 @@ export default function SectionEditor({ taskId, draftId }: SectionEditorProps) {
 
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/sections`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/sections`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

@@ -44,6 +44,7 @@ export const UpdateTaskSchema = z.object({
 export const CreateTaskSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).nullable().optional(),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']).optional(),
   projectType: z.enum([
     'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
     'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
@@ -251,7 +252,7 @@ export const CreateTemplateSectionSchema = z.object({
   isAiAdaptable: z.boolean().default(false),
   order: z.number().int().positive(),
   applicableServiceLines: z.array(z.string()).optional(),
-  applicableTaskTypes: z.array(z.string()).optional(),
+  applicableProjectTypes: z.array(z.string()).optional(),
 }).strict();
 
 export const UpdateTemplateSectionSchema = z.object({
@@ -262,7 +263,7 @@ export const UpdateTemplateSectionSchema = z.object({
   isAiAdaptable: z.boolean().optional(),
   order: z.number().int().positive().optional(),
   applicableServiceLines: z.array(z.string()).nullable().optional(),
-  applicableTaskTypes: z.array(z.string()).nullable().optional(),
+  applicableProjectTypes: z.array(z.string()).nullable().optional(),
 }).strict();
 
 /**

@@ -57,7 +57,7 @@ export default function AddAdjustmentModal({
       setIsSubmitting(true);
       setError(null);
 
-      const response = await fetch(`/api/tasks/${projectId}/tax-adjustments`, {
+      const response = await fetch(`/api/tasks/${taskId}/tax-adjustments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -287,7 +287,7 @@ export default function AddAdjustmentModal({
                   
                   {createdAdjustmentId && (
                     <DocumentUploader
-                      projectId={projectId}
+                      taskId={taskId}
                       adjustmentId={createdAdjustmentId}
                       onUploadComplete={() => {}}
                       onUploadError={(err) => setError(err)}

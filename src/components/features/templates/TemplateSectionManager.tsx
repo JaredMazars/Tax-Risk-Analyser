@@ -21,7 +21,7 @@ interface TemplateSection {
   isAiAdaptable: boolean;
   order: number;
   applicableServiceLines: string | null;
-  applicableTaskTypes: string | null;
+  applicableProjectTypes: string | null;
 }
 
 interface TemplateSectionManagerProps {
@@ -51,7 +51,7 @@ export function TemplateSectionManager({
     isAiAdaptable: false,
     order: sections.length + 1,
     applicableServiceLines: null,
-    applicableTaskTypes: null,
+    applicableProjectTypes: null,
   });
 
   const sortedSections = [...sections].sort((a, b) => a.order - b.order);
@@ -100,7 +100,7 @@ export function TemplateSectionManager({
       isAiAdaptable: false,
       order: sections.length + 1,
       applicableServiceLines: null,
-      applicableTaskTypes: null,
+      applicableProjectTypes: null,
     });
   };
 
@@ -120,7 +120,7 @@ export function TemplateSectionManager({
       isAiAdaptable: false,
       order: sections.length + 1,
       applicableServiceLines: null,
-      applicableTaskTypes: null,
+      applicableProjectTypes: null,
     });
   };
 

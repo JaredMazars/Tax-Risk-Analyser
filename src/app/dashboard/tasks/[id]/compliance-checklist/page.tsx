@@ -11,7 +11,7 @@ interface ComplianceChecklistPageProps {
 
 export default function ComplianceChecklistPage({ params }: ComplianceChecklistPageProps) {
   // Note: In client components, params is already resolved (not a Promise)
-  const { data: project } = useTask(params.id);
+  const { data: _task } = useTask(params.id);
   const [items, setItems] = useState<ComplianceChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);

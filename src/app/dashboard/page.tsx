@@ -153,7 +153,7 @@ export default function DashboardHomePage() {
               <div>
                 <p className="text-xs font-medium opacity-90">Total Projects</p>
                 <p className="text-2xl font-bold mt-1">
-                  {availableServiceLines.reduce((sum, sl) => sum + sl.projectCount, 0)}
+                  {availableServiceLines.reduce((sum, sl) => sum + sl.taskCount, 0)}
                 </p>
               </div>
               <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(37, 72, 138, 0.5)' }}>
@@ -172,7 +172,7 @@ export default function DashboardHomePage() {
               <div>
                 <p className="text-xs font-medium opacity-90">Active Projects</p>
                 <p className="text-2xl font-bold mt-1">
-                  {availableServiceLines.reduce((sum, sl) => sum + sl.activeProjectCount, 0)}
+                  {availableServiceLines.reduce((sum, sl) => sum + sl.activeTaskCount, 0)}
                 </p>
               </div>
               <div className="rounded-full p-2" style={{ backgroundColor: 'rgba(19, 36, 69, 0.5)' }}>

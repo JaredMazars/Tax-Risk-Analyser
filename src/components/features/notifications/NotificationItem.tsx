@@ -96,11 +96,11 @@ export function NotificationItem({
             {messageText}
           </p>
 
-          {/* Project Badge */}
-          {notification.project && (
+          {/* Task Badge */}
+          {notification.task && (
             <div className="mt-2">
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-gray-100 text-forvis-gray-800">
-                {notification.project.name}
+                {notification.task.name}
               </span>
             </div>
           )}

@@ -44,7 +44,7 @@ export function downloadClientDocument(
   const params = new URLSearchParams({
     documentType,
     documentId: documentId.toString(),
-    taskId: projectId.toString(),
+    taskId: taskId.toString(),
   });
 
   const url = `/api/clients/${clientId}/documents/download?${params.toString()}`;

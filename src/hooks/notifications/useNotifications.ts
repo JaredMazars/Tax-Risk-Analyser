@@ -29,7 +29,7 @@ export function useNotifications(filters: NotificationFilters = {}) {
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.pageSize) params.append('pageSize', filters.pageSize.toString());
       if (filters.isRead !== undefined) params.append('isRead', filters.isRead.toString());
-      if (filters.projectId) params.append('projectId', filters.projectId.toString());
+      if (filters.taskId) params.append('taskId', filters.taskId.toString());
 
       const response = await fetch(`/api/notifications?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch notifications');
@@ -86,17 +86,17 @@ export function useMarkAsRead() {
 }
 
 /**
- * Mark all notifications as read (optionally filtered by project)
+ * Mark all notifications as read (optionally filtered by task)
  */
 export function useMarkAllAsRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (projectId?: number) => {
+    mutationFn: async (taskId?: number) => {
       const response = await fetch('/api/notifications/mark-all-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectId ? { projectId } : {}),
+        body: JSON.stringify(taskId ? { taskId } : {}),
       });
       
       if (!response.ok) throw new Error('Failed to mark all as read');

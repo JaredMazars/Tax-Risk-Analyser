@@ -385,7 +385,7 @@ export async function isProjectInSubGroup(
     // Check if project has any tasks with these ServLineCodes
     const taskCount = await prisma.task.count({
       where: {
-        taskId,
+        id: taskId,
         ServLineCode: { in: servLineCodes },
       },
     });

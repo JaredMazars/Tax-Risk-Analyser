@@ -52,7 +52,7 @@ export async function generateFromTemplate(
     // Filter sections applicable to this task
     const applicableSections = template.TemplateSection.filter((section) => {
       // If section has no applicability constraints, it's always included
-      if (!section.applicableServiceLines && !section.applicableTaskTypes) {
+      if (!section.applicableServiceLines && !section.applicableProjectTypes) {
         return true;
       }
 
@@ -65,8 +65,8 @@ export async function generateFromTemplate(
       }
 
       // Check task type applicability
-      if (section.applicableTaskTypes) {
-        const taskTypes = JSON.parse(section.applicableTaskTypes);
+      if (section.applicableProjectTypes) {
+        const taskTypes = JSON.parse(section.applicableProjectTypes);
         if (!taskTypes.includes(taskContext.taskType)) {
           return false;
         }

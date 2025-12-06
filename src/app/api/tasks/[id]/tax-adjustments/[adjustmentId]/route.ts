@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { parseAdjustmentId, parseTaskId, getTaxAdjustmentOrThrow, successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { parseAdjustmentId, getTaxAdjustmentOrThrow, successResponse } from '@/lib/utils/apiUtils';
+import { handleApiError } from '@/lib/utils/errorHandler';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { toTaskId } from '@/types/branded';
 
 /**
  * GET /api/tasks/[id]/tax-adjustments/[adjustmentId]
@@ -26,7 +27,7 @@ export async function GET(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     const adjustmentId = parseAdjustmentId(params?.adjustmentId);
     
     // Check project access (any role can view)
@@ -40,7 +41,7 @@ export async function GET(
       Task: {
         select: {
           id: true,
-          name: true,
+          TaskDesc: true,
         },
       },
     });
@@ -86,7 +87,7 @@ export async function PATCH(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     const adjustmentId = parseAdjustmentId(params?.adjustmentId);
     const body = await request.json();
 
@@ -200,7 +201,7 @@ export async function DELETE(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     const adjustmentId = parseAdjustmentId(params?.adjustmentId);
     
     // Check project access (requires EDITOR role or higher)

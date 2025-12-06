@@ -68,7 +68,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
     if (!silent) setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/documents`
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/documents`
       );
       if (!response.ok) throw new Error('Failed to fetch documents');
       const data = await response.json();
@@ -127,7 +127,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
       formData.append('category', category);
 
       const response = await fetch(
-        `/api/tasks/${projectId}/opinion-drafts/${draftId}/documents`,
+        `/api/tasks/${taskId}/opinion-drafts/${draftId}/documents`,
         {
           method: 'POST',
           body: formData,
@@ -156,7 +156,7 @@ export default function DocumentManager({ taskId, draftId }: DocumentManagerProp
       onConfirm: async () => {
         try {
           const response = await fetch(
-            `/api/tasks/${projectId}/opinion-drafts/${draftId}/documents?documentId=${documentId}`,
+            `/api/tasks/${taskId}/opinion-drafts/${draftId}/documents?documentId=${documentId}`,
             { method: 'DELETE' }
           );
 

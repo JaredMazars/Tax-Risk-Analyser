@@ -18,8 +18,8 @@ function ClientDocumentsContent() {
 
   // Fetch client data - hooks must be called unconditionally
   const { data: clientData, isLoading } = useClient(clientId, {
-    projectPage: 1,
-    projectLimit: 1,
+    taskPage: 1,
+    taskLimit: 1,
     enabled: !!params && !!clientId,
   });
 

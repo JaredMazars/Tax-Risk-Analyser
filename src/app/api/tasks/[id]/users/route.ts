@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { AddTaskTeamSchema } from '@/lib/validation/schemas';
-import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
+import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { emailService } from '@/lib/services/email/emailService';
@@ -11,6 +11,7 @@ import { createUserAddedNotification } from '@/lib/services/notifications/templa
 import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
+import { toTaskId } from '@/types/branded';
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +34,7 @@ export async function GET(
       );
     }
     
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
 
     // Check project access
     const hasAccess = await checkTaskAccess(user.id, taskId);
@@ -84,12 +85,12 @@ export async function POST(
       );
     }
     
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
 
     // Get project details
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { serviceLine: true },
+      select: { ServLineCode: true },
     });
 
     if (!task) {
@@ -108,7 +109,7 @@ export async function POST(
       where: {
         userId_serviceLine: {
           userId: user.id,
-          serviceLine: project.serviceLine,
+          serviceLine: task.ServLineCode,
         },
       },
     });
@@ -186,14 +187,14 @@ export async function POST(
       // Get project details for email
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { name: true, projectType: true },
+        select: { TaskDesc: true },
       });
 
-      if (project && taskTeam.User) {
+      if (task && taskTeam.User) {
         await emailService.sendUserAddedEmail(
           taskId,
-          project.name,
-          project.projectType,
+          task.TaskDesc,
+          'N/A',
           {
             id: taskTeam.User.id,
             name: taskTeam.User.name,
@@ -216,12 +217,12 @@ export async function POST(
     try {
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { name: true },
+        select: { TaskDesc: true },
       });
 
-      if (project) {
+      if (task) {
         const notification = createUserAddedNotification(
-          project.name,
+          task.TaskDesc,
           taskId,
           user.name || user.email,
           taskTeam.role

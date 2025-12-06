@@ -49,9 +49,9 @@ export class EmailService {
     notificationType: string
   ): Promise<boolean> {
     try {
-      // Check project-specific preference first
-      if (projectId) {
-        const projectPref = await prisma.notificationPreference.findFirst({
+      // Check task-specific preference first
+      if (taskId) {
+        const taskPref = await prisma.notificationPreference.findFirst({
           where: {
             userId,
             taskId,
@@ -59,12 +59,12 @@ export class EmailService {
           },
         });
 
-        if (projectPref !== null) {
-          return projectPref.emailEnabled;
+        if (taskPref !== null) {
+          return taskPref.emailEnabled;
         }
       }
 
-      // Check global preference (projectId = null)
+      // Check global preference (taskId = null)
       const globalPref = await prisma.notificationPreference.findFirst({
         where: {
           userId,
@@ -173,12 +173,12 @@ export class EmailService {
   }
 
   /**
-   * Send user added to project notification
+   * Send user added to task notification
    */
   async sendUserAddedEmail(
     taskId: number,
     taskName: string,
-    projectType: string,
+    taskType: string,
     addedUser: EmailUser,
     addedBy: EmailUser,
     role: string
@@ -200,15 +200,15 @@ export class EmailService {
       }
 
       const data: UserAddedEmailData = {
-        project: {
+        task: {
           id: taskId,
           name: taskName,
-          projectType,
+          taskType,
         },
         addedUser,
         addedBy,
         role,
-        taskUrl: `${this.baseUrl}/dashboard/projects/${projectId}`,
+        taskUrl: `${this.baseUrl}/dashboard/projects/${taskId}`,
       };
 
       const subject = `Added to Task: ${taskName}`;
@@ -249,12 +249,12 @@ export class EmailService {
   }
 
   /**
-   * Send user removed from project notification
+   * Send user removed from task notification
    */
   async sendUserRemovedEmail(
     taskId: number,
     taskName: string,
-    projectType: string,
+    taskType: string,
     removedUser: EmailUser,
     removedBy: EmailUser
   ): Promise<EmailSendResult> {
@@ -275,14 +275,14 @@ export class EmailService {
       }
 
       const data: UserRemovedEmailData = {
-        project: {
+        task: {
           id: taskId,
           name: taskName,
-          projectType,
+          taskType,
         },
         removedUser,
         removedBy,
-        taskUrl: `${this.baseUrl}/dashboard/projects/${projectId}`,
+        taskUrl: `${this.baseUrl}/dashboard/projects/${taskId}`,
       };
 
       const subject = `Removed from Task: ${taskName}`;

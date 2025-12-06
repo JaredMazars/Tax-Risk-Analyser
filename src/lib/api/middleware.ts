@@ -66,7 +66,7 @@ export function withProjectAccess<TParams extends Record<string, string> & { id:
           return forbiddenResponse() as NextResponse<ApiResponse<TResponse>>;
         }
 
-        return handler(request, context, projectId);
+        return handler(request, context, taskId);
       } catch (error) {
         return internalErrorResponse(
           error instanceof Error ? error.message : 'Internal server error'

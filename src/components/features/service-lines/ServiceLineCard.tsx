@@ -39,7 +39,7 @@ interface ServiceLineCardProps {
 }
 
 export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
-  const { serviceLine, activeProjectCount, projectCount } = serviceLineData;
+  const { serviceLine, activeTaskCount, taskCount } = serviceLineData;
   
   const Icon = iconMap[serviceLine as ServiceLine] || DocumentTextIcon;
   const name = formatServiceLineName(serviceLine);
@@ -98,11 +98,11 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
           {/* Stats */}
           <div className="flex items-center justify-between pt-4 border-t-2 border-forvis-gray-200">
             <div>
-              <p className="text-2xl font-bold text-forvis-gray-900">{activeProjectCount}</p>
+              <p className="text-2xl font-bold text-forvis-gray-900">{activeTaskCount}</p>
               <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Active</p>
             </div>
             <div className="text-right">
-              <p className="text-xl font-semibold text-forvis-gray-700">{projectCount}</p>
+              <p className="text-xl font-semibold text-forvis-gray-700">{taskCount}</p>
               <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Total</p>
             </div>
           </div>

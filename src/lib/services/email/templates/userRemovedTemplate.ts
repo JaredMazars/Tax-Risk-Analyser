@@ -80,8 +80,8 @@ export function generateUserRemovedHtml(data: UserRemovedEmailData): string {
       <div class="info-box">
         <strong>Project Details:</strong>
         <p style="margin: 5px 0 0 0;">
-          <strong>Name:</strong> ${data.project.name}<br>
-          <strong>Type:</strong> ${formatTaskType(data.project.projectType)}<br>
+          <strong>Name:</strong> ${data.task.name}<br>
+          <strong>Type:</strong> ${formatTaskType(data.task.taskType)}<br>
           <strong>Removed By:</strong> ${data.removedBy.name || data.removedBy.email}
         </p>
       </div>
@@ -117,8 +117,8 @@ Hi ${data.removedUser.name || data.removedUser.email},
 You have been removed from a project on the Mazars Tax Platform.
 
 Project Details:
-- Name: ${data.project.name}
-- Type: ${formatTaskType(data.project.projectType)}
+- Name: ${data.task.name}
+- Type: ${formatTaskType(data.task.taskType)}
 - Removed By: ${data.removedBy.name || data.removedBy.email}
 
 You no longer have access to this project.

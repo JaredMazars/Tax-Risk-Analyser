@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { UpdateNotificationPreferenceSchema } from '@/lib/validation/schemas';
+import { toTaskId } from '@/types/branded';
 
 /**
  * GET /api/tasks/[id]/notification-preferences
@@ -21,7 +22,7 @@ export async function GET(
     }
 
     const params = await context.params;
-    const taskId = parseTaskId(params.id);
+    const taskId = toTaskId(params.id);
 
     // Check project access
     const hasAccess = await checkTaskAccess(user.id, taskId);
@@ -59,7 +60,7 @@ export async function PUT(
     }
 
     const params = await context.params;
-    const taskId = parseTaskId(params.id);
+    const taskId = toTaskId(params.id);
 
     // Check project access
     const hasAccess = await checkTaskAccess(user.id, taskId);

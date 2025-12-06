@@ -95,14 +95,22 @@ export async function POST(
     );
 
     // Save generated content to database
-    await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        engagementLetterGenerated: true,
-        engagementLetterContent: generated.content,
-        engagementLetterTemplateId: finalTemplateId,
-        engagementLetterGeneratedBy: user.id,
-        engagementLetterGeneratedAt: new Date(),
+    await prisma.taskEngagementLetter.upsert({
+      where: { taskId },
+      create: {
+        taskId,
+        generated: true,
+        content: generated.content,
+        templateId: finalTemplateId,
+        generatedBy: user.id,
+        generatedAt: new Date(),
+      },
+      update: {
+        generated: true,
+        content: generated.content,
+        templateId: finalTemplateId,
+        generatedBy: user.id,
+        generatedAt: new Date(),
       },
     });
 

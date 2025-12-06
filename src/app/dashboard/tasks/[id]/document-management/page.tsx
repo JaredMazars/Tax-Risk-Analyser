@@ -11,7 +11,7 @@ interface DocumentManagementPageProps {
 
 export default function DocumentManagementPage({ params }: DocumentManagementPageProps) {
   // Note: In client components, params is already resolved (not a Promise)
-  const { data: project } = useTask(params.id);
+  const { data: _task } = useTask(params.id);
   const [documents, setDocuments] = useState<AdministrationDocument[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);

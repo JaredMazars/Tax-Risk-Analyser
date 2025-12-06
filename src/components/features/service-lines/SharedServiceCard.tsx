@@ -32,7 +32,7 @@ interface SharedServiceCardProps {
 }
 
 export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
-  const { serviceLine, activeProjectCount, projectCount } = serviceLineData;
+  const { serviceLine, activeTaskCount, taskCount } = serviceLineData;
   
   const Icon = iconMap[serviceLine as ServiceLine] || ShieldCheckIcon;
   const name = formatServiceLineName(serviceLine);
@@ -87,11 +87,11 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
         {/* Stats - Compact */}
         <div className="flex items-center gap-4 pt-2 border-t border-forvis-gray-200">
           <div className="flex items-baseline gap-1">
-            <p className="text-lg font-bold text-forvis-gray-900">{activeProjectCount}</p>
+            <p className="text-lg font-bold text-forvis-gray-900">{activeTaskCount}</p>
             <p className="text-xs text-forvis-gray-600">Active</p>
           </div>
           <div className="flex items-baseline gap-1">
-            <p className="text-base font-semibold text-forvis-gray-700">{projectCount}</p>
+            <p className="text-base font-semibold text-forvis-gray-700">{taskCount}</p>
             <p className="text-xs text-forvis-gray-600">Total</p>
           </div>
         </div>

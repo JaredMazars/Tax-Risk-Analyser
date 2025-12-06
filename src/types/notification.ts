@@ -56,7 +56,7 @@ export interface InAppNotificationWithUser extends InAppNotification {
     email: string;
     image: string | null;
   } | null;
-  project?: {
+  task?: {
     id: number;
     name: string;
   } | null;
@@ -67,7 +67,7 @@ export interface InAppNotificationWithUser extends InAppNotification {
  */
 export interface NotificationFilters {
   isRead?: boolean;
-  projectId?: number;
+  taskId?: number;
   page?: number;
   pageSize?: number;
 }
@@ -90,7 +90,7 @@ export interface SendMessageData {
   recipientUserId: string;
   title: string;
   message: string;
-  projectId?: number;
+  taskId?: number;
   actionUrl?: string;
 }
 

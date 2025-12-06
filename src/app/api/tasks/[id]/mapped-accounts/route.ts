@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
+import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
+import { toTaskId } from '@/types/branded';
 
 export async function GET(
   request: NextRequest,
@@ -23,7 +24,7 @@ export async function GET(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     
     // Check project access (any role can view)
     const hasAccess = await checkTaskAccess(user.id, taskId);
@@ -63,7 +64,7 @@ export async function POST(
     }
     
     const params = await context.params;
-    const taskId = parseTaskId(params?.id);
+    const taskId = toTaskId(params?.id);
     
     // Check project access (requires EDITOR role or higher)
     const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');

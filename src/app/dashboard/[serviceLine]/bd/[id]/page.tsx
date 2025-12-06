@@ -99,7 +99,7 @@ export default function OpportunityDetailPage() {
   const handleConvertToClient = async () => {
     try {
       const result = await convertOpportunity.mutateAsync({
-        createProject,
+        createTask: createProject,
       });
       setIsConvertModalOpen(false);
       // Navigate to the new client page
