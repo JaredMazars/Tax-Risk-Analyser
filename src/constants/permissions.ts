@@ -16,7 +16,7 @@
 export const PAGES = {
   DASHBOARD: 'dashboard',
   CLIENTS: 'clients',
-  PROJECTS: 'projects',
+  TASKS: 'tasks',
   ANALYTICS: 'analytics',
   BD: 'bd',
   ADMIN: 'admin',
@@ -38,16 +38,16 @@ export const CLIENTS = {
 } as const;
 
 /**
- * Project feature permissions
+ * Task feature permissions
  */
-export const PROJECTS = {
-  CREATE: 'projects.create',
-  EDIT: 'projects.edit',
-  DELETE: 'projects.delete',
-  ARCHIVE: 'projects.archive',
-  ASSIGN_USERS: 'projects.assign-users',
-  VIEW: 'projects.view',
-  EXPORT: 'projects.export',
+export const TASKS = {
+  CREATE: 'tasks.create',
+  EDIT: 'tasks.edit',
+  DELETE: 'tasks.delete',
+  ARCHIVE: 'tasks.archive',
+  ASSIGN_USERS: 'tasks.assign-users',
+  VIEW: 'tasks.view',
+  EXPORT: 'tasks.export',
 } as const;
 
 /**
@@ -166,7 +166,7 @@ export const USERS = {
 export const PERMISSIONS = {
   PAGES,
   CLIENTS,
-  PROJECTS,
+  TASKS,
   DOCUMENTS,
   ACCEPTANCE,
   MAPPING,
@@ -184,7 +184,7 @@ export const PERMISSIONS = {
  */
 export type PagePermission = typeof PAGES[keyof typeof PAGES];
 export type ClientPermission = typeof CLIENTS[keyof typeof CLIENTS];
-export type ProjectPermission = typeof PROJECTS[keyof typeof PROJECTS];
+export type TaskPermission = typeof TASKS[keyof typeof TASKS];
 export type DocumentPermission = typeof DOCUMENTS[keyof typeof DOCUMENTS];
 export type AcceptancePermission = typeof ACCEPTANCE[keyof typeof ACCEPTANCE];
 export type MappingPermission = typeof MAPPING[keyof typeof MAPPING];
@@ -202,7 +202,7 @@ export type UserPermission = typeof USERS[keyof typeof USERS];
 export type PermissionKey =
   | PagePermission
   | ClientPermission
-  | ProjectPermission
+  | TaskPermission
   | DocumentPermission
   | AcceptancePermission
   | MappingPermission

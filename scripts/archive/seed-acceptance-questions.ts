@@ -11,7 +11,7 @@ import {
   CONTINUANCE_LITE_SECTIONS,
   QuestionnaireType,
   QuestionSection,
-} from '../src/constants/acceptance-questions';
+} from '../../src/constants/acceptance-questions';
 
 const prisma = new PrismaClient();
 

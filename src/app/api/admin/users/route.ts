@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/admin/users
- * Get all users with their project assignments
+ * Get all users with their task assignments
  * Admin only
  */
 export async function GET(request: NextRequest) {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
 
-    // Get all users with their project assignments
+    // Get all users with their task assignments
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -49,11 +49,13 @@ export async function GET(request: NextRequest) {
             Task: {
               select: {
                 id: true,
-                name: true,
-                projectType: true,
+                TaskDesc: true,
+                TaskCode: true,
+                ServLineDesc: true,
                 Client: {
                   select: {
                     id: true,
+                    ClientID: true,
                     clientCode: true,
                     clientNameFull: true,
                   },
@@ -98,23 +100,26 @@ export async function GET(request: NextRequest) {
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      projects: user.TaskTeam.map(pu => ({
-        ...pu,
-        project: {
-          id: pu.Project.id,
-          name: pu.Project.name,
-          projectType: pu.Project.projectType,
-          client: pu.Project.Client ? {
-            id: pu.Project.Client.id,
-            clientCode: pu.Project.Client.clientCode,
-            clientNameFull: pu.Project.Client.clientNameFull,
+      tasks: user.TaskTeam.map(tt => ({
+        id: tt.id,
+        role: tt.role,
+        task: {
+          id: tt.Task.id,
+          name: tt.Task.TaskDesc,
+          taskCode: tt.Task.TaskCode,
+          projectType: tt.Task.ServLineDesc,
+          client: tt.Task.Client ? {
+            id: tt.Task.Client.id,
+            ClientID: tt.Task.Client.ClientID,
+            clientCode: tt.Task.Client.clientCode,
+            clientNameFull: tt.Task.Client.clientNameFull,
           } : null,
         },
       })),
       serviceLines: user.ServiceLineUser,
-      projectCount: user.TaskTeam.length,
+      taskCount: user.TaskTeam.length,
       lastActivity: user.Session[0]?.expires || user.updatedAt,
-      roles: [...new Set(user.TaskTeam.map(p => p.role))],
+      roles: [...new Set(user.TaskTeam.map(tt => tt.role))],
     }));
 
     return NextResponse.json({

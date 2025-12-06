@@ -4,8 +4,8 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 
 /**
- * POST /api/admin/users/[userId]/projects
- * Add user to multiple projects
+ * POST /api/admin/users/[userId]/tasks
+ * Add user to multiple tasks
  * Admin only
  */
 export async function POST(
@@ -26,10 +26,10 @@ export async function POST(
 
     const params = await context.params;
     const body = await request.json();
-    const { projectIds, role } = body;
+    const { taskIds, role } = body;
 
-    if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
-      return NextResponse.json({ error: 'Project IDs array is required' }, { status: 400 });
+    if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+      return NextResponse.json({ error: 'Task IDs array is required' }, { status: 400 });
     }
 
     if (!role) {
@@ -45,9 +45,9 @@ export async function POST(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Add user to all specified projects
+    // Add user to all specified tasks
     const results = await Promise.allSettled(
-      projectIds.map((taskId: number) =>
+      taskIds.map((taskId: number) =>
         prisma.taskTeam.upsert({
           where: {
             taskId_userId: {
@@ -72,7 +72,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Added user to ${successful} projects${failed > 0 ? `, ${failed} failed` : ''}`,
+      message: `Added user to ${successful} tasks${failed > 0 ? `, ${failed} failed` : ''}`,
       stats: { successful, failed },
     });
   } catch (error) {
@@ -81,8 +81,8 @@ export async function POST(
 }
 
 /**
- * PUT /api/admin/users/[userId]/projects
- * Update user role across multiple projects
+ * PUT /api/admin/users/[userId]/tasks
+ * Update user role across multiple tasks
  * Admin only
  */
 export async function PUT(
@@ -103,21 +103,21 @@ export async function PUT(
 
     const params = await context.params;
     const body = await request.json();
-    const { projectIds, role } = body;
+    const { taskIds, role } = body;
 
-    if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
-      return NextResponse.json({ error: 'Project IDs array is required' }, { status: 400 });
+    if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+      return NextResponse.json({ error: 'Task IDs array is required' }, { status: 400 });
     }
 
     if (!role) {
       return NextResponse.json({ error: 'Role is required' }, { status: 400 });
     }
 
-    // Update role for specified projects
+    // Update role for specified tasks
     await prisma.taskTeam.updateMany({
       where: {
         userId: params.userId,
-        taskId: { in: projectIds },
+        taskId: { in: taskIds },
       },
       data: {
         role,
@@ -126,7 +126,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: `Updated role to ${role} for ${projectIds.length} projects`,
+      message: `Updated role to ${role} for ${taskIds.length} tasks`,
     });
   } catch (error) {
     return handleApiError(error);
@@ -134,8 +134,8 @@ export async function PUT(
 }
 
 /**
- * DELETE /api/admin/users/[userId]/projects
- * Remove user from multiple projects
+ * DELETE /api/admin/users/[userId]/tasks
+ * Remove user from multiple tasks
  * Admin only
  */
 export async function DELETE(
@@ -156,23 +156,23 @@ export async function DELETE(
 
     const params = await context.params;
     const body = await request.json();
-    const { projectIds } = body;
+    const { taskIds } = body;
 
-    if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
-      return NextResponse.json({ error: 'Project IDs array is required' }, { status: 400 });
+    if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+      return NextResponse.json({ error: 'Task IDs array is required' }, { status: 400 });
     }
 
-    // Remove user from specified projects
+    // Remove user from specified tasks
     await prisma.taskTeam.deleteMany({
       where: {
         userId: params.userId,
-        taskId: { in: projectIds },
+        taskId: { in: taskIds },
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: `Removed user from ${projectIds.length} projects`,
+      message: `Removed user from ${taskIds.length} tasks`,
     });
   } catch (error) {
     return handleApiError(error);

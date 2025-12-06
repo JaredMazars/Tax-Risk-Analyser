@@ -60,9 +60,9 @@ export class AITaxReportGenerator {
   /**
    * Generate comprehensive AI tax report
    */
-  static async generateTaxReport(projectData: ProjectTaxData): Promise<AITaxReportData> {
+  static async generateTaxReport(taskData: ProjectTaxData): Promise<AITaxReportData> {
     try {
-      const prompt = this.buildPrompt(projectData);
+      const prompt = this.buildPrompt(taskData);
       
       const { object } = await generateObject({
         model: models.mini,
@@ -85,58 +85,58 @@ CRITICAL: You MUST use ONLY the exact figures provided in the data - NEVER recal
   /**
    * Build comprehensive prompt for AI analysis
    */
-  private static buildPrompt(data: ProjectTaxData): string {
+  private static buildPrompt(taskData: ProjectTaxData): string {
     // Group adjustments by type
-    const debitAdjustments = data.taxCalculation.adjustments.filter(a => a.type === 'DEBIT');
-    const creditAdjustments = data.taxCalculation.adjustments.filter(a => a.type === 'CREDIT');
-    const allowanceAdjustments = data.taxCalculation.adjustments.filter(a => a.type === 'ALLOWANCE');
-    const recoupmentAdjustments = data.taxCalculation.adjustments.filter(a => a.type === 'RECOUPMENT');
+    const debitAdjustments = taskData.taxCalculation.adjustments.filter(a => a.type === 'DEBIT');
+    const creditAdjustments = taskData.taxCalculation.adjustments.filter(a => a.type === 'CREDIT');
+    const allowanceAdjustments = taskData.taxCalculation.adjustments.filter(a => a.type === 'ALLOWANCE');
+    const recoupmentAdjustments = taskData.taxCalculation.adjustments.filter(a => a.type === 'RECOUPMENT');
 
     return `Analyze the following South African corporate tax data and provide a comprehensive tax report in JSON format.
 
-PROJECT: ${data.taskName}
+TASK: ${taskData.taskName}
 
 =================================================================================
 KEY FIGURES REFERENCE - USE THESE EXACT AMOUNTS IN YOUR ANALYSIS
 =================================================================================
 
 FINANCIAL POSITION:
-- Total Assets: R${this.formatAmount(data.balanceSheet.totalAssets)}
-- Total Equity: R${this.formatAmount(data.balanceSheet.totalEquity)}
-- Total Liabilities: R${this.formatAmount(data.balanceSheet.totalLiabilities)}
+- Total Assets: R${this.formatAmount(taskData.balanceSheet.totalAssets)}
+- Total Equity: R${this.formatAmount(taskData.balanceSheet.totalEquity)}
+- Total Liabilities: R${this.formatAmount(taskData.balanceSheet.totalLiabilities)}
 
 INCOME STATEMENT:
-- Revenue: R${this.formatAmount(data.incomeStatement.totalRevenue)}
-- Expenses: R${this.formatAmount(data.incomeStatement.totalExpenses)}
-- Net Profit (Accounting): R${this.formatAmount(data.incomeStatement.netProfit)}
+- Revenue: R${this.formatAmount(taskData.incomeStatement.totalRevenue)}
+- Expenses: R${this.formatAmount(taskData.incomeStatement.totalExpenses)}
+- Net Profit (Accounting): R${this.formatAmount(taskData.incomeStatement.netProfit)}
 
 TAX COMPUTATION SUMMARY:
-- Accounting Profit: R${this.formatAmount(data.taxCalculation.accountingProfit)}
-- Total Debit Adjustments: R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)}
-- Total Credit Adjustments: R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)}
-- Total Allowances: R${this.formatAmount(data.taxCalculation.totalAllowances)}
-- Total Recoupments: R${this.formatAmount(data.taxCalculation.totalRecoupments)}
-- TAXABLE INCOME: R${this.formatAmount(data.taxCalculation.taxableIncome)}
-- TAX LIABILITY (27%): R${this.formatAmount(data.taxCalculation.taxLiability)}
+- Accounting Profit: R${this.formatAmount(taskData.taxCalculation.accountingProfit)}
+- Total Debit Adjustments: R${this.formatAmount(taskData.taxCalculation.totalDebitAdjustments)}
+- Total Credit Adjustments: R${this.formatAmount(taskData.taxCalculation.totalCreditAdjustments)}
+- Total Allowances: R${this.formatAmount(taskData.taxCalculation.totalAllowances)}
+- Total Recoupments: R${this.formatAmount(taskData.taxCalculation.totalRecoupments)}
+- TAXABLE INCOME: R${this.formatAmount(taskData.taxCalculation.taxableIncome)}
+- TAX LIABILITY (27%): R${this.formatAmount(taskData.taxCalculation.taxLiability)}
 
 =================================================================================
 TAX CALCULATION VERIFICATION TABLE
 =================================================================================
-Accounting Profit:                R${this.formatAmount(data.taxCalculation.accountingProfit)}
-Add: Debit Adjustments:          R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)}
-Less: Credit Adjustments:        (R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)})
-Less: Allowances:                (R${this.formatAmount(data.taxCalculation.totalAllowances)})
-Add: Recoupments:                 R${this.formatAmount(data.taxCalculation.totalRecoupments)}
+Accounting Profit:                R${this.formatAmount(taskData.taxCalculation.accountingProfit)}
+Add: Debit Adjustments:          R${this.formatAmount(taskData.taxCalculation.totalDebitAdjustments)}
+Less: Credit Adjustments:        (R${this.formatAmount(taskData.taxCalculation.totalCreditAdjustments)})
+Less: Allowances:                (R${this.formatAmount(taskData.taxCalculation.totalAllowances)})
+Add: Recoupments:                 R${this.formatAmount(taskData.taxCalculation.totalRecoupments)}
                                   ─────────────────────
-TAXABLE INCOME:                   R${this.formatAmount(data.taxCalculation.taxableIncome)}
+TAXABLE INCOME:                   R${this.formatAmount(taskData.taxCalculation.taxableIncome)}
                                   ═════════════════════
-Tax @ 27%:                        R${this.formatAmount(data.taxCalculation.taxLiability)}
+Tax @ 27%:                        R${this.formatAmount(taskData.taxCalculation.taxLiability)}
 
 =================================================================================
 ADJUSTMENTS BY CATEGORY
 =================================================================================
 
-DEBIT ADJUSTMENTS (${debitAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalDebitAdjustments)}):
+DEBIT ADJUSTMENTS (${debitAdjustments.length} items, Total: R${this.formatAmount(taskData.taxCalculation.totalDebitAdjustments)}):
 ${debitAdjustments.length > 0 ? debitAdjustments.map((adj, idx) => `
 ${idx + 1}. ${adj.description}
    Amount: R${this.formatAmount(Math.abs(adj.amount))}
@@ -145,7 +145,7 @@ ${idx + 1}. ${adj.description}
    ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
 `).join('\n') : '(No debit adjustments)'}
 
-CREDIT ADJUSTMENTS (${creditAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalCreditAdjustments)}):
+CREDIT ADJUSTMENTS (${creditAdjustments.length} items, Total: R${this.formatAmount(taskData.taxCalculation.totalCreditAdjustments)}):
 ${creditAdjustments.length > 0 ? creditAdjustments.map((adj, idx) => `
 ${idx + 1}. ${adj.description}
    Amount: R${this.formatAmount(Math.abs(adj.amount))}
@@ -154,7 +154,7 @@ ${idx + 1}. ${adj.description}
    ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
 `).join('\n') : '(No credit adjustments)'}
 
-ALLOWANCES (${allowanceAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalAllowances)}):
+ALLOWANCES (${allowanceAdjustments.length} items, Total: R${this.formatAmount(taskData.taxCalculation.totalAllowances)}):
 ${allowanceAdjustments.length > 0 ? allowanceAdjustments.map((adj, idx) => `
 ${idx + 1}. ${adj.description}
    Amount: R${this.formatAmount(Math.abs(adj.amount))}
@@ -163,7 +163,7 @@ ${idx + 1}. ${adj.description}
    ${adj.confidenceScore ? `AI Confidence: ${Math.round(adj.confidenceScore * 100)}%` : ''}
 `).join('\n') : '(No allowances)'}
 
-RECOUPMENTS (${recoupmentAdjustments.length} items, Total: R${this.formatAmount(data.taxCalculation.totalRecoupments)}):
+RECOUPMENTS (${recoupmentAdjustments.length} items, Total: R${this.formatAmount(taskData.taxCalculation.totalRecoupments)}):
 ${recoupmentAdjustments.length > 0 ? recoupmentAdjustments.map((adj, idx) => `
 ${idx + 1}. ${adj.description}
    Amount: R${this.formatAmount(Math.abs(adj.amount))}

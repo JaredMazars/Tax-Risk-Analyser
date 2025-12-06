@@ -10,7 +10,7 @@ interface UsePermissionResult {
 
 /**
  * Hook to check if the current user has permission for a specific action
- * @param resourceKey - The resource identifier (e.g., "clients", "projects.create")
+ * @param resourceKey - The resource identifier (e.g., "clients", "tasks.create")
  * @param action - The action to check (CREATE, READ, UPDATE, DELETE)
  * @returns Object with hasPermission, isLoading, and isError
  */

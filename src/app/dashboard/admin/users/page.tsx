@@ -36,7 +36,7 @@ interface SystemUser {
     serviceLine: string;
     role: string;
   }>;
-  tasks: Array<{
+  tasks?: Array<{
     id: number;
     role: string;
     task: {
@@ -127,7 +127,7 @@ export default function UserManagementPage() {
         return (
           user.name?.toLowerCase().includes(searchLower) ||
           user.email?.toLowerCase().includes(searchLower) ||
-          user.tasks.some(p => p.task.name.toLowerCase().includes(searchLower))
+          user.tasks?.some(t => t.task.name.toLowerCase().includes(searchLower))
         );
       });
       setFilteredUsers(filtered);
@@ -298,11 +298,11 @@ export default function UserManagementPage() {
     }
   };
 
-  const handleRemoveFromAllProjects = async (userId: string) => {
+  const handleRemoveFromAllTasks = async (userId: string) => {
     setConfirmModal({
       isOpen: true,
-      title: 'Remove User from All Projects',
-      message: 'Are you sure you want to remove this user from ALL projects? This action cannot be undone.',
+      title: 'Remove User from All Tasks',
+      message: 'Are you sure you want to remove this user from ALL tasks? This action cannot be undone.',
       variant: 'danger',
       onConfirm: async () => {
         try {
@@ -414,7 +414,7 @@ export default function UserManagementPage() {
             User Management
           </h1>
           <p className="mt-2 text-sm text-forvis-gray-700">
-            Manage users, permissions, and project assignments across the system
+            Manage users, permissions, and task assignments across the system
           </p>
         </div>
 
@@ -466,7 +466,7 @@ export default function UserManagementPage() {
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search users, projects..."
+                  placeholder="Search users, tasks..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
@@ -568,11 +568,11 @@ export default function UserManagementPage() {
                           )}
                         </div>
                         
-                        {/* Project Stats */}
+                        {/* Task Stats */}
                         <div className="flex items-center space-x-4 text-sm text-forvis-gray-500 pt-2 border-t border-forvis-gray-200">
                           <span className="flex items-center">
                             <FolderIcon className="h-4 w-4 mr-1" />
-                            {user.taskCount} projects
+                            {user.taskCount} tasks
                           </span>
                           <span>Last active: {formatDate(user.lastActivity)}</span>
                           <span>Joined: {formatDate(user.createdAt)}</span>
@@ -581,10 +581,10 @@ export default function UserManagementPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRemoveFromAllProjects(user.id);
+                          handleRemoveFromAllTasks(user.id);
                         }}
                         className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Remove from all projects"
+                        title="Remove from all tasks"
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -653,13 +653,13 @@ export default function UserManagementPage() {
                           setAlertModal({
                             isOpen: true,
                             title: 'Feature Coming Soon',
-                            message: 'Add to projects feature - would open modal to select projects and role',
+                            message: 'Add to tasks feature - would open modal to select tasks and role',
                             variant: 'info',
                           });
                         }}
                       >
                         <UserPlusIcon className="h-5 w-5 mr-2" />
-                        Add to Projects
+                        Add to Tasks
                       </button>
                     </div>
                   </div>
@@ -821,11 +821,11 @@ export default function UserManagementPage() {
               <div className="p-6">
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="card p-4">
-                    <div className="text-sm text-forvis-gray-600">Total Projects</div>
+                    <div className="text-sm text-forvis-gray-600">Total Tasks</div>
                     <div className="text-2xl font-bold text-forvis-gray-900">{selectedUser.taskCount}</div>
                   </div>
                   <div className="card p-4">
-                    <div className="text-sm text-forvis-gray-600">Project Roles</div>
+                    <div className="text-sm text-forvis-gray-600">Task Roles</div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {selectedUser.roles && selectedUser.roles.length > 0 ? (
                         selectedUser.roles.map(role => (
@@ -837,7 +837,7 @@ export default function UserManagementPage() {
                           </span>
                         ))
                       ) : (
-                        <span className="text-xs text-forvis-gray-500 italic">No project assignments</span>
+                        <span className="text-xs text-forvis-gray-500 italic">No task assignments</span>
                       )}
                     </div>
                   </div>
@@ -877,12 +877,12 @@ export default function UserManagementPage() {
                           {selectedUser.role === 'SYSTEM_ADMIN' ? (
                             <>
                               This user has <span className="font-bold text-forvis-blue-600">System Administrator</span> privileges 
-                              with full access to all features, service lines, and projects.
+                              with full access to all features, service lines, and tasks.
                             </>
                           ) : (
                             <>
                               This user has <span className="font-bold">regular user</span> access. They require 
-                              service line assignments and project assignments to access features.
+                              service line assignments and task assignments to access features.
                             </>
                           )}
                         </p>
@@ -982,9 +982,9 @@ export default function UserManagementPage() {
                           </summary>
                           <div className="mt-2 ml-5 text-xs space-y-1 text-forvis-gray-700">
                             <div><span className="font-semibold">Viewer:</span> Read-only access to view data</div>
-                            <div><span className="font-semibold">User:</span> Can work on assigned projects, create mappings and adjustments</div>
-                            <div><span className="font-semibold">Supervisor:</span> Can create projects, assign users, approve acceptance</div>
-                            <div><span className="font-semibold">Manager:</span> Full CRUD on clients & projects within service line</div>
+                            <div><span className="font-semibold">User:</span> Can work on assigned tasks, create mappings and adjustments</div>
+                            <div><span className="font-semibold">Supervisor:</span> Can create tasks, assign users, approve acceptance</div>
+                            <div><span className="font-semibold">Manager:</span> Full CRUD on clients & tasks within service line</div>
                             <div><span className="font-semibold">Partner:</span> Full access across all service lines</div>
                             <div><span className="font-semibold">Admin:</span> Full access + admin pages & system management</div>
                           </div>
@@ -1070,31 +1070,37 @@ export default function UserManagementPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-forvis-gray-900 mb-4">Project Assignments</h3>
+                  <h3 className="text-lg font-semibold text-forvis-gray-900 mb-4">Task Assignments</h3>
                   <div className="space-y-3">
-                    {selectedUser.tasks.map(projectUser => (
-                      <div key={projectUser.id} className="flex items-center justify-between p-4 border border-forvis-gray-200 rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-medium text-forvis-gray-900">{projectUser.task.name}</div>
-                          {projectUser.project.client && (
-                            <div className="text-sm text-forvis-gray-600">{projectUser.project.client.clientNameFull || projectUser.project.client.clientCode}</div>
-                          )}
+                    {selectedUser.tasks && selectedUser.tasks.length > 0 ? (
+                      selectedUser.tasks.map(taskUser => (
+                        <div key={taskUser.id} className="flex items-center justify-between p-4 border border-forvis-gray-200 rounded-lg">
+                          <div className="flex-1">
+                            <div className="font-medium text-forvis-gray-900">{taskUser.task.name}</div>
+                            {taskUser.task.client && (
+                              <div className="text-sm text-forvis-gray-600">{taskUser.task.client.clientNameFull || taskUser.task.client.clientCode}</div>
+                            )}
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor(taskUser.role)}`}>
+                            {formatRole(taskUser.role)}
+                          </span>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor(projectUser.role)}`}>
-                          {formatRole(projectUser.role)}
-                        </span>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 bg-forvis-gray-50 rounded-lg border border-forvis-gray-200">
+                        <p className="text-forvis-gray-500">No task assignments</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <button
-                    onClick={() => handleRemoveFromAllProjects(selectedUser.id)}
+                    onClick={() => handleRemoveFromAllTasks(selectedUser.id)}
                     className="w-full px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
                   >
                     <TrashIcon className="h-5 w-5 inline mr-2" />
-                    Remove from All Projects
+                    Remove from All Tasks
                   </button>
                 </div>
               </div>

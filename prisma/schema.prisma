@@ -306,7 +306,7 @@ model Client {
   typeDesc                 String                     @db.NVarChar(50)
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
-  ClientID                 String                     @db.UniqueIdentifier
+  ClientID                 String                     @unique @db.UniqueIdentifier
   BDOpportunity            BDOpportunity[]
   ClientAcceptanceResponse ClientAcceptanceResponse[]
   ClientAnalyticsDocument  ClientAnalyticsDocument[]
@@ -315,6 +315,7 @@ model Client {
 
   @@index([active])
   @@index([clientCode])
+  @@index([ClientID])
   @@index([clientNameFull])
   @@index([clientTaxFlag])
   @@index([groupCode])
@@ -773,7 +774,7 @@ model Session {
 model Task {
   id                       Int                        @id @default(autoincrement())
   ExternalTaskID           String                     @db.UniqueIdentifier
-  ClientCode               String                     @db.NVarChar(10)
+  ClientCode               String?                    @db.UniqueIdentifier
   TaskCode                 String                     @db.NVarChar(10)
   TaskDesc                 String                     @db.NVarChar(150)
   TaskPartner              String                     @db.NVarChar(10)
@@ -790,7 +791,7 @@ model Task {
   createdBy                String?
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
-  Client                   Client?                    @relation(fields: [ClientCode], references: [clientCode], onUpdate: NoAction)
+  Client                   Client?                    @relation(fields: [ClientCode], references: [ClientID], onUpdate: NoAction)
   User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   WipLTD                   WipLTD[]
   TaskTeam                 TaskTeam[]
@@ -994,7 +995,7 @@ model WipLTD {
   id               Int       @id @default(autoincrement())
   taskId           Int
   ExternalTaskID   String    @db.UniqueIdentifier
-  ClientCode       String    @db.NVarChar(10)
+  ClientCode       String?   @db.UniqueIdentifier
   TaskCode         String    @db.NVarChar(10)
   OfficeCode       String    @db.NVarChar(10)
   ServLineCode     String    @db.NVarChar(10)

@@ -59,7 +59,7 @@ export interface PermissionMatrixEntry {
 /**
  * Check if a user has permission to perform a specific action on a resource
  * @param userId - The user ID to check
- * @param resourceKey - The resource identifier (e.g., "clients", "projects.create")
+ * @param resourceKey - The resource identifier (e.g., "clients", "tasks.create")
  * @param action - The action to perform (CREATE, READ, UPDATE, DELETE)
  * @returns true if user has permission, false otherwise
  */

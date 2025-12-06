@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { defaultModel } from '@/lib/ai/config';
 import { logger } from '@/lib/utils/logger';
-import type { ProjectContext } from './templateGenerator';
+import type { TaskContext } from './templateGenerator';
 
 /**
  * Adapt a template section using AI
@@ -9,7 +9,7 @@ import type { ProjectContext } from './templateGenerator';
 export async function adaptSection(
   sectionTitle: string,
   sectionContent: string,
-  context: ProjectContext
+  context: TaskContext
 ): Promise<string> {
   try {
     const prompt = buildAdaptationPrompt(sectionTitle, sectionContent, context);
@@ -33,19 +33,19 @@ export async function adaptSection(
 function buildAdaptationPrompt(
   sectionTitle: string,
   sectionContent: string,
-  context: ProjectContext
+  context: TaskContext
 ): string {
   return `You are a professional engagement letter writer for Forvis Mazars, a global accounting and advisory firm.
 
-Your task is to adapt the following engagement letter section to be specific to the client and project described below.
+Your task is to adapt the following engagement letter section to be specific to the client and task described below.
 
-**Client & Project Context:**
+**Client & Task Context:**
 - Client: ${context.clientName || 'Client'} (${context.clientCode || 'N/A'})
 - Task: ${context.taskName}
-- Project Type: ${context.projectType.replace(/_/g, ' ')}
+- Task Type: ${context.taskType?.replace(/_/g, ' ') || 'N/A'}
 - Service Line: ${context.serviceLine}
 ${context.taxYear ? `- Tax Year: ${context.taxYear}` : ''}
-${context.projectDescription ? `- Description: ${context.projectDescription}` : ''}
+${context.taskDescription ? `- Description: ${context.taskDescription}` : ''}
 
 **Section to Adapt:**
 Title: ${sectionTitle}
@@ -70,7 +70,7 @@ Return ONLY the adapted section content, preserving all markdown formatting.`;
  */
 export async function adaptSections(
   sections: Array<{ title: string; content: string }>,
-  context: ProjectContext
+  context: TaskContext
 ): Promise<Array<{ title: string; content: string }>> {
   const adapted: Array<{ title: string; content: string }> = [];
 
@@ -101,7 +101,7 @@ export async function adaptSections(
 export async function previewAdaptation(
   sectionTitle: string,
   sectionContent: string,
-  context: ProjectContext
+  context: TaskContext
 ): Promise<{
   original: string;
   adapted: string;

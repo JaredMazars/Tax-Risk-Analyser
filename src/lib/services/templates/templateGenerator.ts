@@ -132,31 +132,30 @@ export async function generateFromTemplate(
 }
 
 /**
- * Get the best matching template for a project
+ * Get the best matching template for a task
  */
 export async function getBestTemplateForTask(
   taskId: number,
   templateType: string = 'ENGAGEMENT_LETTER'
 ): Promise<number | null> {
   try {
-    // Get project details
+    // Get task details
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
-        projectType: true,
-        serviceLine: true,
+        ServLineCode: true,
       },
     });
 
     if (!task) {
-      throw new Error('Project not found');
+      throw new Error('Task not found');
     }
 
-    // Get applicable templates
+    // Get applicable templates (projectType is not available on Task model)
     const templates = await getApplicableTemplates(
       templateType,
       task.ServLineCode,
-      task.projectType
+      undefined // Task model doesn't have projectType field
     );
 
     if (templates.length === 0) {
@@ -164,25 +163,13 @@ export async function getBestTemplateForTask(
     }
 
     // Prioritize templates:
-    // 1. Exact match (service line + project type)
-    // 2. Service line match only
-    // 3. Project type match only
-    // 4. Global template
-
-    const exactMatch = templates.find(
-      (t) => t.serviceLine === task.ServLineCode && t.projectType === task.projectType
-    );
-    if (exactMatch) return exactMatch.id;
+    // 1. Service line match
+    // 2. Global template
 
     const serviceLineMatch = templates.find(
       (t) => t.serviceLine === task.ServLineCode && !t.projectType
     );
     if (serviceLineMatch) return serviceLineMatch.id;
-
-    const projectTypeMatch = templates.find(
-      (t) => !t.serviceLine && t.projectType === task.projectType
-    );
-    if (projectTypeMatch) return projectTypeMatch.id;
 
     // Return first global template
     const globalTemplate = templates.find((t) => !t.serviceLine && !t.projectType);
@@ -197,7 +184,7 @@ export async function getBestTemplateForTask(
 }
 
 /**
- * Build context data from project for placeholder replacement
+ * Build context data from task for placeholder replacement
  */
 function buildContextData(context: TaskContext): Record<string, string> {
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -208,7 +195,8 @@ function buildContextData(context: TaskContext): Record<string, string> {
 
   return {
     taskName: context.taskName || '',
-    projectType: context.projectType?.replace(/_/g, ' ') || '',
+    taskType: context.taskType?.replace(/_/g, ' ') || '',
+    projectType: context.taskType?.replace(/_/g, ' ') || '', // Map taskType to projectType for template compatibility
     serviceLine: context.serviceLine || '',
     taxYear: context.taxYear?.toString() || '',
     taxPeriodStart: context.taxPeriodStart
@@ -217,7 +205,8 @@ function buildContextData(context: TaskContext): Record<string, string> {
     taxPeriodEnd: context.taxPeriodEnd
       ? context.taxPeriodEnd.toLocaleDateString()
       : '',
-    projectDescription: context.projectDescription || '',
+    taskDescription: context.taskDescription || '',
+    projectDescription: context.taskDescription || '', // Map taskDescription to projectDescription for template compatibility
     clientName: context.clientName || '',
     clientCode: context.clientCode || '',
     partnerName: context.partnerName || '',
@@ -245,7 +234,7 @@ function replacePlaceholders(
 }
 
 /**
- * Get project context from database
+ * Get task context from database
  */
 export async function getTaskContext(taskId: number): Promise<TaskContext> {
   try {
@@ -257,25 +246,25 @@ export async function getTaskContext(taskId: number): Promise<TaskContext> {
     });
 
     if (!task) {
-      throw new Error('Project not found');
+      throw new Error('Task not found');
     }
 
     return {
-      taskId: project.id,
-      taskName: project.name,
-      projectType: task.projectType,
+      taskId: task.id,
+      taskName: task.TaskDesc,
+      taskType: task.TaskCode, // Using TaskCode as taskType
       serviceLine: task.ServLineCode,
-      taxYear: project.taxYear || undefined,
-      taxPeriodStart: project.taxPeriodStart || undefined,
-      taxPeriodEnd: project.taxPeriodEnd || undefined,
-      projectDescription: project.description || undefined,
-      clientCode: project.Client?.clientCode || undefined,
-      clientName: project.Client?.clientNameFull || undefined,
-      partnerName: project.Client?.clientPartner || undefined,
+      taxYear: undefined, // Task model doesn't have taxYear field
+      taxPeriodStart: undefined, // Task model doesn't have taxPeriodStart field
+      taxPeriodEnd: undefined, // Task model doesn't have taxPeriodEnd field
+      taskDescription: task.TaskDesc,
+      clientCode: task.Client?.clientCode || undefined,
+      clientName: task.Client?.clientNameFull || undefined,
+      partnerName: task.Client?.clientPartner || undefined,
     };
   } catch (error) {
-    logger.error('Error getting project context:', error);
-    throw new Error('Failed to get project context');
+    logger.error('Error getting task context:', error);
+    throw new Error('Failed to get task context');
   }
 }
 

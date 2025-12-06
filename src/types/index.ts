@@ -97,6 +97,7 @@ export interface Client {
   id: number;
   // New required fields from external DB
   clientCode: string;
+  ClientID: string; // UniqueIdentifier GUID
   clientNameFull?: string | null;
   groupCode: string;
   groupDesc: string;
@@ -127,7 +128,7 @@ export interface Client {
 export interface Task {
   id: number;
   ExternalTaskID: string;
-  ClientCode: string;
+  ClientCode: string; // Now a GUID (UniqueIdentifier) referencing Client.ClientID
   TaskCode: string;
   TaskDesc: string;
   TaskPartner: string;

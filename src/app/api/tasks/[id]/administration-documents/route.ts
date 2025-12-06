@@ -37,7 +37,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const documents = await prisma.administrationDocument.findMany({
+    const documents = await prisma.taskDocument.findMany({
       where: { taskId },
       orderBy: { createdAt: 'desc' },
     });
@@ -70,7 +70,7 @@ export async function POST(
     const body = await request.json();
     const validated = CreateAdminDocumentSchema.parse(body);
 
-    const document = await prisma.administrationDocument.create({
+    const document = await prisma.taskDocument.create({
       data: {
         taskId,
         fileName: sanitizeFilename(validated.fileName),

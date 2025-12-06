@@ -25,6 +25,7 @@ export interface TaskListItem {
   updatedAt: string;
   client?: {
     id: number;
+    ClientID: string;
     clientNameFull: string | null;
     clientCode: string | null;
   } | null;

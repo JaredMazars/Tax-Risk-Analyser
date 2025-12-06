@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { UpdateClientSchema } from '@/lib/validation/schemas';
+import { UpdateClientSchema, ClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { z } from 'zod';
@@ -19,11 +19,13 @@ export async function GET(
     }
     
     const params = await context.params;
-    const clientId = Number.parseInt(params.id);
+    const clientID = params.id;
 
-    if (Number.isNaN(clientId)) {
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid client ID' },
+        { error: 'Invalid client ID format. Expected GUID.' },
         { status: 400 }
       );
     }
@@ -64,9 +66,37 @@ export async function GET(
       taskWhere.ServLineCode = { in: servLineCodes };
     }
 
-    // First, get the client to get their ClientCode
+    // Get the client by ClientID
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { ClientID: clientID },
+      select: {
+        id: true,
+        ClientID: true,
+        clientCode: true,
+        clientNameFull: true,
+        groupCode: true,
+        groupDesc: true,
+        clientPartner: true,
+        clientManager: true,
+        clientIncharge: true,
+        active: true,
+        clientDateOpen: true,
+        clientDateTerminate: true,
+        industry: true,
+        sector: true,
+        forvisMazarsIndustry: true,
+        forvisMazarsSector: true,
+        forvisMazarsSubsector: true,
+        clientOCFlag: true,
+        clientTaxFlag: true,
+        clientSecFlag: true,
+        creditor: true,
+        rolePlayer: true,
+        typeCode: true,
+        typeDesc: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     if (!client) {
@@ -76,8 +106,8 @@ export async function GET(
       );
     }
 
-    // Set the ClientCode in the where clause
-    taskWhere.ClientCode = client.clientCode;
+    // Set the ClientCode (now GUID) in the where clause
+    taskWhere.ClientCode = client.ClientID;
 
     // Get tasks for this client
     const tasks = await prisma.task.findMany({
@@ -134,15 +164,15 @@ export async function GET(
     ]);
 
     const taskCountsByServiceLine = await Promise.all([
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: taxCodes.length > 0 ? { in: taxCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: auditCodes.length > 0 ? { in: auditCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: accountingCodes.length > 0 ? { in: accountingCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: advisoryCodes.length > 0 ? { in: advisoryCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: qrmCodes.length > 0 ? { in: qrmCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: bdCodes.length > 0 ? { in: bdCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: itCodes.length > 0 ? { in: itCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: financeCodes.length > 0 ? { in: financeCodes } : undefined } }),
-      prisma.task.count({ where: { ClientCode: client.clientCode, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: hrCodes.length > 0 ? { in: hrCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: taxCodes.length > 0 ? { in: taxCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: auditCodes.length > 0 ? { in: auditCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: accountingCodes.length > 0 ? { in: accountingCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: advisoryCodes.length > 0 ? { in: advisoryCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: qrmCodes.length > 0 ? { in: qrmCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: bdCodes.length > 0 ? { in: bdCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: itCodes.length > 0 ? { in: itCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: financeCodes.length > 0 ? { in: financeCodes } : undefined } }),
+      prisma.task.count({ where: { ClientCode: client.ClientID, Active: !includeArchived ? 'Yes' : undefined, ServLineCode: hrCodes.length > 0 ? { in: hrCodes } : undefined } }),
     ]);
 
     // Calculate total across all service lines
@@ -212,11 +242,13 @@ export async function PUT(
     }
     
     const params = await context.params;
-    const clientId = Number.parseInt(params.id);
+    const clientID = params.id;
 
-    if (Number.isNaN(clientId)) {
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid client ID' },
+        { error: 'Invalid client ID format. Expected GUID.' },
         { status: 400 }
       );
     }
@@ -228,7 +260,7 @@ export async function PUT(
 
     // Check if client exists
     const existingClient = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { ClientID: clientID },
     });
 
     if (!existingClient) {
@@ -254,7 +286,7 @@ export async function PUT(
 
     // Update client
     const client = await prisma.client.update({
-      where: { id: clientId },
+      where: { ClientID: clientID },
       data: validatedData,
     });
 
@@ -297,18 +329,20 @@ export async function DELETE(
     }
     
     const params = await context.params;
-    const clientId = Number.parseInt(params.id);
+    const clientID = params.id;
 
-    if (Number.isNaN(clientId)) {
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid client ID' },
+        { error: 'Invalid client ID format. Expected GUID.' },
         { status: 400 }
       );
     }
 
     // Check if client exists
     const existingClient = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { ClientID: clientID },
       include: {
         _count: {
           select: {
@@ -335,7 +369,7 @@ export async function DELETE(
 
     // Delete client
     await prisma.client.delete({
-      where: { id: clientId },
+      where: { ClientID: clientID },
     });
 
     return NextResponse.json(

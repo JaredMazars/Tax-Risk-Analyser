@@ -5,11 +5,12 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { DocumentType } from '@/types';
 import { readFile } from 'fs/promises';
 import path from 'node:path';
+import { ClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/clients/[id]/documents/download
  * Download a document for a client
- * Query params: documentType, documentId, projectId
+ * Query params: documentType, documentId, taskId
  */
 export async function GET(
   request: NextRequest,
@@ -22,17 +23,19 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
 
-    if (Number.isNaN(clientId)) {
-      return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success) {
+      return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const documentType = searchParams.get('documentType') as DocumentType;
     const documentId = Number.parseInt(searchParams.get('documentId') || '');
-    const taskId = Number.parseInt(searchParams.get('projectId') || '');
+    const taskId = Number.parseInt(searchParams.get('taskId') || '');
 
     if (!documentType || Number.isNaN(documentId)) {
       return NextResponse.json(
@@ -43,7 +46,7 @@ export async function GET(
 
     // Verify client exists
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { ClientID: clientID },
     });
 
     if (!client) {
@@ -56,25 +59,31 @@ export async function GET(
 
     switch (documentType) {
       case DocumentType.ENGAGEMENT_LETTER: {
-        const task = await prisma.project.findFirst({
+        const task = await prisma.task.findFirst({
           where: {
             id: taskId,
-            clientId,
+            Client: {
+              ClientID: clientID,
+            },
           },
           select: {
-            engagementLetterPath: true,
-            engagementLetterUploaded: true,
+            TaskEngagementLetter: {
+              select: {
+                filePath: true,
+                uploaded: true,
+              },
+            },
           },
         });
 
-        if (!project || !project.engagementLetterUploaded || !project.engagementLetterPath) {
+        if (!task || !task.TaskEngagementLetter || !task.TaskEngagementLetter.uploaded || !task.TaskEngagementLetter.filePath) {
           return NextResponse.json(
             { error: 'Engagement letter not found' },
             { status: 404 }
           );
         }
 
-        filePath = project.engagementLetterPath;
+        filePath = task.TaskEngagementLetter.filePath;
         // Extract filename from path, handling both forward and backward slashes
         const pathParts = filePath.split(/[/\\]/);
         fileName = pathParts[pathParts.length - 1] || 'engagement-letter.pdf';
@@ -82,11 +91,13 @@ export async function GET(
       }
 
       case DocumentType.ADMINISTRATION: {
-        const doc = await prisma.administrationDocument.findFirst({
+        const doc = await prisma.taskDocument.findFirst({
           where: {
             id: documentId,
             Task: {
-              clientId,
+              Client: {
+                ClientID: clientID,
+              },
             },
           },
         });
@@ -108,7 +119,9 @@ export async function GET(
           where: {
             id: documentId,
             Task: {
-              clientId,
+              Client: {
+                ClientID: clientID,
+              },
             },
           },
         });
@@ -131,7 +144,9 @@ export async function GET(
             id: documentId,
             OpinionDraft: {
               Task: {
-                clientId,
+                Client: {
+                  ClientID: clientID,
+                },
               },
             },
           },
@@ -154,7 +169,9 @@ export async function GET(
           where: {
             id: documentId,
             Task: {
-              clientId,
+              Client: {
+                id: clientId,
+              },
             },
           },
         });

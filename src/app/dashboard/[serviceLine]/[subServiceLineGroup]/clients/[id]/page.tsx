@@ -528,8 +528,8 @@ export default function ServiceLineClientDetailPage() {
                 </div>
                 {searchTerm && (
                   <div className="mt-2 text-sm text-forvis-gray-600">
-                    Found <span className="font-medium">{filteredProjects.length}</span>{' '}
-                    task{filteredProjects.length !== 1 ? 's' : ''} matching "{searchTerm}"
+                    Found <span className="font-medium">{filteredTasks.length}</span>{' '}
+                    task{filteredTasks.length !== 1 ? 's' : ''} matching "{searchTerm}"
                   </div>
                 )}
               </div>

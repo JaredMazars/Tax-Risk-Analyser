@@ -223,6 +223,7 @@ export async function GET(request: NextRequest) {
           Client: {
             select: {
               id: true,
+              ClientID: true,
               clientNameFull: true,
               clientCode: true,
             },
@@ -257,6 +258,7 @@ export async function GET(request: NextRequest) {
         updatedAt: task.updatedAt.toISOString(),
         client: task.Client ? {
           id: task.Client.id,
+          ClientID: task.Client.ClientID,
           clientNameFull: task.Client.clientNameFull,
           clientCode: task.Client.clientCode,
         } : null,
@@ -291,9 +293,9 @@ export async function POST(request: NextRequest) {
 
     // Check permission
     const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'projects.create', 'CREATE');
+    const hasPermission = await checkUserPermission(user.id, 'tasks.create', 'CREATE');
     if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions to create projects' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions to create tasks' }, { status: 403 });
     }
     
     // Check if user exists in database
@@ -328,12 +330,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create project with user as admin
-    const task = await prisma.project.create({
+    // Create task with user as admin
+    const task = await prisma.task.create({
       data: {
         name: validatedData.name,
         description: validatedData.description,
-        projectType: validatedData.projectType || 'TAX_CALCULATION',
+        taskType: validatedData.taskType || 'TAX_CALCULATION',
         serviceLine: validatedData.serviceLine || 'TAX',
         taxYear: validatedData.taxYear,
         taxPeriodStart: validatedData.taxPeriodStart,
@@ -373,28 +375,28 @@ export async function POST(request: NextRequest) {
     });
 
     // Transform data to match expected format
-    const transformedProject = {
-      ...project,
-      client: project.Client, // Transform Client → client for consistency
+    const transformedTask = {
+      ...task,
+      client: task.Client, // Transform Client → client for consistency
       Client: undefined, // Remove original Client field
       _count: {
-        mappings: project._count.MappedAccount,
-        taxAdjustments: project._count.TaxAdjustment,
+        mappings: task._count.MappedAccount,
+        taxAdjustments: task._count.TaxAdjustment,
       },
     };
 
-    return NextResponse.json(successResponse(transformedProject), { status: 201 });
+    return NextResponse.json(successResponse(transformedTask), { status: 201 });
   } catch (error) {
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
       const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
       return handleApiError(
         new AppError(400, message, ErrorCodes.VALIDATION_ERROR),
-        'Create Project'
+        'Create Task'
       );
     }
     
-    return handleApiError(error, 'Create Project');
+    return handleApiError(error, 'Create Task');
   }
 }
 

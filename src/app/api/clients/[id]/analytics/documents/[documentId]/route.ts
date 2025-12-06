@@ -5,6 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { logger } from '@/lib/utils/logger';
 import fs from 'fs/promises';
+import { ClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * DELETE /api/clients/[id]/analytics/documents/[documentId]
@@ -21,30 +22,42 @@ export async function DELETE(
     }
 
     const { id, documentId } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
     const docId = Number.parseInt(documentId);
 
-    if (Number.isNaN(clientId) || Number.isNaN(docId)) {
-      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success || Number.isNaN(docId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, clientID);
     if (!hasAccess) {
       logger.warn('Unauthorized document deletion attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientId,
+        clientID,
         documentId: docId,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Get client by ClientID to get numeric id
+    const client = await prisma.client.findUnique({
+      where: { ClientID: clientID },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
     // Find the document
     const document = await prisma.clientAnalyticsDocument.findFirst({
       where: {
         id: docId,
-        clientId,
+        clientId: client.id,
       },
     });
 
@@ -97,7 +110,8 @@ export async function DELETE(
 
     logger.info('Analytics document deleted', {
       documentId: docId,
-      clientId,
+      clientID,
+      clientId: client.id,
       fileName: document.fileName,
       deletedBy: user.email,
     });
@@ -128,30 +142,42 @@ export async function GET(
     }
 
     const { id, documentId } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
     const docId = Number.parseInt(documentId);
 
-    if (Number.isNaN(clientId) || Number.isNaN(docId)) {
-      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success || Number.isNaN(docId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, clientID);
     if (!hasAccess) {
       logger.warn('Unauthorized document access attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientId,
+        clientID,
         documentId: docId,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Get client by ClientID to get numeric id
+    const client = await prisma.client.findUnique({
+      where: { ClientID: clientID },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
     // Find the document
     const document = await prisma.clientAnalyticsDocument.findFirst({
       where: {
         id: docId,
-        clientId,
+        clientId: client.id,
       },
     });
 

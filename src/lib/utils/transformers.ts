@@ -38,6 +38,7 @@ export interface TransformedProject {
   updatedAt: Date;
   client?: {
     id: number;
+    ClientID: string;
     clientNameFull?: string | null;
     clientCode: string;
   } | null;

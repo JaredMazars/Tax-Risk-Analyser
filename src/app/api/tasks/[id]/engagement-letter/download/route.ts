@@ -30,13 +30,17 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get project and engagement letter path
+    // Get task and engagement letter path
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
-        engagementLetterPath: true,
-        engagementLetterUploaded: true,
-        name: true,
+        TaskDesc: true,
+        TaskEngagementLetter: {
+          select: {
+            uploaded: true,
+            filePath: true,
+          },
+        },
       },
     });
 
@@ -44,19 +48,20 @@ export async function GET(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    if (!project.engagementLetterUploaded || !project.engagementLetterPath) {
+    const engagementLetter = task.TaskEngagementLetter;
+    if (!engagementLetter?.uploaded || !engagementLetter?.filePath) {
       return NextResponse.json(
-        { error: 'No engagement letter has been uploaded for this project' },
+        { error: 'No engagement letter has been uploaded for this task' },
         { status: 404 }
       );
     }
 
     // Read the file
-    const filePath = path.join(process.cwd(), project.engagementLetterPath);
+    const filePath = path.join(process.cwd(), engagementLetter.filePath);
     const fileBuffer = await readFile(filePath);
 
     // Determine content type based on file extension
-    const ext = project.engagementLetterPath.split('.').pop()?.toLowerCase();
+    const ext = engagementLetter.filePath.split('.').pop()?.toLowerCase();
     let contentType = 'application/octet-stream';
     if (ext === 'pdf') {
       contentType = 'application/pdf';
@@ -65,7 +70,7 @@ export async function GET(
     }
 
     // Get filename
-    const filename = project.engagementLetterPath.split('/').pop() || 'engagement-letter';
+    const filename = engagementLetter.filePath.split('/').pop() || 'engagement-letter';
 
     // Return file with proper headers
     return new NextResponse(new Uint8Array(fileBuffer), {

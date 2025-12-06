@@ -36,13 +36,16 @@ export async function POST(
       );
     }
 
-    // Get project
+    // Get task
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
-        clientId: true,
-        acceptanceApproved: true,
-        name: true,
+        ClientCode: true,
+        TaskAcceptance: {
+          select: {
+            acceptanceApproved: true,
+          },
+        },
       },
     });
 
@@ -50,14 +53,14 @@ export async function POST(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    if (!project.clientId) {
+    if (!task.ClientCode) {
       return NextResponse.json(
-        { error: 'Engagement letter is only available for client projects' },
+        { error: 'Engagement letter is only available for client tasks' },
         { status: 400 }
       );
     }
 
-    if (!project.acceptanceApproved) {
+    if (!task.TaskAcceptance?.acceptanceApproved) {
       return NextResponse.json(
         { error: 'Client acceptance must be approved before uploading engagement letter' },
         { status: 400 }
@@ -99,38 +102,36 @@ export async function POST(
     // Store relative path
     const relativePath = path.join('uploads', 'engagement-letters', taskId.toString(), filename);
 
-    // Update project
-    const updatedProject = await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        engagementLetterUploaded: true,
-        engagementLetterPath: relativePath,
-        engagementLetterUploadedBy: user.id,
-        engagementLetterUploadedAt: new Date(),
+    // Update or create TaskEngagementLetter
+    const updatedEngagementLetter = await prisma.taskEngagementLetter.upsert({
+      where: { taskId },
+      create: {
+        taskId,
+        uploaded: true,
+        filePath: relativePath,
+        uploadedBy: user.id,
+        uploadedAt: new Date(),
       },
-      include: {
-        Client: true,
-        TaskTeam: {
-          include: {
-            User: true,
-          },
-        },
-        _count: {
-          select: {
-            MappedAccount: true,
-            TaxAdjustment: true,
-          },
-        },
+      update: {
+        uploaded: true,
+        filePath: relativePath,
+        uploadedBy: user.id,
+        uploadedAt: new Date(),
+      },
+      select: {
+        uploaded: true,
+        filePath: true,
+        uploadedBy: true,
+        uploadedAt: true,
       },
     });
 
     return NextResponse.json(
       successResponse({
-        ...updatedProject,
-        _count: {
-          mappings: updatedProject._count.MappedAccount,
-          taxAdjustments: updatedProject._count.TaxAdjustment,
-        },
+        uploaded: updatedEngagementLetter.uploaded,
+        filePath: updatedEngagementLetter.filePath,
+        uploadedBy: updatedEngagementLetter.uploadedBy,
+        uploadedAt: updatedEngagementLetter.uploadedAt,
       }),
       { status: 200 }
     );
@@ -156,15 +157,19 @@ export async function GET(
     const { id } = await context.params;
     const taskId = toTaskId(id);
 
-    // Get project
+    // Get task engagement letter
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
-        engagementLetterGenerated: true,
-        engagementLetterUploaded: true,
-        engagementLetterPath: true,
-        engagementLetterUploadedBy: true,
-        engagementLetterUploadedAt: true,
+        TaskEngagementLetter: {
+          select: {
+            generated: true,
+            uploaded: true,
+            filePath: true,
+            uploadedBy: true,
+            uploadedAt: true,
+          },
+        },
       },
     });
 
@@ -172,7 +177,17 @@ export async function GET(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    return NextResponse.json(successResponse(project), { status: 200 });
+    const engagementLetter = task.TaskEngagementLetter;
+    return NextResponse.json(
+      successResponse({
+        engagementLetterGenerated: engagementLetter?.generated || false,
+        engagementLetterUploaded: engagementLetter?.uploaded || false,
+        engagementLetterPath: engagementLetter?.filePath || null,
+        engagementLetterUploadedBy: engagementLetter?.uploadedBy || null,
+        engagementLetterUploadedAt: engagementLetter?.uploadedAt || null,
+      }),
+      { status: 200 }
+    );
   } catch (error) {
     return handleApiError(error, 'GET /api/tasks/[id]/engagement-letter');
   }

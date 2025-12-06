@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
       orderBy,
       select: {
         id: true,
+        ClientID: true,
         clientCode: true,
         clientNameFull: true,
         groupCode: true,

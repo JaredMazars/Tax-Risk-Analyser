@@ -31,6 +31,7 @@ export interface TaskListResult {
     updatedAt: Date;
     Client: {
       id: number;
+      ClientID: string;
       clientNameFull: string | null;
       clientCode: string | null;
     } | null;
@@ -94,9 +95,27 @@ export async function getTasksWithPagination(
         where.ServLineCode = serviceLine;
       }
 
-      // Filter by client code
+      // Filter by client code - need to convert to ClientID
       if (clientCode) {
-        where.ClientCode = clientCode;
+        // Look up client by clientCode to get ClientID
+        const client = await prisma.client.findUnique({
+          where: { clientCode },
+          select: { ClientID: true },
+        });
+        if (client) {
+          where.ClientCode = client.ClientID;
+        } else {
+          // Client not found, return empty result
+          return {
+            tasks: [],
+            pagination: {
+              page,
+              limit: take,
+              total: 0,
+              totalPages: 0,
+            },
+          };
+        }
       }
 
       // Add search filter
@@ -142,6 +161,7 @@ export async function getTasksWithPagination(
           Client: {
             select: {
               id: true,
+              ClientID: true,
               clientNameFull: true,
               clientCode: true,
             },
@@ -193,6 +213,7 @@ export async function getTasksWithCounts(
   updatedAt: Date;
   Client: {
     id: number;
+    ClientID: string;
     clientNameFull: string | null;
     clientCode: string | null;
   } | null;
@@ -241,6 +262,7 @@ export async function getTasksWithCounts(
           Client: {
             select: {
               id: true,
+              ClientID: true,
               clientNameFull: true,
               clientCode: true,
             },
@@ -361,6 +383,7 @@ export async function getTaskById(taskId: TaskId) {
           Client: {
             select: {
               id: true,
+              ClientID: true,
               clientCode: true,
               clientNameFull: true,
             },

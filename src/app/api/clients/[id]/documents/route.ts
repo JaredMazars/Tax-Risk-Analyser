@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { DocumentType, ClientDocument, DocumentsByType } from '@/types';
+import { ClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/clients/[id]/documents
@@ -20,21 +21,37 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
 
-    if (Number.isNaN(clientId)) {
-      return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success) {
+      return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
-    // Get all projects for this client
+    // Get client by ClientID
+    const client = await prisma.client.findUnique({
+      where: { ClientID: clientID },
+      select: { ClientID: true },
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    // Get all projects for this client using ClientID
     const projects = await prisma.task.findMany({
-      where: { clientId },
+      where: { ClientCode: client.ClientID },
       select: {
         id: true,
-        name: true,
-        engagementLetterPath: true,
-        engagementLetterUploadedBy: true,
-        engagementLetterUploadedAt: true,
+        TaskDesc: true,
+        TaskEngagementLetter: {
+          select: {
+            filePath: true,
+            uploadedBy: true,
+            uploadedAt: true,
+          },
+        },
       },
     });
 
@@ -55,11 +72,11 @@ export async function GET(
     }
 
     const projectIds = projects.map((p) => p.id);
-    const projectMap = new Map(projects.map((p) => [p.id, p.name]));
+    const projectMap = new Map(projects.map((p) => [p.id, p.TaskDesc]));
 
     // Fetch all documents in parallel for performance
     const [adminDocs, adjustmentDocs, opinionDocs, sarsDocs] = await Promise.all([
-      prisma.administrationDocument.findMany({
+      prisma.taskDocument.findMany({
         where: { taskId: { in: projectIds } },
         orderBy: { createdAt: 'desc' },
       }),
@@ -94,7 +111,7 @@ export async function GET(
     // Collect all user IDs
     const userIds = new Set<string>();
     projects.forEach(p => {
-      if (p.engagementLetterUploadedBy) userIds.add(p.engagementLetterUploadedBy);
+      if (p.TaskEngagementLetter?.uploadedBy) userIds.add(p.TaskEngagementLetter.uploadedBy);
     });
     adminDocs.forEach(doc => {
       if (doc.uploadedBy) userIds.add(doc.uploadedBy);
@@ -129,20 +146,20 @@ export async function GET(
 
     // Map engagement letters with user names
     for (const project of projects) {
-      if (project.engagementLetterPath) {
-        const pathParts = project.engagementLetterPath.split(/[/\\]/);
-        const fileName = pathParts[pathParts.length - 1] || `${project.name}-engagement-letter.pdf`;
+      if (project.TaskEngagementLetter?.filePath) {
+        const pathParts = project.TaskEngagementLetter.filePath.split(/[/\\]/);
+        const fileName = pathParts[pathParts.length - 1] || `${project.TaskDesc}-engagement-letter.pdf`;
         documentsByType.engagementLetters.push({
           id: project.id,
           documentType: DocumentType.ENGAGEMENT_LETTER,
           fileName,
           fileType: fileName.split('.').pop() || 'pdf',
           fileSize: 0,
-          filePath: project.engagementLetterPath,
+          filePath: project.TaskEngagementLetter.filePath,
           taskId: project.id,
-          taskName: project.name,
-          uploadedBy: project.engagementLetterUploadedBy ? userMap.get(project.engagementLetterUploadedBy) || project.engagementLetterUploadedBy : null,
-          createdAt: project.engagementLetterUploadedAt || new Date(),
+          taskName: project.TaskDesc,
+          uploadedBy: project.TaskEngagementLetter.uploadedBy ? userMap.get(project.TaskEngagementLetter.uploadedBy) || project.TaskEngagementLetter.uploadedBy : null,
+          createdAt: project.TaskEngagementLetter.uploadedAt || new Date(),
         });
       }
     }
@@ -156,7 +173,7 @@ export async function GET(
       fileSize: doc.fileSize,
       filePath: doc.filePath,
       taskId: doc.taskId,
-      taskName: projectMap.get(doc.projectId) || 'Unknown Project',
+      taskName: projectMap.get(doc.taskId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       category: doc.category,
@@ -173,7 +190,7 @@ export async function GET(
       fileSize: doc.fileSize,
       filePath: doc.filePath,
       taskId: doc.taskId,
-      taskName: projectMap.get(doc.projectId) || 'Unknown Project',
+      taskName: projectMap.get(doc.taskId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       extractionStatus: doc.extractionStatus,
@@ -188,7 +205,7 @@ export async function GET(
       fileSize: doc.fileSize,
       filePath: doc.filePath,
       taskId: doc.OpinionDraft.taskId,
-      taskName: projectMap.get(doc.OpinionDraft.projectId) || 'Unknown Project',
+      taskName: projectMap.get(doc.OpinionDraft.taskId) || 'Unknown Project',
       uploadedBy: doc.uploadedBy ? userMap.get(doc.uploadedBy) || doc.uploadedBy : null,
       createdAt: doc.createdAt,
       category: doc.category,
@@ -208,7 +225,7 @@ export async function GET(
           fileSize: 0,
           filePath: doc.documentPath!,
           taskId: doc.taskId,
-          taskName: projectMap.get(doc.projectId) || 'Unknown Project',
+          taskName: projectMap.get(doc.taskId) || 'Unknown Project',
           uploadedBy: doc.createdBy ? userMap.get(doc.createdBy) || doc.createdBy : null,
           createdAt: doc.createdAt,
           referenceNumber: doc.referenceNumber,

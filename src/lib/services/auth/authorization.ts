@@ -1,6 +1,6 @@
 /**
  * Authorization Service
- * Handles system-level, service-line-level, and project-level permissions
+ * Handles system-level, service-line-level, and task-level permissions
  */
 
 import { prisma } from '@/lib/db/prisma';
@@ -128,7 +128,7 @@ export async function hasServiceLineAccess(
 }
 
 /**
- * Check if user can approve client acceptance for a project
+ * Check if user can approve client acceptance for a task
  * Rules: SYSTEM_ADMIN OR Administrator/Partner (ServiceLineUser.role = ADMINISTRATOR or PARTNER)
  */
 export async function canApproveAcceptance(
@@ -140,7 +140,7 @@ export async function canApproveAcceptance(
     const isAdmin = await isSystemAdmin(userId);
     if (isAdmin) return true;
 
-    // Get the project's service line
+    // Get the task's service line
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { serviceLine: true },
@@ -151,12 +151,12 @@ export async function canApproveAcceptance(
       return false;
     }
 
-    // Check if user is an Administrator or Partner in the project's service line
+    // Check if user is an Administrator or Partner in the task's service line
     const isServiceLinePartner = await isPartner(userId, task.serviceLine);
     
-    // Also verify they have project access
+    // Also verify they have task access
     if (isServiceLinePartner) {
-      const hasProjectAccess = await prisma.taskTeam.findUnique({
+      const hasTaskAccess = await prisma.taskTeam.findUnique({
         where: {
           taskId_userId: {
             taskId,
@@ -165,7 +165,7 @@ export async function canApproveAcceptance(
         },
       });
       
-      return !!hasProjectAccess;
+      return !!hasTaskAccess;
     }
 
     return false;
@@ -176,7 +176,7 @@ export async function canApproveAcceptance(
 }
 
 /**
- * Check if user can approve engagement letter for a project
+ * Check if user can approve engagement letter for a task
  * Same rules as acceptance: SYSTEM_ADMIN OR Administrator/Partner
  */
 export async function canApproveEngagementLetter(

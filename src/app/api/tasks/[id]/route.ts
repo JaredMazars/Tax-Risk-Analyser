@@ -67,6 +67,7 @@ export async function GET(
         Client: {
           select: {
             id: true,
+            ClientID: true,
             clientCode: true,
             clientNameFull: true,
             clientPartner: true,
@@ -243,15 +244,18 @@ export async function PUT(
     // For now, we'll just acknowledge them but not update
     
     if (body.clientId !== undefined) {
-      // Need to get clientCode from the client ID
+      // Need to get ClientID from the client numeric id
       if (body.clientId !== null) {
         const client = await prisma.client.findUnique({
           where: { id: body.clientId },
-          select: { clientCode: true },
+          select: { ClientID: true },
         });
         if (client) {
-          updateData.ClientCode = client.clientCode;
+          updateData.ClientCode = client.ClientID;
         }
+      } else {
+        // Setting to null removes client association
+        updateData.ClientCode = null;
       }
     }
 

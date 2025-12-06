@@ -7,8 +7,8 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import {
   generateFromTemplate,
-  getBestTemplateForProject,
-  getProjectContext,
+  getBestTemplateForTask,
+  getTaskContext,
 } from '@/lib/services/templates/templateGenerator';
 
 /**
@@ -90,7 +90,7 @@ export async function POST(
     // Generate from template with AI adaptation
     const generated = await generateFromTemplate(
       finalTemplateId,
-      projectContext,
+      taskContext,
       useAiAdaptation
     );
 

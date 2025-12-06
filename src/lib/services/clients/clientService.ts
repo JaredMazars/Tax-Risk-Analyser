@@ -12,6 +12,7 @@ export interface ClientFilters {
 export interface ClientListResult {
   clients: Array<{
     id: number;
+    ClientID: string;
     clientCode: string;
     clientNameFull: string | null;
     groupCode: string;
@@ -101,6 +102,7 @@ export async function getClientsWithPagination(
         orderBy,
         select: {
           id: true,
+          ClientID: true,
           clientCode: true,
           clientNameFull: true,
           groupCode: true,
@@ -172,7 +174,23 @@ export async function getClientWithProjects(
 
       const client = await prisma.client.findUnique({
         where: { id: clientId },
-        include: {
+        select: {
+          id: true,
+          ClientID: true,
+          clientCode: true,
+          clientNameFull: true,
+          groupCode: true,
+          groupDesc: true,
+          clientPartner: true,
+          clientManager: true,
+          clientIncharge: true,
+          active: true,
+          industry: true,
+          sector: true,
+          typeCode: true,
+          typeDesc: true,
+          createdAt: true,
+          updatedAt: true,
           Task: {
             where: taskWhere,
             orderBy: { updatedAt: 'desc' },
@@ -208,10 +226,10 @@ export async function getClientWithProjects(
         return null;
       }
 
-      // Get total task count with filters
+      // Get total task count with filters (using ClientID)
       const totalTasks = await prisma.task.count({
         where: {
-          ClientCode: client.clientCode,
+          ClientCode: client.ClientID,
           ...taskWhere,
         },
       });

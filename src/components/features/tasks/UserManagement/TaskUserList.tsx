@@ -59,8 +59,8 @@ export function TaskUserList({
   const handleRemoveUser = async (userId: string) => {
     setConfirmModal({
       isOpen: true,
-      title: 'Remove User from Project',
-      message: 'Are you sure you want to remove this user from the project? They will lose all access to project data.',
+      title: 'Remove User from Task',
+      message: 'Are you sure you want to remove this user from the task? They will lose all access to task data.',
       variant: 'danger',
       onConfirm: async () => {
         setRemovingUserId(userId);
@@ -120,13 +120,13 @@ export function TaskUserList({
   const getRoleDescription = (role: TaskRole) => {
     switch (role) {
       case 'ADMIN':
-        return 'Full project control, can manage team members';
+        return 'Full task control, can manage team members';
       case 'REVIEWER':
         return 'Can review and approve/reject adjustments';
       case 'EDITOR':
-        return 'Can create and edit project data';
+        return 'Can create and edit task data';
       case 'VIEWER':
-        return 'Read-only access to project data';
+        return 'Read-only access to task data';
       default:
         return '';
     }
@@ -147,12 +147,12 @@ export function TaskUserList({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {users.map((projectUser) => {
-          const user = 'User' in projectUser ? projectUser.User : ('user' in projectUser ? projectUser.user : undefined);
+        {users.map((taskUser) => {
+          const user = 'User' in taskUser ? taskUser.User : ('user' in taskUser ? taskUser.user : undefined);
           return (
             <div
-              key={projectUser.id}
-              onClick={() => setSelectedUser(projectUser)}
+              key={taskUser.id}
+              onClick={() => setSelectedUser(taskUser)}
               className="bg-white border-2 border-forvis-gray-200 rounded-lg p-4 hover:border-forvis-blue-500 hover:shadow-corporate-md transition-all cursor-pointer shadow-corporate"
             >
               <div className="flex items-start gap-3">
@@ -172,7 +172,7 @@ export function TaskUserList({
                     <h3 className="font-semibold text-forvis-gray-900 truncate">
                       {user?.name || user?.email || 'Unknown User'}
                     </h3>
-                    {projectUser.userId === currentUserId && (
+                    {taskUser.userId === currentUserId && (
                       <span className="text-xs px-2 py-0.5 bg-forvis-blue-100 text-forvis-blue-800 rounded-full font-medium">
                         You
                       </span>
@@ -183,11 +183,11 @@ export function TaskUserList({
                     <span className="truncate">{user?.email || 'No email'}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium border ${getRoleBadgeColor(projectUser.role)}`}>
-                      {projectUser.role}
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium border ${getRoleBadgeColor(taskUser.role)}`}>
+                      {taskUser.role}
                     </span>
                     <span className="text-xs text-forvis-gray-500">
-                      Added {new Date(projectUser.createdAt).toLocaleDateString()}
+                      Added {new Date(taskUser.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -201,7 +201,7 @@ export function TaskUserList({
         <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-forvis-gray-300 shadow-corporate">
           <UserCircleIcon className="w-16 h-16 mx-auto text-forvis-gray-400 mb-3" />
           <p className="text-forvis-gray-700 font-semibold">No team members yet</p>
-          <p className="text-sm text-forvis-gray-600 mt-1">Add users to start collaborating on this project</p>
+          <p className="text-sm text-forvis-gray-600 mt-1">Add users to start collaborating on this task</p>
         </div>
       )}
 
@@ -265,7 +265,7 @@ export function TaskUserList({
                     <div className="flex items-start gap-3">
                       <CalendarIcon className="w-5 h-5 text-forvis-blue-500 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-forvis-gray-700">Added to Project</p>
+                      <p className="text-sm font-medium text-forvis-gray-700">Added to Task</p>
                       <p className="text-sm text-forvis-gray-900 mt-0.5">
                         {new Date(selectedUser.createdAt).toLocaleDateString('en-US', {
                           year: 'numeric',
@@ -307,7 +307,7 @@ export function TaskUserList({
                         background: removingUserId === selectedUser.userId ? '#6C757D' : 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)'
                       }}
                     >
-                      {removingUserId === selectedUser.userId ? 'Removing...' : 'Remove from Project'}
+                      {removingUserId === selectedUser.userId ? 'Removing...' : 'Remove from Task'}
                     </button>
                   </div>
                 </div>

@@ -39,9 +39,11 @@ See `.cursor/rules/stylingai-patterns.mdc`
 
 - `serviceLine`: TAX, AUDIT, ACCOUNTING, ADVISORY
 - `subServiceLineGroup`: Dynamic grouping from database
-- `id`: Client ID
+- `ClientID`: Client ID
 - `taskId`: Task ID
-- Even if the user refers to projects they actually mean tasks.  The applications centres around clients and tasks.
+- Even if the user refers to projects they actually mean tasks  
+- The applications centres around clients and tasks
+
 
 ## Security (CRITICAL - NOT Optional)
 

@@ -1,6 +1,6 @@
 /**
  * Business Development Conversion Service
- * Handles converting BD opportunities to clients and projects
+ * Handles converting BD opportunities to clients and tasks
  */
 
 import { prisma } from '@/lib/db/prisma';
@@ -9,12 +9,13 @@ import { v4 as uuidv4 } from 'uuid';
 export interface ConversionResult {
   client: {
     id: number;
+    ClientID: string;
     clientCode: string;
     clientNameFull: string | null;
   };
-  project?: {
+  task?: {
     id: number;
-    name: string;
+    TaskDesc: string;
   };
   opportunity: {
     id: number;
@@ -24,19 +25,19 @@ export interface ConversionResult {
 }
 
 /**
- * Convert a BD opportunity to a Client (and optionally a Project)
+ * Convert a BD opportunity to a Client (and optionally a Task)
  */
 export async function convertOpportunityToClient(
   opportunityId: number,
   userId: string,
   options: {
-    createProject?: boolean;
-    projectType?: string;
+    createTask?: boolean;
+    taskType?: string;
     taskName?: string;
-    projectDescription?: string;
+    taskDescription?: string;
   } = {}
 ): Promise<ConversionResult> {
-  const { createProject = false, projectType, taskName, projectDescription } = options;
+  const { createTask = false, taskType, taskName, taskDescription } = options;
 
   // Get the opportunity
   const opportunity = await prisma.bDOpportunity.findUnique({
@@ -107,20 +108,29 @@ export async function convertOpportunityToClient(
     },
   });
 
-  let project;
-  if (createProject && projectType) {
-    // Create an initial project for this client
-    const finalProjectName = taskName || `${opportunity.title} - ${opportunity.companyName}`;
+  let task;
+  if (createTask && taskType) {
+    // Create an initial task for this client
+    const finalTaskName = taskName || `${opportunity.title} - ${opportunity.companyName}`;
+    const taskCode = `T${Date.now().toString().slice(-6)}`; // Generate a simple task code
 
-    project = await prisma.project.create({
+    task = await prisma.task.create({
       data: {
-        name: finalProjectName,
-        description: projectDescription || opportunity.description,
-        clientId: client.id,
-        serviceLine: opportunity.serviceLine,
-        projectType,
-        status: 'ACTIVE',
-        createdAt: new Date(),
+        ExternalTaskID: crypto.randomUUID(),
+        ClientCode: client.ClientID, // Use ClientID GUID
+        TaskCode: taskCode,
+        TaskDesc: finalTaskName,
+        TaskPartner: 'TBD',
+        TaskPartnerName: 'TBD',
+        TaskManager: 'TBD',
+        TaskManagerName: 'TBD',
+        OfficeCode: 'TBD',
+        SLGroup: 'TBD',
+        ServLineCode: opportunity.serviceLine.substring(0, 10) || 'TBD',
+        ServLineDesc: opportunity.serviceLine,
+        Active: 'Yes',
+        TaskDateOpen: new Date(),
+        createdBy: userId,
       },
     });
   }
@@ -128,6 +138,7 @@ export async function convertOpportunityToClient(
   const result: ConversionResult = {
     client: {
       id: client.id,
+      ClientID: client.ClientID,
       clientCode: client.clientCode,
       clientNameFull: client.clientNameFull,
     },
@@ -138,10 +149,10 @@ export async function convertOpportunityToClient(
     },
   };
 
-  if (project) {
-    result.project = {
-      id: project.id,
-      name: project.name,
+  if (task) {
+    result.task = {
+      id: task.id,
+      TaskDesc: task.TaskDesc,
     };
   }
 
@@ -248,7 +259,7 @@ export async function getConversionStats(filters: {
 
 /**
  * Revert a conversion (unlink opportunity from client)
- * Note: This does NOT delete the client or project, just removes the link
+ * Note: This does NOT delete the client or task, just removes the link
  */
 export async function revertConversion(opportunityId: number): Promise<void> {
   const opportunity = await prisma.bDOpportunity.findUnique({

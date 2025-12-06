@@ -17,9 +17,9 @@ interface RequireAllProps {
  * 
  * @example
  * <RequireAll>
- *   <PermissionGate resource="projects.delete" action="DELETE">
+ *   <PermissionGate resource="tasks.delete" action="DELETE">
  *   <TaskRoleGate projectId={123} minimumRole="ADMIN">
- *     <DeleteProjectButton />
+ *     <DeleteTaskButton />
  *   </TaskRoleGate>
  *   </PermissionGate>
  * </RequireAll>
@@ -56,7 +56,7 @@ interface RequireAnyProps {
  * 
  * @example
  * <RequireAny fallback={<AccessDenied />}>
- *   <PermissionGate resource="projects.edit" action="UPDATE">
+ *   <PermissionGate resource="tasks.edit" action="UPDATE">
  *     <EditButton />
  *   </PermissionGate>
  *   <ServiceLineGate serviceLine="TAX" minimumRole="ADMIN">

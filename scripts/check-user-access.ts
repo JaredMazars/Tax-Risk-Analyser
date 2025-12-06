@@ -1,5 +1,5 @@
 /**
- * Script to check a user's access levels and project memberships
+ * Script to check a user's access levels and task memberships
  * Usage: npx tsx scripts/check-user-access.ts <email>
  */
 
@@ -57,48 +57,48 @@ async function checkUserAccess(emailPattern: string) {
   }
   console.log();
 
-  // 3. Check project memberships
-  console.log('📁 Project Memberships:');
-  const projectMemberships = await prisma.projectUser.findMany({
+  // 3. Check task memberships
+  console.log('📁 Task Memberships:');
+  const taskMemberships = await prisma.taskTeam.findMany({
     where: { userId: user.id },
     include: {
-      Project: {
+      Task: {
         select: {
           id: true,
-          name: true,
-          serviceLine: true,
+          TaskDesc: true,
+          ServLineCode: true,
         },
       },
     },
     orderBy: {
-      Project: {
-        serviceLine: 'asc',
+      Task: {
+        ServLineCode: 'asc',
       },
     },
   });
 
-  if (projectMemberships.length === 0) {
-    console.log('   ❌ Not a member of any projects');
+  if (taskMemberships.length === 0) {
+    console.log('   ❌ Not a member of any tasks');
   } else {
-    projectMemberships.forEach(pm => {
-      console.log(`   ✓ Project ${pm.Project.id}: ${pm.Project.name}`);
-      console.log(`     Service Line: ${pm.Project.serviceLine}`);
-      console.log(`     Role: ${pm.role}`);
-      console.log(`     ProjectUser ID: ${pm.id}`);
+    taskMemberships.forEach(tm => {
+      console.log(`   ✓ Task ${tm.Task.id}: ${tm.Task.TaskDesc}`);
+      console.log(`     Service Line: ${tm.Task.ServLineCode}`);
+      console.log(`     Role: ${tm.role}`);
+      console.log(`     TaskTeam ID: ${tm.id}`);
       console.log();
     });
   }
   console.log();
 
-  // 4. Show TAX projects they can/cannot access
-  console.log('🔍 TAX Projects Analysis:');
-  const taxProjects = await prisma.project.findMany({
-    where: { serviceLine: 'TAX' },
+  // 4. Show TAX tasks they can/cannot access
+  console.log('🔍 TAX Tasks Analysis:');
+  const taxTasks = await prisma.task.findMany({
+    where: { ServLineCode: 'TAX' },
     select: {
       id: true,
-      name: true,
+      TaskDesc: true,
       createdBy: true,
-      ProjectUser: {
+      TaskTeam: {
         select: {
           userId: true,
           role: true,
@@ -110,7 +110,7 @@ async function checkUserAccess(emailPattern: string) {
   });
 
   const taxServiceLine = serviceLines.find(sl => sl.serviceLine === 'TAX');
-  const isTaxAdmin = taxServiceLine?.role === 'ADMIN' || taxServiceLine?.role === 'PARTNER';
+  const isTaxAdmin = taxServiceLine?.role === 'PARTNER' || taxServiceLine?.role === 'MANAGER';
   const isSystemAdmin = user.role === 'SYSTEM_ADMIN';
 
   console.log(`   Tax Service Line Role: ${taxServiceLine?.role || 'NONE'}`);
@@ -118,10 +118,10 @@ async function checkUserAccess(emailPattern: string) {
   console.log(`   Is System Admin: ${isSystemAdmin ? 'YES' : 'NO'}`);
   console.log();
 
-  taxProjects.forEach(project => {
-    const isTeamMember = project.ProjectUser.some(pu => pu.userId === user.id);
+  taxTasks.forEach(task => {
+    const isTeamMember = task.TaskTeam.some(tt => tt.userId === user.id);
     const canAccess = isSystemAdmin || isTaxAdmin || isTeamMember;
-    const userProjectRole = project.ProjectUser.find(pu => pu.userId === user.id)?.role;
+    const userTaskRole = task.TaskTeam.find(tt => tt.userId === user.id)?.role;
 
     const status = canAccess ? '✅ CAN ACCESS' : '❌ CANNOT ACCESS';
     const reason = isSystemAdmin
@@ -129,12 +129,12 @@ async function checkUserAccess(emailPattern: string) {
       : isTaxAdmin
       ? '(Tax Admin/Partner)'
       : isTeamMember
-      ? `(Team Member: ${userProjectRole})`
+      ? `(Team Member: ${userTaskRole})`
       : '(Not a team member)';
 
-    console.log(`   ${status} - Project ${project.id}: ${project.name}`);
+    console.log(`   ${status} - Task ${task.id}: ${task.TaskDesc}`);
     console.log(`     Reason: ${reason}`);
-    console.log(`     Team Members: ${project.ProjectUser.length}`);
+    console.log(`     Team Members: ${task.TaskTeam.length}`);
     console.log();
   });
 }

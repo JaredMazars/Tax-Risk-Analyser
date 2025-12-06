@@ -6,6 +6,16 @@ import { z } from 'zod';
 import { CreditRatingGrade, AnalyticsDocumentType } from '@/types/analytics';
 
 /**
+ * GUID/UUID validation helper
+ * Validates Microsoft SQL Server UniqueIdentifier format (GUID)
+ */
+const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const ClientIDSchema = z.string().regex(guidRegex, {
+  message: 'ClientID must be a valid GUID (UniqueIdentifier)',
+});
+
+/**
  * Project validation schemas
  */
 export const UpdateTaskSchema = z.object({
@@ -533,7 +543,9 @@ export const MoveBDOpportunityStageSchema = z.object({
 
 export const ConvertBDOpportunitySchema = z.object({
   createTask: z.boolean().default(false),
-  projectType: z.string().optional(), // Required if createProject = true
+  taskType: z.string().optional(), // Required if createTask = true
+  taskName: z.string().optional(),
+  taskDescription: z.string().optional(),
 }).strict();
 
 // BD Activity schemas

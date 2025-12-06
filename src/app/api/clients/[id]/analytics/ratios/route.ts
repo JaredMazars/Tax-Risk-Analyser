@@ -5,6 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { parseFinancialRatios } from '@/lib/utils/jsonValidation';
 import { logger } from '@/lib/utils/logger';
+import { ClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/clients/[id]/analytics/ratios
@@ -21,26 +22,38 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
 
-    if (Number.isNaN(clientId)) {
-      return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success) {
+      return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, clientID);
     if (!hasAccess) {
       logger.warn('Unauthorized ratios access attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientId,
+        clientID,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get the most recent rating for this client
+    // Get client by ClientID to get numeric id
+    const client = await prisma.client.findUnique({
+      where: { ClientID: clientID },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    // Get the most recent rating for this client (using numeric id)
     const latestRating = await prisma.clientCreditRating.findFirst({
-      where: { clientId },
+      where: { clientId: client.id },
       orderBy: { ratingDate: 'desc' },
       select: {
         id: true,

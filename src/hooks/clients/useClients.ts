@@ -13,6 +13,7 @@ export const clientKeys = {
 // Types
 export interface Client {
   id: number;
+  ClientID: string;
   clientCode: string;
   clientNameFull: string | null;
   groupCode: string;

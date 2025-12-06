@@ -104,7 +104,7 @@ export default function OpportunityDetailPage() {
       setIsConvertModalOpen(false);
       // Navigate to the new client page
       if (result.client) {
-        router.push(`/dashboard/${serviceLine}/clients/${result.client.id}`);
+        router.push(`/dashboard/${serviceLine}/clients/${result.client.ClientID}`);
       }
     } catch (error) {
       console.error('Failed to convert opportunity:', error);

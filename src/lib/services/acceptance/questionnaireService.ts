@@ -31,6 +31,7 @@ async function getTaskData(taskId: number, clientId: number) {
         Client: {
           select: {
             id: true,
+            ClientID: true,
             clientCode: true,
             groupCode: true,
           },
@@ -122,7 +123,7 @@ export async function getQuestionnaireType(
 async function checkLiteEligibility(task: {
   id: number;
   ClientCode: string;
-  Client: { id: number; clientCode: string; groupCode: string } | null;
+  Client: { id: number; ClientID: string; clientCode: string; groupCode: string } | null;
   TaskAcceptance: { acceptanceApproved: boolean } | null;
 }): Promise<boolean> {
   // LITE criteria (simplified):

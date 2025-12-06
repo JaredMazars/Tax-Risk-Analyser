@@ -392,7 +392,7 @@ export default function ServiceLineClientsPage() {
                           </td>
                           <td className="px-3 py-2 text-center">
                             <Link
-                              href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.id}`}
+                              href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.ClientID}`}
                               className="text-forvis-blue-600 hover:text-forvis-blue-900 text-xs font-medium"
                             >
                               View
@@ -533,7 +533,7 @@ export default function ServiceLineClientsPage() {
                             <td className="px-6 py-4">
                               {task.client ? (
                                 <Link
-                                  href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.clientId}`}
+                                  href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.ClientID}`}
                                   className="block"
                                 >
                                   <div className="text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-900">
@@ -561,8 +561,8 @@ export default function ServiceLineClientsPage() {
                             </td>
                             <td className="px-6 py-4 text-center">
                               <Link
-                                href={task.clientId 
-                                  ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.clientId}/tasks/${task.id}`
+                                href={task.client?.ClientID 
+                                  ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.ClientID}/tasks/${task.id}`
                                   : `/dashboard/tasks/${task.id}`}
                                 className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium"
                               >

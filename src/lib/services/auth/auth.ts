@@ -496,7 +496,7 @@ export async function checkProjectAccess(
  */
 export async function checkClientAccess(
   userId: string,
-  clientId: number
+  clientID: string
 ): Promise<boolean> {
   try {
     // Check if user is a superuser (full access)
@@ -511,8 +511,8 @@ export async function checkClientAccess(
 
     // Check if client exists
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
-      select: { id: true },
+      where: { ClientID: clientID },
+      select: { ClientID: true },
     });
 
     if (!client) {
@@ -522,7 +522,7 @@ export async function checkClientAccess(
     // Get all unique service lines from tasks for this client
     const taskServiceLines = await prisma.task.findMany({
       where: { 
-        Client: { id: clientId }
+        Client: { ClientID: clientID }
       },
       select: { ServLineCode: true },
       distinct: ['ServLineCode'],
@@ -549,7 +549,7 @@ export async function checkClientAccess(
       where: {
         userId,
         Task: {
-          Client: { id: clientId },
+          Client: { ClientID: clientID },
         },
       },
     });

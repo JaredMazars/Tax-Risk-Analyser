@@ -11,7 +11,7 @@ interface SendMessageModalProps {
   onClose: () => void;
   recipientUserId?: string;
   recipientName?: string;
-  projectId?: number;
+  taskId?: number;
   taskName?: string;
 }
 
@@ -20,14 +20,14 @@ export function SendMessageModal({
   onClose,
   recipientUserId: initialRecipientId,
   recipientName: initialRecipientName,
-  taskId: initialProjectId,
-  taskName: initialProjectName,
+  taskId: initialTaskId,
+  taskName: initialTaskName,
 }: SendMessageModalProps) {
   const [recipientUserId, setRecipientUserId] = useState(initialRecipientId || '');
   const [recipientName, setRecipientName] = useState(initialRecipientName || '');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [taskId, setProjectId] = useState<number | undefined>(initialProjectId);
+  const [taskId, setTaskId] = useState<number | undefined>(initialTaskId);
   const [actionUrl, setActionUrl] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,7 +54,7 @@ export function SendMessageModal({
     if (isOpen) {
       setRecipientUserId(initialRecipientId || '');
       setRecipientName(initialRecipientName || '');
-      setProjectId(initialProjectId);
+      setTaskId(initialTaskId);
       setTitle('');
       setMessage('');
       setActionUrl('');
@@ -62,7 +62,7 @@ export function SendMessageModal({
       setSearchQuery('');
       setSearchResults([]);
     }
-  }, [isOpen, initialRecipientId, initialRecipientName, initialProjectId]);
+  }, [isOpen, initialRecipientId, initialRecipientName, initialTaskId]);
 
   // Search users
   useEffect(() => {
@@ -232,12 +232,12 @@ export function SendMessageModal({
                     {errors.recipient && <p className="mt-1 text-sm text-red-600">{errors.recipient}</p>}
                   </div>
 
-                  {/* Project (if pre-filled, show read-only) */}
-                  {initialProjectId && initialProjectName && (
+                  {/* Task (if pre-filled, show read-only) */}
+                  {initialTaskId && initialTaskName && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Project</label>
+                      <label className="block text-sm font-medium text-gray-700">Task</label>
                       <div className="mt-1 p-2 border border-gray-300 rounded-md bg-gray-50">
-                        <span className="text-sm text-gray-900">{initialProjectName}</span>
+                        <span className="text-sm text-gray-900">{initialTaskName}</span>
                       </div>
                     </div>
                   )}
@@ -293,7 +293,7 @@ export function SendMessageModal({
                       value={actionUrl}
                       onChange={(e) => setActionUrl(e.target.value)}
                       className="mt-1 shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                      placeholder="/dashboard/projects/123"
+                      placeholder="/dashboard/tasks/123"
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       Optional link for the recipient to navigate to

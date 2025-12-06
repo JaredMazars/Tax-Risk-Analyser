@@ -5,6 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { parseCreditAnalysisReport, parseFinancialRatios } from '@/lib/utils/jsonValidation';
 import { logger } from '@/lib/utils/logger';
+import { ClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/clients/[id]/analytics/rating/[ratingId]
@@ -21,30 +22,42 @@ export async function GET(
     }
 
     const { id, ratingId } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
     const ratId = Number.parseInt(ratingId);
 
-    if (Number.isNaN(clientId) || Number.isNaN(ratId)) {
-      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success || Number.isNaN(ratId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, clientID);
     if (!hasAccess) {
       logger.warn('Unauthorized rating detail access attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientId,
+        clientID,
         ratingId: ratId,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch rating with documents
+    // Get client by ClientID to get numeric id
+    const client = await prisma.client.findUnique({
+      where: { ClientID: clientID },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    // Fetch rating with documents (using numeric clientId)
     const rating = await prisma.clientCreditRating.findFirst({
       where: {
         id: ratId,
-        clientId,
+        clientId: client.id,
       },
       include: {
         CreditRatingDocument: {
@@ -55,6 +68,7 @@ export async function GET(
         Client: {
           select: {
             id: true,
+            ClientID: true,
             clientCode: true,
             clientNameFull: true,
             industry: true,

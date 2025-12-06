@@ -1,6 +1,6 @@
 /**
  * BD Opportunity Conversion API Route
- * POST /api/bd/opportunities/[id]/convert - Convert opportunity to client
+ * POST /api/bd/opportunities/[id]/convert - Convert opportunity to client (and optionally create a task)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -27,8 +27,10 @@ export async function POST(
     const validated = ConvertBDOpportunitySchema.parse(body);
 
     const result = await convertOpportunityToClient(opportunityId, user.id, {
-      createTask: validated.createProject,
-      projectType: validated.projectType,
+      createTask: validated.createTask,
+      taskType: validated.taskType,
+      taskName: validated.taskName,
+      taskDescription: validated.taskDescription,
     });
 
     return NextResponse.json(successResponse(result), { status: 201 });

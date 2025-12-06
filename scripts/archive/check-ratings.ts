@@ -1,4 +1,4 @@
-import { prisma } from '../src/lib/db/prisma';
+import { prisma } from '../../src/lib/db/prisma';
 
 async function checkRatings() {
   try {

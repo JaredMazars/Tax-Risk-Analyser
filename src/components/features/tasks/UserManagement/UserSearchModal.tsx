@@ -93,7 +93,7 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
       <div className="bg-white rounded-lg shadow-corporate-lg max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border-2 border-forvis-gray-200">
         <div className="px-6 py-4 border-b-2 border-forvis-gray-200 flex justify-between items-center" style={{ background: 'linear-gradient(to right, #EBF2FA, #D6E4F5)' }}>
           <div>
-            <h2 className="text-xl font-bold text-forvis-blue-900">Add User to Project</h2>
+            <h2 className="text-xl font-bold text-forvis-blue-900">Add User to Task</h2>
             <p className="text-sm text-forvis-blue-800 mt-1">Search for users in the system</p>
           </div>
           <button 
@@ -231,7 +231,7 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
                 <option value="VIEWER">👁️ Viewer - Read-only access</option>
                 <option value="EDITOR">✏️ Editor - Can edit data</option>
                 <option value="REVIEWER">✅ Reviewer - Can approve/reject adjustments</option>
-                <option value="ADMIN">⚙️ Admin - Full project control</option>
+                <option value="ADMIN">⚙️ Admin - Full task control</option>
               </select>
               <p className="mt-2 text-xs text-forvis-blue-800 font-medium">
                 Choose the appropriate access level for this user
@@ -255,7 +255,7 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
               background: !selectedUser ? '#ADB5BD' : 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)'
             }}
           >
-            Add User to Project
+            Add User to Task
           </button>
         </div>
       </div>

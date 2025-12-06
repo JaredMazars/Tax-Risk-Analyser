@@ -17,7 +17,7 @@ export async function GET(
     const params = await context.params;
     const taskId = Number.parseInt(params.id);
 
-    // Get the most recent AI tax report for this project
+    // Get the most recent AI tax report for this task
     const latestReport = await prisma.aITaxReport.findFirst({
       where: { taskId },
       orderBy: { createdAt: 'desc' },
@@ -159,9 +159,9 @@ export async function POST(
     const taxableIncome = accountingProfit + totalDebits - totalCredits - totalAllowances + totalRecoupments;
     const taxLiability = Math.max(0, taxableIncome) * 0.27;
 
-    // Prepare project data for AI analysis
-    const projectData: ProjectTaxData = {
-      taskName: project.name,
+    // Prepare task data for AI analysis
+    const taskData: ProjectTaxData = {
+      taskName: task.TaskDesc,
       trialBalance: {
         totalCurrentYear: trialBalanceTotals.totalCurrentYear,
         totalPriorYear: trialBalanceTotals.totalPriorYear,
@@ -197,9 +197,9 @@ export async function POST(
     };
 
     // Generate AI report
-    const report = await AITaxReportGenerator.generateTaxReport(projectData);
+    const report = await AITaxReportGenerator.generateTaxReport(taskData);
 
-    // Delete any existing AI tax reports for this project to keep only the latest
+    // Delete any existing AI tax reports for this task to keep only the latest
     await prisma.aITaxReport.deleteMany({
       where: {
         taskId,

@@ -8,6 +8,7 @@ import { logger } from '@/lib/utils/logger';
 import path from 'node:path';
 import fs from 'fs/promises';
 import { fileTypeFromBuffer } from 'file-type';
+import { ClientIDSchema } from '@/lib/validation/schemas';
 
 const MAX_FILE_SIZE = Number.parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760', 10); // 10MB default
 const ALLOWED_TYPES = [
@@ -34,36 +35,39 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
 
-    if (Number.isNaN(clientId)) {
-      return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success) {
+      return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // SECURITY: Check authorization - user must have access to this client
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, clientID);
     if (!hasAccess) {
       logger.warn('Unauthorized client access attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientId,
+        clientID,
         action: 'GET /analytics/documents',
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Verify client exists
+    // Verify client exists and get numeric id
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { ClientID: clientID },
+      select: { id: true },
     });
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    // Fetch all analytics documents for this client
+    // Fetch all analytics documents for this client (using numeric id)
     const documents = await prisma.clientAnalyticsDocument.findMany({
-      where: { clientId },
+      where: { clientId: client.id },
       orderBy: { uploadedAt: 'desc' },
     });
 
@@ -93,26 +97,29 @@ export async function POST(
     }
 
     const { id } = await context.params;
-    const clientId = Number.parseInt(id);
+    const clientID = id;
 
-    if (Number.isNaN(clientId)) {
-      return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
+    // Validate ClientID is a valid GUID
+    const validationResult = ClientIDSchema.safeParse(clientID);
+    if (!validationResult.success) {
+      return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, clientID);
     if (!hasAccess) {
       logger.warn('Unauthorized document upload attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientId,
+        clientID,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Verify client exists
+    // Verify client exists and get numeric id
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { ClientID: clientID },
+      select: { id: true },
     });
 
     if (!client) {
@@ -161,7 +168,7 @@ export async function POST(
         declaredType: file.type,
         detectedType: detectedType.mime,
         userId: user.id,
-        clientId,
+        clientId: client.id,
       });
       return NextResponse.json(
         { error: 'File type verification failed. The file does not match its declared type.' },
@@ -170,7 +177,7 @@ export async function POST(
     }
 
     // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'uploads', 'analytics', clientId.toString());
+    const uploadDir = path.join(process.cwd(), 'uploads', 'analytics', client.id.toString());
     await fs.mkdir(uploadDir, { recursive: true });
 
     // SECURITY: Generate safe filename - remove original extension and use verified one
@@ -206,7 +213,7 @@ export async function POST(
     // Create document record
     const document = await prisma.clientAnalyticsDocument.create({
       data: {
-        clientId,
+        clientId: client.id,
         documentType,
         fileName: file.name,
         filePath,
