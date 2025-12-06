@@ -171,23 +171,32 @@ export async function GET(
                 clientNameFull: true,
               },
             },
-            ServiceLineExternal: {
-              select: {
-                masterCode: true,
-                ServiceLineMaster: {
-                  select: {
-                    code: true,
-                    name: true,
-                    description: true,
-                  },
-                },
-              },
-            },
           },
         }),
       ]);
 
-      // Map tasks with master service line info from joined data
+      // Get unique service line codes from tasks
+      const serviceLineCodes = [...new Set(tasksRaw.map(t => t.ServLineCode))];
+      
+      // Query ServiceLineExternal data separately
+      const serviceLineExternalData = await prisma.serviceLineExternal.findMany({
+        where: {
+          ServLineCode: {
+            in: serviceLineCodes,
+          },
+        },
+        select: {
+          ServLineCode: true,
+          masterCode: true,
+        },
+      });
+
+      // Create a map for quick lookup
+      const serviceLineMap = new Map(
+        serviceLineExternalData.map(sl => [sl.ServLineCode, sl.masterCode])
+      );
+
+      // Map tasks with master service line info
       const tasks = tasksRaw.map(task => ({
         id: task.id,
         TaskDesc: task.TaskDesc,
@@ -199,22 +208,23 @@ export async function GET(
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
         Client: task.Client,
-        masterServiceLine: task.ServiceLineExternal?.masterCode || null,
+        masterServiceLine: serviceLineMap.get(task.ServLineCode) || null,
       }));
 
-      // Get unique ServiceLineMaster data from the joined results
-      const serviceLineMasterMap = new Map<string, { code: string; name: string; description: string | null }>();
-      tasksRaw.forEach(task => {
-        const master = task.ServiceLineExternal?.ServiceLineMaster;
-        if (master && master.code) {
-          serviceLineMasterMap.set(master.code, {
-            code: master.code,
-            name: master.name,
-            description: master.description,
-          });
-        }
+      // Get unique master service line codes and fetch their details
+      const uniqueMasterCodes = [...new Set(tasks.map(t => t.masterServiceLine).filter(Boolean))];
+      const serviceLineMasterData = await prisma.serviceLineMaster.findMany({
+        where: {
+          code: {
+            in: uniqueMasterCodes as string[],
+          },
+        },
+        select: {
+          code: true,
+          name: true,
+          description: true,
+        },
       });
-      const serviceLineMasterData = Array.from(serviceLineMasterMap.values());
 
       const responseData = {
         groupCode: groupInfo.groupCode,

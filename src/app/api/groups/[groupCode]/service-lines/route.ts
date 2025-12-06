@@ -111,22 +111,35 @@ export async function GET(
       select: {
         ServLineCode: true,
         masterCode: true,
-        ServiceLineMaster: {
-          select: {
-            code: true,
-            name: true,
-          },
-        },
       },
     });
+
+    // Get unique master codes
+    const uniqueMasterCodes = [...new Set(serviceLineExternals.map(sle => sle.masterCode).filter(Boolean))];
+    
+    // Query ServiceLineMaster separately
+    const serviceLineMasters = await prisma.serviceLineMaster.findMany({
+      where: {
+        code: {
+          in: uniqueMasterCodes as string[],
+        },
+      },
+      select: {
+        code: true,
+        name: true,
+      },
+    });
+
+    // Create a map of master codes to names
+    const masterCodeToNameMap = new Map(serviceLineMasters.map(m => [m.code, m.name]));
 
     // Build a map from ServLineCode to master code
     const servLineToMasterMap = new Map<string, { masterCode: string; masterName: string }>();
     serviceLineExternals.forEach(sle => {
-      if (sle.ServLineCode && sle.masterCode && sle.ServiceLineMaster) {
+      if (sle.ServLineCode && sle.masterCode) {
         servLineToMasterMap.set(sle.ServLineCode, {
           masterCode: sle.masterCode,
-          masterName: sle.ServiceLineMaster.name,
+          masterName: masterCodeToNameMap.get(sle.masterCode) || sle.masterCode,
         });
       }
     });
