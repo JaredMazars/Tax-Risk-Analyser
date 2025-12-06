@@ -200,50 +200,44 @@ export async function GET(request: NextRequest) {
       orderBy.updatedAt = 'desc';
     }
 
-    // Get total count
-    const total = await prisma.task.count({ where });
-
-    // Get tasks with optimized query
-    const tasks = await prisma.task.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy,
-      select: {
-        id: true,
-        TaskCode: true,
-        TaskDesc: true,
-        ClientCode: true,
-        ServLineCode: true,
-        ServLineDesc: true,
-        Active: true,
-        TaskDateOpen: true,
-        TaskDateTerminate: true,
-        createdAt: true,
-        updatedAt: true,
-        Client: {
-          select: {
-            id: true,
-            clientNameFull: true,
-            clientCode: true,
+    // Run count and data queries in parallel for better performance
+    const [total, tasks] = await Promise.all([
+      prisma.task.count({ where }),
+      prisma.task.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        select: {
+          id: true,
+          TaskCode: true,
+          TaskDesc: true,
+          ClientCode: true,
+          ServLineCode: true,
+          ServLineDesc: true,
+          Active: true,
+          TaskDateOpen: true,
+          TaskDateTerminate: true,
+          createdAt: true,
+          updatedAt: true,
+          Client: {
+            select: {
+              id: true,
+              clientNameFull: true,
+              clientCode: true,
+            },
+          },
+          TaskTeam: {
+            where: {
+              userId: user.id,
+            },
+            select: {
+              role: true,
+            },
           },
         },
-        TaskTeam: {
-          where: {
-            userId: user.id,
-          },
-          select: {
-            role: true,
-          },
-        },
-        _count: {
-          select: {
-            MappedAccount: true,
-            TaxAdjustment: true,
-          },
-        },
-      },
-    });
+      }),
+    ]);
 
     // Transform tasks to match expected format
     const tasksWithCounts = tasks.map(task => {
@@ -268,10 +262,6 @@ export async function GET(request: NextRequest) {
         } : null,
         userRole: task.TaskTeam[0]?.role || null,
         canAccess: true,
-        _count: {
-          mappings: task._count.MappedAccount,
-          taxAdjustments: task._count.TaxAdjustment,
-        },
       };
     });
     

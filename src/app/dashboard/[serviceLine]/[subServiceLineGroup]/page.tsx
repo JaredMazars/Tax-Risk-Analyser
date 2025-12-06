@@ -43,6 +43,7 @@ export default function SubServiceLineWorkspacePage() {
   }, [searchTerm]);
 
   // Fetch ALL clients (not filtered by SubServiceLineGroup)
+  // Prefetch immediately for faster tab switching
   const shouldFetchClients = !isSharedService(serviceLine);
   const { 
     data: clientsData, 
@@ -52,7 +53,7 @@ export default function SubServiceLineWorkspacePage() {
     page: currentPage,
     limit: itemsPerPage,
     // Note: NOT passing subServiceLineGroup - we want ALL clients
-    enabled: shouldFetchClients && activeTab === 'clients',
+    enabled: shouldFetchClients, // Prefetch regardless of active tab
   });
   const clients = clientsData?.clients || [];
   const clientsPagination = clientsData?.pagination;
@@ -478,9 +479,6 @@ export default function SubServiceLineWorkspacePage() {
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                           Type
                         </th>
-                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
-                          Tax Year
-                        </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                           Status
                         </th>
@@ -530,9 +528,6 @@ export default function SubServiceLineWorkspacePage() {
                               <span className="text-sm text-forvis-gray-600">
                                 {task.projectType || task.serviceLine}
                               </span>
-                            </td>
-                            <td className="px-6 py-4 text-center text-sm text-forvis-gray-600">
-                              {task.taxYear || '-'}
                             </td>
                             <td className="px-6 py-4">
                               <StatusBadge status={task.status} />

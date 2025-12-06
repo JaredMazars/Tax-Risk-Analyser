@@ -30,10 +30,6 @@ export interface TaskListItem {
   } | null;
   canAccess?: boolean; // Whether user can access task details
   userRole?: string | null; // User's role on task (if team member)
-  _count: {
-    mappings: number;
-    taxAdjustments: number;
-  };
 }
 
 export interface TasksResponse {

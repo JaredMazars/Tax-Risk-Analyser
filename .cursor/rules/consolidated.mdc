@@ -6,462 +6,173 @@ alwaysApply: true
 
 Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure OpenAI | Azure AD
 
+## Styling
+
+See `.cursor/rules/styling.mdc`
+
+## AI
+
+See `.cursor/rules/stylingai-patterns.mdc`
+
 ## TypeScript
 
-- **Strict mode**: No implicit any, check nulls/undefined, handle array access, return from all paths
-- **Path aliases**: Always use `@/*` imports
-- **Branded types** (`@/types/branded.ts`): Prevent ID type mixing with `toTaskId()`, `toClientId()`, etc.
-
-### Branded Types (REQUIRED)
-
-Use branded types for all entity IDs throughout the codebase.
-
-```typescript
-// Import and convert
-import { toTaskId, TaskId } from '@/types/branded';
-const { id } = await context.params;
-const taskId = toTaskId(id);
-
-// Alternative: Use parseTaskId() from apiUtils for API routes
-import { parseTaskId } from '@/lib/utils/apiUtils';
-const taskId = parseTaskId(id);
-
-// Service layer
-async function getTask(id: TaskId): Promise<Project> {
-  return prisma.project.findUnique({ where: { id } });
-}
-```
+**Type Organization:**
+- Prisma Schema → `types/index.ts` → derive DTOs with Partial/Pick/Omit
+- `types/branded.ts`: Branded ID types only
+- `types/dto.ts`: Data transfer objects
+- `types/api.ts`: API-specific types
 
 **Requirements:**
-- All ID parameters use branded types
-- Route params converted using `toXxxId()` converters or `parseXxxId()` utilities
-- Service functions accept branded types, not raw numbers
+- Strict mode, `@/*` imports
+- ALL IDs use branded types
+- Route params converted via `parseXxxId()` utilities
+- NO duplicate types, NO deprecated code
+- Define enums ONCE in types/index.ts
+- `undefined` for optional, `null` for database nulls
+- Optional chaining (`?.`) and nullish coalescing (`??`)
 
-### Type Organization
+**Validation:** All input via Zod schemas in `/src/lib/validation/schemas.ts`
 
-**Single Source of Truth:**
-- **Prisma Schema**: Database models
-- **types/index.ts**: Main entity types (from Prisma, extended as needed)
-- **types/dto.ts**: Data transfer objects (derive using Partial/Pick/Omit)
-- **types/branded.ts**: Branded ID types only
-- **types/api.ts**: API-specific types
+## URL Structure
 
-**Rules:**
-- NO duplicate type definitions
-- NO deprecated types - remove immediately
-- NO string unions for enums - use strict enums
-- Define enums ONCE in types/index.ts, import everywhere
+`/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/tasks/[taskId]`
 
-**Null/Undefined:**
-- Use `undefined` for optional/missing values (`?:`)
-- Use `null` for intentional absence or database nulls (Prisma returns null)
-- Check with optional chaining (`?.`) and nullish coalescing (`??`)
+- `serviceLine`: TAX, AUDIT, ACCOUNTING, ADVISORY
+- `subServiceLineGroup`: Dynamic grouping from database
+- `id`: Client ID
+- `taskId`: Task ID
+- Even if the user refers to projects they actually mean tasks.  The applications centres around clients and tasks.
 
-## Validation
+## Security (CRITICAL - NOT Optional)
 
-All input validated with Zod schemas in `/src/lib/validation/schemas.ts`
+### Three-Tier Model
+1. **System**: `SYSTEM_ADMIN` > `USER`
+2. **Service Line**: `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
+3. **Task**: `ADMIN` > `REVIEWER` > `EDITOR` > `VIEWER`
 
-## URL Structure & Routing
+Plus granular permissions: PAGE (dashboard, clients, tasks, admin) and FEATURE (clients.create, tasks.edit, etc.)
 
-The application uses a hierarchical URL structure with dynamic routing segments:
+### API Route Pattern (REQUIRED - 6 Steps)
 
-**Pattern:**
-```
-/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/tasks/[taskId]
-```
+1. **Authenticate**: `getCurrentUser()` → return 401 if none
+2. **Parse IDs**: Use `parseXxxId()` for branded types
+3. **Check Permission**: `checkUserPermission(userId, resource, action)` → return 403 if denied
+4. **Filter Service Lines**: `getUserServiceLines()` → filter accessible service lines
+5. **Execute**: Query with `select:` (explicit fields only), filter by service lines
+6. **Respond**: `successResponse(data)` or `handleApiError(error, context)`
 
-**Segments:**
-- `[serviceLine]` - Master service line (TAX, AUDIT, ACCOUNTING, ADVISORY, or shared services)
-- `[subServiceLineGroup]` - Dynamic grouping from database (varies by service line)
-- `[id]` - Client ID
-- `[taskId]` - Task ID (also referred to as `projectId` in some route params for backward compatibility)
+**POST/PUT/PATCH:** Add `sanitizeObject()` + Zod validation after step 2
 
-**Examples:**
-- `/dashboard/tax/corporate-tax/clients/123/tasks/456`
-- `/dashboard/audit/financial-audit/clients/789/tasks/101`
-- `/dashboard/tax/internal/tasks/202` - Internal tasks without client context
-
-**API Routes:**
-- `/api/tasks/[id]` - Task operations
-- `/api/tasks/[id]/mapped-accounts` - Task-specific resources
-- `/api/clients/[id]` - Client operations
-
-## API Routes
-
-### Standard Pattern (REQUIRED)
-
-All API routes follow this 6-step pattern:
-
-```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkUserPermission } from '@/lib/services/permissions/permissionService';
-import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
-import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { sanitizeObject } from '@/lib/utils/sanitization';
-
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // 1. Authenticate (REQUIRED)
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    // 2. Parse and validate IDs using branded types
-    const { id } = await context.params;
-    const taskId = parseTaskId(id);
-
-    // 3. Check permission (REQUIRED)
-    const hasPermission = await checkUserPermission(user.id, 'tasks', 'READ');
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 4. Filter by service line access (for list endpoints)
-    const userServiceLines = await getUserServiceLines(user.id);
-    const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
-
-    // 5. Execute business logic
-    const data = await prisma.resource.findMany({
-      where: { serviceLine: { in: accessibleServiceLines } },
-      select: { /* explicit fields only */ },
-    });
-
-    // 6. Return success response
-    return NextResponse.json(successResponse(data));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/resource');
-  }
-}
-```
-
-**For POST/PUT/PATCH, add between steps 2-3:**
-```typescript
-// Parse and sanitize input
-const body = await request.json();
-const sanitizedBody = sanitizeObject(body, { maxLength: 1000 });
-
-// Validate with Zod
-const validatedData = ResourceSchema.parse(sanitizedBody);
-```
-
-### API Route Checklist
+### Backend Security Checklist
 
 - [ ] `getCurrentUser()` at start
 - [ ] `checkUserPermission()` before business logic
-- [ ] Branded types for all IDs
-- [ ] `sanitizeObject()` + Zod validation on POST/PUT/PATCH
-- [ ] Explicit field selection (`select:`)
-- [ ] Service line filtering for list endpoints
-- [ ] `successResponse()` / `handleApiError()` wrappers
-- [ ] Proper HTTP status codes (200/201/400/401/403/404/500)
-- [ ] Always await `context.params` in dynamic routes
-
-### Key Patterns
-
-- **Authentication**: `getCurrentUser()` at start of every protected route
-- **Response Format**: Success `{ success: true, data: {...} }`, Error `{ success: false, error: "Message", code: "CODE" }`
-- **Status Codes**: 200 (GET/PUT/DELETE), 201 (POST), 400 (validation), 401 (unauthorized), 403 (forbidden), 404 (not found), 500 (server error)
-
-## Database (Prisma)
-
-```typescript
-import { prisma } from '@/lib/db/prisma';
-
-// Always select only needed fields
-const items = await prisma.resource.findMany({
-  where: { userId },
-  select: { id: true, name: true },
-});
-
-// Transactions for multi-step operations
-await prisma.$transaction(async (tx) => {
-  await tx.resource.update({...});
-  await tx.auditLog.create({...});
-});
-```
-
-### Performance Requirements
-
-**Database:**
-- ALWAYS use explicit field selection (`select:`)
-- NEVER use `include` without necessity
-- Batch related queries with `Promise.all()`
-- Use transactions for multi-step operations
-- Add indexes for frequently filtered fields
-- Prevent N+1 queries (use includes or batch)
-
-**Caching:**
-- User permissions: cache 5 min (300s)
-- Service line access: cache 10 min (600s)
-- User data: cache 10 min (600s)
-- Static/reference data: cache 30 min (1800s)
-
-**Imports:**
-- Static imports at top (no dynamic imports for core dependencies)
-- Tree-shakeable exports
-- Lazy load heavy dependencies only when needed
-
-## Redis (Caching, Sessions, Queues)
-
-### Caching
-
-```typescript
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
-
-// Get/Set with TTL
-const data = await cache.get<UserData>(`${CACHE_PREFIXES.USER}${userId}:profile`);
-await cache.set(`${CACHE_PREFIXES.USER}${userId}:profile`, userData, 300);
-
-// Invalidate by pattern
-await cache.invalidate(`${CACHE_PREFIXES.USER}${userId}:`);
-```
-
-**Cache Prefixes (REQUIRED):**
-- `SESSION` - Session data (3600s)
-- `PERMISSION` - User permissions (300s)
-- `RATE_LIMIT` - Rate limit counters
-- `USER` - User data (600s)
-- `TASK` - Task data (600s)
-- `SERVICE_LINE` - Service line data (600s)
-- `NOTIFICATION` - Notifications
-- `ANALYTICS` - Analytics data (1800s)
-
-### Sessions & Rate Limiting
-
-**Session fingerprinting enabled by default** - prevents hijacking
-**Rate limiting is async and Redis-backed** - works across all replicas
-
-```typescript
-import { checkRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
-
-const result = await checkRateLimit(request, RateLimitPresets.STANDARD);
-if (!result.allowed) {
-  return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
-}
-```
-
-**Presets:** AI_ENDPOINTS (5/min), FILE_UPLOADS (10/min), STANDARD (30/min), READ_ONLY (100/min), AUTH_ENDPOINTS (10/min)
-
-### Background Jobs
-
-```typescript
-import { queue } from '@/lib/queue/QueueService';
-
-// Enqueue (persists across container restarts)
-const jobId = await queue.enqueue('documents', 'extract', { documentId, filePath }, {
-  priority: 1,
-  maxAttempts: 3,
-});
-```
-
-**Queue Types:** documents, emails, reports
-
-**Never use fire-and-forget** - always use queue for long-running tasks
-
-### Error Handling
-
-```typescript
-import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-
-// Throw specific errors
-throw new AppError(400, 'Invalid input', ErrorCodes.VALIDATION_ERROR, { field: 'name' });
-throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND, { taskId });
-throw new AppError(403, 'Insufficient permissions', ErrorCodes.FORBIDDEN);
-
-// In catch blocks
-catch (error) {
-  return handleApiError(error, 'Operation context');
-}
-```
-
-## Security & Authorization
-
-**CRITICAL**: Security checks are NOT optional.
-
-### Three-Tier Security Model
-
-1. **System Level** - User.role: `SYSTEM_ADMIN` (full access), `USER` (requires service line + permissions)
-2. **Service Line Level** - ServiceLineUser.role: `ADMINISTRATOR/PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
-3. **Task Level** - TaskTeam.role: `ADMIN` > `REVIEWER` > `EDITOR` > `VIEWER`
-
-Plus **granular permission system**: `PAGE` (dashboard, clients, tasks, admin) and `FEATURE` (clients.create, tasks.edit, etc.)
-
-### Backend Security Pattern
-
-```typescript
-export async function GET(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    // 2. Check permission
-    const hasPermission = await checkUserPermission(user.id, 'resource-key', 'READ');
-    if (!hasPermission) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
-    // 3. Filter by service line access
-    const userServiceLines = await getUserServiceLines(user.id);
-    const accessibleServiceLines = userServiceLines.map(sl => sl.serviceLine);
-    
-    const data = await prisma.resource.findMany({
-      where: { serviceLine: { in: accessibleServiceLines } },
-    });
-
-    return NextResponse.json(successResponse(data));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/resource');
-  }
-}
-```
-
-### Frontend Security
-
-```typescript
-// Component protection
-import { PermissionGate } from '@/components/shared/PermissionGate';
-<PermissionGate resource="clients.create" action="CREATE">
-  <button onClick={handleCreate}>Create Client</button>
-</PermissionGate>
-
-// Hook-based checks
-import { usePermission } from '@/hooks/permissions/usePermission';
-const { hasPermission, isLoading } = usePermission('clients.edit', 'UPDATE');
-if (isLoading) return <LoadingSpinner />;
-return hasPermission ? <EditButton /> : null;
-```
-
-### Security Checklist
-
-**Backend:**
-- [ ] `getCurrentUser()` at start
-- [ ] `checkUserPermission()` before business logic
-- [ ] Filter by service line access (`getUserServiceLines()`)
+- [ ] Filter by `getUserServiceLines()` accessible service lines
 - [ ] For tasks: `checkTaskAccess(userId, taskId, role?)`
 - [ ] For approvals: `canApproveAcceptance()` or `canApproveEngagementLetter()`
 - [ ] Return 401/403/404 appropriately
-- [ ] Use `handleApiError()` in catch blocks
-
-**Frontend:**
-- [ ] Wrap sensitive UI with `<PermissionGate>`
-- [ ] Use `usePermission()` for conditional rendering
-- [ ] Protect pages with permission checks + redirect
-- [ ] Show loading states
-
-**Database:**
-- [ ] Filter by accessible service lines
+- [ ] `handleApiError()` in catch blocks
+- [ ] Explicit `select:` fields only
+- [ ] Transactions for multi-step operations
 - [ ] Verify task team membership (TaskTeam table)
-- [ ] Select only needed fields
-- [ ] Use transactions for multi-step operations
 
-### Common Permission Resources
+### Frontend Security
 
-**Pages**: `dashboard`, `clients`, `tasks`, `analytics`, `bd`, `admin`, `admin.users`, `admin.templates`, `admin.service-lines`, `admin.permissions`
-
-**Features**: `clients.create/edit/delete/view`, `tasks.create/edit/delete/archive/assign-users`, `documents.upload/download/delete`, `acceptance.create/approve/view`, `mapping.create/edit/delete`, `adjustments.create/approve/delete`, `opinions.create/edit/generate/publish`, `reports.generate/export`, `bd.opportunities.create/edit/delete`
+- Wrap UI: `<PermissionGate resource="x" action="Y">`
+- Conditional: `usePermission(resource, action)`
+- Server Components default, `'use client'` only when needed
+- Never browser popups (use custom modals)
 
 ### Authorization Utilities
 
-| Utility | Purpose |
-|---------|---------|
-| `getCurrentUser()` | Get current session user |
-| `checkTaskAccess(userId, taskId, role?)` | Check task team membership and role |
-| `getTaskRole(userId, taskId)` | Get user's role on task |
-| `canModifyTask(userId, taskId)` | Check if user can edit task (ADMIN/EDITOR) |
-| `canApproveTask(userId, taskId)` | Check if user can approve task actions |
-| `checkUserPermission(userId, resource, action)` | Check granular permission |
-| `getUserServiceLines(userId)` | Get accessible service lines |
-| `canApproveAcceptance(userId, taskId)` | Check acceptance approval permission |
-| `isSystemAdmin(userId)` | Check if SYSTEM_ADMIN |
+**Task Access** (`@/lib/services/tasks/taskAuthorization`):
+- `checkTaskAccess(userId, taskId, role?)`: Check team membership + role
+- `getTaskRole(userId, taskId)`: Get user's task role
+- `canModifyTask(userId, taskId)`: Check ADMIN/EDITOR
+- `canApproveTask(userId, taskId)`: Check approval permission
 
-**From `@/lib/services/tasks/taskAuthorization`**: `checkTaskAccess()`, `getTaskRole()`, `canModifyTask()`, `canApproveTask()`
+**Auth** (`@/lib/services/auth/authorization`):
+- `isSystemAdmin(userId)`, `getUserSystemRole()`, `getServiceLineRole()`
+- `isPartner()`, `isManager()`, `hasServiceLineAccess()`
+- `canApproveEngagementLetter()`, `checkFeaturePermission()`
 
-**From `@/lib/services/auth/authorization`**: `isSystemAdmin()`, `getUserSystemRole()`, `getServiceLineRole()`, `isPartner()`, `isManager()`, `hasServiceLineAccess()`, `canApproveEngagementLetter()`, `checkFeaturePermission()`
+**Permissions** (`@/lib/services/permissions/permissionService`):
+- `getUserPermissions()`, `getRolePermissions()`, `getPermissionMatrix()`
+- `checkUserPermissions()`, `checkUserHasAnyPermission()`
 
-**From `@/lib/services/permissions/permissionService`**: `getUserPermissions()`, `getRolePermissions()`, `getPermissionMatrix()`, `checkUserPermissions()`, `checkUserHasAnyPermission()`
+### Security Principles
 
-### Security Best Practices
+1. Defense in Depth: Check at system, service line, AND task levels
+2. Fail Secure: Default deny
+3. Explicit Checks: Never assume permission
+4. Service Line Isolation: Users see only their service lines (unless SYSTEM_ADMIN)
+5. Input Validation: Zod schemas + `sanitizeObject()`
+6. No Information Leakage: Generic error messages
 
-1. **Defense in Depth**: Check permissions at multiple levels (system, service line, task)
-2. **Fail Secure**: Default to deny access
-3. **Explicit Checks**: Never assume permission
-4. **Granular Permissions**: Use specific resource keys (e.g., `tasks.edit` not `tasks`)
-5. **Service Line Isolation**: Users only see data from their service lines (unless SYSTEM_ADMIN)
-6. **Task Team Membership**: Users must be on task team (TaskTeam table) unless Partner/Admin
-7. **Input Validation**: Always validate/sanitize with Zod schemas
-8. **Error Messages**: Don't leak information (generic "Forbidden")
+## Performance (REQUIRED)
 
-## Best Practices
+### Database
 
-**API Routes**: 
-- Always authenticate with `getCurrentUser()` at start
-- Validate input with Zod schemas
-- Use `successResponse`/`handleApiError` wrappers
-- Use branded types for all IDs
-- Select only needed DB fields with explicit `select:`
-- Use transactions for multi-step operations
-- Sanitize input before validation on POST/PUT/PATCH
-- Filter by service line access for list endpoints
-- Await rate limiting checks (`await checkRateLimit()`)
-- Use background jobs for long-running tasks (`queue.enqueue()`)
+- ALWAYS explicit `select:` fields
+- NEVER `include` unnecessarily
+- Batch queries: `Promise.all()`
+- Transactions for multi-step operations
+- Indexes for filtered fields
+- Prevent N+1 queries
 
-**Components**: 
-- Use `@/` imports (path aliases)
-- Use named exports (avoid default exports)
-- Server Components by default, add `'use client'` only when needed
-- Wrap sensitive UI with `<PermissionGate>`
-- Use `usePermission()` for conditional rendering
-- Use custom modals for confirmations, never browser popups (`window.confirm/alert/prompt`)
-- Component organization: `ui/` (base), `layout/` (nav/headers), `shared/` (reusable), `features/<domain>/` (feature-specific)
+### Caching (Redis)
 
-**TypeScript**: 
-- Strict mode enabled
-- Use branded types for all entity IDs
-- Type all parameters and returns explicitly
-- Check undefined/null before access (optional chaining, nullish coalescing)
-- Define types once, import everywhere
-- Derive DTOs from base types using Partial/Pick/Omit
-- Always verify build passes before committing
+**TTLs:**
+- Sessions: 1h (3600s)
+- Permissions: 5min (300s)
+- User/Service Line/Task: 10min (600s)
+- Analytics/Static: 30min (1800s)
 
-**Security**: 
-- Validate all input at API boundaries (Zod schemas + sanitization)
-- Check authentication in every protected route
-- Verify authorization before data access
-- Never expose secrets in client code
-- Use Prisma (parameterized queries)
-- Filter by service line access
-- Verify task team membership (TaskTeam table)
-- Use granular permission checks
-- Don't leak implementation details in error messages
-- Session fingerprinting prevents hijacking
-- Rate limiting enforced across all instances (Redis-backed)
-- Cache keys automatically sanitized
+**Cache Prefixes** (`CACHE_PREFIXES.*`):
+- `SESSION`, `PERMISSION`, `RATE_LIMIT`, `USER`, `TASK`, `SERVICE_LINE`, `NOTIFICATION`, `ANALYTICS`
 
-**Performance**: 
-- React Query for server state caching (client-side)
-- Redis for server-side caching (sessions, permissions, service lines)
-- Cache with appropriate TTLs (sessions: 1h, permissions: 5min, user data: 10min)
-- Use namespace prefixes for all cache keys (`CACHE_PREFIXES.*`)
-- Select specific DB fields (avoid `SELECT *`)
-- Use DB indexes for frequently filtered fields
-- Implement pagination for large datasets
-- Prevent N+1 queries with includes or batch queries
-- Server Components by default (less JavaScript)
-- Static imports for core dependencies
-- Background jobs for long tasks (documents, emails, reports)
+**Rate Limiting:** `await checkRateLimit(request, RateLimitPresets.STANDARD)`
+- Presets: AI_ENDPOINTS (5/min), FILE_UPLOADS (10/min), STANDARD (30/min), READ_ONLY (100/min), AUTH_ENDPOINTS (10/min)
 
-**Code Quality**:
-- Extract utilities for code used in 3+ places
-- Keep files under 500 lines
-- Delete backup files (.bak, .old) immediately
-- Use camelCase for file names
-- No duplicate type definitions
-- Remove deprecated code immediately
-- Use structured logging with context
+**Background Jobs:** `queue.enqueue(queueType, operation, data, options)` for long tasks
+- Queue types: documents, emails, reports
+- Never fire-and-forget
+
+### Imports
+
+- Static imports only for core dependencies
+- Tree-shakeable exports
+- Lazy load heavy dependencies
+
+### Client-Side
+
+- React Query for server state
+- Pagination for large datasets
+- Server Components default
+
+## Error Handling
+
+- Throw: `new AppError(status, message, ErrorCodes.X, metadata)`
+- Catch: `handleApiError(error, context)`
+- Codes: VALIDATION_ERROR, NOT_FOUND, FORBIDDEN, UNAUTHORIZED
+
+## Code Quality
+
+- Extract utilities for 3+ uses
+- Files under 500 lines
+- camelCase file names
+- No duplicates, no deprecated code
+- Delete .bak/.old immediately
+- NO summarization files (e.g., SUMMARY.md, overview.md)
 - Business logic in `/src/lib/services/<domain>/`
-- Use React Query for server state, useState for UI state
+- Component organization: `ui/`, `layout/`, `shared/`, `features/<domain>/`
 
-**Core Principle**: All code must follow these standards. Security checks are NOT optional. Performance patterns are REQUIRED. Type safety is MANDATORY.
+## AI Assistant Communication
+
+- Upon task completion, simply state "Completed"
+- No verbose summaries or explanations after finishing work
+- User can observe progress in real-time
+
+## Core Principles
+
+Security checks are NOT optional. Performance patterns are REQUIRED. Type safety is MANDATORY.

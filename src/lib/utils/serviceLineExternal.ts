@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { logger } from './logger';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 /**
  * External Service Line interface
@@ -50,10 +51,23 @@ export async function getExternalServiceLinesByMaster(
   masterCode: string
 ): Promise<ServiceLineExternal[]> {
   try {
-    return await prisma.serviceLineExternal.findMany({
+    // Try cache first
+    const cacheKey = `${CACHE_PREFIXES.SERVICE_LINE}master:${masterCode}`;
+    const cached = await cache.get<ServiceLineExternal[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch from database
+    const result = await prisma.serviceLineExternal.findMany({
       where: { masterCode },
       orderBy: { SubServlineGroupCode: 'asc' },
     });
+
+    // Cache for 10 minutes (600 seconds)
+    await cache.set(cacheKey, result, 600);
+    
+    return result;
   } catch (error) {
     logger.error('Error fetching external service lines by master', { masterCode, error });
     return [];
@@ -314,6 +328,13 @@ export async function getServLineCodesBySubGroup(
   masterCode?: string
 ): Promise<string[]> {
   try {
+    // Try cache first
+    const cacheKey = `${CACHE_PREFIXES.SERVICE_LINE}subgroup:${subGroupCode}:${masterCode || 'all'}`;
+    const cached = await cache.get<string[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const where: any = {
       SubServlineGroupCode: subGroupCode,
     };
@@ -327,9 +348,14 @@ export async function getServLineCodesBySubGroup(
       select: { ServLineCode: true },
     });
 
-    return results
+    const codes = results
       .map(r => r.ServLineCode)
       .filter((code): code is string => code !== null);
+
+    // Cache for 10 minutes (600 seconds)
+    await cache.set(cacheKey, codes, 600);
+    
+    return codes;
   } catch (error) {
     logger.error('Error fetching ServLineCodes by SubServLineGroup', { subGroupCode, masterCode, error });
     return [];

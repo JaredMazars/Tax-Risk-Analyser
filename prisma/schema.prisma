@@ -820,6 +820,8 @@ model Task {
   @@index([TaskCode])
   @@index([TaskManager])
   @@index([TaskPartner])
+  @@index([ServLineCode, Active])
+  @@index([updatedAt(sort: Desc)])
 }
 
 model TaskTeam {
@@ -836,6 +838,7 @@ model TaskTeam {
   @@index([taskId])
   @@index([userId])
   @@index([role])
+  @@index([userId, taskId])
 }
 
 model TaskAcceptance {

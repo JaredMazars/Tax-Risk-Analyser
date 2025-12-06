@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   ChevronRightIcon,
   FolderIcon,
@@ -13,12 +14,14 @@ import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
+import { taskListKeys } from '@/hooks/tasks/useTasks';
 
 export default function ServiceLineSubGroupsPage() {
   const router = useRouter();
   const params = useParams();
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const { setCurrentServiceLine } = useServiceLine();
+  const queryClient = useQueryClient();
 
   // Validate service line
   useEffect(() => {
@@ -38,6 +41,76 @@ export default function ServiceLineSubGroupsPage() {
     serviceLine: serviceLine || '',
     enabled: !!serviceLine && isValidServiceLine(serviceLine),
   });
+
+  // Prefetch tasks for a subgroup on hover
+  const prefetchTasksForSubGroup = (subGroupCode: string) => {
+    // Prefetch all tasks
+    queryClient.prefetchQuery({
+      queryKey: taskListKeys.list({
+        search: '',
+        page: 1,
+        limit: 50,
+        serviceLine,
+        subServiceLineGroup: subGroupCode,
+        includeArchived: false,
+        internalOnly: false,
+        clientTasksOnly: false,
+        myTasksOnly: false,
+        sortBy: 'updatedAt',
+        sortOrder: 'desc',
+      }),
+      queryFn: async () => {
+        const searchParams = new URLSearchParams();
+        searchParams.set('page', '1');
+        searchParams.set('limit', '50');
+        searchParams.set('serviceLine', serviceLine);
+        searchParams.set('subServiceLineGroup', subGroupCode);
+        searchParams.set('includeArchived', 'false');
+        searchParams.set('sortBy', 'updatedAt');
+        searchParams.set('sortOrder', 'desc');
+        
+        const response = await fetch(`/api/tasks?${searchParams.toString()}`);
+        if (!response.ok) return { tasks: [], pagination: { page: 1, limit: 50, total: 0, totalPages: 0 } };
+        const result = await response.json();
+        return result.success ? result.data : result;
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+
+    // Prefetch my tasks
+    queryClient.prefetchQuery({
+      queryKey: taskListKeys.list({
+        search: '',
+        page: 1,
+        limit: 50,
+        serviceLine,
+        subServiceLineGroup: subGroupCode,
+        includeArchived: false,
+        internalOnly: false,
+        clientTasksOnly: false,
+        myTasksOnly: true,
+        sortBy: 'updatedAt',
+        sortOrder: 'desc',
+      }),
+      queryFn: async () => {
+        const searchParams = new URLSearchParams();
+        searchParams.set('page', '1');
+        searchParams.set('limit', '50');
+        searchParams.set('serviceLine', serviceLine);
+        searchParams.set('subServiceLineGroup', subGroupCode);
+        searchParams.set('myTasksOnly', 'true');
+        searchParams.set('includeArchived', 'false');
+        searchParams.set('sortBy', 'updatedAt');
+        searchParams.set('sortOrder', 'desc');
+        
+        const response = await fetch(`/api/tasks?${searchParams.toString()}`);
+        if (!response.ok) return { tasks: [], pagination: { page: 1, limit: 50, total: 0, totalPages: 0 } };
+        const result = await response.json();
+        return result.success ? result.data : result;
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+  };
 
   if (!isValidServiceLine(serviceLine)) {
     return null;
@@ -119,6 +192,7 @@ export default function ServiceLineSubGroupsPage() {
               <Link
                 key={group.code}
                 href={`/dashboard/${serviceLine.toLowerCase()}/${group.code}`}
+                onMouseEnter={() => prefetchTasksForSubGroup(group.code)}
                 className="group block bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 hover:border-forvis-blue-500"
               >
                 <div className="p-6">
