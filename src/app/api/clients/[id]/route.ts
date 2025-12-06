@@ -173,47 +173,40 @@ export async function GET(
       });
     }
 
-    // Fetch WIP data for this client
-    const tasksWipData = await prisma.wipLTD.findMany({
+    // Fetch WIP data for the tasks by taskId
+    const taskIds = tasks.map(t => t.id);
+    const tasksWipData = taskIds.length > 0 ? await prisma.wipLTD.findMany({
       where: {
-        ClientCode: client.ClientID,
+        taskId: {
+          in: taskIds,
+        },
       },
       select: {
-        ServLineCode: true,
+        taskId: true,
         BalWIP: true,
         BalTime: true,
         BalDisb: true,
       },
-    });
+    }) : [];
 
-    // Create a map of WIP data by ServLineCode
-    const wipByServiceLine = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
+    // Create a map of WIP data by taskId
+    const wipByTaskId = new Map<number, { balWIP: number; balTime: number; balDisb: number }>();
     tasksWipData.forEach(wip => {
-      const key = wip.ServLineCode || 'ALL';
-      
-      if (!wipByServiceLine.has(key)) {
-        wipByServiceLine.set(key, { balWIP: 0, balTime: 0, balDisb: 0 });
+      if (!wipByTaskId.has(wip.taskId)) {
+        wipByTaskId.set(wip.taskId, { balWIP: 0, balTime: 0, balDisb: 0 });
       }
       
-      const wipEntry = wipByServiceLine.get(key)!;
-      wipEntry.balWIP += wip.BalWIP || 0;
-      wipEntry.balTime += wip.BalTime || 0;
-      wipEntry.balDisb += wip.BalDisb || 0;
-    });
-
-    // Calculate total WIP for fallback
-    const totalWip = { balWIP: 0, balTime: 0, balDisb: 0 };
-    tasksWipData.forEach(wip => {
-      totalWip.balWIP += wip.BalWIP || 0;
-      totalWip.balTime += wip.BalTime || 0;
-      totalWip.balDisb += wip.BalDisb || 0;
+      const taskWip = wipByTaskId.get(wip.taskId)!;
+      taskWip.balWIP += wip.BalWIP || 0;
+      taskWip.balTime += wip.BalTime || 0;
+      taskWip.balDisb += wip.BalDisb || 0;
     });
 
     // Add masterServiceLine and WIP data to each task
     const tasksWithMasterServiceLine = tasks.map(task => ({
       ...task,
       masterServiceLine: serviceLineMapping[task.ServLineCode] || null,
-      wip: wipByServiceLine.get(task.ServLineCode) || totalWip,
+      wip: wipByTaskId.get(task.id) || { balWIP: 0, balTime: 0, balDisb: 0 },
     }));
 
     const responseData = {

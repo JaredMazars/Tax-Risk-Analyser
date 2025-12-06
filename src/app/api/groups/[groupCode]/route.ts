@@ -206,61 +206,39 @@ export async function GET(
         serviceLineExternalData.map(sl => [sl.ServLineCode, sl.masterCode])
       );
 
-      // Fetch WIP data for all clients of these tasks
-      const taskClientIDs = [...new Set(tasksRaw.map(t => t.Client.ClientID))];
-      const tasksWipData = taskClientIDs.length > 0 ? await prisma.wipLTD.findMany({
+      // Fetch WIP data for all tasks by taskId
+      const taskIds = tasksRaw.map(t => t.id);
+      const tasksWipData = taskIds.length > 0 ? await prisma.wipLTD.findMany({
         where: {
-          ClientCode: {
-            in: taskClientIDs,
+          taskId: {
+            in: taskIds,
           },
         },
         select: {
-          ClientCode: true,
-          ServLineCode: true,
+          taskId: true,
           BalWIP: true,
           BalTime: true,
           BalDisb: true,
         },
       }) : [];
 
-      // Create a map of client WIP data by ClientCode and ServLineCode
-      const wipByClientAndServiceLine = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
+      // Create a map of WIP data by taskId
+      const wipByTaskId = new Map<number, { balWIP: number; balTime: number; balDisb: number }>();
       tasksWipData.forEach(wip => {
-        if (!wip.ClientCode) return;
-        const key = `${wip.ClientCode}_${wip.ServLineCode || 'ALL'}`;
-        
-        if (!wipByClientAndServiceLine.has(key)) {
-          wipByClientAndServiceLine.set(key, { balWIP: 0, balTime: 0, balDisb: 0 });
+        if (!wipByTaskId.has(wip.taskId)) {
+          wipByTaskId.set(wip.taskId, { balWIP: 0, balTime: 0, balDisb: 0 });
         }
         
-        const wipEntry = wipByClientAndServiceLine.get(key)!;
-        wipEntry.balWIP += wip.BalWIP || 0;
-        wipEntry.balTime += wip.BalTime || 0;
-        wipEntry.balDisb += wip.BalDisb || 0;
-      });
-
-      // Also create a map of total WIP by client (for fallback)
-      const wipByClient = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
-      tasksWipData.forEach(wip => {
-        if (!wip.ClientCode) return;
-        
-        if (!wipByClient.has(wip.ClientCode)) {
-          wipByClient.set(wip.ClientCode, { balWIP: 0, balTime: 0, balDisb: 0 });
-        }
-        
-        const clientWip = wipByClient.get(wip.ClientCode)!;
-        clientWip.balWIP += wip.BalWIP || 0;
-        clientWip.balTime += wip.BalTime || 0;
-        clientWip.balDisb += wip.BalDisb || 0;
+        const taskWip = wipByTaskId.get(wip.taskId)!;
+        taskWip.balWIP += wip.BalWIP || 0;
+        taskWip.balTime += wip.BalTime || 0;
+        taskWip.balDisb += wip.BalDisb || 0;
       });
 
       // Map tasks with master service line info and WIP data
       const tasks = tasksRaw.map(task => {
-        // Try to get WIP for specific service line, fallback to client total
-        const servLineKey = `${task.Client.ClientID}_${task.ServLineCode || 'ALL'}`;
-        const wip = wipByClientAndServiceLine.get(servLineKey) || 
-                    wipByClient.get(task.Client.ClientID) || 
-                    { balWIP: 0, balTime: 0, balDisb: 0 };
+        // Get WIP for this specific task
+        const wip = wipByTaskId.get(task.id) || { balWIP: 0, balTime: 0, balDisb: 0 };
         
         return {
           id: task.id,
