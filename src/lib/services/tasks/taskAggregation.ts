@@ -199,3 +199,4 @@ export async function getTotalTaskCount(
   const counts = await getTaskCountsByServiceLine(clientID, includeArchived);
   return Object.values(counts).reduce((sum, count) => sum + count, 0);
 }
+

@@ -312,10 +312,10 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Invalid client ID format. Expected GUID.' },
         { status: 400 }
-      );
-    }
+    );
+  }
 
-    // Check if client exists
+  // Check if client exists
     const existingClient = await prisma.client.findUnique({
       where: { ClientID: clientID },
       include: {
@@ -357,4 +357,3 @@ export async function DELETE(
     return handleApiError(error, 'Delete Client');
   }
 }
-

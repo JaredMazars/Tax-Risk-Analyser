@@ -12,6 +12,7 @@ import { getServiceLineWhereClause, verifyServiceLineAccess } from '@/lib/utils/
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { isSystemAdmin } from '@/lib/utils/systemAdmin';
 import { handleApiError } from '@/lib/utils/errorHandler';
+import { toTaskId } from '@/types/branded';
 
 /**
  * Authenticated user context
@@ -222,15 +223,16 @@ export function withProjectAccess<T extends { id: string }>(
       }
 
       const { id } = await routeContext.params;
-      const taskId = Number.parseInt(id);
+      const taskIdNum = Number.parseInt(id);
 
-      if (Number.isNaN(taskId)) {
+      if (Number.isNaN(taskIdNum)) {
         return NextResponse.json(
           { error: 'Invalid task ID' },
           { status: 400 }
         );
       }
 
+      const taskId = toTaskId(taskIdNum);
       const access = await checkTaskAccess(user.id, taskId, requiredRole);
       
       if (!access.canAccess) {
