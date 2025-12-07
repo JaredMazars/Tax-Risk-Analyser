@@ -3,6 +3,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
+import { searchADUsers } from '@/lib/services/auth/graphClient';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q') || '';
     const limit = Number.parseInt(searchParams.get('limit') || '20');
     const taskId = searchParams.get('taskId');
+    const source = searchParams.get('source') || 'database'; // 'database' or 'ad'
 
     // Validate limit
     if (limit < 1 || limit > 100) {
@@ -28,7 +30,43 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build where clause for search
+    // Search Active Directory if requested
+    if (source === 'ad') {
+      if (!query.trim()) {
+        return NextResponse.json(successResponse([]));
+      }
+
+      try {
+        const adUsers = await searchADUsers(query.trim(), limit);
+        
+        // Transform Graph users to ADUser format
+        const formattedUsers = adUsers.map(u => ({
+          id: u.id,
+          email: u.mail || u.userPrincipalName,
+          displayName: u.displayName,
+          userPrincipalName: u.userPrincipalName,
+          jobTitle: u.jobTitle,
+          department: u.department,
+          officeLocation: u.officeLocation,
+          mobilePhone: u.mobilePhone,
+          businessPhones: u.businessPhones,
+          city: u.city,
+          country: u.country,
+          companyName: u.companyName,
+          employeeId: u.employeeId,
+          employeeType: u.employeeType,
+          givenName: u.givenName,
+          surname: u.surname,
+        }));
+
+        return NextResponse.json(successResponse(formattedUsers));
+      } catch (error) {
+        // Fall back to database search if AD fails
+        console.error('AD search failed, falling back to database:', error);
+      }
+    }
+
+    // Build where clause for database search
     interface WhereClause {
       OR?: Array<{ name: { contains: string } } | { email: { contains: string } }>;
     }

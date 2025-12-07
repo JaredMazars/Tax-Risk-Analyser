@@ -186,7 +186,7 @@ export default function UserManagementPage() {
 
     setAdLoading(true);
     try {
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(adSearchQuery)}`);
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(adSearchQuery)}&source=ad`);
       const data = await response.json();
       if (data.success) {
         setAdSearchResults(data.data);
@@ -605,6 +605,21 @@ export default function UserManagementPage() {
         {/* Active Directory Tab */}
         {activeTab === 'active-directory' && (
           <div>
+            {/* Info Banner */}
+            <div className="mb-6 rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <svg className="h-5 w-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-blue-800 mb-1">Azure Active Directory Search</h3>
+                  <p className="text-xs text-blue-700">
+                    Search for users in your Azure Active Directory tenant. Results show comprehensive user information including contact details, job title, department, and location.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
             <div className="mb-6">
               <div className="flex gap-2">
                 <div className="relative flex-1 max-w-2xl">
@@ -637,18 +652,112 @@ export default function UserManagementPage() {
               <div className="space-y-4">
                 {adSearchResults.map(adUser => (
                   <div key={adUser.id} className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-forvis-gray-900">
-                          {adUser.displayName}
-                        </h3>
-                        <p className="text-sm text-forvis-gray-600">{adUser.email}</p>
-                        {adUser.jobTitle && (
-                          <p className="text-xs text-forvis-gray-500 mt-1">{adUser.jobTitle}</p>
+                    <div className="flex items-start justify-between gap-6">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <h3 className="text-lg font-semibold text-forvis-gray-900">
+                            {adUser.displayName}
+                          </h3>
+                        </div>
+                        
+                        {/* Contact Information */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 mb-3">
+                          <div className="flex items-start gap-2">
+                            <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Email:</span>
+                            <span className="text-sm text-forvis-gray-900">{adUser.email}</span>
+                          </div>
+                          
+                          {adUser.userPrincipalName && adUser.userPrincipalName !== adUser.email && (
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">UPN:</span>
+                              <span className="text-sm text-forvis-gray-700">{adUser.userPrincipalName}</span>
+                            </div>
+                          )}
+                          
+                          {adUser.mobilePhone && (
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Mobile:</span>
+                              <span className="text-sm text-forvis-gray-900">{adUser.mobilePhone}</span>
+                            </div>
+                          )}
+                          
+                          {adUser.businessPhones && adUser.businessPhones.length > 0 && (
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Phone:</span>
+                              <span className="text-sm text-forvis-gray-900">{adUser.businessPhones.join(', ')}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Organization Information */}
+                        {(adUser.jobTitle || adUser.department || adUser.companyName || adUser.employeeType) && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 mb-3 pt-2 border-t border-forvis-gray-200">
+                            {adUser.jobTitle && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Job Title:</span>
+                                <span className="text-sm text-forvis-gray-900">{adUser.jobTitle}</span>
+                              </div>
+                            )}
+                            
+                            {adUser.department && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Department:</span>
+                                <span className="text-sm text-forvis-gray-900">{adUser.department}</span>
+                              </div>
+                            )}
+                            
+                            {adUser.employeeType && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Employee Type:</span>
+                                <span className="text-sm text-forvis-gray-900">{adUser.employeeType}</span>
+                              </div>
+                            )}
+                            
+                            {adUser.companyName && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Company:</span>
+                                <span className="text-sm text-forvis-gray-900">{adUser.companyName}</span>
+                              </div>
+                            )}
+                            
+                            {adUser.employeeId && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Employee ID:</span>
+                                <span className="text-sm text-forvis-gray-900">{adUser.employeeId}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Location Information */}
+                        {(adUser.officeLocation || adUser.city || adUser.country) && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 pt-2 border-t border-forvis-gray-200">
+                            {adUser.officeLocation && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Office:</span>
+                                <span className="text-sm text-forvis-gray-900">{adUser.officeLocation}</span>
+                              </div>
+                            )}
+                            
+                            {adUser.city && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">City:</span>
+                                <span className="text-sm text-forvis-gray-900">{adUser.city}</span>
+                              </div>
+                            )}
+                            
+                            {adUser.country && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-medium text-forvis-gray-500 min-w-[100px]">Country:</span>
+                                <span className="text-sm text-forvis-gray-900">{adUser.country}</span>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
+                      
                       <button
-                        className="btn-primary"
+                        className="btn-primary flex-shrink-0"
                         onClick={() => {
                           setAlertModal({
                             isOpen: true,

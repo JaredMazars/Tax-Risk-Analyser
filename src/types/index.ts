@@ -277,8 +277,19 @@ export interface ADUser {
   id: string;
   email: string;
   displayName: string;
+  userPrincipalName?: string;
   jobTitle?: string | null;
   department?: string | null;
+  officeLocation?: string | null;
+  mobilePhone?: string | null;
+  businessPhones?: string[];
+  city?: string | null;
+  country?: string | null;
+  companyName?: string | null;
+  employeeId?: string | null;
+  employeeType?: string | null;
+  givenName?: string | null;
+  surname?: string | null;
 }
 
 // Tax Opinion Models

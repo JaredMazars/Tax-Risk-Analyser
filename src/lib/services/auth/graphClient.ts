@@ -37,6 +37,15 @@ export interface GraphUser {
   jobTitle: string | null;
   department: string | null;
   officeLocation: string | null;
+  mobilePhone: string | null;
+  businessPhones: string[];
+  city: string | null;
+  country: string | null;
+  companyName: string | null;
+  employeeId: string | null;
+  employeeType: string | null;
+  givenName: string | null;
+  surname: string | null;
 }
 
 /**
@@ -57,7 +66,7 @@ export async function searchADUsers(query: string, limit: number = 20): Promise<
     const response = await client
       .api('/users')
       .filter(`startswith(displayName,'${query}') or startswith(userPrincipalName,'${query}') or startswith(mail,'${query}')`)
-      .select('id,userPrincipalName,displayName,mail,jobTitle,department,officeLocation')
+      .select('id,userPrincipalName,displayName,mail,jobTitle,department,officeLocation,mobilePhone,businessPhones,city,country,companyName,employeeId,employeeType,givenName,surname')
       .top(limit)
       .get();
 
@@ -82,7 +91,7 @@ export async function getADUser(userIdOrEmail: string): Promise<GraphUser | null
   try {
     const user = await client
       .api(`/users/${userIdOrEmail}`)
-      .select('id,userPrincipalName,displayName,mail,jobTitle,department,officeLocation')
+      .select('id,userPrincipalName,displayName,mail,jobTitle,department,officeLocation,mobilePhone,businessPhones,city,country,companyName,employeeId,employeeType,givenName,surname')
       .get();
 
     return user;
@@ -106,7 +115,7 @@ export async function listADUsers(limit: number = 50): Promise<GraphUser[]> {
   try {
     const response = await client
       .api('/users')
-      .select('id,userPrincipalName,displayName,mail,jobTitle,department,officeLocation')
+      .select('id,userPrincipalName,displayName,mail,jobTitle,department,officeLocation,mobilePhone,businessPhones,city,country,companyName,employeeId,employeeType,givenName,surname')
       .top(limit)
       .orderby('displayName')
       .get();
