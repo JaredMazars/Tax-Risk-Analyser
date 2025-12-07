@@ -1,15 +1,19 @@
 /**
  * Service Line Service
- * Handles service line access control and operations
+ * Handles service line access control and operations with sub-service line group support
  */
 
 import { prisma } from '@/lib/db/prisma';
 import { ServiceLine, ServiceLineRole } from '@/types';
 import { ServiceLineWithStats } from '@/types/dto';
 import { logger } from '@/lib/utils/logger';
+import { getSubServiceLineGroupsByMaster, getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
+
+export type AssignmentType = 'MAIN_SERVICE_LINE' | 'SPECIFIC_SUBGROUP' | 'NONE';
 
 /**
  * Get all service lines accessible to a user with their roles
+ * Now groups sub-service line groups by master code
  */
 export async function getUserServiceLines(userId: string): Promise<ServiceLineWithStats[]> {
   try {
@@ -100,80 +104,85 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       });
     }
 
-    // For regular users, get their explicit service line assignments
-    const serviceLineUsers = await prisma.serviceLineUser.findMany({
+    // For regular users, get their sub-service line group assignments
+    const subGroupAssignments = await prisma.serviceLineUser.findMany({
       where: { userId },
       select: {
         id: true,
-        serviceLine: true,
+        subServiceLineGroup: true,
         role: true,
+        assignmentType: true,
+        parentAssignmentId: true,
       },
     });
 
-    if (serviceLineUsers.length === 0) {
+    if (subGroupAssignments.length === 0) {
       return [];
     }
 
-    // Get all service lines this user has access to
-    const masterCodes = serviceLineUsers.map(slu => slu.serviceLine);
+    // Get unique sub-service line groups
+    const subGroupCodes = Array.from(new Set(subGroupAssignments.map(a => a.subServiceLineGroup)));
 
-    // Map master codes to actual ServLineCodes from ServiceLineExternal
-    const serviceLineMapping = await prisma.serviceLineExternal.findMany({
+    // Map sub-groups to master codes
+    const subGroupMapping = await prisma.serviceLineExternal.findMany({
       where: {
-        masterCode: { in: masterCodes },
+        SubServlineGroupCode: { in: subGroupCodes },
       },
       select: {
-        ServLineCode: true,
+        SubServlineGroupCode: true,
         masterCode: true,
+        ServLineCode: true,
       },
+      distinct: ['SubServlineGroupCode'],
     });
 
-    // Create map of masterCode -> [ServLineCodes]
-    const masterToServLineCodesMap = new Map<string, string[]>();
-    for (const mapping of serviceLineMapping) {
-      if (mapping.masterCode && mapping.ServLineCode) {
-        const existing = masterToServLineCodesMap.get(mapping.masterCode) || [];
-        existing.push(mapping.ServLineCode);
-        masterToServLineCodesMap.set(mapping.masterCode, existing);
+    // Create map: subGroup -> masterCode
+    const subGroupToMasterMap = new Map<string, string>();
+    for (const mapping of subGroupMapping) {
+      if (mapping.SubServlineGroupCode && mapping.masterCode) {
+        subGroupToMasterMap.set(mapping.SubServlineGroupCode, mapping.masterCode);
       }
     }
 
-    // Get all actual ServLineCodes for querying tasks
-    const allServLineCodes = Array.from(
-      new Set(serviceLineMapping.map(m => m.ServLineCode).filter((code): code is string => code !== null))
-    );
-
-    // If no mappings found, return empty counts
-    if (allServLineCodes.length === 0) {
-      return serviceLineUsers.map(slu => ({
-        id: slu.id,
-        serviceLine: slu.serviceLine,
-        role: slu.role,
-        taskCount: 0,
-        activeTaskCount: 0,
-      }));
+    // Group assignments by master code
+    const masterCodeAssignments = new Map<string, typeof subGroupAssignments>();
+    for (const assignment of subGroupAssignments) {
+      const masterCode = subGroupToMasterMap.get(assignment.subServiceLineGroup);
+      if (masterCode) {
+        const existing = masterCodeAssignments.get(masterCode) || [];
+        existing.push(assignment);
+        masterCodeAssignments.set(masterCode, existing);
+      }
     }
 
-    // Use a single aggregation query to get task counts for all service lines
+    // Get all ServLineCodes for task counting
+    const allServLineCodes: string[] = [];
+    for (const mapping of subGroupMapping) {
+      if (mapping.ServLineCode) {
+        allServLineCodes.push(mapping.ServLineCode);
+      }
+    }
+
+    // Get task counts
     const [allTaskCounts, activeTaskCounts] = await Promise.all([
-      prisma.task.groupBy({
+      allServLineCodes.length > 0 ? prisma.task.groupBy({
         by: ['ServLineCode'],
         where: {
           ServLineCode: { in: allServLineCodes },
         },
         _count: true,
-      }),
-      prisma.task.groupBy({
+      }) : Promise.resolve([]),
+      allServLineCodes.length > 0 ? prisma.task.groupBy({
         by: ['ServLineCode'],
         where: {
           ServLineCode: { in: allServLineCodes },
           Active: 'Yes',
         },
         _count: true,
-      }),
+      }) : Promise.resolve([]),
     ]);
 
-    // Create lookup maps: ServLineCode -> count
+    // Create lookup maps
     const taskCountMap = new Map(
       allTaskCounts.map(item => [item.ServLineCode, item._count])
     );
@@ -181,28 +190,40 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       activeTaskCounts.map(item => [item.ServLineCode, item._count])
     );
 
-    // Combine service line data with counts (aggregate by master code)
-    return serviceLineUsers.map(slu => {
-      const servLineCodes = masterToServLineCodesMap.get(slu.serviceLine) || [];
-      
-      // Sum up counts for all ServLineCodes mapped to this master code
-      const taskCount = servLineCodes.reduce(
-        (sum, code) => sum + (taskCountMap.get(code) || 0),
-        0
-      );
-      const activeTaskCount = servLineCodes.reduce(
-        (sum, code) => sum + (activeTaskCountMap.get(code) || 0),
-        0
-      );
+    // Build result: one entry per master code
+    const result: ServiceLineWithStats[] = [];
+    for (const [masterCode, assignments] of masterCodeAssignments) {
+      // Get all sub-groups for this master code to determine if user has full access
+      const allSubGroupsForMaster = await getSubServiceLineGroupsByMaster(masterCode);
+      const userSubGroups = new Set(assignments.map(a => a.subServiceLineGroup));
+      const hasAllSubGroups = allSubGroupsForMaster.every(sg => userSubGroups.has(sg.code));
 
-      return {
-        id: slu.id,
-        serviceLine: slu.serviceLine,
-        role: slu.role,
+      // Determine role (use highest role if multiple sub-groups)
+      const roles = assignments.map(a => a.role);
+      const role = getHighestRole(roles);
+
+      // Calculate task counts for user's accessible sub-groups
+      let taskCount = 0;
+      let activeTaskCount = 0;
+
+      for (const assignment of assignments) {
+        const servLineCodes = await getServLineCodesBySubGroup(assignment.subServiceLineGroup, masterCode);
+        for (const code of servLineCodes) {
+          taskCount += taskCountMap.get(code) || 0;
+          activeTaskCount += activeTaskCountMap.get(code) || 0;
+        }
+      }
+
+      result.push({
+        id: assignments[0].id,
+        serviceLine: masterCode,
+        role,
         taskCount,
         activeTaskCount,
-      };
-    });
+      });
+    }
+
+    return result;
   } catch (error) {
     logger.error('Error getting user service lines', { userId, error });
     throw error;
@@ -210,7 +231,65 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
 }
 
 /**
- * Check if a user has access to a service line
+ * Get highest role from a list of roles based on hierarchy
+ */
+function getHighestRole(roles: string[]): string {
+  const hierarchy = ['ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER', 'VIEWER'];
+  for (const role of hierarchy) {
+    if (roles.includes(role)) {
+      return role;
+    }
+  }
+  return roles[0] || 'VIEWER';
+}
+
+/**
+ * Check if a user has access to a specific sub-service line group
+ */
+export async function checkSubGroupAccess(
+  userId: string,
+  subGroupCode: string,
+  requiredRole?: ServiceLineRole | string
+): Promise<boolean> {
+  try {
+    // Check if user is a SYSTEM_ADMIN
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (user?.role === 'SYSTEM_ADMIN') {
+      return true;
+    }
+
+    const assignment = await prisma.serviceLineUser.findUnique({
+      where: {
+        userId_subServiceLineGroup: {
+          userId,
+          subServiceLineGroup: subGroupCode,
+        },
+      },
+    });
+
+    if (!assignment) {
+      return false;
+    }
+
+    if (!requiredRole) {
+      return true;
+    }
+
+    // Check role hierarchy
+    const { hasServiceLineRole } = await import('@/lib/utils/roleHierarchy');
+    return hasServiceLineRole(assignment.role, requiredRole as string);
+  } catch (error) {
+    logger.error('Error checking sub-group access', { userId, subGroupCode, error });
+    return false;
+  }
+}
+
+/**
+ * Check if a user has access to a service line (checks if user has ANY sub-group in that service line)
  */
 export async function checkServiceLineAccess(
   userId: string,
@@ -218,37 +297,43 @@ export async function checkServiceLineAccess(
   requiredRole?: ServiceLineRole | string
 ): Promise<boolean> {
   try {
-    // Check if user is a SYSTEM_ADMIN - they have access to all service lines with ADMINISTRATOR role
+    // Check if user is a SYSTEM_ADMIN
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
     });
 
     if (user?.role === 'SYSTEM_ADMIN') {
-      return true; // SYSTEM_ADMIN has access to everything
+      return true;
     }
 
-    const serviceLineUser = await prisma.serviceLineUser.findUnique({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine: serviceLine as string,
-        },
-      },
-    });
+    // Get all sub-groups for this master code
+    const subGroups = await getSubServiceLineGroupsByMaster(serviceLine as string);
+    const subGroupCodes = subGroups.map(sg => sg.code);
 
-    if (!serviceLineUser) {
+    if (subGroupCodes.length === 0) {
       return false;
     }
 
-    // If no specific role required, just check access
+    // Check if user has access to any sub-group
+    const assignments = await prisma.serviceLineUser.findMany({
+      where: {
+        userId,
+        subServiceLineGroup: { in: subGroupCodes },
+      },
+    });
+
+    if (assignments.length === 0) {
+      return false;
+    }
+
     if (!requiredRole) {
       return true;
     }
 
-    // Check role hierarchy using centralized utility
+    // Check if any assignment meets role requirement
     const { hasServiceLineRole } = await import('@/lib/utils/roleHierarchy');
-    return hasServiceLineRole(serviceLineUser.role, requiredRole as string);
+    return assignments.some(a => hasServiceLineRole(a.role, requiredRole as string));
   } catch (error) {
     logger.error('Error checking service line access', { userId, serviceLine, error });
     return false;
@@ -256,14 +341,14 @@ export async function checkServiceLineAccess(
 }
 
 /**
- * Get user's role in a service line
+ * Get user's role in a service line (returns highest role if user has multiple sub-groups)
  */
 export async function getServiceLineRole(
   userId: string,
   serviceLine: ServiceLine | string
 ): Promise<ServiceLineRole | string | null> {
   try {
-    // Check if user is a SYSTEM_ADMIN - they have ADMINISTRATOR role in all service lines
+    // Check if user is a SYSTEM_ADMIN
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
@@ -273,19 +358,31 @@ export async function getServiceLineRole(
       return 'ADMINISTRATOR';
     }
 
-    const serviceLineUser = await prisma.serviceLineUser.findUnique({
+    // Get all sub-groups for this master code
+    const subGroups = await getSubServiceLineGroupsByMaster(serviceLine as string);
+    const subGroupCodes = subGroups.map(sg => sg.code);
+
+    if (subGroupCodes.length === 0) {
+      return null;
+    }
+
+    // Get user's assignments
+    const assignments = await prisma.serviceLineUser.findMany({
       where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine: serviceLine as string,
-        },
+        userId,
+        subServiceLineGroup: { in: subGroupCodes },
       },
       select: {
         role: true,
       },
     });
 
-    return serviceLineUser?.role || null;
+    if (assignments.length === 0) {
+      return null;
+    }
+
+    // Return highest role
+    return getHighestRole(assignments.map(a => a.role));
   } catch (error) {
     logger.error('Error getting service line role', { userId, serviceLine, error });
     return null;
@@ -293,87 +390,285 @@ export async function getServiceLineRole(
 }
 
 /**
- * Grant user access to a service line
+ * Grant user access to a service line or specific sub-groups
  */
 export async function grantServiceLineAccess(
   userId: string,
-  serviceLine: ServiceLine | string,
-  role: ServiceLineRole | string = ServiceLineRole.USER
+  serviceLineOrSubGroups: ServiceLine | string | string[],
+  role: ServiceLineRole | string = ServiceLineRole.USER,
+  type: 'main' | 'subgroup' = 'main'
 ): Promise<void> {
   try {
-    await prisma.serviceLineUser.upsert({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine: serviceLine as string,
-        },
-      },
-      update: {
-        role: role as string,
-      },
-      create: {
-        userId,
-        serviceLine: serviceLine as string,
-        role: role as string,
-      },
-    });
+    if (type === 'main') {
+      // Grant access to all sub-groups for the main service line
+      const masterCode = serviceLineOrSubGroups as string;
+      const subGroups = await getSubServiceLineGroupsByMaster(masterCode);
 
-    logger.info('Granted service line access', { userId, serviceLine, role });
+      if (subGroups.length === 0) {
+        throw new Error(`No sub-service line groups found for ${masterCode}`);
+      }
+
+      // Generate a parent assignment ID (use timestamp + random)
+      const parentId = Date.now() + Math.floor(Math.random() * 1000);
+
+      // Create/update records for all sub-groups
+      await prisma.$transaction(
+        subGroups.map(sg =>
+          prisma.serviceLineUser.upsert({
+            where: {
+              userId_subServiceLineGroup: {
+                userId,
+                subServiceLineGroup: sg.code,
+              },
+            },
+            update: {
+              role: role as string,
+              assignmentType: 'MAIN_SERVICE_LINE',
+              parentAssignmentId: parentId,
+            },
+            create: {
+              userId,
+              subServiceLineGroup: sg.code,
+              role: role as string,
+              assignmentType: 'MAIN_SERVICE_LINE',
+              parentAssignmentId: parentId,
+            },
+          })
+        )
+      );
+
+      logger.info('Granted main service line access', { userId, masterCode, role, subGroupCount: subGroups.length });
+    } else {
+      // Grant access to specific sub-groups
+      const subGroupCodes = Array.isArray(serviceLineOrSubGroups) 
+        ? serviceLineOrSubGroups 
+        : [serviceLineOrSubGroups];
+
+      await prisma.$transaction(
+        subGroupCodes.map(subGroup =>
+          prisma.serviceLineUser.upsert({
+            where: {
+              userId_subServiceLineGroup: {
+                userId,
+                subServiceLineGroup: subGroup,
+              },
+            },
+            update: {
+              role: role as string,
+              assignmentType: 'SPECIFIC_SUBGROUP',
+              parentAssignmentId: null,
+            },
+            create: {
+              userId,
+              subServiceLineGroup: subGroup,
+              role: role as string,
+              assignmentType: 'SPECIFIC_SUBGROUP',
+              parentAssignmentId: null,
+            },
+          })
+        )
+      );
+
+      logger.info('Granted specific sub-group access', { userId, subGroupCodes, role });
+    }
   } catch (error) {
-    logger.error('Error granting service line access', { userId, serviceLine, role, error });
+    logger.error('Error granting service line access', { userId, serviceLineOrSubGroups, role, type, error });
     throw error;
   }
 }
 
 /**
- * Revoke user access to a service line
+ * Revoke user access to a service line or specific sub-groups
  */
 export async function revokeServiceLineAccess(
   userId: string,
-  serviceLine: ServiceLine | string
+  serviceLineOrSubGroups: ServiceLine | string | string[],
+  type: 'main' | 'subgroup' = 'main'
 ): Promise<void> {
   try {
-    await prisma.serviceLineUser.delete({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine: serviceLine as string,
-        },
-      },
-    });
+    if (type === 'main') {
+      // Revoke access to all sub-groups for the main service line
+      const masterCode = serviceLineOrSubGroups as string;
+      const subGroups = await getSubServiceLineGroupsByMaster(masterCode);
+      const subGroupCodes = subGroups.map(sg => sg.code);
 
-    logger.info('Revoked service line access', { userId, serviceLine });
+      await prisma.serviceLineUser.deleteMany({
+        where: {
+          userId,
+          subServiceLineGroup: { in: subGroupCodes },
+        },
+      });
+
+      logger.info('Revoked main service line access', { userId, masterCode, subGroupCount: subGroupCodes.length });
+    } else {
+      // Revoke access to specific sub-groups
+      const subGroupCodes = Array.isArray(serviceLineOrSubGroups)
+        ? serviceLineOrSubGroups
+        : [serviceLineOrSubGroups];
+
+      await prisma.serviceLineUser.deleteMany({
+        where: {
+          userId,
+          subServiceLineGroup: { in: subGroupCodes },
+        },
+      });
+
+      logger.info('Revoked specific sub-group access', { userId, subGroupCodes });
+    }
   } catch (error) {
-    logger.error('Error revoking service line access', { userId, serviceLine, error });
+    logger.error('Error revoking service line access', { userId, serviceLineOrSubGroups, type, error });
     throw error;
   }
 }
 
 /**
- * Update user's role in a service line
+ * Update user's role in a service line or sub-group
  */
 export async function updateServiceLineRole(
   userId: string,
-  serviceLine: ServiceLine | string,
-  role: ServiceLineRole | string
+  serviceLineOrSubGroup: ServiceLine | string,
+  role: ServiceLineRole | string,
+  isSubGroup: boolean = false
 ): Promise<void> {
   try {
-    await prisma.serviceLineUser.update({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine: serviceLine as string,
+    if (isSubGroup) {
+      // Update role for specific sub-group
+      await prisma.serviceLineUser.update({
+        where: {
+          userId_subServiceLineGroup: {
+            userId,
+            subServiceLineGroup: serviceLineOrSubGroup as string,
+          },
         },
+        data: {
+          role: role as string,
+        },
+      });
+
+      logger.info('Updated sub-group role', { userId, subGroup: serviceLineOrSubGroup, role });
+    } else {
+      // Update role for all sub-groups in the service line
+      const subGroups = await getSubServiceLineGroupsByMaster(serviceLineOrSubGroup as string);
+      const subGroupCodes = subGroups.map(sg => sg.code);
+
+      await prisma.serviceLineUser.updateMany({
+        where: {
+          userId,
+          subServiceLineGroup: { in: subGroupCodes },
+        },
+        data: {
+          role: role as string,
+        },
+      });
+
+      logger.info('Updated service line role', { userId, serviceLine: serviceLineOrSubGroup, role });
+    }
+  } catch (error) {
+    logger.error('Error updating service line role', { userId, serviceLineOrSubGroup, role, error });
+    throw error;
+  }
+}
+
+/**
+ * Switch user's assignment type between main service line and specific sub-groups
+ */
+export async function switchAssignmentType(
+  userId: string,
+  masterCode: string,
+  newType: 'main' | 'specific',
+  specificSubGroups?: string[]
+): Promise<void> {
+  try {
+    if (newType === 'main') {
+      // Delete existing assignments and create main service line assignment
+      const existingAssignments = await prisma.serviceLineUser.findMany({
+        where: {
+          userId,
+          subServiceLineGroup: {
+            in: (await getSubServiceLineGroupsByMaster(masterCode)).map(sg => sg.code),
+          },
+        },
+        select: { role: true },
+      });
+
+      const role = existingAssignments.length > 0 ? getHighestRole(existingAssignments.map(a => a.role)) : 'USER';
+
+      // Delete all current assignments
+      await revokeServiceLineAccess(userId, masterCode, 'main');
+
+      // Create main service line assignment
+      await grantServiceLineAccess(userId, masterCode, role, 'main');
+
+      logger.info('Switched to main service line assignment', { userId, masterCode });
+    } else {
+      // Switch to specific sub-groups
+      if (!specificSubGroups || specificSubGroups.length === 0) {
+        throw new Error('Specific sub-groups must be provided when switching to specific assignment type');
+      }
+
+      // Get current role
+      const existingAssignments = await prisma.serviceLineUser.findMany({
+        where: {
+          userId,
+          subServiceLineGroup: {
+            in: (await getSubServiceLineGroupsByMaster(masterCode)).map(sg => sg.code),
+          },
+        },
+        select: { role: true },
+      });
+
+      const role = existingAssignments.length > 0 ? getHighestRole(existingAssignments.map(a => a.role)) : 'USER';
+
+      // Delete all current assignments
+      await revokeServiceLineAccess(userId, masterCode, 'main');
+
+      // Create specific sub-group assignments
+      await grantServiceLineAccess(userId, specificSubGroups, role, 'subgroup');
+
+      logger.info('Switched to specific sub-group assignment', { userId, masterCode, subGroups: specificSubGroups });
+    }
+  } catch (error) {
+    logger.error('Error switching assignment type', { userId, masterCode, newType, error });
+    throw error;
+  }
+}
+
+/**
+ * Get user's assignment type for a service line
+ */
+export async function getUserAssignmentType(userId: string, masterCode: string): Promise<AssignmentType> {
+  try {
+    const subGroups = await getSubServiceLineGroupsByMaster(masterCode);
+    const subGroupCodes = subGroups.map(sg => sg.code);
+
+    if (subGroupCodes.length === 0) {
+      return 'NONE';
+    }
+
+    const assignments = await prisma.serviceLineUser.findMany({
+      where: {
+        userId,
+        subServiceLineGroup: { in: subGroupCodes },
       },
-      data: {
-        role: role as string,
+      select: {
+        assignmentType: true,
       },
     });
 
-    logger.info('Updated service line role', { userId, serviceLine, role });
+    if (assignments.length === 0) {
+      return 'NONE';
+    }
+
+    // If user has all sub-groups and all are MAIN_SERVICE_LINE type
+    if (assignments.length === subGroupCodes.length && 
+        assignments.every(a => a.assignmentType === 'MAIN_SERVICE_LINE')) {
+      return 'MAIN_SERVICE_LINE';
+    }
+
+    return 'SPECIFIC_SUBGROUP';
   } catch (error) {
-    logger.error('Error updating service line role', { userId, serviceLine, role, error });
-    throw error;
+    logger.error('Error getting user assignment type', { userId, masterCode, error });
+    return 'NONE';
   }
 }
 
@@ -382,9 +677,13 @@ export async function updateServiceLineRole(
  */
 export async function getServiceLineUsers(serviceLine: ServiceLine | string) {
   try {
+    // Get all sub-groups for this master code
+    const subGroups = await getSubServiceLineGroupsByMaster(serviceLine as string);
+    const subGroupCodes = subGroups.map(sg => sg.code);
+
     const users = await prisma.serviceLineUser.findMany({
       where: {
-        serviceLine: serviceLine as string,
+        subServiceLineGroup: { in: subGroupCodes },
       },
       include: {
         User: {
@@ -401,7 +700,27 @@ export async function getServiceLineUsers(serviceLine: ServiceLine | string) {
       },
     });
 
-    return users;
+    // Group by user and determine assignment type
+    const userMap = new Map<string, any>();
+    for (const assignment of users) {
+      if (!userMap.has(assignment.userId)) {
+        userMap.set(assignment.userId, {
+          ...assignment,
+          subGroups: [assignment.subServiceLineGroup],
+          hasAllSubGroups: false,
+        });
+      } else {
+        const existing = userMap.get(assignment.userId);
+        existing.subGroups.push(assignment.subServiceLineGroup);
+      }
+    }
+
+    // Determine if each user has all sub-groups
+    for (const [userId, userData] of userMap) {
+      userData.hasAllSubGroups = userData.subGroups.length === subGroupCodes.length;
+    }
+
+    return Array.from(userMap.values());
   } catch (error) {
     logger.error('Error getting service line users', { serviceLine, error });
     throw error;
@@ -413,6 +732,19 @@ export async function getServiceLineUsers(serviceLine: ServiceLine | string) {
  */
 export async function getServiceLineStats(serviceLine: ServiceLine | string) {
   try {
+    // Get all sub-groups for this service line
+    const subGroups = await getSubServiceLineGroupsByMaster(serviceLine as string);
+    const subGroupCodes = subGroups.map(sg => sg.code);
+
+    // Get all ServLineCodes for these sub-groups
+    const servLineCodes: string[] = [];
+    for (const subGroup of subGroups) {
+      const codes = await getServLineCodesBySubGroup(subGroup.code, serviceLine as string);
+      servLineCodes.push(...codes);
+    }
+
+    const uniqueServLineCodes = Array.from(new Set(servLineCodes));
+
     const [
       totalTasks,
       activeTasks,
@@ -421,25 +753,25 @@ export async function getServiceLineStats(serviceLine: ServiceLine | string) {
       recentTasks,
     ] = await Promise.all([
       prisma.task.count({
-        where: { ServLineCode: serviceLine as string },
+        where: { ServLineCode: { in: uniqueServLineCodes } },
       }),
       prisma.task.count({
         where: { 
-          ServLineCode: serviceLine as string, 
+          ServLineCode: { in: uniqueServLineCodes }, 
           Active: 'Yes',
         },
       }),
       prisma.task.count({
         where: { 
-          ServLineCode: serviceLine as string, 
+          ServLineCode: { in: uniqueServLineCodes }, 
           Active: 'No',
         },
       }),
       prisma.serviceLineUser.count({
-        where: { serviceLine: serviceLine as string },
+        where: { subServiceLineGroup: { in: subGroupCodes } },
       }),
       prisma.task.findMany({
-        where: { ServLineCode: serviceLine as string },
+        where: { ServLineCode: { in: uniqueServLineCodes } },
         orderBy: { createdAt: 'desc' },
         take: 5,
         select: {
@@ -452,8 +784,8 @@ export async function getServiceLineStats(serviceLine: ServiceLine | string) {
     ]);
 
     return {
-      totalTasks: totalTasks,
-      activeTasks: activeTasks,
+      totalTasks,
+      activeTasks,
       archivedProjects: inactiveTasks,
       totalUsers,
       recentProjects: recentTasks,
@@ -463,4 +795,3 @@ export async function getServiceLineStats(serviceLine: ServiceLine | string) {
     throw error;
   }
 }
-

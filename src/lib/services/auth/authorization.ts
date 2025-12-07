@@ -69,20 +69,10 @@ export async function getServiceLineRole(
   serviceLine: string
 ): Promise<ServiceLineRole | null> {
   try {
-    const serviceLineUser = await prisma.serviceLineUser.findUnique({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine,
-        },
-      },
-      select: { role: true },
-    });
-
-    if (!serviceLineUser) return null;
-
-    // Return the role as a ServiceLineRole enum
-    return serviceLineUser.role as ServiceLineRole;
+    // Delegate to serviceLineService which handles sub-groups
+    const { getServiceLineRole: getServiceLineRoleFromService } = await import('@/lib/services/service-lines/serviceLineService');
+    const role = await getServiceLineRoleFromService(userId, serviceLine);
+    return role as ServiceLineRole | null;
   } catch (error) {
     logger.error('Error getting service line role', { userId, serviceLine, error });
     return null;
@@ -116,21 +106,9 @@ export async function hasServiceLineAccess(
   serviceLine: string
 ): Promise<boolean> {
   try {
-    // System Admins have access to all service lines
-    const isAdmin = await isSystemAdmin(userId);
-    if (isAdmin) return true;
-
-    // Check if user has ServiceLineUser entry
-    const serviceLineUser = await prisma.serviceLineUser.findUnique({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine,
-        },
-      },
-    });
-
-    return !!serviceLineUser;
+    // Delegate to serviceLineService which handles sub-groups
+    const { checkServiceLineAccess: checkAccessFromService } = await import('@/lib/services/service-lines/serviceLineService');
+    return await checkAccessFromService(userId, serviceLine);
   } catch (error) {
     logger.error('Error checking service line access', { userId, serviceLine, error });
     return false;
@@ -150,7 +128,7 @@ export async function canApproveAcceptance(
     const isAdmin = await isSystemAdmin(userId);
     if (isAdmin) return true;
 
-    // Get the task's service line
+    // Get the task's service line code
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { ServLineCode: true },
@@ -161,8 +139,26 @@ export async function canApproveAcceptance(
       return false;
     }
 
-    // Check if user is an Administrator or Partner in the task's service line
-    const isServiceLinePartner = await isPartner(userId, task.ServLineCode);
+    // Map ServLineCode to SubServlineGroupCode
+    const serviceLineExternal = await prisma.serviceLineExternal.findFirst({
+      where: { ServLineCode: task.ServLineCode },
+      select: { 
+        SubServlineGroupCode: true,
+        masterCode: true,
+      },
+    });
+
+    if (!serviceLineExternal?.SubServlineGroupCode) {
+      logger.warn('No sub-service line group found for task', { taskId, servLineCode: task.ServLineCode });
+      return false;
+    }
+
+    // Check if user has access to this sub-group with ADMINISTRATOR or PARTNER role
+    const { checkSubGroupAccess } = await import('@/lib/services/service-lines/serviceLineService');
+    const hasAdminAccess = await checkSubGroupAccess(userId, serviceLineExternal.SubServlineGroupCode, ServiceLineRole.ADMINISTRATOR);
+    const hasPartnerAccess = await checkSubGroupAccess(userId, serviceLineExternal.SubServlineGroupCode, ServiceLineRole.PARTNER);
+    
+    const isServiceLinePartner = hasAdminAccess || hasPartnerAccess;
     
     // Also verify they have task access
     if (isServiceLinePartner) {

@@ -661,4 +661,105 @@ export type BDOpportunityFiltersInput = z.infer<typeof BDOpportunityFiltersSchem
 export type BDActivityFiltersInput = z.infer<typeof BDActivityFiltersSchema>;
 export type BDAnalyticsFiltersInput = z.infer<typeof BDAnalyticsFiltersSchema>;
 
+/**
+ * Service Line Assignment Schemas
+ */
+
+// Service line role enum
+const ServiceLineRoleSchema = z.enum([
+  'ADMINISTRATOR',
+  'PARTNER',
+  'MANAGER',
+  'SUPERVISOR',
+  'USER',
+  'VIEWER',
+]);
+
+// Main service line codes
+const ServiceLineCodeSchema = z.enum([
+  'TAX',
+  'AUDIT',
+  'ACCOUNTING',
+  'ADVISORY',
+  'QRM',
+  'BUSINESS_DEV',
+  'IT',
+  'FINANCE',
+  'HR',
+]);
+
+// Service line assignment type
+const AssignmentTypeSchema = z.enum(['main', 'subgroup']);
+
+/**
+ * Grant service line access (main service line or specific sub-groups)
+ */
+export const GrantServiceLineAccessSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+  type: AssignmentTypeSchema,
+  masterCode: ServiceLineCodeSchema.optional(),
+  subGroups: z.array(z.string()).optional(),
+  role: ServiceLineRoleSchema,
+}).refine((data) => {
+  // If type is 'main', masterCode is required
+  if (data.type === 'main') return !!data.masterCode;
+  // If type is 'subgroup', subGroups array is required and must not be empty
+  if (data.type === 'subgroup') return data.subGroups && data.subGroups.length > 0;
+  return false;
+}, {
+  message: 'For main type, masterCode is required. For subgroup type, subGroups array is required and must not be empty.',
+});
+
+/**
+ * Revoke service line access
+ */
+export const RevokeServiceLineAccessSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+  type: AssignmentTypeSchema,
+  masterCode: ServiceLineCodeSchema.optional(),
+  subGroups: z.array(z.string()).optional(),
+}).refine((data) => {
+  // If type is 'main', masterCode is required
+  if (data.type === 'main') return !!data.masterCode;
+  // If type is 'subgroup', subGroups array is required and must not be empty
+  if (data.type === 'subgroup') return data.subGroups && data.subGroups.length > 0;
+  return false;
+}, {
+  message: 'For main type, masterCode is required. For subgroup type, subGroups array is required and must not be empty.',
+});
+
+/**
+ * Update service line role
+ */
+export const UpdateServiceLineRoleSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+  serviceLineOrSubGroup: z.string().min(1, 'Service line or sub-group code is required'),
+  role: ServiceLineRoleSchema,
+  isSubGroup: z.boolean().default(false),
+});
+
+/**
+ * Switch assignment type between main and specific sub-groups
+ */
+export const SwitchAssignmentTypeSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+  masterCode: ServiceLineCodeSchema,
+  newType: z.enum(['main', 'specific']),
+  specificSubGroups: z.array(z.string()).optional(),
+}).refine((data) => {
+  // If newType is 'specific', specificSubGroups is required
+  if (data.newType === 'specific') {
+    return data.specificSubGroups && data.specificSubGroups.length > 0;
+  }
+  return true;
+}, {
+  message: 'When switching to specific sub-groups, specificSubGroups array is required and must not be empty.',
+});
+
+// Inferred types
+export type GrantServiceLineAccessInput = z.infer<typeof GrantServiceLineAccessSchema>;
+export type RevokeServiceLineAccessInput = z.infer<typeof RevokeServiceLineAccessSchema>;
+export type UpdateServiceLineRoleInput = z.infer<typeof UpdateServiceLineRoleSchema>;
+export type SwitchAssignmentTypeInput = z.infer<typeof SwitchAssignmentTypeSchema>;
+
 

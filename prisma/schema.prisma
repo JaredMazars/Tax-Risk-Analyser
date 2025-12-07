@@ -751,17 +751,22 @@ model ServiceLineExternal {
 }
 
 model ServiceLineUser {
-  id          Int      @id @default(autoincrement())
-  userId      String
-  serviceLine String
-  role        String   @default("USER")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   Int      @id @default(autoincrement())
+  userId               String
+  subServiceLineGroup  String
+  role                 String   @default("USER")
+  assignmentType       String   @default("SPECIFIC_SUBGROUP")
+  parentAssignmentId   Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  User                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, serviceLine])
-  @@index([serviceLine])
+  @@unique([userId, subServiceLineGroup])
+  @@index([subServiceLineGroup])
   @@index([userId])
+  @@index([assignmentType])
+  @@index([parentAssignmentId])
+  @@index([userId, assignmentType])
 }
 
 model Session {
