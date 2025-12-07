@@ -57,6 +57,7 @@ export async function GET(
         .map(sl => sl.ServLineCode)
         .filter((code): code is string => code !== null);
     }
+    // If no serviceLine param, show ALL tasks for the client (organization-wide)
 
     // Build task where clause
     interface TaskWhereClause {
@@ -71,6 +72,7 @@ export async function GET(
     if (!includeArchived) {
       taskWhere.Active = 'Yes';
     }
+    // Filter by serviceLine only if explicitly provided
     if (servLineCodes && servLineCodes.length > 0) {
       taskWhere.ServLineCode = { in: servLineCodes };
     }

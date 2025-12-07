@@ -4,8 +4,6 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
-import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
-import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,45 +14,17 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Check Permission
+    // Users with service line assignments automatically have client/group read access
     const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
-    }
-
-    // 3. Get user's accessible service lines
-    const userServiceLines = await getUserServiceLines(user.id);
-    const accessibleMasterCodes = userServiceLines.map(sl => sl.serviceLine);
-
-    // Map master codes to actual ServLineCodes from ServiceLineExternal
-    const servLineCodesPromises = accessibleMasterCodes.map(masterCode =>
-      getExternalServiceLinesByMaster(masterCode)
-    );
-    const servLineCodesArrays = await Promise.all(servLineCodesPromises);
+    const { getUserSubServiceLineGroups } = await import('@/lib/services/service-lines/serviceLineService');
     
-    // Flatten and extract ServLineCodes
-    const accessibleServLineCodes = Array.from(
-      new Set(
-        servLineCodesArrays
-          .flat()
-          .map(sl => sl.ServLineCode)
-          .filter((code): code is string => code !== null)
-      )
-    );
-
-    // If user has no accessible ServLineCodes, return empty
-    if (accessibleServLineCodes.length === 0) {
-      return NextResponse.json(
-        successResponse({
-          groups: [],
-          pagination: {
-            page: 1,
-            limit: 50,
-            total: 0,
-            totalPages: 0,
-          },
-        })
-      );
+    const hasPagePermission = await checkUserPermission(user.id, 'clients', 'READ');
+    const userSubGroups = await getUserSubServiceLineGroups(user.id);
+    const hasServiceLineAccess = userSubGroups.length > 0;
+    
+    // Grant access if user has either page permission OR service line assignment
+    if (!hasPagePermission && !hasServiceLineAccess) {
+      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
 
     // Parse query parameters
@@ -77,26 +47,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(successResponse(cached));
     }
 
-    // Build where clause for search and service line filtering
+    // Build where clause for search - show ALL groups organization-wide
     interface WhereClause {
       OR?: Array<Record<string, { contains: string }>>;
-      Task?: {
-        some: {
-          ServLineCode: {
-            in: string[];
-          };
-        };
-      };
     }
     
-    const where: WhereClause = {
-      // Filter to only groups that have tasks in accessible service lines
-      Task: {
-        some: {
-          ServLineCode: { in: accessibleServLineCodes },
-        },
-      },
-    };
+    const where: WhereClause = {};
 
     if (search) {
       where.OR = [

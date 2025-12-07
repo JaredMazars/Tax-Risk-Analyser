@@ -3,8 +3,6 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
-import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
 
 interface ProfitabilityMetrics {
   grossProduction: number;
@@ -126,55 +124,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
 
-    // 4. Filter Service Lines - get user's accessible service lines
-    const userServiceLines = await getUserServiceLines(user.id);
-    const accessibleMasterCodes = userServiceLines.map(sl => sl.serviceLine);
-
-    // Map master codes to actual ServLineCodes from ServiceLineExternal
-    const servLineCodesPromises = accessibleMasterCodes.map(masterCode =>
-      getExternalServiceLinesByMaster(masterCode)
-    );
-    const servLineCodesArrays = await Promise.all(servLineCodesPromises);
-    
-    // Flatten and extract ServLineCodes
-    const accessibleServLineCodes = Array.from(
-      new Set(
-        servLineCodesArrays
-          .flat()
-          .map(sl => sl.ServLineCode)
-          .filter((code): code is string => code !== null)
-      )
-    );
-
-    if (accessibleServLineCodes.length === 0) {
-      return NextResponse.json(
-        successResponse({
-          groupCode,
-          groupDesc: '',
-          overall: calculateProfitabilityMetrics({
-            ltdTime: 0,
-            ltdAdjTime: 0,
-            ltdAdjDisb: 0,
-            ltdCost: 0,
-            balWIP: 0,
-            balTime: 0,
-            balDisb: 0,
-            wipProvision: 0,
-            ltdDisb: 0,
-            ltdFeeTime: 0,
-            ltdFeeDisb: 0,
-            ltdHours: 0,
-            taskCount: 0,
-          }),
-          byMasterServiceLine: {},
-          masterServiceLines: [],
-          taskCount: 0,
-          lastUpdated: null,
-        })
-      );
-    }
-
-    // 5. Execute - Verify the group exists
+    // 4. Execute - Verify the group exists
     const groupInfo = await prisma.client.findFirst({
       where: { groupCode },
       select: {
@@ -190,15 +140,10 @@ export async function GET(
       );
     }
 
-    // Get all clients in this group
+    // Get all clients in this group (organization-wide)
     const clientsInGroup = await prisma.client.findMany({
       where: {
         groupCode,
-        Task: {
-          some: {
-            ServLineCode: { in: accessibleServLineCodes },
-          },
-        },
       },
       select: {
         ClientID: true,

@@ -10,6 +10,7 @@ import {
   FolderIcon,
   ClockIcon,
   UserGroupIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -28,6 +29,7 @@ export default function SubServiceLineWorkspacePage() {
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const { setCurrentServiceLine } = useServiceLine();
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   
   const [activeTab, setActiveTab] = useState<'clients' | 'tasks' | 'my-tasks' | 'groups'>('clients');
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,10 +138,75 @@ export default function SubServiceLineWorkspacePage() {
     }
   }, [serviceLine, router, setCurrentServiceLine]);
 
+  // Check if user has access to this sub-service-line group
+  useEffect(() => {
+    async function checkAccess() {
+      if (!subServiceLineGroup) {
+        setHasAccess(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/service-lines');
+        if (!response.ok) {
+          setHasAccess(false);
+          return;
+        }
+
+        const result = await response.json();
+        const serviceLines = result.data;
+
+        // Check if user has access to this specific sub-service-line group
+        const hasSubGroupAccess = serviceLines.some((sl: any) => 
+          sl.subGroups?.some((sg: any) => sg.code === subServiceLineGroup)
+        );
+
+        setHasAccess(hasSubGroupAccess);
+
+        if (!hasSubGroupAccess) {
+          // Redirect to dashboard if no access
+          setTimeout(() => router.push('/dashboard'), 2000);
+        }
+      } catch (error) {
+        console.error('Error checking sub-service-line group access:', error);
+        setHasAccess(false);
+      }
+    }
+
+    checkAccess();
+  }, [subServiceLineGroup, router]);
+
   // Reset to first page when tab changes
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab]);
+
+  // Show loading while checking access
+  if (hasAccess === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-forvis-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600 mx-auto mb-4"></div>
+          <p className="text-forvis-gray-600">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied message if user doesn't have access
+  if (hasAccess === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-forvis-gray-50">
+        <div className="text-center max-w-md px-4">
+          <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+          <h1 className="text-2xl font-bold text-forvis-gray-900 mb-2">Access Denied</h1>
+          <p className="text-forvis-gray-600 mb-4">
+            You don't have access to this sub-service-line group. Redirecting to dashboard...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isValidServiceLine(serviceLine)) {
     return null;

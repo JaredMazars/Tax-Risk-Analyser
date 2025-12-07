@@ -158,6 +158,10 @@ export interface ServiceLineWithStats {
   role: ServiceLineRole | string;
   taskCount: number;
   activeTaskCount: number;
+  subGroups?: Array<{
+    code: string;
+    description: string;
+  }>;
 }
 
 /**

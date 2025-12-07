@@ -4,8 +4,6 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
-import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
-import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
 
 export async function GET(
   request: NextRequest,
@@ -23,44 +21,6 @@ export async function GET(
     const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
-    }
-
-    // 3. Get user's accessible service lines
-    const userServiceLines = await getUserServiceLines(user.id);
-    const accessibleMasterCodes = userServiceLines.map(sl => sl.serviceLine);
-
-    // Map master codes to actual ServLineCodes from ServiceLineExternal
-    const servLineCodesPromises = accessibleMasterCodes.map(masterCode =>
-      getExternalServiceLinesByMaster(masterCode)
-    );
-    const servLineCodesArrays = await Promise.all(servLineCodesPromises);
-    
-    // Flatten and extract ServLineCodes
-    const accessibleServLineCodes = Array.from(
-      new Set(
-        servLineCodesArrays
-          .flat()
-          .map(sl => sl.ServLineCode)
-          .filter((code): code is string => code !== null)
-      )
-    );
-
-    // If user has no accessible ServLineCodes, return empty
-    if (accessibleServLineCodes.length === 0) {
-      return NextResponse.json(
-        successResponse({
-          groupCode: params.groupCode,
-          groupDesc: '',
-          clients: [],
-          tasks: [],
-          pagination: {
-            page: 1,
-            limit: 20,
-            total: 0,
-            totalPages: 0,
-          },
-        })
-      );
     }
 
     const { groupCode } = params;
@@ -107,32 +67,12 @@ export async function GET(
     }
 
     if (dataType === 'tasks') {
-      // Filter accessible service line codes by master service line if provided
-      let filteredServLineCodes = accessibleServLineCodes;
-      
-      if (serviceLine) {
-        // Get ServLineCodes that match the requested master service line
-        const serviceLineExternalsForMaster = await prisma.serviceLineExternal.findMany({
-          where: {
-            masterCode: serviceLine,
-            ServLineCode: { in: accessibleServLineCodes },
-          },
-          select: {
-            ServLineCode: true,
-          },
-        });
-        
-        filteredServLineCodes = serviceLineExternalsForMaster
-          .map(sl => sl.ServLineCode)
-          .filter((code): code is string => code !== null);
-      }
-
-      // Fetch tasks for all clients in this group
+      // Fetch tasks for all clients in this group (organization-wide)
       interface TaskWhereClause {
         Client: {
           groupCode: string;
         };
-        ServLineCode: {
+        ServLineCode?: {
           in: string[];
         };
         OR?: Array<Record<string, { contains: string }>>;
@@ -142,10 +82,29 @@ export async function GET(
         Client: {
           groupCode,
         },
-        ServLineCode: {
-          in: filteredServLineCodes, // Security filter + optional master service line filter
-        },
       };
+      
+      // Filter by master service line if provided
+      if (serviceLine) {
+        const serviceLineExternalsForMaster = await prisma.serviceLineExternal.findMany({
+          where: {
+            masterCode: serviceLine,
+          },
+          select: {
+            ServLineCode: true,
+          },
+        });
+        
+        const filteredServLineCodes = serviceLineExternalsForMaster
+          .map(sl => sl.ServLineCode)
+          .filter((code): code is string => code !== null);
+          
+        if (filteredServLineCodes.length > 0) {
+          taskWhere.ServLineCode = {
+            in: filteredServLineCodes,
+          };
+        }
+      }
 
       if (search) {
         taskWhere.OR = [
@@ -290,27 +249,14 @@ export async function GET(
       return NextResponse.json(successResponse(responseData));
     }
 
-    // Build where clause for clients with service line filtering
+    // Build where clause for clients - show ALL clients in group organization-wide
     interface WhereClause {
       groupCode: string;
       OR?: Array<Record<string, { contains: string }>>;
-      Task?: {
-        some: {
-          ServLineCode: {
-            in: string[];
-          };
-        };
-      };
     }
 
     const where: WhereClause = {
       groupCode,
-      // Only show clients that have tasks in accessible service lines
-      Task: {
-        some: {
-          ServLineCode: { in: accessibleServLineCodes },
-        },
-      },
     };
 
     if (search) {
@@ -342,11 +288,7 @@ export async function GET(
           active: true,
           _count: {
             select: {
-              Task: {
-                where: {
-                  ServLineCode: { in: accessibleServLineCodes },
-                },
-              },
+              Task: true,
             },
           },
         },

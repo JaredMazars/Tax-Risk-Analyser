@@ -57,8 +57,10 @@ export default function UserMenu({ user }: UserMenuProps) {
       });
 
       if (response.ok) {
-        // Redirect to home page
-        window.location.href = '/';
+        const data = await response.json();
+        // Redirect to Azure AD logout URL which will clear AD session
+        // and redirect back to login page
+        window.location.href = data.logoutUrl || '/api/auth/login';
       } else {
         setIsLoggingOut(false);
       }

@@ -81,6 +81,12 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       );
 
       // Return all service lines with ADMINISTRATOR role for SYSTEM_ADMIN
+      // Get all sub-groups for SYSTEM_ADMIN
+      const allSubGroupsPromises = allServiceLines.map(masterCode =>
+        getSubServiceLineGroupsByMaster(masterCode)
+      );
+      const allSubGroupsArrays = await Promise.all(allSubGroupsPromises);
+      
       return allServiceLines.map((sl, index) => {
         const servLineCodes = masterToServLineCodesMap.get(sl) || [];
         
@@ -93,6 +99,12 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
           (sum, code) => sum + (activeTaskCountMap.get(code) || 0),
           0
         );
+        
+        // Get all sub-groups for this master code
+        const subGroups = allSubGroupsArrays[index].map(sg => ({
+          code: sg.code,
+          description: sg.description,
+        }));
 
         return {
           id: -(index + 1), // Use negative IDs for virtual service line access
@@ -100,6 +112,7 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
           role: 'ADMINISTRATOR',
           taskCount,
           activeTaskCount,
+          subGroups,
         };
       });
     }
@@ -193,10 +206,17 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
     // Build result: one entry per master code
     const result: ServiceLineWithStats[] = [];
     for (const [masterCode, assignments] of masterCodeAssignments) {
-      // Get all sub-groups for this master code to determine if user has full access
+      // Get all sub-groups for this master code
       const allSubGroupsForMaster = await getSubServiceLineGroupsByMaster(masterCode);
-      const userSubGroups = new Set(assignments.map(a => a.subServiceLineGroup));
-      const hasAllSubGroups = allSubGroupsForMaster.every(sg => userSubGroups.has(sg.code));
+      const userSubGroupCodes = new Set(assignments.map(a => a.subServiceLineGroup));
+      
+      // Filter to only user's accessible sub-groups
+      const accessibleSubGroups = allSubGroupsForMaster.filter(sg => 
+        userSubGroupCodes.has(sg.code)
+      ).map(sg => ({
+        code: sg.code,
+        description: sg.description,
+      }));
 
       // Determine role (use highest role if multiple sub-groups)
       const roles = assignments.map(a => a.role);
@@ -220,12 +240,96 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         role,
         taskCount,
         activeTaskCount,
+        subGroups: accessibleSubGroups,
       });
     }
 
     return result;
   } catch (error) {
     logger.error('Error getting user service lines', { userId, error });
+    throw error;
+  }
+}
+
+/**
+ * Get all sub-service line groups accessible to a user
+ * Returns array of sub-service-line group codes the user has access to
+ */
+export async function getUserSubServiceLineGroups(userId: string): Promise<string[]> {
+  try {
+    // Check if user is a SYSTEM_ADMIN - they get access to all sub-groups
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
+
+    if (isSystemAdmin) {
+      // SYSTEM_ADMIN gets access to all sub-service line groups
+      const allSubGroups = await prisma.serviceLineExternal.findMany({
+        where: {
+          SubServlineGroupCode: { not: null },
+        },
+        select: {
+          SubServlineGroupCode: true,
+        },
+        distinct: ['SubServlineGroupCode'],
+      });
+
+      return allSubGroups
+        .map(sg => sg.SubServlineGroupCode)
+        .filter((code): code is string => code !== null);
+    }
+
+    // For regular users, get their sub-service line group assignments
+    const subGroupAssignments = await prisma.serviceLineUser.findMany({
+      where: { userId },
+      select: {
+        subServiceLineGroup: true,
+      },
+    });
+
+    return Array.from(new Set(subGroupAssignments.map(a => a.subServiceLineGroup)));
+  } catch (error) {
+    logger.error('Error getting user sub-service line groups', { userId, error });
+    throw error;
+  }
+}
+
+/**
+ * Get all ServLineCodes accessible to a user based on their sub-service line group assignments
+ * Returns array of ServLineCodes the user can access
+ */
+export async function getUserAccessibleServLineCodes(userId: string): Promise<string[]> {
+  try {
+    // Get user's accessible sub-service line groups
+    const userSubGroups = await getUserSubServiceLineGroups(userId);
+
+    if (userSubGroups.length === 0) {
+      return [];
+    }
+
+    // Map sub-groups to ServLineCodes
+    const servLineMapping = await prisma.serviceLineExternal.findMany({
+      where: {
+        SubServlineGroupCode: { in: userSubGroups },
+      },
+      select: {
+        ServLineCode: true,
+      },
+    });
+
+    // Return unique ServLineCodes
+    return Array.from(
+      new Set(
+        servLineMapping
+          .map(m => m.ServLineCode)
+          .filter((code): code is string => code !== null)
+      )
+    );
+  } catch (error) {
+    logger.error('Error getting user accessible ServLineCodes', { userId, error });
     throw error;
   }
 }
@@ -408,8 +512,13 @@ export async function grantServiceLineAccess(
         throw new Error(`No sub-service line groups found for ${masterCode}`);
       }
 
-      // Generate a parent assignment ID (use timestamp + random)
-      const parentId = Date.now() + Math.floor(Math.random() * 1000);
+      // Generate a parent assignment ID within SQL Server INT range (max: 2,147,483,647)
+      // Get the highest current parentAssignmentId and increment
+      const maxParent = await prisma.serviceLineUser.findFirst({
+        orderBy: { parentAssignmentId: 'desc' },
+        select: { parentAssignmentId: true },
+      });
+      const parentId = (maxParent?.parentAssignmentId || 0) + 1;
 
       // Create/update records for all sub-groups
       await prisma.$transaction(

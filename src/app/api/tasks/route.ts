@@ -4,9 +4,8 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { CreateTaskSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
 import { getTasksWithCounts } from '@/lib/services/tasks/taskService';
-import { getServLineCodesBySubGroup, getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
+import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { sanitizeObject } from '@/lib/utils/sanitization';
@@ -21,9 +20,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Check permission
+    // Users with service line assignments automatically have task read access
     const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'tasks', 'READ');
-    if (!hasPermission) {
+    const { getUserSubServiceLineGroups } = await import('@/lib/services/service-lines/serviceLineService');
+    
+    const hasPagePermission = await checkUserPermission(user.id, 'tasks', 'READ');
+    const userSubGroups = await getUserSubServiceLineGroups(user.id);
+    const hasServiceLineAccess = userSubGroups.length > 0;
+    
+    // Grant access if user has either page permission OR service line assignment
+    if (!hasPagePermission && !hasServiceLineAccess) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
     
@@ -66,49 +72,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get user's accessible service lines (returns master codes like 'TAX', 'ACCOUNTING')
-    const userServiceLines = await getUserServiceLines(user.id);
-    const accessibleMasterCodes = userServiceLines.map(sl => sl.serviceLine);
-
-    // Map master codes to actual ServLineCodes from ServiceLineExternal
-    const servLineCodesPromises = accessibleMasterCodes.map(masterCode =>
-      getExternalServiceLinesByMaster(masterCode)
-    );
-    const servLineCodesArrays = await Promise.all(servLineCodesPromises);
-    
-    // Flatten and extract ServLineCodes
-    const accessibleServLineCodes = Array.from(
-      new Set(
-        servLineCodesArrays
-          .flat()
-          .map(sl => sl.ServLineCode)
-          .filter((code): code is string => code !== null)
-      )
-    );
-
-    // If user has no accessible ServLineCodes, return empty
-    if (accessibleServLineCodes.length === 0) {
-      return NextResponse.json(
-        successResponse({
-          tasks: [],
-          pagination: {
-            page,
-            limit,
-            total: 0,
-            totalPages: 0,
-          },
-        })
-      );
-    }
-
-    // Build where clause for database-level filtering with actual ServLineCodes
-    const where: Prisma.TaskWhereInput = {
-      ServLineCode: {
-        in: accessibleServLineCodes,
-      },
-    };
+    // Build where clause for database-level filtering
+    const where: Prisma.TaskWhereInput = {};
 
     // Filter by team membership if myTasksOnly is true
+    // "My Tasks" means tasks where the user is a team member, 
+    // even when viewing a specific subServiceLineGroup
     if (myTasksOnly) {
       where.TaskTeam = {
         some: {
@@ -132,7 +101,7 @@ export async function GET(request: NextRequest) {
       where.ClientCode = { not: null };
     }
 
-    // Filter by SubServiceLineGroup - this takes priority over serviceLine
+    // Filter by SubServiceLineGroup - show ALL tasks for the specified sub-group
     if (subServiceLineGroup) {
       const servLineCodes = await getServLineCodesBySubGroup(
         subServiceLineGroup,
@@ -140,27 +109,7 @@ export async function GET(request: NextRequest) {
       );
       
       if (servLineCodes.length > 0) {
-        // Intersect with accessible ServLineCodes for security
-        const allowedCodes = servLineCodes.filter(code => 
-          accessibleServLineCodes.includes(code)
-        );
-        
-        if (allowedCodes.length > 0) {
-          where.ServLineCode = { in: allowedCodes };
-        } else {
-          // No accessible codes, return empty
-          return NextResponse.json(
-            successResponse({
-              tasks: [],
-              pagination: {
-                page,
-                limit,
-                total: 0,
-                totalPages: 0,
-              },
-            })
-          );
-        }
+        where.ServLineCode = { in: servLineCodes };
       } else {
         // No ServLineCodes found, return empty result
         return NextResponse.json(
@@ -176,34 +125,19 @@ export async function GET(request: NextRequest) {
         );
       }
     } else if (serviceLine) {
-      // Only filter by serviceLine (master code) if no subServiceLineGroup
-      // Get ServLineCodes for this master code and intersect with accessible codes
-      const masterCodeServLines = await getExternalServiceLinesByMaster(serviceLine);
-      const masterServLineCodes = masterCodeServLines
+      // If only serviceLine is provided (no subServiceLineGroup), show ALL tasks for that service line
+      const { getExternalServiceLinesByMaster } = await import('@/lib/utils/serviceLineExternal');
+      const externalServiceLines = await getExternalServiceLinesByMaster(serviceLine);
+      const servLineCodes = externalServiceLines
         .map(sl => sl.ServLineCode)
         .filter((code): code is string => code !== null);
       
-      const allowedCodes = masterServLineCodes.filter(code =>
-        accessibleServLineCodes.includes(code)
-      );
-      
-      if (allowedCodes.length > 0) {
-        where.ServLineCode = { in: allowedCodes };
-      } else {
-        // User doesn't have access to this service line
-        return NextResponse.json(
-          successResponse({
-            tasks: [],
-            pagination: {
-              page,
-              limit,
-              total: 0,
-              totalPages: 0,
-            },
-          })
-        );
+      if (servLineCodes.length > 0) {
+        where.ServLineCode = { in: servLineCodes };
       }
     }
+    // If neither serviceLine nor subServiceLineGroup is provided, show no tasks
+    // (this prevents showing all tasks in the system)
 
     // Add search filter
     if (search) {

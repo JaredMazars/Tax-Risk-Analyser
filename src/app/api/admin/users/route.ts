@@ -67,18 +67,6 @@ export async function GET(request: NextRequest) {
             createdAt: 'desc',
           },
         },
-        ServiceLineUser: {
-          select: {
-            id: true,
-            subServiceLineGroup: true,
-            role: true,
-            assignmentType: true,
-            parentAssignmentId: true,
-          },
-          orderBy: {
-            subServiceLineGroup: 'asc',
-          },
-        },
         Session: {
           select: {
             expires: true,
@@ -95,7 +83,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform data to include useful metrics
-    const usersWithMetrics = users.map(user => ({
+    // Import getUserServiceLines to get properly grouped service line data
+    const { getUserServiceLines } = await import('@/lib/services/service-lines/serviceLineService');
+    
+    const usersWithMetrics = await Promise.all(users.map(async user => ({
       id: user.id,
       name: user.name,
       email: user.email,
@@ -118,11 +109,13 @@ export async function GET(request: NextRequest) {
           } : null,
         },
       })),
-      serviceLines: user.ServiceLineUser,
+      // Use getUserServiceLines to get properly grouped service line data
+      // This matches the structure returned by the modal's fetchUserServiceLines
+      serviceLines: await getUserServiceLines(user.id),
       taskCount: user.TaskTeam.length,
       lastActivity: user.Session[0]?.expires || user.updatedAt,
       roles: [...new Set(user.TaskTeam.map(tt => tt.role))],
-    }));
+    })));
 
     return NextResponse.json({
       success: true,

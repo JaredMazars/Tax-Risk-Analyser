@@ -31,28 +31,20 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // 4. Check cache first
-    const cacheKey = `${CACHE_PREFIXES.SERVICE_LINE}${masterCode}:sub-groups`;
-    const cached = await cache.get<Array<{
-      code: string;
-      description: string;
-      activeTasks: number;
-      totalTasks: number;
-      masterCode: string;
-    }>>(cacheKey);
+    // 4. Get user's accessible sub-service line groups
+    const { getUserSubServiceLineGroups } = await import('@/lib/services/service-lines/serviceLineService');
+    const userSubGroups = await getUserSubServiceLineGroups(user.id);
 
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
-    }
+    // 5. Fetch ALL SubServLineGroups with counts for this master code
+    const allSubGroups = await getSubServiceLineGroupsByMaster(masterCode);
+    
+    // 6. Filter to only sub-groups the user has access to
+    const accessibleSubGroups = allSubGroups.filter(sg => 
+      userSubGroups.includes(sg.code)
+    );
 
-    // 5. Fetch SubServLineGroups with counts
-    const subGroups = await getSubServiceLineGroupsByMaster(masterCode);
-
-    // 6. Cache the results (10 minutes)
-    await cache.set(cacheKey, subGroups, 600);
-
-    // 7. Return success response
-    return NextResponse.json(successResponse(subGroups));
+    // 7. Return success response (filtered by user access)
+    return NextResponse.json(successResponse(accessibleSubGroups));
   } catch (error) {
     return handleApiError(error, 'GET /api/service-lines/[serviceLine]/sub-groups');
   }

@@ -85,6 +85,16 @@ export async function getAuthUrl(redirectUri: string): Promise<string> {
 }
 
 /**
+ * Generate Azure AD logout URL for full sign-out
+ * Clears both application session and Azure AD session
+ */
+export function getLogoutUrl(postLogoutRedirectUri: string): string {
+  const tenantId = process.env.AZURE_AD_TENANT_ID;
+  const logoutUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
+  return logoutUrl;
+}
+
+/**
  * Exchange authorization code for tokens and user info
  */
 export async function handleCallback(code: string, redirectUri: string) {

@@ -3,8 +3,28 @@
 import Image from 'next/image';
 
 export default function SignOut() {
-  const handleSignOut = () => {
-    window.location.href = '/api/auth/logout';
+  const handleSignOut = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Redirect to Azure AD logout URL which will clear AD session
+        // and redirect back to login page
+        window.location.href = data.logoutUrl || '/api/auth/login';
+      } else {
+        // Fallback to GET endpoint
+        window.location.href = '/api/auth/logout';
+      }
+    } catch (error) {
+      // Fallback to GET endpoint
+      window.location.href = '/api/auth/logout';
+    }
   };
 
   return (

@@ -3,8 +3,6 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
-import { getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
 /**
@@ -28,35 +26,6 @@ export async function GET(
     const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
-    }
-
-    // 3. Get user's accessible service lines
-    const userServiceLines = await getUserServiceLines(user.id);
-    const accessibleMasterCodes = userServiceLines.map(sl => sl.serviceLine);
-
-    // Map master codes to actual ServLineCodes from ServiceLineExternal
-    const servLineCodesPromises = accessibleMasterCodes.map(masterCode =>
-      getExternalServiceLinesByMaster(masterCode)
-    );
-    const servLineCodesArrays = await Promise.all(servLineCodesPromises);
-    
-    // Flatten and extract ServLineCodes
-    const accessibleServLineCodes = Array.from(
-      new Set(
-        servLineCodesArrays
-          .flat()
-          .map(sl => sl.ServLineCode)
-          .filter((code): code is string => code !== null)
-      )
-    );
-
-    // If user has no accessible ServLineCodes, return empty
-    if (accessibleServLineCodes.length === 0) {
-      return NextResponse.json(
-        successResponse({
-          serviceLines: [],
-        })
-      );
     }
 
     const { groupCode } = params;
@@ -84,15 +53,12 @@ export async function GET(
       );
     }
 
-    // Get task counts grouped by ServLineCode for this group
+    // Get task counts grouped by ServLineCode for this group (organization-wide)
     const taskCounts = await prisma.task.groupBy({
       by: ['ServLineCode'],
       where: {
         Client: {
           groupCode,
-        },
-        ServLineCode: {
-          in: accessibleServLineCodes,
         },
       },
       _count: {

@@ -15,9 +15,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Check permission
+    // Users with service line assignments automatically have client read access
     const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
-    if (!hasPermission) {
+    const { getUserSubServiceLineGroups } = await import('@/lib/services/service-lines/serviceLineService');
+    
+    const hasPagePermission = await checkUserPermission(user.id, 'clients', 'READ');
+    const userSubGroups = await getUserSubServiceLineGroups(user.id);
+    const hasServiceLineAccess = userSubGroups.length > 0;
+    
+    // Grant access if user has either page permission OR service line assignment
+    if (!hasPagePermission && !hasServiceLineAccess) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
     
@@ -62,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
     const where: WhereClause = {};
     
-    // Filter by SubServiceLineGroup via Task relationships
+    // Filter by SubServiceLineGroup via Task relationships ONLY if explicitly requested
     if (subServiceLineGroup) {
       const servLineCodes = await getServLineCodesBySubGroup(
         subServiceLineGroup,
@@ -90,6 +97,7 @@ export async function GET(request: NextRequest) {
         );
       }
     }
+    // If no subServiceLineGroup filter, show ALL clients organization-wide
     
     if (search) {
       where.OR = [
