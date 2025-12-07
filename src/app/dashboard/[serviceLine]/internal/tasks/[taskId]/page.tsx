@@ -324,7 +324,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   );
 }
 
-export default function InternalProjectPage() {
+export default function InternalTaskPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -551,7 +551,7 @@ export default function InternalProjectPage() {
             href={`/dashboard/${serviceLine.toLowerCase()}/internal`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
-            Internal Projects
+            Internal Tasks
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           

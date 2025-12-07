@@ -9,3 +9,5 @@ CREATE INDEX [TaskTeam_userId_taskId_idx] ON [dbo].[TaskTeam]([userId], [taskId]
 
 
 
+
+

@@ -151,7 +151,7 @@ export default function DashboardHomePage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium opacity-90">Total Projects</p>
+                <p className="text-xs font-medium opacity-90">Total Tasks</p>
                 <p className="text-2xl font-bold mt-1">
                   {availableServiceLines.reduce((sum, sl) => sum + sl.taskCount, 0)}
                 </p>
@@ -170,7 +170,7 @@ export default function DashboardHomePage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium opacity-90">Active Projects</p>
+                <p className="text-xs font-medium opacity-90">Active Tasks</p>
                 <p className="text-2xl font-bold mt-1">
                   {availableServiceLines.reduce((sum, sl) => sum + sl.activeTaskCount, 0)}
                 </p>

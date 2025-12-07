@@ -35,8 +35,8 @@ export function ServiceLineSelector() {
           </h1>
           <p className="mt-2 text-sm text-forvis-gray-700">
             {serviceLine === 'business_dev' 
-              ? 'Track opportunities and manage internal or client projects'
-              : 'Choose the type of projects you want to view'}
+              ? 'Track opportunities and manage internal or client tasks'
+              : 'Choose the type of tasks you want to view'}
           </p>
         </div>
 
@@ -64,7 +64,7 @@ export function ServiceLineSelector() {
             </Link>
           )}
 
-          {/* Internal Projects Card */}
+          {/* Internal Tasks Card */}
           <Link
             href={`/dashboard/${serviceLine}/internal`}
             className="group block"
@@ -75,16 +75,16 @@ export function ServiceLineSelector() {
                   <FolderIcon className="h-10 w-10 text-forvis-blue-600" />
                 </div>
                 <h2 className="text-2xl font-bold text-forvis-gray-900 mb-3">
-                  Internal Projects
+                  Internal Tasks
                 </h2>
                 <p className="text-forvis-gray-600">
-                  View and manage internal projects for {formatServiceLineName(serviceLine.toUpperCase())}
+                  View and manage internal tasks for {formatServiceLineName(serviceLine.toUpperCase())}
                 </p>
               </div>
             </div>
           </Link>
 
-          {/* Client Projects Card */}
+          {/* Client Tasks Card */}
           <Link
             href={`/dashboard/${serviceLine}/clients`}
             className="group block"
@@ -95,10 +95,10 @@ export function ServiceLineSelector() {
                   <BuildingOfficeIcon className="h-10 w-10 text-forvis-green-600" />
                 </div>
                 <h2 className="text-2xl font-bold text-forvis-gray-900 mb-3">
-                  Client Projects
+                  Client Tasks
                 </h2>
                 <p className="text-forvis-gray-600">
-                  Select a client to view their {formatServiceLineName(serviceLine.toUpperCase())} projects
+                  Select a client to view their {formatServiceLineName(serviceLine.toUpperCase())} tasks
                 </p>
               </div>
             </div>
