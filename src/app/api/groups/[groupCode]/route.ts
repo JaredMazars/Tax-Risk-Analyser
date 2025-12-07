@@ -84,27 +84,8 @@ export async function GET(
         },
       };
       
-      // Filter by master service line if provided
-      if (serviceLine) {
-        const serviceLineExternalsForMaster = await prisma.serviceLineExternal.findMany({
-          where: {
-            masterCode: serviceLine,
-          },
-          select: {
-            ServLineCode: true,
-          },
-        });
-        
-        const filteredServLineCodes = serviceLineExternalsForMaster
-          .map(sl => sl.ServLineCode)
-          .filter((code): code is string => code !== null);
-          
-        if (filteredServLineCodes.length > 0) {
-          taskWhere.ServLineCode = {
-            in: filteredServLineCodes,
-          };
-        }
-      }
+      // Note: serviceLine parameter kept for backwards compatibility but not used for filtering
+      // All tasks are returned and filtering is done on the frontend based on SLGroup
 
       if (search) {
         taskWhere.OR = [
@@ -147,7 +128,7 @@ export async function GET(
       // Get unique service line codes from tasks
       const serviceLineCodes = [...new Set(tasksRaw.map(t => t.ServLineCode))];
       
-      // Query ServiceLineExternal data separately
+      // Query ServiceLineExternal data for ServLineCode mappings
       const serviceLineExternalData = await prisma.serviceLineExternal.findMany({
         where: {
           ServLineCode: {
@@ -157,12 +138,17 @@ export async function GET(
         select: {
           ServLineCode: true,
           masterCode: true,
+          SubServlineGroupCode: true,
         },
       });
 
-      // Create a map for quick lookup
+      // Create maps for quick lookup
       const serviceLineMap = new Map(
         serviceLineExternalData.map(sl => [sl.ServLineCode, sl.masterCode])
+      );
+      
+      const servLineToSubGroupMap = new Map(
+        serviceLineExternalData.map(sl => [sl.ServLineCode, sl.SubServlineGroupCode])
       );
 
       // Fetch WIP data for all tasks by taskId
@@ -194,7 +180,7 @@ export async function GET(
         taskWip.balDisb += wip.BalDisb || 0;
       });
 
-      // Map tasks with master service line info and WIP data
+      // Map tasks with master service line info, sub-service line group code, and WIP data
       const tasks = tasksRaw.map(task => {
         // Get WIP for this specific task
         const wip = wipByTaskId.get(task.id) || { balWIP: 0, balTime: 0, balDisb: 0 };
@@ -211,6 +197,7 @@ export async function GET(
           updatedAt: task.updatedAt,
           Client: task.Client,
           masterServiceLine: serviceLineMap.get(task.ServLineCode) || null,
+          subServiceLineGroupCode: servLineToSubGroupMap.get(task.ServLineCode) || null,
           wip,
         };
       });

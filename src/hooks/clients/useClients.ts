@@ -42,6 +42,8 @@ export interface ClientWithTasks extends Client {
     createdAt: string;
     updatedAt: string;
     ServLineCode: string;
+    SLGroup: string;
+    subServiceLineGroupCode?: string | null;
     ExternalTaskID: string;
     TaskDateOpen: string;
     TaskDateTerminate?: string | null;
@@ -50,6 +52,11 @@ export interface ClientWithTasks extends Client {
     TaskManager: string;
     TaskManagerName: string;
     masterServiceLine: string | null;
+    wip?: {
+      balWIP: number;
+      balTime: number;
+      balDisb: number;
+    };
     _count: {
       MappedAccount: number;
       TaxAdjustment: number;

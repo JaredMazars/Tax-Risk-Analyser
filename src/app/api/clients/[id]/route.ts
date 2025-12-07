@@ -49,21 +49,13 @@ export async function GET(
     
     const taskSkip = (taskPage - 1) * taskLimit;
 
-    // Get ServLineCodes for the requested service line
-    let servLineCodes: string[] | undefined;
-    if (serviceLine) {
-      const externalServiceLines = await getExternalServiceLinesByMaster(serviceLine);
-      servLineCodes = externalServiceLines
-        .map(sl => sl.ServLineCode)
-        .filter((code): code is string => code !== null);
-    }
-    // If no serviceLine param, show ALL tasks for the client (organization-wide)
+    // Note: serviceLine parameter kept for backwards compatibility but not used for filtering
+    // All tasks are returned and filtering is done on the frontend based on SLGroup
 
     // Build task where clause
     interface TaskWhereClause {
       ClientCode: string;
       Active?: string;
-      ServLineCode?: { in: string[] };
     }
     const taskWhere: TaskWhereClause = {
       ClientCode: '', // Will be set below after we get the client
@@ -71,10 +63,6 @@ export async function GET(
     
     if (!includeArchived) {
       taskWhere.Active = 'Yes';
-    }
-    // Filter by serviceLine only if explicitly provided
-    if (servLineCodes && servLineCodes.length > 0) {
-      taskWhere.ServLineCode = { in: servLineCodes };
     }
 
     // Get the client by ClientID
@@ -135,6 +123,7 @@ export async function GET(
           createdAt: true,
           updatedAt: true,
           ServLineCode: true, // Include to derive serviceLine
+          SLGroup: true, // Include for sub-service line group filtering
           ExternalTaskID: true,
           TaskDateOpen: true,
           TaskDateTerminate: true,
@@ -160,17 +149,24 @@ export async function GET(
     // Calculate total across all service lines
     const totalAcrossAllServiceLines = Object.values(taskCountsByServiceLine).reduce((sum, count) => sum + count, 0);
 
-    // Get mapping from ServLineCode to masterCode for deriving masterServiceLine
+    // Get mapping from ServLineCode to masterCode and SubServlineGroupCode
     const allServLineCodes = tasks.map(t => t.ServLineCode);
     const serviceLineMapping: Record<string, string> = {};
+    const servLineToSubGroupMapping: Record<string, string> = {};
+    
     if (allServLineCodes.length > 0) {
       const mappings = await prisma.serviceLineExternal.findMany({
         where: { ServLineCode: { in: allServLineCodes } },
-        select: { ServLineCode: true, masterCode: true },
+        select: { ServLineCode: true, masterCode: true, SubServlineGroupCode: true },
       });
       mappings.forEach(m => {
-        if (m.ServLineCode && m.masterCode) {
-          serviceLineMapping[m.ServLineCode] = m.masterCode;
+        if (m.ServLineCode) {
+          if (m.masterCode) {
+            serviceLineMapping[m.ServLineCode] = m.masterCode;
+          }
+          if (m.SubServlineGroupCode) {
+            servLineToSubGroupMapping[m.ServLineCode] = m.SubServlineGroupCode;
+          }
         }
       });
     }
@@ -204,10 +200,11 @@ export async function GET(
       taskWip.balDisb += wip.BalDisb || 0;
     });
 
-    // Add masterServiceLine and WIP data to each task
+    // Add masterServiceLine, subServiceLineGroupCode, and WIP data to each task
     const tasksWithMasterServiceLine = tasks.map(task => ({
       ...task,
       masterServiceLine: serviceLineMapping[task.ServLineCode] || null,
+      subServiceLineGroupCode: servLineToSubGroupMapping[task.ServLineCode] || null,
       wip: wipByTaskId.get(task.id) || { balWIP: 0, balTime: 0, balDisb: 0 },
     }));
 

@@ -24,12 +24,18 @@ export interface ClientGroupDetail {
     ServLineDesc: string;
     SLGroup: string;
     masterServiceLine: string | null;
+    subServiceLineGroupCode: string | null;
     createdAt: string;
     updatedAt: string;
     Client: {
       ClientID: string;
       clientCode: string;
       clientNameFull: string | null;
+    };
+    wip?: {
+      balWIP: number;
+      balTime: number;
+      balDisb: number;
     };
   }>;
   serviceLineMaster?: Array<{

@@ -22,6 +22,7 @@ import { useClientGroup } from '@/hooks/clients/useClientGroup';
 import { useGroupServiceLines } from '@/hooks/clients/useGroupServiceLines';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
+import { TaskListItem } from '@/components/features/tasks/TaskListItem';
 
 export default function GroupDetailPage() {
   const params = useParams();
@@ -76,14 +77,13 @@ export default function GroupDetailPage() {
     enabled: activeMainTab === 'clients',
   });
 
-  // Fetch group with tasks ONLY for active service line tab
+  // Fetch group with tasks - no service line filtering (done on frontend)
   const { data: tasksData, isLoading: isLoadingTasks, isFetching: isFetchingTasks } = useClientGroup(groupCode, {
     search: debouncedSearch,
     page: currentPage,
     limit: itemsPerPage,
     type: 'tasks',
-    serviceLine: activeServiceLineTab, // Filter by active service line
-    enabled: activeMainTab === 'tasks' && !!activeServiceLineTab, // Only fetch when tasks tab is active
+    enabled: activeMainTab === 'tasks', // Only fetch when tasks tab is active
   });
 
   const isLoading = activeMainTab === 'clients' ? isLoadingClients : isLoadingTasks;
@@ -536,79 +536,15 @@ export default function GroupDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {tasks.map((task: any) => {
-                        const formatCurrency = (amount: number) => {
-                          return new Intl.NumberFormat('en-ZA', {
-                            style: 'currency',
-                            currency: 'ZAR',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          }).format(amount);
-                        };
-                        
-                        return (
-                          <Link
-                            key={task.id}
-                            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.Client.ClientID}/tasks/${task.id}`}
-                            className="block p-3 border border-forvis-gray-200 rounded-lg transition-all hover:border-forvis-blue-500 hover:shadow-sm cursor-pointer"
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-2 mb-1 flex-wrap">
-                                  <h3 className="text-sm font-semibold text-forvis-gray-900">
-                                    {task.TaskDesc}
-                                  </h3>
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                    {task.TaskCode}
-                                  </span>
-                                  {task.ServLineDesc && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-blue-100 text-forvis-blue-700">
-                                      {task.ServLineDesc}
-                                    </span>
-                                  )}
-                                  {task.Active !== 'Yes' && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
-                                      Inactive
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3 text-xs text-forvis-gray-500">
-                                <span title="Client">
-                                  Client: {task.Client.clientNameFull || task.Client.clientCode}
-                                </span>
-                                <span className="flex items-center">
-                                  <ClockIcon className="h-3.5 w-3.5 mr-1" />
-                                  {formatDate(task.updatedAt)}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            {/* WIP Balances */}
-                            {task.wip && (
-                              <div className="mt-2 pt-2 border-t border-forvis-gray-200">
-                                <div className="flex items-center space-x-3">
-                                  <div className="flex-1">
-                                    <p className="text-xs font-medium text-forvis-gray-600">WIP Balance</p>
-                                    <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balWIP)}</p>
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-xs font-medium text-forvis-gray-600">Time</p>
-                                    <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balTime)}</p>
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-xs font-medium text-forvis-gray-600">Disb</p>
-                                    <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balDisb)}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </Link>
-                        );
-                      })}
+                      {tasks.map((task: any) => (
+                        <TaskListItem
+                          key={task.id}
+                          task={task}
+                          currentSubServiceLineGroup={subServiceLineGroup}
+                          serviceLine={serviceLine}
+                          currentSubServiceLineGroupDescription={subServiceLineGroupDescription}
+                        />
+                      ))}
                     </div>
                   )
                 )}

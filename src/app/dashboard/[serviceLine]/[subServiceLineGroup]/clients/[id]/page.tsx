@@ -28,6 +28,7 @@ import { taskListKeys } from '@/hooks/tasks/useTasks';
 import { useLatestCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRatingGrade } from '@/types/analytics';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
+import { TaskListItem } from '@/components/features/tasks/TaskListItem';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -37,15 +38,8 @@ export default function ServiceLineClientDetailPage() {
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const queryClient = useQueryClient();
   
-  // Determine initial main tab and service line tab based on URL
-  const initialIsSharedService = serviceLine ? isSharedService(serviceLine) : false;
-  const initialServiceLineTab = serviceLine ? (serviceLine as ServiceLine) : ServiceLine.TAX;
-  
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [mainTab, setMainTab] = useState<'service-lines' | 'shared-services'>(
-    initialIsSharedService ? 'shared-services' : 'service-lines'
-  );
-  const [activeServiceLineTab, setActiveServiceLineTab] = useState<ServiceLine>(initialServiceLineTab);
+  const [activeTab, setActiveTab] = useState<'current' | 'other'>('current');
   const [taskPage, setTaskPage] = useState(1);
   const [taskLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,7 +59,6 @@ export default function ServiceLineClientDetailPage() {
   const { data: clientData, isLoading, isFetching, error } = useClient(clientId, {
     taskPage,
     taskLimit,
-    serviceLine: activeServiceLineTab,
   });
 
   // Fetch latest credit rating
@@ -79,33 +72,6 @@ export default function ServiceLineClientDetailPage() {
   
   const taskPagination = clientData?.taskPagination;
 
-  // Update active tab when URL serviceLine changes
-  useEffect(() => {
-    if (serviceLine) {
-      setActiveServiceLineTab(serviceLine as ServiceLine);
-      setMainTab(isSharedService(serviceLine) ? 'shared-services' : 'service-lines');
-    }
-  }, [serviceLine]);
-
-  // Reset task page when service line tab changes
-  useEffect(() => {
-    setTaskPage(1);
-  }, [activeServiceLineTab]);
-
-  // Ensure activeServiceLineTab is valid for the current main tab
-  useEffect(() => {
-    const currentIsShared = isSharedService(activeServiceLineTab);
-    const shouldBeShared = mainTab === 'shared-services';
-    
-    // If the active tab doesn't match the main tab category, switch to the first tab in that category
-    if (currentIsShared !== shouldBeShared) {
-      const newTab = shouldBeShared ? sharedServices[0] : mainServiceLines[0];
-      if (newTab) {
-        setActiveServiceLineTab(newTab);
-      }
-    }
-  }, [mainTab]);
-
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -118,7 +84,7 @@ export default function ServiceLineClientDetailPage() {
   useEffect(() => {
     setSearchTerm('');
     setDebouncedSearch('');
-  }, [activeServiceLineTab, mainTab]);
+  }, [activeTab]);
 
   // Helper function to get rating badge color
   const getRatingBadgeColor = (grade: CreditRatingGrade): string => {
@@ -159,51 +125,35 @@ export default function ServiceLineClientDetailPage() {
     queryClient.invalidateQueries({ queryKey: clientKeys.detail(clientId) });
     // Also invalidate task list so it shows up there too
     queryClient.invalidateQueries({ queryKey: taskListKeys.all });
-    // Optionally, if the new task is in a different service line tab, switch to it
-    if (task.serviceLine) {
-      setActiveServiceLineTab(task.serviceLine.toUpperCase() as ServiceLine);
-    }
   };
 
-  // Get tasks for active tab (already filtered by API based on activeServiceLineTab)
-  const getTasksForTab = () => {
+  // Get tasks filtered by sub-service line group
+  const currentSubServiceLineTasks = useMemo(() => {
     if (!client) return [];
-    return client.tasks || [];
+    const allTasks = client.tasks || [];
+    
+    // Filter tasks that belong to the current sub-service line group
+    return allTasks.filter((task: any) => {
+      const taskSubGroup = task.subServiceLineGroupCode || task.SLGroup;
+      return taskSubGroup?.toUpperCase() === subServiceLineGroup?.toUpperCase();
+    });
+  }, [client, subServiceLineGroup]);
+
+  const otherTasks = useMemo(() => {
+    if (!client) return [];
+    const allTasks = client.tasks || [];
+    
+    // Filter tasks that don't belong to the current sub-service line group
+    return allTasks.filter((task: any) => {
+      const taskSubGroup = task.subServiceLineGroupCode || task.SLGroup;
+      return taskSubGroup?.toUpperCase() !== subServiceLineGroup?.toUpperCase();
+    });
+  }, [client, subServiceLineGroup]);
+
+  // Get tasks for the active tab
+  const getTasksForTab = () => {
+    return activeTab === 'current' ? currentSubServiceLineTasks : otherTasks;
   };
-
-  // Get task count for each service line from API response
-  const getTaskCountByServiceLine = (sl: ServiceLine) => {
-    if (!clientData?.taskCountsByServiceLine) return 0;
-    return (clientData.taskCountsByServiceLine as Record<string, number>)[sl] || 0;
-  };
-
-  // Define main service lines and shared services
-  const mainServiceLines = [
-    ServiceLine.TAX,
-    ServiceLine.AUDIT,
-    ServiceLine.ACCOUNTING,
-    ServiceLine.ADVISORY,
-  ];
-  
-  const sharedServices = [
-    ServiceLine.QRM,
-    ServiceLine.BUSINESS_DEV,
-    ServiceLine.IT,
-    ServiceLine.FINANCE,
-    ServiceLine.HR,
-  ];
-
-  // Calculate total counts for main tabs
-  const getServiceLinesTotalCount = () => {
-    return mainServiceLines.reduce((total, sl) => total + getTaskCountByServiceLine(sl), 0);
-  };
-
-  const getSharedServicesTotalCount = () => {
-    return sharedServices.reduce((total, sl) => total + getTaskCountByServiceLine(sl), 0);
-  };
-
-  // Get active tab list based on main tab selection
-  const activeTabList = mainTab === 'service-lines' ? mainServiceLines : sharedServices;
 
   // Filter tasks by search term
   const filteredTasks = useMemo(() => {
@@ -218,7 +168,7 @@ export default function ServiceLineClientDetailPage() {
         task.Active?.toLowerCase().includes(searchLower)
       );
     });
-  }, [debouncedSearch, client]);
+  }, [debouncedSearch, client, activeTab, currentSubServiceLineTasks, otherTasks]);
 
   // Show skeleton loader on initial load for better perceived performance
   if (isLoading && !client) {
@@ -494,84 +444,43 @@ export default function ServiceLineClientDetailPage() {
                 </button>
               </div>
 
-              {/* Main Tabs - Service Lines vs Shared Services */}
+              {/* Task Tabs - Current Sub-Service Line vs Other Tasks */}
               <div className="border-b border-forvis-gray-200 flex-shrink-0">
-                <nav className="flex -mb-px px-4" aria-label="Main Project Categories">
+                <nav className="flex -mb-px px-4" aria-label="Task Categories">
                   <button
-                    onClick={() => {
-                      setMainTab('service-lines');
-                      if (mainServiceLines[0]) {
-                        setActiveServiceLineTab(mainServiceLines[0]);
-                      }
-                    }}
+                    onClick={() => setActiveTab('current')}
                     className={`flex items-center space-x-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                      mainTab === 'service-lines'
+                      activeTab === 'current'
                         ? 'border-forvis-blue-600 text-forvis-blue-600'
                         : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
                     }`}
                   >
-                    <span>Service Lines</span>
+                    <span>{subServiceLineGroupDescription}</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      mainTab === 'service-lines'
+                      activeTab === 'current'
                         ? 'bg-forvis-blue-100 text-forvis-blue-700'
                         : 'bg-forvis-gray-100 text-forvis-gray-600'
                     }`}>
-                      {getServiceLinesTotalCount()}
+                      {currentSubServiceLineTasks.length}
                     </span>
                   </button>
                   <button
-                    onClick={() => {
-                      setMainTab('shared-services');
-                      if (sharedServices[0]) {
-                        setActiveServiceLineTab(sharedServices[0]);
-                      }
-                    }}
+                    onClick={() => setActiveTab('other')}
                     className={`flex items-center space-x-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                      mainTab === 'shared-services'
+                      activeTab === 'other'
                         ? 'border-forvis-blue-600 text-forvis-blue-600'
                         : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
                     }`}
                   >
-                    <span>Shared Services</span>
+                    <span>Other Tasks</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      mainTab === 'shared-services'
+                      activeTab === 'other'
                         ? 'bg-forvis-blue-100 text-forvis-blue-700'
                         : 'bg-forvis-gray-100 text-forvis-gray-600'
                     }`}>
-                      {getSharedServicesTotalCount()}
+                      {otherTasks.length}
                     </span>
                   </button>
-                </nav>
-              </div>
-
-              {/* Service Line Sub-Tabs */}
-              <div className="border-b border-forvis-gray-200 flex-shrink-0 overflow-x-auto bg-forvis-gray-50">
-                <nav className="flex -mb-px px-4 min-w-max" aria-label="Service Line Tabs">
-                  {activeTabList.map((sl) => {
-                    const count = getTaskCountByServiceLine(sl);
-                    const isActive = activeServiceLineTab === sl;
-                    
-                    return (
-                      <button
-                        key={sl}
-                        onClick={() => setActiveServiceLineTab(sl)}
-                        className={`flex items-center space-x-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                          isActive
-                            ? 'border-forvis-blue-600 text-forvis-blue-600 bg-white'
-                            : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                        }`}
-                      >
-                        <span>{formatServiceLineName(sl)}</span>
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                          isActive
-                            ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                            : 'bg-forvis-gray-100 text-forvis-gray-600'
-                        }`}>
-                          {count}
-                        </span>
-                      </button>
-                    );
-                  })}
                 </nav>
               </div>
 
@@ -606,12 +515,14 @@ export default function ServiceLineClientDetailPage() {
                   <div className="text-center py-8">
                     <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
                     <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
-                      {searchTerm ? 'No tasks found' : `No tasks in ${formatServiceLineName(activeServiceLineTab)}`}
+                      {searchTerm ? 'No tasks found' : activeTab === 'current' ? `No tasks in ${subServiceLineGroupDescription}` : 'No other tasks'}
                     </h3>
                     <p className="mt-1 text-sm text-forvis-gray-600">
                       {searchTerm 
                         ? `No tasks match your search "${searchTerm}".`
-                        : `This client doesn't have any ${formatServiceLineName(activeServiceLineTab).toLowerCase()} tasks yet.`
+                        : activeTab === 'current'
+                          ? `This client doesn't have any tasks in ${subServiceLineGroupDescription} yet.`
+                          : 'This client doesn\'t have any tasks in other sub-service line groups.'
                       }
                     </p>
                   </div>
@@ -619,89 +530,20 @@ export default function ServiceLineClientDetailPage() {
                   <div className="space-y-2">
                     {filteredTasks.map((task: any) => {
                       const taskStage = getProjectStage(task.id);
-                      const isAccessible = task.masterServiceLine?.toUpperCase() === serviceLine.toUpperCase();
-                      const TaskWrapper: any = isAccessible ? Link : 'div';
-                      
-                      const formatCurrency = (amount: number) => {
-                        return new Intl.NumberFormat('en-ZA', {
-                          style: 'currency',
-                          currency: 'ZAR',
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        }).format(amount);
-                      };
                       
                       return (
-                        <TaskWrapper
+                        <TaskListItem
                           key={task.id}
-                          {...(isAccessible ? {
-                            href: `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}/tasks/${task.id}`,
-                          } : {})}
-                          className={`block p-3 border border-forvis-gray-200 rounded-lg transition-all ${
-                            isAccessible
-                              ? 'hover:border-forvis-blue-500 hover:shadow-sm cursor-pointer'
-                              : 'opacity-60 cursor-not-allowed'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-2 mb-1 flex-wrap">
-                                <h3 className="text-sm font-semibold text-forvis-gray-900">
-                                  {task.TaskDesc}
-                                </h3>
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                  {task.TaskCode}
-                                </span>
-                                {!isAccessible && task.masterServiceLine && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                                    Available in {formatServiceLineName(task.masterServiceLine)}
-                                  </span>
-                                )}
-                                {task.Active !== 'Yes' && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
-                                    Inactive
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3 text-xs text-forvis-gray-500">
-                              <span title="Partner">
-                                Partner: {task.TaskPartnerName || task.TaskPartner}
-                              </span>
-                              <span title="Manager">
-                                Manager: {task.TaskManagerName || task.TaskManager}
-                              </span>
-                              <span className="flex items-center">
-                                <ClockIcon className="h-3.5 w-3.5 mr-1" />
-                                {formatDate(task.updatedAt)}
-                              </span>
-                            </div>
-                            <TaskStageIndicator stage={taskStage} />
-                          </div>
-                          
-                          {/* WIP Balances */}
-                          {task.wip && (
-                            <div className="mt-2 pt-2 border-t border-forvis-gray-200">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex-1">
-                                  <p className="text-xs font-medium text-forvis-gray-600">WIP Balance</p>
-                                  <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balWIP)}</p>
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-xs font-medium text-forvis-gray-600">Time</p>
-                                  <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balTime)}</p>
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-xs font-medium text-forvis-gray-600">Disb</p>
-                                  <p className="text-sm font-semibold text-forvis-gray-900">{formatCurrency(task.wip.balDisb)}</p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </TaskWrapper>
+                          task={task}
+                          clientId={clientId}
+                          currentSubServiceLineGroup={subServiceLineGroup}
+                          serviceLine={serviceLine}
+                          currentSubServiceLineGroupDescription={subServiceLineGroupDescription}
+                          showClientInfo={false}
+                          showPartnerManager={true}
+                          masterServiceLine={task.masterServiceLine}
+                          additionalBadge={<TaskStageIndicator stage={taskStage} />}
+                        />
                       );
                     })}
                   </div>
