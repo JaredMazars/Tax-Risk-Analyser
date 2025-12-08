@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteSession, deleteAllUserSessions, verifySession, getLogoutUrl, getAuthUrl } from '@/lib/services/auth/auth';
+import { deleteSession, deleteAllUserSessions, verifySession } from '@/lib/services/auth/auth';
 import { clearRateLimitsForIdentifier, getClientIdentifier } from '@/lib/utils/rateLimit';
 
 /**
@@ -31,17 +31,15 @@ export async function GET(request: NextRequest) {
   const clientIdentifier = getClientIdentifier(request);
   clearRateLimitsForIdentifier(clientIdentifier);
   
-  // Get Azure AD login URL to redirect to after logout
-  const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/callback`;
-  const azureAdLoginUrl = await getAuthUrl(redirectUri);
-  
-  // Construct Azure AD logout URL with post-logout redirect to Azure AD login
-  const azureAdLogoutUrl = getLogoutUrl(azureAdLoginUrl);
-  
-  const response = NextResponse.redirect(azureAdLogoutUrl);
+  // Redirect to signin page instead of Azure AD logout
+  // This keeps the user's Azure AD session active but clears app session
+  const response = NextResponse.redirect(new URL('/auth/signin', request.url));
   
   // Delete session cookie with all the same options it was set with
   response.cookies.delete('session');
+  
+  // Also clear the auth callback URL cookie if it exists
+  response.cookies.delete('auth_callback_url');
   
   // Add cache control headers to prevent caching
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -52,7 +50,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Handle logout via POST - clear session cookie and return Azure AD logout URL
+ * Handle logout via POST - clear session cookie and return redirect URL
  */
 export async function POST(request: NextRequest) {
   // Get current session token
@@ -67,17 +65,11 @@ export async function POST(request: NextRequest) {
   const clientIdentifier = getClientIdentifier(request);
   clearRateLimitsForIdentifier(clientIdentifier);
   
-  // Get Azure AD login URL to redirect to after logout
-  const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/callback`;
-  const azureAdLoginUrl = await getAuthUrl(redirectUri);
-  
-  // Construct Azure AD logout URL with post-logout redirect to Azure AD login
-  const azureAdLogoutUrl = getLogoutUrl(azureAdLoginUrl);
-  
+  // Return signin page URL instead of Azure AD logout
   const response = NextResponse.json({ 
     success: true, 
     message: 'Logged out successfully',
-    logoutUrl: azureAdLogoutUrl 
+    logoutUrl: '/auth/signin'
   });
   
   // Delete session cookie with all the same options it was set with

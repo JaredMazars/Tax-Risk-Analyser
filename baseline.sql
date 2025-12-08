@@ -349,7 +349,8 @@ CREATE TABLE [dbo].[EmailLog] (
 
 -- CreateTable
 CREATE TABLE [dbo].[Employee] (
-    [GSEmpID] UNIQUEIDENTIFIER NOT NULL,
+    [id] INT NOT NULL IDENTITY(1,1),
+    [GSEmployeeID] UNIQUEIDENTIFIER NOT NULL,
     [EmpCode] NVARCHAR(10) NOT NULL,
     [EmpName] NVARCHAR(50) NOT NULL,
     [EmpNameFull] NVARCHAR(63) NOT NULL,
@@ -370,7 +371,9 @@ CREATE TABLE [dbo].[Employee] (
     [WinLogon] NVARCHAR(100),
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [Employee_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [Employee_pkey] PRIMARY KEY CLUSTERED ([GSEmpID])
+    CONSTRAINT [Employee_pkey] PRIMARY KEY CLUSTERED ([id]),
+    CONSTRAINT [Employee_GSEmployeeID_key] UNIQUE NONCLUSTERED ([GSEmployeeID]),
+    CONSTRAINT [Employee_EmpCode_key] UNIQUE NONCLUSTERED ([EmpCode])
 );
 
 -- CreateTable
