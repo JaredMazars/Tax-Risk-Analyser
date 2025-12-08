@@ -112,22 +112,43 @@ export function aggregateByMasterServiceLine(
 /**
  * Get task counts by service line for a client (optimized single query)
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  * @param includeArchived - Whether to include archived tasks
  * @returns Task counts by master service line
  */
 export async function getTaskCountsByServiceLine(
-  clientID: string,
+  GSClientID: string,
   includeArchived: boolean = false
 ): Promise<TaskCountsByServiceLine> {
-  const cacheKey = `${CACHE_PREFIXES.TASK}counts:client:${clientID}:${includeArchived}`;
+  const cacheKey = `${CACHE_PREFIXES.TASK}counts:client:${GSClientID}:${includeArchived}`;
   
   try {
     // Try cache first
     const cached = await cache.get<TaskCountsByServiceLine>(cacheKey);
     if (cached) {
-      logger.debug('Task counts cache hit', { clientID, includeArchived });
+      logger.debug('Task counts cache hit', { GSClientID, includeArchived });
       return cached;
+    }
+
+    // Get client's internal ID from GSClientID
+    const client = await prisma.client.findUnique({
+      where: { GSClientID },
+      select: { id: true },
+    });
+
+    if (!client) {
+      logger.warn('Client not found for task counts', { GSClientID });
+      return {
+        TAX: 0,
+        AUDIT: 0,
+        ACCOUNTING: 0,
+        ADVISORY: 0,
+        QRM: 0,
+        BUSINESS_DEV: 0,
+        IT: 0,
+        FINANCE: 0,
+        HR: 0,
+      };
     }
 
     // Get service line mappings (cached)
@@ -137,7 +158,7 @@ export async function getTaskCountsByServiceLine(
     const taskCountsRaw = await prisma.task.groupBy({
       by: ['ServLineCode'],
       where: {
-        ClientCode: clientID,
+        clientId: client.id,  // Use internal ID
         Active: includeArchived ? undefined : 'Yes',
       },
       _count: {
@@ -151,10 +172,10 @@ export async function getTaskCountsByServiceLine(
     // Cache for 10 minutes
     await cache.set(cacheKey, counts, 600);
 
-    logger.debug('Task counts fetched and cached', { clientID, includeArchived });
+    logger.debug('Task counts fetched and cached', { GSClientID, includeArchived });
     return counts;
   } catch (error) {
-    logger.error('Error fetching task counts by service line', { clientID, includeArchived, error });
+    logger.error('Error fetching task counts by service line', { GSClientID, includeArchived, error });
     // Return zero counts on error
     return {
       TAX: 0,
@@ -174,31 +195,34 @@ export async function getTaskCountsByServiceLine(
  * Invalidate task counts cache for a client
  * Called when tasks are created, updated, or deleted
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  */
-export async function invalidateTaskCountsCache(clientID: string): Promise<void> {
+export async function invalidateTaskCountsCache(GSClientID: string): Promise<void> {
   try {
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}counts:client:${clientID}`);
-    logger.debug('Task counts cache invalidated', { clientID });
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}counts:client:${GSClientID}`);
+    logger.debug('Task counts cache invalidated', { GSClientID });
   } catch (error) {
-    logger.error('Error invalidating task counts cache', { clientID, error });
+    logger.error('Error invalidating task counts cache', { GSClientID, error });
   }
 }
 
 /**
  * Get total task count across all service lines for a client
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  * @param includeArchived - Whether to include archived tasks
  * @returns Total task count
  */
 export async function getTotalTaskCount(
-  clientID: string,
+  GSClientID: string,
   includeArchived: boolean = false
 ): Promise<number> {
-  const counts = await getTaskCountsByServiceLine(clientID, includeArchived);
+  const counts = await getTaskCountsByServiceLine(GSClientID, includeArchived);
   return Object.values(counts).reduce((sum, count) => sum + count, 0);
 }
+
+
+
 
 
 

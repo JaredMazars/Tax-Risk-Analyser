@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface ConversionResult {
   client: {
     id: number;
-    ClientID: string;
+    GSClientID: string;
     clientCode: string;
     clientNameFull: string | null;
   };
@@ -19,7 +19,7 @@ export interface ConversionResult {
   };
   opportunity: {
     id: number;
-    convertedToClientId: number;
+    convertedToClientId: number;  // Renamed for clarity
     convertedAt: Date;
   };
 }
@@ -55,7 +55,7 @@ export async function convertOpportunityToClient(
     throw new Error('Can only convert won opportunities to clients');
   }
 
-  if (opportunity.convertedToClientId) {
+      if (opportunity.convertedToClientId) {
     throw new Error('Opportunity has already been converted to a client');
   }
 
@@ -94,7 +94,7 @@ export async function convertOpportunityToClient(
         rolePlayer: false,
         typeCode: 'STD',
         typeDesc: 'Standard Client',
-        ClientID: crypto.randomUUID(),
+        GSClientID: crypto.randomUUID(),
       },
     });
   }
@@ -103,7 +103,8 @@ export async function convertOpportunityToClient(
   const updatedOpportunity = await prisma.bDOpportunity.update({
     where: { id: opportunityId },
     data: {
-      convertedToClientId: client.id,
+      clientId: client.id,              // Use internal ID
+      convertedToClientId: client.id,   // Use internal ID
       convertedAt: new Date(),
     },
   });
@@ -116,8 +117,9 @@ export async function convertOpportunityToClient(
 
     task = await prisma.task.create({
       data: {
-        ExternalTaskID: crypto.randomUUID(),
-        ClientCode: client.ClientID, // Use ClientID GUID
+        clientId: client.id,           // Use internal ID for relation
+        GSTaskID: crypto.randomUUID(),
+        GSClientID: client.GSClientID, // Keep for external sync
         TaskCode: taskCode,
         TaskDesc: finalTaskName,
         TaskPartner: 'TBD',
@@ -138,7 +140,7 @@ export async function convertOpportunityToClient(
   const result: ConversionResult = {
     client: {
       id: client.id,
-      ClientID: client.ClientID,
+      GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       clientNameFull: client.clientNameFull,
     },
@@ -227,7 +229,7 @@ export async function getConversionStats(filters: {
   const convertedOpportunities = await prisma.bDOpportunity.findMany({
     where: {
       ...where,
-      convertedToClientId: { not: null },
+      convertedToGSClientID: { not: null },
       convertedAt: { not: null },
     },
     select: {

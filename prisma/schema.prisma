@@ -208,12 +208,12 @@ model BDOpportunity {
   status              String       @default("OPEN")
   lostReason          String?
   assignedTo          String
-  convertedToClientId Int?
+  convertedToClientId Int?                                 // Renamed for clarity - uses internal ID
   convertedAt         DateTime?
   createdBy           String
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
-  clientId            Int?
+  clientId            Int?                                 // Renamed from GSClientID - uses internal ID
   BDActivity          BDActivity[]
   BDNote              BDNote[]
   Client              Client?      @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -306,16 +306,18 @@ model Client {
   typeDesc                 String                     @db.NVarChar(50)
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
-  ClientID                 String                     @unique @db.UniqueIdentifier
+  GSClientID               String                     @unique @db.UniqueIdentifier
   BDOpportunity            BDOpportunity[]
   ClientAcceptanceResponse ClientAcceptanceResponse[]
   ClientAnalyticsDocument  ClientAnalyticsDocument[]
   ClientCreditRating       ClientCreditRating[]
+  Debtors                  Debtors[]
   Task                     Task[]
+  Wip                      Wip[]
 
   @@index([active])
   @@index([clientCode])
-  @@index([ClientID])
+  @@index([GSClientID])
   @@index([clientNameFull])
   @@index([clientTaxFlag])
   @@index([groupCode])
@@ -329,7 +331,7 @@ model Client {
 model ClientAcceptanceResponse {
   id                 Int                  @id(map: "PK__ClientAc__3213E83F94B62F25") @default(autoincrement())
   taskId             Int
-  clientId           Int
+  clientId           Int                  // Renamed from GSClientID for clarity - uses internal ID
   questionnaireType  String               @db.NVarChar(50)
   overallRiskScore   Float?
   riskRating         String?              @db.NVarChar(20)
@@ -354,7 +356,7 @@ model ClientAcceptanceResponse {
 
 model ClientAnalyticsDocument {
   id                   Int                    @id @default(autoincrement())
-  clientId             Int
+  clientId             Int                    // Renamed from GSClientID for clarity - uses internal ID
   documentType         String
   fileName             String
   filePath             String
@@ -374,7 +376,7 @@ model ClientAnalyticsDocument {
 
 model ClientCreditRating {
   id                   Int                    @id @default(autoincrement())
-  clientId             Int
+  clientId             Int                    // Renamed from GSClientID for clarity - uses internal ID
   ratingScore          Float
   ratingGrade          String
   ratingDate           DateTime               @default(now())
@@ -447,8 +449,8 @@ model EmailLog {
 }
 
 model Employee {
-  id              Int       @id @default(autoincrement())
-  EmpCode         String    @unique @db.NVarChar(10)
+  GSEmpID         String    @id @db.UniqueIdentifier @default(uuid())
+  EmpCode         String    @db.NVarChar(10)
   EmpName         String    @db.NVarChar(50)
   EmpNameFull     String    @db.NVarChar(63)
   OfficeCode      String    @db.NVarChar(10)
@@ -465,7 +467,6 @@ model Employee {
   Active          String    @db.VarChar(3)
   EmpDateStarted  DateTime?
   Team            String?   @db.NVarChar(100)
-  ExternalEmpID   String    @db.UniqueIdentifier
   WinLogon        String?   @db.NVarChar(100)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -649,22 +650,6 @@ model OpinionSection {
   @@index([opinionDraftId, order])
 }
 
-model Permission {
-  id               Int              @id @default(autoincrement())
-  resourceType     String           @db.NVarChar(20)
-  resourceKey      String           @db.NVarChar(100)
-  displayName      String           @db.NVarChar(200)
-  description      String?          @db.NVarChar(500)
-  availableActions String           @db.NVarChar(Max)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  RolePermission   RolePermission[]
-
-  @@unique([resourceType, resourceKey])
-  @@index([resourceKey])
-  @@index([resourceType])
-}
-
 model ResearchNote {
   id        Int      @id @default(autoincrement())
   taskId    Int
@@ -679,20 +664,6 @@ model ResearchNote {
 
   @@index([category])
   @@index([taskId])
-}
-
-model RolePermission {
-  id             Int        @id @default(autoincrement())
-  role           String     @db.NVarChar(20)
-  permissionId   Int
-  allowedActions String     @db.NVarChar(Max)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  Permission     Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  @@unique([role, permissionId])
-  @@index([permissionId])
-  @@index([role])
 }
 
 model SarsResponse {
@@ -781,8 +752,9 @@ model Session {
 
 model Task {
   id                       Int                        @id @default(autoincrement())
-  ExternalTaskID           String                     @db.UniqueIdentifier
-  ClientCode               String?                    @db.UniqueIdentifier
+  clientId                 Int?                       // Internal FK - for ALL queries and relations
+  GSTaskID                 String                     @unique @db.UniqueIdentifier
+  GSClientID               String?                    @db.UniqueIdentifier  // External ID - for sync only
   TaskCode                 String                     @db.NVarChar(10)
   TaskDesc                 String                     @db.NVarChar(150)
   TaskPartner              String                     @db.NVarChar(10)
@@ -799,9 +771,9 @@ model Task {
   createdBy                String?
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
-  Client                   Client?                    @relation(fields: [ClientCode], references: [ClientID], onUpdate: NoAction)
+  Client                   Client?                    @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  WipLTD                   WipLTD[]
+  Wip                      Wip[]
   TaskTeam                 TaskTeam[]
   TaskAcceptance           TaskAcceptance?
   TaskEngagementLetter     TaskEngagementLetter?
@@ -820,9 +792,9 @@ model Task {
   SarsResponse             SarsResponse[]
   TaxAdjustment            TaxAdjustment[]
 
-  @@unique([ClientCode, TaskCode])
   @@index([Active])
-  @@index([ClientCode])
+  @@index([clientId])
+  @@index([GSClientID])
   @@index([OfficeCode])
   @@index([ServLineCode])
   @@index([SLGroup])
@@ -832,7 +804,6 @@ model Task {
   @@index([ServLineCode, Active])
   @@index([updatedAt(sort: Desc)])
   @@index([ServLineCode, Active, updatedAt(sort: Desc)])
-  @@index([ClientCode, Active, updatedAt(sort: Desc)])
   @@index([TaskDesc])
 }
 
@@ -995,6 +966,61 @@ model User {
   @@index([role])
 }
 
+model Debtors {
+  id                  Int       @id @default(autoincrement())
+  clientId            Int?                                // Internal FK - for queries
+  PeriodRef           Int?
+  PeriodStart         DateTime?
+  PeriodEnd           DateTime?
+  GSClientID          String    @db.UniqueIdentifier     // External ID - for sync only
+  Biller              String    @db.NVarChar(10)
+  OfficeCode          String    @db.NVarChar(10)
+  ServLineCode        String    @db.NVarChar(10)
+  LTDInv              Float?    @db.Money
+  LTDFee              Float?    @db.Money
+  LTDVat              Float?    @db.Money
+  LTDCn               Float?    @db.Money
+  LTDRec              Float?    @db.Money
+  LTDInt              Float?    @db.Money
+  LTDPLFC             Float?    @db.Money
+  YTDInv              Float?    @db.Money
+  YTDFee              Float?    @db.Money
+  YTDVat              Float?    @db.Money
+  YTDCn               Float?    @db.Money
+  YTDRec              Float?    @db.Money
+  YTDInt              Float?    @db.Money
+  YTDPLFC             Float?    @db.Money
+  PTDInv              Float?    @db.Money
+  PTDFee              Float?    @db.Money
+  PTDVat              Float?    @db.Money
+  PTDCn               Float?    @db.Money
+  PTDRec              Float?    @db.Money
+  PTDInt              Float?    @db.Money
+  PTDPLFC             Float?    @db.Money
+  CBal                Float?    @db.Money
+  BalCurr             Float?    @db.Money
+  Bal30               Float?    @db.Money
+  Bal60               Float?    @db.Money
+  Bal90               Float?    @db.Money
+  Bal120              Float?    @db.Money
+  Bal150              Float?    @db.Money
+  Bal180              Float?    @db.Money
+  DebtorProvision     Float?    @db.Money
+  PTDDebtorProvision  Float?    @db.Money
+  YTDDebtorProvision  Float?    @db.Money
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  Client              Client?   @relation(fields: [clientId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([clientId])
+  @@index([GSClientID])
+  @@index([OfficeCode])
+  @@index([ServLineCode])
+  @@index([Biller])
+  @@index([PeriodRef])
+  @@map("Debtors")
+}
+
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -1003,12 +1029,18 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model WipLTD {
+model Wip {
   id               Int       @id @default(autoincrement())
-  taskId           Int
-  ExternalTaskID   String    @db.UniqueIdentifier
-  ClientCode       String?   @db.UniqueIdentifier
-  TaskCode         String    @db.NVarChar(10)
+  clientId         Int?                                  // Internal FK - for queries
+  taskId           Int?                                  // Internal FK - for queries
+  GSWipID          String    @unique @db.UniqueIdentifier
+  PeriodRef        Int?
+  PeriodStart      DateTime?
+  PeriodEnd        DateTime?
+  GSClientID       String    @db.UniqueIdentifier       // External ID - for sync only
+  GSTaskID         String    @db.UniqueIdentifier       // External ID - for sync only
+  ClientCode       String    @db.NVarChar(10)           // For display/search only
+  TaskCode         String    @db.NVarChar(10)           // For display/search only
   OfficeCode       String    @db.NVarChar(10)
   ServLineCode     String    @db.NVarChar(10)
   TaskPartner      String    @db.NVarChar(10)
@@ -1019,31 +1051,48 @@ model WipLTD {
   LTDAdjTime       Float?    @db.Money
   LTDAdjDisb       Float?    @db.Money
   LTDCost          Float?    @db.Money
+  YTDTime          Float?    @db.Money
+  YTDDisb          Float?    @db.Money
+  YTDFeeTime       Float?    @db.Money
+  YTDFeeDisb       Float?    @db.Money
+  YTDAdjTime       Float?    @db.Money
+  YTDAdjDisb       Float?    @db.Money
+  YTDCost          Float?    @db.Money
+  PTDTime          Float?    @db.Money
+  PTDDisb          Float?    @db.Money
+  PTDFeeTime       Float?    @db.Money
+  PTDFeeDisb       Float?    @db.Money
+  PTDAdjTime       Float?    @db.Money
+  PTDAdjDisb       Float?    @db.Money
+  PTDCost          Float?    @db.Money
   BalTime          Float?    @db.Money
   BalDisb          Float?    @db.Money
   BalWIP           Float?    @db.Money
   WipProvision     Float?    @db.Money
+  PTDProvision     Float?    @db.Money
+  YTDProvision     Float?    @db.Money
+  PTDPendingTime   Float?    @db.Money
+  YTDPendingTime   Float?    @db.Money
   LTDPendingTime   Float?    @db.Money
+  PTDCostExcludeCP Float?    @db.Money
+  YTDCostExcludeCP Float?    @db.Money
   LTDCostExcludeCP Float?    @db.Money
   LTDHours         Float?    @db.Money
-  EstFeeTime       Float?    @db.Money
-  EstFeeDisb       Float?    @db.Money
-  EstChgTime       Float?    @db.Money
-  EstChgDisb       Float?    @db.Money
-  EstChgHours      Float?    @db.Money
-  EstAdjTime       Float?    @db.Money
-  EstAdjDisb       Float?    @db.Money
-  BudStartDate     DateTime?
-  BudDueDate       DateTime?
-  BudApproveDate   DateTime?
+  YTDHours         Float?    @db.Money
+  PTDHours         Float?    @db.Money
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-  Task             Task      @relation(fields: [taskId], references: [id], onUpdate: NoAction)
+  Client           Client?   @relation(fields: [clientId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  Task             Task?     @relation(fields: [taskId], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
-  @@index([ClientCode])
+  @@index([clientId])
+  @@index([taskId])
+  @@index([GSClientID])
+  @@index([GSTaskID])
   @@index([OfficeCode])
   @@index([ServLineCode])
   @@index([TaskCode])
-  @@index([taskId])
   @@index([TaskPartner])
+  @@index([PeriodRef])
+  @@map("Wip")
 }

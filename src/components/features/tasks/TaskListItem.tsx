@@ -23,7 +23,7 @@ interface TaskListItemProps {
     TaskManager?: string;
     TaskManagerName?: string;
     Client?: {
-      ClientID: string;
+      GSClientID: string;
       clientCode: string;
       clientNameFull: string | null;
     };
@@ -40,7 +40,7 @@ interface TaskListItemProps {
   showPartnerManager?: boolean;
   additionalBadge?: ReactNode;
   masterServiceLine?: string | null; // The main service line this task belongs to
-  clientId?: string; // Optional clientId for when task.Client is not populated
+  GSClientID?: string; // Optional GSClientID for when task.Client is not populated
 }
 
 export function TaskListItem({
@@ -52,7 +52,7 @@ export function TaskListItem({
   showPartnerManager = false,
   additionalBadge,
   masterServiceLine,
-  clientId,
+  GSClientID,
 }: TaskListItemProps) {
   const [showAccessModal, setShowAccessModal] = useState(false);
   
@@ -77,8 +77,8 @@ export function TaskListItem({
     }
   };
 
-  const taskUrl = task.Client?.ClientID || clientId
-    ? `/dashboard/${serviceLine.toLowerCase()}/${currentSubServiceLineGroup}/clients/${task.Client?.ClientID || clientId}/tasks/${task.id}`
+  const taskUrl = task.Client?.GSClientID || GSClientID
+    ? `/dashboard/${serviceLine.toLowerCase()}/${currentSubServiceLineGroup}/clients/${task.Client?.GSClientID || GSClientID}/tasks/${task.id}`
     : '#';
 
   const content = (
@@ -200,7 +200,7 @@ export function TaskListItem({
         onClose={() => setShowAccessModal(false)}
         title="Task Not Accessible"
         message={`This task belongs to a different sub-service line group. You are currently viewing ${currentSubServiceLineGroupDescription || currentSubServiceLineGroup}. This task belongs to ${taskSubGroup}.`}
-        type="info"
+        variant="info"
       />
     </>
   );

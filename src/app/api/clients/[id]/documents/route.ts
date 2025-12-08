@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { DocumentType, ClientDocument, DocumentsByType } from '@/types';
-import { ClientIDSchema } from '@/lib/validation/schemas';
+import { GSClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/clients/[id]/documents
@@ -21,27 +21,27 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientID = id;
+    const GSClientID = id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
-    // Get client by ClientID
+    // Get client by GSClientID
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
-      select: { ClientID: true },
+      where: { GSClientID: GSClientID },
+      select: { GSClientID: true },
     });
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    // Get all projects for this client using ClientID
+    // Get all projects for this client using GSClientID
     const projects = await prisma.task.findMany({
-      where: { ClientCode: client.ClientID },
+      where: { GSClientID: client.GSClientID },
       select: {
         id: true,
         TaskDesc: true,

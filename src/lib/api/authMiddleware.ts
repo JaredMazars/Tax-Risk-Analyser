@@ -7,12 +7,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkUserPermission, PermissionAction } from '@/lib/services/permissions/permissionService';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
 import { getServiceLineWhereClause, verifyServiceLineAccess } from '@/lib/utils/serviceLineFilter';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { isSystemAdmin } from '@/lib/utils/systemAdmin';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
+
+// For backward compatibility
+type PermissionAction = 'CREATE' | 'READ' | 'UPDATE' | 'DELETE';
 
 /**
  * Authenticated user context
@@ -73,6 +77,7 @@ export function withAuth(handler: AuthenticatedHandler) {
 /**
  * Middleware: Require authentication + permission
  * 
+ * @deprecated Use withFeature() instead with Feature enum
  * @example
  * export const GET = withPermission('clients', 'READ', async (request, { user }) => {
  *   // user has clients.READ permission
@@ -85,9 +90,34 @@ export function withPermission(
   handler: AuthenticatedHandler
 ) {
   return withAuth(async (request, context) => {
-    const hasPermission = await checkUserPermission(context.user.id, resource, action);
+    // This is deprecated - always deny access
+    console.warn(`withPermission is deprecated. Use withFeature() instead. Resource: ${resource}, Action: ${action}`);
     
-    if (!hasPermission) {
+    return NextResponse.json(
+      { error: 'Forbidden - withPermission is deprecated. Use withFeature() instead.' },
+      { status: 403 }
+    );
+  });
+}
+
+/**
+ * Middleware: Require authentication + feature
+ * 
+ * @example
+ * export const GET = withFeature(Feature.MANAGE_CLIENTS, async (request, { user }) => {
+ *   // user has manage_clients feature
+ *   return NextResponse.json({ data: clients });
+ * });
+ */
+export function withFeature(
+  feature: Feature,
+  handler: AuthenticatedHandler,
+  serviceLine?: string
+) {
+  return withAuth(async (request, context) => {
+    const hasFeature = await checkFeature(context.user.id, feature, serviceLine);
+    
+    if (!hasFeature) {
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions' },
         { status: 403 }

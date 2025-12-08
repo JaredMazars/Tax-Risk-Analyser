@@ -19,17 +19,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is system admin
-    const isAdmin = await isSystemAdmin(currentUser.id);
-    if (!isAdmin) {
+    // Check if user has admin access and user management permission
+    const { checkFeature } = await import('@/lib/permissions/checkFeature');
+    const { Feature } = await import('@/lib/permissions/features');
+    
+    const canAccessAdmin = await checkFeature(currentUser.id, Feature.ACCESS_ADMIN);
+    const canManageUsers = await checkFeature(currentUser.id, Feature.MANAGE_USERS);
+    
+    if (!canAccessAdmin || !canManageUsers) {
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
-    // Check permission
-    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(currentUser.id, 'admin.users', 'READ');
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
 
     // Get all users with their task assignments
@@ -55,7 +53,7 @@ export async function GET(request: NextRequest) {
                 Client: {
                   select: {
                     id: true,
-                    ClientID: true,
+                    GSClientID: true,
                     clientCode: true,
                     clientNameFull: true,
                   },
@@ -103,7 +101,7 @@ export async function GET(request: NextRequest) {
           projectType: tt.Task.ServLineDesc,
           client: tt.Task.Client ? {
             id: tt.Task.Client.id,
-            ClientID: tt.Task.Client.ClientID,
+            GSClientID: tt.Task.Client.GSClientID,
             clientCode: tt.Task.Client.clientCode,
             clientNameFull: tt.Task.Client.clientNameFull,
           } : null,

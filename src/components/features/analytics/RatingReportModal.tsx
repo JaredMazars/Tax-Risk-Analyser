@@ -7,7 +7,7 @@ import { useCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { CreditRatingGrade } from '@/types/analytics';
 
 interface RatingReportModalProps {
-  clientId: string | number;
+  clientId: string | number;  // Can be internal ID or GSClientID depending on context
   ratingId: number;
   onClose: () => void;
 }

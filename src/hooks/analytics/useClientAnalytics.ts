@@ -9,27 +9,27 @@ import {
 
 export const analyticsKeys = {
   all: ['analytics'] as const,
-  clients: (clientId: string | number) => [...analyticsKeys.all, 'client', clientId] as const,
-  documents: (clientId: string | number) => [...analyticsKeys.clients(clientId), 'documents'] as const,
-  ratings: (clientId: string | number) => [...analyticsKeys.clients(clientId), 'ratings'] as const,
-  rating: (clientId: string | number, ratingId: number) => [...analyticsKeys.ratings(clientId), ratingId] as const,
-  ratios: (clientId: string | number) => [...analyticsKeys.clients(clientId), 'ratios'] as const,
-  latestRating: (clientId: string | number) => [...analyticsKeys.ratings(clientId), 'latest'] as const,
+  clients: (GSClientID: string | number) => [...analyticsKeys.all, 'client', GSClientID] as const,
+  documents: (GSClientID: string | number) => [...analyticsKeys.clients(GSClientID), 'documents'] as const,
+  ratings: (GSClientID: string | number) => [...analyticsKeys.clients(GSClientID), 'ratings'] as const,
+  rating: (GSClientID: string | number, ratingId: number) => [...analyticsKeys.ratings(GSClientID), ratingId] as const,
+  ratios: (GSClientID: string | number) => [...analyticsKeys.clients(GSClientID), 'ratios'] as const,
+  latestRating: (GSClientID: string | number) => [...analyticsKeys.ratings(GSClientID), 'latest'] as const,
 };
 
 /**
  * Fetch all analytics documents for a client
  */
-export function useAnalyticsDocuments(clientId: string | number) {
+export function useAnalyticsDocuments(GSClientID: string | number) {
   return useQuery({
-    queryKey: analyticsKeys.documents(clientId),
+    queryKey: analyticsKeys.documents(GSClientID),
     queryFn: async () => {
-      const res = await fetch(`/api/clients/${clientId}/analytics/documents`);
+      const res = await fetch(`/api/clients/${GSClientID}/analytics/documents`);
       if (!res.ok) throw new Error('Failed to fetch analytics documents');
       const data = await res.json();
       return data.data as { documents: AnalyticsDocument[]; totalCount: number };
     },
-    enabled: !!clientId,
+    enabled: !!GSClientID,
   });
 }
 
@@ -41,11 +41,11 @@ export function useUploadAnalyticsDocument() {
 
   return useMutation({
     mutationFn: async ({
-      clientId,
+      GSClientID,
       file,
       documentType,
     }: {
-      clientId: string | number;
+      GSClientID: string | number;
       file: File;
       documentType: AnalyticsDocumentType;
     }) => {
@@ -53,7 +53,7 @@ export function useUploadAnalyticsDocument() {
       formData.append('file', file);
       formData.append('documentType', documentType);
 
-      const res = await fetch(`/api/clients/${clientId}/analytics/documents`, {
+      const res = await fetch(`/api/clients/${GSClientID}/analytics/documents`, {
         method: 'POST',
         body: formData,
       });
@@ -68,7 +68,7 @@ export function useUploadAnalyticsDocument() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: analyticsKeys.documents(variables.clientId),
+        queryKey: analyticsKeys.documents(variables.GSClientID),
       });
     },
   });
@@ -82,13 +82,13 @@ export function useDeleteAnalyticsDocument() {
 
   return useMutation({
     mutationFn: async ({
-      clientId,
+      GSClientID,
       documentId,
     }: {
-      clientId: string | number;
+      GSClientID: string | number;
       documentId: number;
     }) => {
-      const res = await fetch(`/api/clients/${clientId}/analytics/documents/${documentId}`, {
+      const res = await fetch(`/api/clients/${GSClientID}/analytics/documents/${documentId}`, {
         method: 'DELETE',
       });
 
@@ -112,7 +112,7 @@ export function useDeleteAnalyticsDocument() {
     onSuccess: async (_, variables) => {
       // Refetch documents list immediately
       await queryClient.refetchQueries({
-        queryKey: analyticsKeys.documents(variables.clientId),
+        queryKey: analyticsKeys.documents(variables.GSClientID),
       });
     },
   });
@@ -122,7 +122,7 @@ export function useDeleteAnalyticsDocument() {
  * Fetch credit rating history for a client
  */
 export function useCreditRatings(
-  clientId: string | number,
+  GSClientID: string | number,
   options?: {
     limit?: number;
     startDate?: string;
@@ -136,9 +136,9 @@ export function useCreditRatings(
   if (options?.endDate) params.append('endDate', options.endDate);
 
   return useQuery({
-    queryKey: [...analyticsKeys.ratings(clientId), params.toString()],
+    queryKey: [...analyticsKeys.ratings(GSClientID), params.toString()],
     queryFn: async () => {
-      const url = `/api/clients/${clientId}/analytics/rating${
+      const url = `/api/clients/${GSClientID}/analytics/rating${
         params.toString() ? `?${params.toString()}` : ''
       }`;
       const res = await fetch(url);
@@ -148,15 +148,15 @@ export function useCreditRatings(
       const data = await res.json();
       return data.data as { ratings: CreditRating[]; totalCount: number };
     },
-    enabled: options?.enabled !== false && !!clientId,
+    enabled: options?.enabled !== false && !!GSClientID,
   });
 }
 
 /**
  * Fetch latest credit rating for a client
  */
-export function useLatestCreditRating(clientId: string | number) {
-  const { data, ...rest } = useCreditRatings(clientId, { limit: 1 });
+export function useLatestCreditRating(GSClientID: string | number) {
+  const { data, ...rest } = useCreditRatings(GSClientID, { limit: 1 });
 
   return {
     data: data?.ratings?.[0] || null,
@@ -167,16 +167,16 @@ export function useLatestCreditRating(clientId: string | number) {
 /**
  * Fetch a specific credit rating
  */
-export function useCreditRating(clientId: string | number, ratingId: number | null) {
+export function useCreditRating(GSClientID: string | number, ratingId: number | null) {
   return useQuery({
-    queryKey: analyticsKeys.rating(clientId, ratingId!),
+    queryKey: analyticsKeys.rating(GSClientID, ratingId!),
     queryFn: async () => {
-      const res = await fetch(`/api/clients/${clientId}/analytics/rating/${ratingId}`);
+      const res = await fetch(`/api/clients/${GSClientID}/analytics/rating/${ratingId}`);
       if (!res.ok) throw new Error('Failed to fetch credit rating');
       const data = await res.json();
       return data.data as CreditRating;
     },
-    enabled: !!clientId && !!ratingId,
+    enabled: !!GSClientID && !!ratingId,
   });
 }
 
@@ -188,13 +188,13 @@ export function useGenerateCreditRating() {
 
   return useMutation({
     mutationFn: async ({
-      clientId,
+      GSClientID,
       documentIds,
     }: {
-      clientId: string | number;
+      GSClientID: string | number;
       documentIds: number[];
     }) => {
-      const res = await fetch(`/api/clients/${clientId}/analytics/rating`, {
+      const res = await fetch(`/api/clients/${GSClientID}/analytics/rating`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -214,7 +214,7 @@ export function useGenerateCreditRating() {
       // Refetch all queries related to this client's analytics immediately
       // This ensures all tabs (ratings, ratios) show new data without manual refresh
       await queryClient.refetchQueries({
-        queryKey: analyticsKeys.clients(variables.clientId),
+        queryKey: analyticsKeys.clients(variables.GSClientID),
       });
     },
   });
@@ -228,13 +228,13 @@ export function useDeleteCreditRating() {
 
   return useMutation({
     mutationFn: async ({
-      clientId,
+      GSClientID,
       ratingId,
     }: {
-      clientId: string | number;
+      GSClientID: string | number;
       ratingId: number;
     }) => {
-      const res = await fetch(`/api/clients/${clientId}/analytics/rating/${ratingId}`, {
+      const res = await fetch(`/api/clients/${GSClientID}/analytics/rating/${ratingId}`, {
         method: 'DELETE',
       });
 
@@ -249,7 +249,7 @@ export function useDeleteCreditRating() {
     onSuccess: async (_, variables) => {
       // Refetch all queries related to this client's analytics
       await queryClient.refetchQueries({
-        queryKey: analyticsKeys.clients(variables.clientId),
+        queryKey: analyticsKeys.clients(variables.GSClientID),
       });
     },
   });
@@ -258,16 +258,16 @@ export function useDeleteCreditRating() {
 /**
  * Fetch latest financial ratios for a client
  */
-export function useFinancialRatios(clientId: string | number) {
+export function useFinancialRatios(GSClientID: string | number) {
   return useQuery({
-    queryKey: analyticsKeys.ratios(clientId),
+    queryKey: analyticsKeys.ratios(GSClientID),
     queryFn: async () => {
-      const res = await fetch(`/api/clients/${clientId}/analytics/ratios`);
+      const res = await fetch(`/api/clients/${GSClientID}/analytics/ratios`);
       if (!res.ok) throw new Error('Failed to fetch financial ratios');
       const data = await res.json();
       return data.data as { ratios: FinancialRatios | null; ratingDate?: Date };
     },
-    enabled: !!clientId,
+    enabled: !!GSClientID,
   });
 }
 

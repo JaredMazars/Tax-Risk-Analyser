@@ -8,7 +8,7 @@ import { logger } from '@/lib/utils/logger';
 import path from 'node:path';
 import fs from 'fs/promises';
 import { fileTypeFromBuffer } from 'file-type';
-import { ClientIDSchema } from '@/lib/validation/schemas';
+import { GSClientIDSchema } from '@/lib/validation/schemas';
 
 const MAX_FILE_SIZE = Number.parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760', 10); // 10MB default
 const ALLOWED_TYPES = [
@@ -35,21 +35,21 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientID = id;
+    const GSClientID = id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // SECURITY: Check authorization - user must have access to this client
-    const hasAccess = await checkClientAccess(user.id, clientID);
+    const hasAccess = await checkClientAccess(user.id, GSClientID);
     if (!hasAccess) {
       logger.warn('Unauthorized client access attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientID,
+        GSClientID,
         action: 'GET /analytics/documents',
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -57,7 +57,7 @@ export async function GET(
 
     // Verify client exists and get numeric id
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       select: { id: true },
     });
 
@@ -97,28 +97,28 @@ export async function POST(
     }
 
     const { id } = await context.params;
-    const clientID = id;
+    const GSClientID = id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientID);
+    const hasAccess = await checkClientAccess(user.id, GSClientID);
     if (!hasAccess) {
       logger.warn('Unauthorized document upload attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientID,
+        GSClientID,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Verify client exists and get numeric id
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       select: { id: true },
     });
 
@@ -225,7 +225,7 @@ export async function POST(
 
     logger.info('Analytics document uploaded', {
       documentId: document.id,
-      clientId: client.id,
+      GSClientID: client.id,
       fileName: file.name,
       uploadedBy: user.email,
     });

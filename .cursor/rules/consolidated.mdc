@@ -33,32 +33,111 @@ See `.cursor/rules/stylingai-patterns.mdc`
 
 **Validation:** All input via Zod schemas in `/src/lib/validation/schemas.ts`
 
+## Database
+
+**Dual-ID Convention:**
+- **Internal IDs** (`id`): Auto-increment integer primary keys managed by our application database
+- **External IDs** (`GS*` prefix): UniqueIdentifier (GUID) fields from the external database system
+- **Codes** (`*Code` suffix): String fields ONLY for display and search, NEVER for relationships
+
+**Examples:**
+- `Client` table: `id` (internal) vs `GSClientID` (external GUID) vs `clientCode` (display/search)
+- `Task` table: `id` (internal) vs `GSTaskID` (external GUID) vs `TaskCode` (display/search)
+- `Employee` table: `id` (internal) vs `GSEmployeeID` (external GUID) vs `EmpCode` (display/search)
+
+**Usage:**
+- Use `id` for ALL internal relationships, foreign keys, and application logic
+- Use `GS*` fields ONLY for external system integration and synchronization
+- Use `*Code` fields ONLY for display and search operations
+- Route parameters and API responses should use `GS*` fields when exposing to external systems
+- Internal queries and joins MUST use `id` fields for performance
+
+**Schema Pattern (CORRECT):**
+```prisma
+model Client {
+  id         Int      @id @default(autoincrement())  // Internal ID - for ALL app logic
+  clientCode String   @unique                         // For display/search ONLY
+  GSClientID String   @unique @db.UniqueIdentifier   // External ID - sync only
+  Task       Task[]   // Relation uses internal id
+}
+
+model Task {
+  id         Int      @id @default(autoincrement())  // Internal ID
+  clientId   Int?                                     // Internal FK - for queries
+  GSTaskID   String   @unique @db.UniqueIdentifier   // External ID - sync only
+  GSClientID String?  @db.UniqueIdentifier           // Keep for external sync reference
+  TaskCode   String                                   // Display/search ONLY
+  Client     Client?  @relation(fields: [clientId], references: [id])
+}
+```
+
+**Query Patterns:**
+
+❌ **WRONG** - Using GS* or Code for queries:
+```typescript
+// DON'T use external GUID for queries
+const tasks = await prisma.task.findMany({
+  where: { GSClientID: client.GSClientID }
+});
+
+// DON'T use codes for foreign keys
+const tasks = await prisma.task.findMany({
+  where: { ClientCode: clientCode }
+});
+```
+
+✅ **CORRECT** - Use internal ID:
+```typescript
+// DO use internal ID for queries
+const tasks = await prisma.task.findMany({
+  where: { clientId: client.id }
+});
+
+// Codes ONLY for search
+const clients = await prisma.client.findMany({
+  where: { clientCode: { contains: searchTerm } }
+});
+```
+
 ## URL Structure
 
 `/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/tasks/[taskId]`
 
 - `serviceLine`: TAX, AUDIT, ACCOUNTING, ADVISORY
 - `subServiceLineGroup`: Dynamic grouping from database
-- `ClientID`: Client ID
-- `taskId`: Task ID
-- Even if the user refers to projects they actually mean tasks  
+- `id`: Internal client ID (integer, from Client.id)
+- `taskId`: Internal task ID (integer, from Task.id)
+- Even if the user refers to projects they actually mean tasks
 - The applications centres around clients and tasks
+
+**Note**: URLs use internal IDs for application routing. External GS* IDs are only used for external system integration.
 
 
 ## Security (CRITICAL - NOT Optional)
 
 ### Three-Tier Model
 1. **System**: `SYSTEM_ADMIN` > `USER`
-2. **Service Line**: `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
+2. **Service Line**: `ADMINISTRATOR` > `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
 3. **Task**: `ADMIN` > `REVIEWER` > `EDITOR` > `VIEWER`
 
-Plus granular permissions: PAGE (dashboard, clients, tasks, admin) and FEATURE (clients.create, tasks.edit, etc.)
+### Feature-Based Permissions (TypeScript, No Database)
+
+Instead of CRUD permissions, use **Feature Flags** defined in `@/lib/permissions/features.ts`:
+- **Core Access**: `access_dashboard`, `access_clients`, `access_tasks`, `access_analytics`, `access_bd`, `access_admin`
+- **Task Management**: `manage_tasks`, `assign_task_team`, `approve_acceptance`, `approve_engagement_letter`
+- **Client Management**: `manage_clients`, `view_client_analytics`, `export_client_data`
+- **Documents**: `upload_documents`, `download_documents`, `delete_documents`
+- **Business Development**: `manage_opportunities`, `manage_contacts`, `view_bd_analytics`
+- **Admin**: `manage_users`, `manage_service_lines`, `manage_templates`
+- **Advanced**: `use_ai_tools`, `export_reports`, `view_wip_data`
+
+Features are mapped to roles in `@/lib/permissions/featurePermissions.ts` (in-memory, no DB queries).
 
 ### API Route Pattern (REQUIRED - 6 Steps)
 
 1. **Authenticate**: `getCurrentUser()` → return 401 if none
 2. **Parse IDs**: Use `parseXxxId()` for branded types
-3. **Check Permission**: `checkUserPermission(userId, resource, action)` → return 403 if denied
+3. **Check Feature**: `checkFeature(userId, Feature.X, serviceLine?)` → return 403 if denied
 4. **Filter Service Lines**: `getUserServiceLines()` → filter accessible service lines
 5. **Execute**: Query with `select:` (explicit fields only), filter by service lines
 6. **Respond**: `successResponse(data)` or `handleApiError(error, context)`
@@ -68,7 +147,7 @@ Plus granular permissions: PAGE (dashboard, clients, tasks, admin) and FEATURE (
 ### Backend Security Checklist
 
 - [ ] `getCurrentUser()` at start
-- [ ] `checkUserPermission()` before business logic
+- [ ] `checkFeature(userId, Feature.X)` before business logic
 - [ ] Filter by `getUserServiceLines()` accessible service lines
 - [ ] For tasks: `checkTaskAccess(userId, taskId, role?)`
 - [ ] For approvals: `canApproveAcceptance()` or `canApproveEngagementLetter()`
@@ -80,12 +159,18 @@ Plus granular permissions: PAGE (dashboard, clients, tasks, admin) and FEATURE (
 
 ### Frontend Security
 
-- Wrap UI: `<PermissionGate resource="x" action="Y">`
-- Conditional: `usePermission(resource, action)`
+- Wrap UI: `<FeatureGate feature={Feature.X}>`
+- Conditional: `useFeature(Feature.X, serviceLine?)`
 - Server Components default, `'use client'` only when needed
 - Never browser popups (use custom modals)
 
 ### Authorization Utilities
+
+**Feature Checks** (`@/lib/permissions/checkFeature`):
+- `checkFeature(userId, feature, serviceLine?)`: Check if user has feature
+- `checkAnyFeature(userId, features[])`: Check if user has any of the features
+- `checkAllFeatures(userId, features[])`: Check if user has all features
+- `getUserFeatures(userId, serviceLine?)`: Get all features user has access to
 
 **Task Access** (`@/lib/services/tasks/taskAuthorization`):
 - `checkTaskAccess(userId, taskId, role?)`: Check team membership + role
@@ -96,11 +181,9 @@ Plus granular permissions: PAGE (dashboard, clients, tasks, admin) and FEATURE (
 **Auth** (`@/lib/services/auth/authorization`):
 - `isSystemAdmin(userId)`, `getUserSystemRole()`, `getServiceLineRole()`
 - `isPartner()`, `isManager()`, `hasServiceLineAccess()`
-- `canApproveEngagementLetter()`, `checkFeaturePermission()`
-
-**Permissions** (`@/lib/services/permissions/permissionService`):
-- `getUserPermissions()`, `getRolePermissions()`, `getPermissionMatrix()`
-- `checkUserPermissions()`, `checkUserHasAnyPermission()`
+- `canApproveEngagementLetter()`, `canApproveAcceptance()`
+- `hasFeature(userId, feature, serviceLine?)`: Convenience wrapper
+- `canManageTasks()`, `canManageClients()`, `canAccessAdmin()`, etc.
 
 ### Security Principles
 
@@ -126,12 +209,13 @@ Plus granular permissions: PAGE (dashboard, clients, tasks, admin) and FEATURE (
 
 **TTLs:**
 - Sessions: 1h (3600s)
-- Permissions: 5min (300s)
 - User/Service Line/Task: 10min (600s)
 - Analytics/Static: 30min (1800s)
 
 **Cache Prefixes** (`CACHE_PREFIXES.*`):
-- `SESSION`, `PERMISSION`, `RATE_LIMIT`, `USER`, `TASK`, `SERVICE_LINE`, `NOTIFICATION`, `ANALYTICS`
+- `SESSION`, `RATE_LIMIT`, `USER`, `TASK`, `SERVICE_LINE`, `NOTIFICATION`, `ANALYTICS`
+
+**Note**: Feature permissions are NOT cached (in-memory TypeScript constants, no DB queries)
 
 **Rate Limiting:** `await checkRateLimit(request, RateLimitPresets.STANDARD)`
 - Presets: AI_ENDPOINTS (5/min), FILE_UPLOADS (10/min), STANDARD (30/min), READ_ONLY (100/min), AUTH_ENDPOINTS (10/min)

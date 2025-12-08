@@ -11,7 +11,7 @@ import { OpportunityCard } from './OpportunityCard';
 interface Opportunity {
   id: number;
   title: string;
-  clientId: number | null;
+  clientId: number | null;  // Internal ID - renamed for clarity
   companyName: string | null;
   value: number | null;
   probability: number | null;

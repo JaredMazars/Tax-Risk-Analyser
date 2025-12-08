@@ -10,7 +10,7 @@ export interface OpportunityWithRelations {
   id: number;
   title: string;
   description: string | null;
-  clientId: number | null;
+  clientId: number | null;  // Renamed from GSClientID for clarity
   companyName: string | null;
   serviceLine: string;
   value: number | null;
@@ -20,6 +20,8 @@ export interface OpportunityWithRelations {
   status: string;
   lostReason: string | null;
   assignedTo: string;
+  convertedToClientId: number | null;  // Renamed for clarity
+  convertedAt: Date | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -232,7 +234,7 @@ export async function getPipelineView(filters: {
 export async function createOpportunity(data: {
   title: string;
   description?: string;
-  clientId?: number;
+  clientId?: number;  // Renamed for clarity
   companyName?: string;
   contactId?: number;
   serviceLine: string;
@@ -301,7 +303,7 @@ export async function updateOpportunity(
   data: Partial<{
     title: string;
     description: string | null;
-    clientId: number | null;
+    clientId: number | null;  // Renamed for clarity
     companyName: string | null;
     contactId: number | null;
     stageId: number;

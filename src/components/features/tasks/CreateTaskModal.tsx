@@ -20,7 +20,7 @@ interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (task: TaskCreatedResult) => void;
-  initialClientId?: number | null;
+  initialClientId?: number | null;  // Internal ID
   initialServiceLine?: ServiceLine | null;
 }
 

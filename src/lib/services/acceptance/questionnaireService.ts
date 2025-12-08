@@ -21,17 +21,17 @@ export interface QuestionnaireTypeResult {
 /**
  * Helper: Get basic task and client data
  */
-async function getTaskData(taskId: number, clientId: number) {
+async function getTaskData(taskId: number, clientInternalId: number) {
   const [task, previousTasksCount] = await Promise.all([
     prisma.task.findUnique({
       where: { id: taskId },
       select: {
         id: true,
-        ClientCode: true,
+        clientId: true,
         Client: {
           select: {
             id: true,
-            ClientID: true,
+            GSClientID: true,
             clientCode: true,
             groupCode: true,
           },
@@ -45,9 +45,7 @@ async function getTaskData(taskId: number, clientId: number) {
     }),
     prisma.task.count({
       where: {
-        Client: {
-          id: clientId,
-        },
+        clientId: clientInternalId,  // Use internal ID parameter
         id: { not: taskId },
         TaskAcceptance: {
           acceptanceApproved: true,
@@ -102,10 +100,11 @@ function determineQuestionnaireType(isNewClient: boolean, isLiteEligible: boolea
  */
 export async function getQuestionnaireType(
   taskId: number,
-  clientId: number
+  clientInternalId: number  // Renamed for clarity - uses internal ID
 ): Promise<QuestionnaireTypeResult> {
-  const { task, isNewClient } = await getTaskData(taskId, clientId);
-  const isLiteEligible = await checkLiteEligibility(task);
+  const { task, isNewClient } = await getTaskData(taskId, clientInternalId);
+  // Type assertion needed because task from DB has more fields than interface expects
+  const isLiteEligible = await checkLiteEligibility(task as any);
   const { type, reason } = determineQuestionnaireType(isNewClient, isLiteEligible);
 
   return {
@@ -122,8 +121,8 @@ export async function getQuestionnaireType(
  */
 async function checkLiteEligibility(task: {
   id: number;
-  ClientCode: string | null;
-  Client: { id: number; ClientID: string; clientCode: string; groupCode: string } | null;
+  clientId: number | null;  // Internal ID
+  Client: { id: number; GSClientID: string; clientCode: string; groupCode: string } | null;
   TaskAcceptance: { acceptanceApproved: boolean } | null;
 }): Promise<boolean> {
   // LITE criteria (simplified):
@@ -232,7 +231,7 @@ export function validateQuestionnaireResponses(
  */
 export async function getOrCreateResponse(
   taskId: number,
-  clientId: number,
+  clientInternalId: number,  // Uses internal ID
   questionnaireType: QuestionnaireType,
   userId: string
 ) {
@@ -260,7 +259,7 @@ export async function getOrCreateResponse(
   return await prisma.clientAcceptanceResponse.create({
     data: {
       taskId,
-      clientId,
+      clientId: clientInternalId,
       questionnaireType,
     },
     include: {

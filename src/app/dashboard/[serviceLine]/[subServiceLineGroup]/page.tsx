@@ -16,7 +16,7 @@ import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskT
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client } from '@/hooks/clients/useClients';
-import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks'; // Updated with ClientID
+import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks'; // Updated with GSClientID
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { useClientGroups } from '@/hooks/clients/useClientGroups';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
@@ -639,7 +639,7 @@ export default function SubServiceLineWorkspacePage() {
                           </td>
                           <td className="px-3 py-2 text-center">
                             <Link
-                              href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.ClientID}`}
+                              href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.GSClientID}`}
                               className="text-forvis-blue-600 hover:text-forvis-blue-900 text-xs font-medium"
                             >
                               View
@@ -783,7 +783,7 @@ export default function SubServiceLineWorkspacePage() {
                             <td className="px-6 py-4">
                               {task.client && (
                                 <Link
-                                  href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.ClientID}`}
+                                  href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.GSClientID}`}
                                   className="block"
                                 >
                                   <div className="text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-900">
@@ -809,8 +809,8 @@ export default function SubServiceLineWorkspacePage() {
                             </td>
                             <td className="px-6 py-4 text-center">
                               <Link
-                                href={task.client?.ClientID 
-                                  ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.ClientID}/tasks/${task.id}`
+                                href={task.client?.GSClientID 
+                                  ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.GSClientID}/tasks/${task.id}`
                                   : `/dashboard/tasks/${task.id}`}
                                 className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium"
                               >

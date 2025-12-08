@@ -13,7 +13,8 @@ import {
 import { NotificationBell } from '@/components/features/notifications/NotificationBell';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
-import { usePermission } from '@/hooks/permissions/usePermission';
+import { useFeature } from '@/hooks/permissions/useFeature';
+import { Feature } from '@/lib/permissions/features';
 
 interface NavItem {
   label: string;
@@ -28,12 +29,11 @@ export default function DashboardNav() {
   const { currentServiceLine } = useServiceLine();
 
   // Check permissions for admin access
-  const { hasPermission: hasAdminAccess } = usePermission('admin', 'READ');
-  const { hasPermission: hasUsersAccess } = usePermission('admin.users', 'READ');
-  const { hasPermission: hasServiceLineAccess } = usePermission('admin.service-lines', 'READ');
-  const { hasPermission: hasServiceLineMappingAccess } = usePermission('admin.service-line-mapping', 'READ');
-  const { hasPermission: hasTemplatesAccess } = usePermission('admin.templates', 'READ');
-  const { hasPermission: hasPermissionsAccess } = usePermission('admin.permissions', 'READ');
+  const { hasFeature: hasAdminAccess } = useFeature(Feature.ACCESS_ADMIN);
+  const { hasFeature: hasUsersAccess } = useFeature(Feature.MANAGE_USERS);
+  const { hasFeature: hasServiceLineAccess } = useFeature(Feature.MANAGE_SERVICE_LINES);
+  const { hasFeature: hasServiceLineMappingAccess } = useFeature(Feature.MANAGE_SERVICE_LINES);
+  const { hasFeature: hasTemplatesAccess } = useFeature(Feature.MANAGE_TEMPLATES);
 
   // Base nav items - always visible
   const baseNavItems: NavItem[] = [
@@ -81,13 +81,6 @@ export default function DashboardNav() {
       label: 'Template Management',
       href: '/dashboard/admin/templates',
       description: 'Manage engagement letter templates',
-    });
-  }
-  if (hasPermissionsAccess) {
-    adminMenuItems.push({
-      label: 'Permission Matrix',
-      href: '/dashboard/admin/permissions',
-      description: 'Manage role-based permissions',
     });
   }
 

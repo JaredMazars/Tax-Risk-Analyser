@@ -21,7 +21,7 @@ export enum CreditRatingGrade {
 
 export interface AnalyticsDocument {
   id: number;
-  clientId: number;
+  clientId: number;  // Internal ID - renamed from GSClientID for clarity
   documentType: string;
   fileName: string;
   filePath: string;
@@ -82,7 +82,7 @@ export interface CreditAnalysisReport {
 
 export interface CreditRating {
   id: number;
-  clientId: number;
+  clientId: number;  // Internal ID - renamed from GSClientID for clarity
   ratingScore: number; // 0-100
   ratingGrade: CreditRatingGrade;
   ratingDate: Date;

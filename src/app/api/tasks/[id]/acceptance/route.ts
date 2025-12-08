@@ -143,7 +143,7 @@ export async function POST(
         Client: {
           select: {
             id: true,
-            ClientID: true,
+            GSClientID: true,
             clientCode: true,
             clientNameFull: true,
           },

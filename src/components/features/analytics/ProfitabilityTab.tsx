@@ -6,7 +6,7 @@ import { useClientWip, ProfitabilityMetrics } from '@/hooks/clients/useClientWip
 import { useGroupWip } from '@/hooks/clients/useGroupWip';
 
 interface ProfitabilityTabProps {
-  clientId?: string;
+  clientId?: string;  // Can be internal ID or GSClientID depending on context
   groupCode?: string;
 }
 

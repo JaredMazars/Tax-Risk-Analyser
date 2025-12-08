@@ -1,55 +1,52 @@
+/**
+ * Permission Check API Endpoint
+ * Checks if current user has specific feature(s)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkUserPermission, PermissionAction } from '@/lib/services/permissions/permissionService';
+import { checkFeature, checkAnyFeature, checkAllFeatures } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { z } from 'zod';
 
-const CheckPermissionSchema = z.object({
-  resourceKey: z.string(),
-  action: z.enum(['CREATE', 'READ', 'UPDATE', 'DELETE']),
-});
-
-/**
- * POST /api/permissions/check
- * Check if the current user has permission for a specific action
- * Returns { hasPermission: boolean }
- */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
+    // Require authentication
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse and validate request body
-    const body = await request.json();
-    const validated = CheckPermissionSchema.parse(body);
+    const { searchParams } = new URL(request.url);
+    const feature = searchParams.get('feature');
+    const featuresParam = searchParams.get('features');
+    const mode = searchParams.get('mode') || 'any'; // 'any' or 'all'
+    const serviceLine = searchParams.get('serviceLine') || undefined;
 
-    const hasPermission = await checkUserPermission(
-      user.id,
-      validated.resourceKey,
-      validated.action as PermissionAction
-    );
+    // Single feature check
+    if (feature) {
+      const hasFeature = await checkFeature(user.id, feature as Feature, serviceLine);
+      return NextResponse.json(successResponse({ hasFeature }));
+    }
 
+    // Multiple features check
+    if (featuresParam) {
+      const features = featuresParam.split(',').map(f => f.trim() as Feature);
+      
+      const hasFeature = mode === 'all'
+        ? await checkAllFeatures(user.id, features, serviceLine)
+        : await checkAnyFeature(user.id, features, serviceLine);
+
+      return NextResponse.json(successResponse({ hasFeature }));
+    }
+
+    // No feature specified
     return NextResponse.json(
-      successResponse({ hasPermission })
+      { error: 'Missing feature or features parameter' },
+      { status: 400 }
     );
   } catch (error) {
-    return handleApiError(error, 'POST /api/permissions/check');
+    return handleApiError(error, 'Permission check failed');
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

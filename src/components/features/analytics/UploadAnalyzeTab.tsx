@@ -6,11 +6,12 @@ import { useAnalyticsDocuments, useUploadAnalyticsDocument, useGenerateCreditRat
 import { AnalyticsDocumentType } from '@/types/analytics';
 
 interface UploadAnalyzeTabProps {
-  clientId: string | number;
+  clientId: string | number;  // Can be internal ID or GSClientID depending on context
   onGenerateComplete?: () => void;
 }
 
 export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyzeTabProps) {
+  const GSClientID = clientId;  // Alias for backward compatibility with hooks
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedDocumentType, setSelectedDocumentType] = useState<AnalyticsDocumentType>(AnalyticsDocumentType.AFS);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<number>>(new Set());
@@ -18,7 +19,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generateSuccess, setGenerateSuccess] = useState(false);
 
-  const { data: documentsData, isLoading: isLoadingDocs } = useAnalyticsDocuments(clientId);
+  const { data: documentsData, isLoading: isLoadingDocs } = useAnalyticsDocuments(GSClientID);
   const uploadMutation = useUploadAnalyticsDocument();
   const generateMutation = useGenerateCreditRating();
 
@@ -34,7 +35,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
 
     try {
       await uploadMutation.mutateAsync({
-        clientId,
+        GSClientID,
         file,
         documentType: selectedDocumentType,
       });
@@ -69,7 +70,7 @@ export function UploadAnalyzeTab({ clientId, onGenerateComplete }: UploadAnalyze
 
     try {
       await generateMutation.mutateAsync({
-        clientId,
+        GSClientID,
         documentIds: Array.from(selectedDocumentIds),
       });
       setGenerateSuccess(true);

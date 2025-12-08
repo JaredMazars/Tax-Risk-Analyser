@@ -31,7 +31,7 @@ import { CreditRatingGrade } from '@/types/analytics';
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const clientId = params.id as string;
+  const GSClientID = params.id as string;
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const queryClient = useQueryClient();
   
@@ -50,14 +50,14 @@ export default function ServiceLineClientDetailPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Fetch client using React Query hook with task pagination
-  const { data: clientData, isLoading, isFetching, error } = useClient(clientId, {
+  const { data: clientData, isLoading, isFetching, error } = useClient(GSClientID, {
     taskPage,
     taskLimit,
     serviceLine: activeServiceLineTab,
   });
 
   // Fetch latest credit rating
-  const { data: latestRating, isLoading: isLoadingRating } = useLatestCreditRating(clientId);
+  const { data: latestRating, isLoading: isLoadingRating } = useLatestCreditRating(GSClientID);
   
   // Use client data directly
   const client: any = useMemo(() => {
@@ -144,7 +144,7 @@ export default function ServiceLineClientDetailPage() {
   const handleTaskCreated = (task: any) => {
     setShowCreateModal(false);
     // Invalidate client query to refetch and show the new task
-    queryClient.invalidateQueries({ queryKey: clientKeys.detail(clientId) });
+    queryClient.invalidateQueries({ queryKey: clientKeys.detail(GSClientID) });
     // Also invalidate task list so it shows up there too
     queryClient.invalidateQueries({ queryKey: taskListKeys.all });
     // Optionally, if the new task is in a different service line tab, switch to it
@@ -571,7 +571,7 @@ export default function ServiceLineClientDetailPage() {
                         <TaskWrapper
                           key={task.id}
                           {...(isAccessible ? {
-                            href: `/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/tasks/${task.id}`,
+                            href: `/dashboard/${serviceLine.toLowerCase()}/clients/${GSClientID}/tasks/${task.id}`,
                           } : {})}
                           className={`block p-3 border border-forvis-gray-200 rounded-lg transition-all ${
                             isAccessible
@@ -629,7 +629,7 @@ export default function ServiceLineClientDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
               {/* Documents Card */}
               <Link 
-                href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/documents`}
+                href={`/dashboard/${serviceLine.toLowerCase()}/clients/${GSClientID}/documents`}
                 className="card hover:shadow-lg hover:border-forvis-blue-500 transition-all cursor-pointer"
               >
                 <div className="p-4 text-center">
@@ -650,7 +650,7 @@ export default function ServiceLineClientDetailPage() {
 
               {/* Analytics Card */}
               <Link 
-                href={`/dashboard/${serviceLine.toLowerCase()}/clients/${clientId}/analytics`}
+                href={`/dashboard/${serviceLine.toLowerCase()}/clients/${GSClientID}/analytics`}
                 className="card hover:shadow-lg hover:border-forvis-blue-500 transition-all cursor-pointer"
               >
                 <div className="p-4 text-center">

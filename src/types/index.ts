@@ -94,7 +94,7 @@ export interface Client {
   id: number;
   // New required fields from external DB
   clientCode: string;
-  ClientID: string; // UniqueIdentifier GUID
+  GSClientID: string; // UniqueIdentifier GUID
   clientNameFull?: string | null;
   groupCode: string;
   groupDesc: string;
@@ -124,9 +124,10 @@ export interface Client {
 // Enhanced Project
 export interface Task {
   id: number;
-  ExternalTaskID: string;
-  ClientCode: string; // Now a GUID (UniqueIdentifier) referencing Client.ClientID
-  TaskCode: string;
+  clientId?: number | null;         // Internal FK - for ALL queries and relations
+  GSTaskID: string;                 // External ID - for sync only
+  GSClientID?: string | null;       // External ID - kept for sync reference only
+  TaskCode: string;                 // For display/search only
   TaskDesc: string;
   TaskPartner: string;
   TaskPartnerName: string;
@@ -144,7 +145,6 @@ export interface Task {
   description?: string | null;
   status: string;
   archived: boolean;
-  clientId?: number | null;
   serviceLine?: string | null;
   assessmentYear?: string | null;
   projectType: TaskType;

@@ -12,7 +12,7 @@ export interface ClientFilters {
 export interface ClientListResult {
   clients: Array<{
     id: number;
-    ClientID: string;
+    GSClientID: string;
     clientCode: string;
     clientNameFull: string | null;
     groupCode: string;
@@ -102,7 +102,7 @@ export async function getClientsWithPagination(
         orderBy,
         select: {
           id: true,
-          ClientID: true,
+          GSClientID: true,
           clientCode: true,
           clientNameFull: true,
           groupCode: true,
@@ -159,12 +159,15 @@ export async function getClientWithProjects(
       const taskSkip = (taskPage - 1) * Math.min(taskLimit, 50);
       const taskTake = Math.min(taskLimit, 50);
 
-      // Build task where clause
+      // Build task where clause using internal clientId
       interface TaskWhereClause {
+        clientId?: number;
         Active?: string;
         ServLineCode?: string;
       }
-      const taskWhere: TaskWhereClause = {};
+      const taskWhere: TaskWhereClause = {
+        clientId: clientId,  // Use internal ID for query
+      };
       if (!includeArchived) {
         taskWhere.Active = 'Yes';
       }
@@ -176,7 +179,7 @@ export async function getClientWithProjects(
         where: { id: clientId },
         select: {
           id: true,
-          ClientID: true,
+          GSClientID: true,
           clientCode: true,
           clientNameFull: true,
           groupCode: true,
@@ -226,12 +229,9 @@ export async function getClientWithProjects(
         return null;
       }
 
-      // Get total task count with filters (using ClientID)
+      // Get total task count with filters (using internal clientId)
       const totalTasks = await prisma.task.count({
-        where: {
-          ClientCode: client.ClientID,
-          ...taskWhere,
-        },
+        where: taskWhere,
       });
 
       return {

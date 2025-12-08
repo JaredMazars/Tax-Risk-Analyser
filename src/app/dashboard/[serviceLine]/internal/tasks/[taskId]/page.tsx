@@ -72,7 +72,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
   const [editData, setEditData] = useState({
     name: project.name || project.TaskDesc,
     description: project.description || '',
-    clientCode: project.ClientCode || '',
+    clientCode: project.GSClientID || '',
     projectType: project.projectType as TaskType,
     taxYear: project.taxYear || new Date().getFullYear(),
     taxPeriodStart: project.taxPeriodStart instanceof Date ? project.taxPeriodStart : (project.taxPeriodStart ? new Date(project.taxPeriodStart) : null),
@@ -196,7 +196,7 @@ function SettingsTab({ project, onUpdate }: SettingsTabProps) {
                     setEditData({
                       name: project.name || project.TaskDesc,
                       description: project.description || '',
-                      clientCode: project.ClientCode || '',
+                      clientCode: project.GSClientID || '',
                       projectType: project.projectType as TaskType,
                       taxYear: project.taxYear || new Date().getFullYear(),
                       taxPeriodStart: project.taxPeriodStart instanceof Date ? project.taxPeriodStart : (project.taxPeriodStart ? new Date(project.taxPeriodStart) : null),

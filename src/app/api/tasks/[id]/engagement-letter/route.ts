@@ -40,7 +40,7 @@ export async function POST(
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
-        ClientCode: true,
+        clientId: true,
         TaskAcceptance: {
           select: {
             acceptanceApproved: true,
@@ -53,7 +53,7 @@ export async function POST(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    if (!task.ClientCode) {
+    if (!task.clientId) {
       return NextResponse.json(
         { error: 'Engagement letter is only available for client tasks' },
         { status: 400 }

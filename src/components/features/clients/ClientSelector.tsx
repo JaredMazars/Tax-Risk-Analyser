@@ -5,7 +5,7 @@ import { Client } from '@/types';
 
 interface ClientSelectorProps {
   value?: number | null;
-  onChange: (clientId: number | null) => void;
+  onChange: (clientId: number | null) => void;  // Internal ID
   allowCreate?: boolean; // Note: Quick create is currently disabled due to new required fields
 }
 

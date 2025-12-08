@@ -14,7 +14,7 @@ export interface TaskWorkflowStatus {
 }
 
 export interface TaskWorkflowData {
-  clientId?: number | null;
+  clientId?: number | null;  // Internal ID - for queries
   acceptanceApproved?: boolean;
   acceptanceApprovedBy?: string | null;
   acceptanceApprovedAt?: Date | string | null;
@@ -144,6 +144,9 @@ export function getWorkflowProgress(task: TaskWorkflowData | null | undefined): 
   
   return progress;
 }
+
+
+
 
 
 

@@ -118,8 +118,9 @@ export async function GET(
     }
 
     // 3. Check Permission
-    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
+    const { checkFeature } = await import('@/lib/permissions/checkFeature');
+    const { Feature } = await import('@/lib/permissions/features');
+    const hasPermission = await checkFeature(user.id, Feature.VIEW_WIP_DATA);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
@@ -146,13 +147,13 @@ export async function GET(
         groupCode,
       },
       select: {
-        ClientID: true,
+        GSClientID: true,
       },
     });
 
-    const clientIDs = clientsInGroup.map(c => c.ClientID);
+    const GSClientIDs = clientsInGroup.map(c => c.GSClientID);
 
-    if (clientIDs.length === 0) {
+    if (GSClientIDs.length === 0) {
       return NextResponse.json(
         successResponse({
           groupCode: groupInfo.groupCode,
@@ -186,10 +187,10 @@ export async function GET(
     const accessibleServLineCodes = accessibleServiceLines.map(sl => String(sl.serviceLine));
 
     // Fetch WIP data for all clients in the group
-    const wipRecords = await prisma.wipLTD.findMany({
+    const wipRecords = await prisma.wip.findMany({
       where: {
-        ClientCode: {
-          in: clientIDs,
+        GSClientID: {
+          in: GSClientIDs,
         },
       },
       select: {

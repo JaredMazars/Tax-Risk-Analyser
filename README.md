@@ -325,8 +325,6 @@ mapper/
 ### Administration
 - `GET /api/admin/users` - List users (System Admin)
 - `PUT /api/admin/users/[id]` - Update user role/permissions
-- `GET /api/admin/permissions` - Get permission matrix
-- `PUT /api/admin/permissions` - Update permissions
 - `GET /api/admin/service-lines` - List service lines
 
 ### System Health

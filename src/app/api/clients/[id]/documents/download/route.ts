@@ -5,7 +5,7 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { DocumentType } from '@/types';
 import { readFile } from 'fs/promises';
 import path from 'node:path';
-import { ClientIDSchema } from '@/lib/validation/schemas';
+import { GSClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/clients/[id]/documents/download
@@ -23,10 +23,10 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientID = id;
+    const GSClientID = id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
@@ -46,7 +46,7 @@ export async function GET(
 
     // Verify client exists
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
     });
 
     if (!client) {
@@ -63,7 +63,7 @@ export async function GET(
           where: {
             id: taskId,
             Client: {
-              ClientID: clientID,
+              GSClientID: GSClientID,
             },
           },
           select: {
@@ -96,7 +96,7 @@ export async function GET(
             id: documentId,
             Task: {
               Client: {
-                ClientID: clientID,
+                GSClientID: GSClientID,
               },
             },
           },
@@ -120,7 +120,7 @@ export async function GET(
             id: documentId,
             Task: {
               Client: {
-                ClientID: clientID,
+                GSClientID: GSClientID,
               },
             },
           },
@@ -145,7 +145,7 @@ export async function GET(
             OpinionDraft: {
               Task: {
                 Client: {
-                  ClientID: clientID,
+                  GSClientID: GSClientID,
                 },
               },
             },
@@ -170,7 +170,7 @@ export async function GET(
             id: documentId,
             Task: {
               Client: {
-                ClientID: clientID,
+                GSClientID: GSClientID,
               },
             },
           },

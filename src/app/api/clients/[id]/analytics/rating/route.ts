@@ -5,7 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { CreditRatingAnalyzer } from '@/lib/services/analytics/creditRatingAnalyzer';
 import { logger } from '@/lib/utils/logger';
-import { CreditRatingQuerySchema, GenerateCreditRatingSchema, ClientIDSchema } from '@/lib/validation/schemas';
+import { CreditRatingQuerySchema, GenerateCreditRatingSchema, GSClientIDSchema } from '@/lib/validation/schemas';
 import { parseCreditAnalysisReport, parseFinancialRatios, safeStringifyJSON } from '@/lib/utils/jsonValidation';
 import { CreditAnalysisReportSchema, FinancialRatiosSchema } from '@/lib/validation/schemas';
 import type { Prisma } from '@prisma/client';
@@ -25,21 +25,21 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientID = id;
+    const GSClientID = id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientID);
+    const hasAccess = await checkClientAccess(user.id, GSClientID);
     if (!hasAccess) {
       logger.warn('Unauthorized rating access attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientID,
+        GSClientID,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -62,7 +62,7 @@ export async function GET(
 
     if (!queryValidation.success) {
       logger.warn('Credit rating query validation failed', {
-        clientID,
+        GSClientID,
         queryParams,
         errors: queryValidation.error.errors,
       });
@@ -74,9 +74,9 @@ export async function GET(
 
     const { limit, startDate, endDate } = queryValidation.data;
 
-    // Get client by ClientID to get numeric id
+    // Get client by GSClientID to get numeric id
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       select: { id: true },
     });
 
@@ -86,13 +86,13 @@ export async function GET(
 
     // Build type-safe where clause
     interface WhereClause {
-      clientId: number; // Note: clientId is still numeric in ClientCreditRating table
+      GSClientID: number; // Note: GSClientID is still numeric in ClientCreditRating table
       ratingDate?: {
         gte?: Date;
         lte?: Date;
       };
     }
-    const where: WhereClause = { clientId: client.id };
+    const where: WhereClause = { GSClientID: client.id };
     if (startDate || endDate) {
       where.ratingDate = {
         ...(startDate && { gte: startDate }),
@@ -115,8 +115,8 @@ export async function GET(
     });
 
     logger.info('Fetched credit ratings', {
-      clientID,
-      clientId: client.id,
+      GSClientID,
+      clientDbId: client.id,
       ratingsFound: ratings.length,
       limit,
       whereClause: JSON.stringify(where),
@@ -142,8 +142,8 @@ export async function GET(
     });
 
     logger.info('Transformed credit ratings', {
-      clientID,
-      clientId: client.id,
+      GSClientID,
+      clientDbId: client.id,
       transformedCount: transformedRatings.length,
     });
 
@@ -173,21 +173,21 @@ export async function POST(
     }
 
     const { id } = await context.params;
-    const clientID = id;
+    const GSClientID = id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientID);
+    const hasAccess = await checkClientAccess(user.id, GSClientID);
     if (!hasAccess) {
       logger.warn('Unauthorized rating generation attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientID,
+        GSClientID,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -207,7 +207,7 @@ export async function POST(
 
     // Verify client exists
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       select: {
         id: true,
         clientNameFull: true,
@@ -248,8 +248,8 @@ export async function POST(
     }
 
     logger.info('Starting credit rating generation', {
-      clientID,
-      clientId: client.id,
+      GSClientID,
+      clientDbId: client.id,
       clientName: client.clientNameFull || client.clientCode,
       documentCount: documents.length,
       userId: user.email,
@@ -273,8 +273,8 @@ export async function POST(
 
     // Log what we're about to save
     logger.info('Credit rating analysis completed', {
-      clientID,
-      clientId: client.id,
+      GSClientID,
+      clientDbId: client.id,
       ratingGrade: result.ratingGrade,
       ratingScore: result.ratingScore,
       confidence: result.confidence,
@@ -350,8 +350,8 @@ export async function POST(
     // Verify data was saved correctly
     logger.info('Credit rating saved successfully to database', {
       ratingId: completeRating.id,
-      clientID,
-      clientId: client.id,
+      GSClientID,
+      clientDbId: client.id,
       ratingGrade: completeRating.ratingGrade,
       ratingScore: completeRating.ratingScore,
       confidence: completeRating.confidence,

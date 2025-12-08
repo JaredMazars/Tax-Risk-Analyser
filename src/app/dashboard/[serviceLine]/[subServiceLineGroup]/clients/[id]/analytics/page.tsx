@@ -19,7 +19,7 @@ type TabType = 'profitability' | 'recoverability' | 'upload' | 'ratings' | 'rati
 
 function ClientAnalyticsContent() {
   const params = useParams();
-  const clientId = (params?.id as string) || '';
+  const GSClientID = (params?.id as string) || '';
   const serviceLine = (params?.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params?.subServiceLineGroup as string;
   const [activeTab, setActiveTab] = useState<TabType>('profitability');
@@ -35,10 +35,10 @@ function ClientAnalyticsContent() {
   const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
 
   // Fetch client data
-  const { data: clientData, isLoading } = useClient(clientId, {
+  const { data: clientData, isLoading } = useClient(GSClientID, {
     taskPage: 1,
     taskLimit: 1,
-    enabled: !!params && !!clientId,
+    enabled: !!params && !!GSClientID,
   });
 
   const client = clientData
@@ -151,7 +151,7 @@ function ClientAnalyticsContent() {
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link
-            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}`}
+            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`}
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {clientName}
@@ -191,14 +191,14 @@ function ClientAnalyticsContent() {
 
         {/* Tab Content */}
         <div className="mt-6">
-          {activeTab === 'profitability' && <ProfitabilityTab clientId={clientId} />}
-          {activeTab === 'recoverability' && <RecoverabilityTab clientId={clientId} />}
+          {activeTab === 'profitability' && <ProfitabilityTab clientId={GSClientID} />}
+          {activeTab === 'recoverability' && <RecoverabilityTab clientId={GSClientID} />}
           {activeTab === 'upload' && (
-            <UploadAnalyzeTab clientId={clientId} onGenerateComplete={() => setActiveTab('ratings')} />
+            <UploadAnalyzeTab clientId={GSClientID} onGenerateComplete={() => setActiveTab('ratings')} />
           )}
-          {activeTab === 'ratings' && <CreditRatingsTab clientId={clientId} />}
-          {activeTab === 'ratios' && <FinancialRatiosTab clientId={clientId} />}
-          {activeTab === 'documents' && <AnalyticsDocumentsTab clientId={clientId} />}
+          {activeTab === 'ratings' && <CreditRatingsTab clientId={GSClientID} />}
+          {activeTab === 'ratios' && <FinancialRatiosTab clientId={GSClientID} />}
+          {activeTab === 'documents' && <AnalyticsDocumentsTab clientId={GSClientID} />}
         </div>
       </div>
     </div>

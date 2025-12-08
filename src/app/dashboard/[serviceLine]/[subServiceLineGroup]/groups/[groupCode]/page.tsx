@@ -450,7 +450,7 @@ export default function GroupDetailPage() {
                         return (
                           <Link
                             key={client.id}
-                            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.ClientID}`}
+                            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.GSClientID}`}
                             className="block p-3 border border-forvis-gray-200 rounded-lg transition-all hover:border-forvis-blue-500 hover:shadow-sm cursor-pointer"
                           >
                             <div className="flex items-start justify-between mb-2">

@@ -25,12 +25,12 @@ export function OpportunityForm({
   isLoading,
 }: OpportunityFormProps) {
   const [opportunityType, setOpportunityType] = useState<'current' | 'prospect'>(
-    initialData?.clientId ? 'current' : 'prospect'
+    initialData?.GSClientID ? 'current' : 'prospect'
   );
   const [formData, setFormData] = useState<Partial<CreateBDOpportunityInput>>({
     title: initialData?.title || '',
     description: initialData?.description || '',
-    clientId: initialData?.clientId,
+    GSClientID: initialData?.GSClientID,
     companyName: initialData?.companyName || '',
     serviceLine: initialData?.serviceLine || 'BUSINESS_DEV',
     stageId: initialData?.stageId || (stages[0]?.id || 0),
@@ -81,9 +81,9 @@ export function OpportunityForm({
     // Clean up form data based on opportunity type
     const submitData = { ...formData };
     if (opportunityType === 'current') {
-      delete submitData.companyName; // Remove if using clientId
+      delete submitData.companyName; // Remove if using GSClientID
     } else {
-      delete submitData.clientId; // Remove if using companyName
+      delete submitData.GSClientID; // Remove if using companyName
     }
     onSubmit(submitData as CreateBDOpportunityInput);
   };
@@ -103,11 +103,11 @@ export function OpportunityForm({
     setOpportunityType(type);
     // Clear the opposing field when switching types
     if (type === 'current') {
-      setFormData((prev) => ({ ...prev, companyName: undefined, clientId: undefined }));
+      setFormData((prev) => ({ ...prev, companyName: undefined, GSClientID: undefined }));
       setClientSearch('');
       setSelectedClient(null);
     } else {
-      setFormData((prev) => ({ ...prev, clientId: undefined, companyName: '' }));
+      setFormData((prev) => ({ ...prev, GSClientID: undefined, companyName: '' }));
       setClientSearch('');
       setSelectedClient(null);
     }
@@ -116,7 +116,7 @@ export function OpportunityForm({
   const handleClientSelect = (client: ClientSearchResult) => {
     setSelectedClient(client);
     setClientSearch(client.clientNameFull || client.clientCode);
-    setFormData((prev) => ({ ...prev, clientId: client.id }));
+    setFormData((prev) => ({ ...prev, GSClientID: client.id }));
     setShowClientDropdown(false);
   };
 
@@ -125,7 +125,7 @@ export function OpportunityForm({
     setShowClientDropdown(value.length >= 2);
     if (value.length < 2) {
       setSelectedClient(null);
-      setFormData((prev) => ({ ...prev, clientId: undefined }));
+      setFormData((prev) => ({ ...prev, GSClientID: undefined }));
     }
   };
 
@@ -226,7 +226,7 @@ export function OpportunityForm({
                   onClick={() => {
                     setClientSearch('');
                     setSelectedClient(null);
-                    setFormData((prev) => ({ ...prev, clientId: undefined }));
+                    setFormData((prev) => ({ ...prev, GSClientID: undefined }));
                   }}
                   className="text-forvis-gray-400 hover:text-forvis-gray-600"
                 >

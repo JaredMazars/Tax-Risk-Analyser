@@ -81,7 +81,7 @@ export default function OpportunityDetailPage() {
       await updateOpportunity.mutateAsync({
         title: opportunity!.title,
         description: opportunity!.description || undefined,
-        clientId: opportunity!.clientId || undefined,
+        GSClientID: opportunity!.GSClientID || undefined,
         companyName: opportunity!.companyName || undefined,
         serviceLine: selectedServiceLine as 'TAX' | 'AUDIT' | 'ACCOUNTING' | 'ADVISORY' | 'QRM' | 'BUSINESS_DEV' | 'IT' | 'FINANCE' | 'HR',
         stageId: opportunity!.stageId,
@@ -104,7 +104,7 @@ export default function OpportunityDetailPage() {
       setIsConvertModalOpen(false);
       // Navigate to the new client page
       if (result.client) {
-        router.push(`/dashboard/${serviceLine}/clients/${result.client.ClientID}`);
+        router.push(`/dashboard/${serviceLine}/clients/${result.client.GSClientID}`);
       }
     } catch (error) {
       console.error('Failed to convert opportunity:', error);
@@ -200,7 +200,7 @@ export default function OpportunityDetailPage() {
           >
             Edit
           </button>
-          {opportunity.status !== 'WON' && !opportunity.convertedToClientId && (
+          {opportunity.status !== 'WON' && !opportunity.convertedToGSClientID && (
             <button
               onClick={() => setIsConvertModalOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
@@ -212,7 +212,7 @@ export default function OpportunityDetailPage() {
               Convert to Client
             </button>
           )}
-          {opportunity.convertedToClientId && (
+          {opportunity.convertedToGSClientID && (
             <div className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -386,7 +386,7 @@ export default function OpportunityDetailPage() {
                   initialData={{
                     title: opportunity.title,
                     description: opportunity.description || undefined,
-                    clientId: opportunity.clientId || undefined,
+                    GSClientID: opportunity.GSClientID || undefined,
                     companyName: opportunity.companyName || undefined,
                     serviceLine: opportunity.serviceLine,
                     stageId: opportunity.stageId,

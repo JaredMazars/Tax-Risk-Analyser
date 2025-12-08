@@ -22,8 +22,9 @@ export async function GET(
     }
 
     // 2. Check Permission
-    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
+    const { checkFeature } = await import('@/lib/permissions/checkFeature');
+    const { Feature } = await import('@/lib/permissions/features');
+    const hasPermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }

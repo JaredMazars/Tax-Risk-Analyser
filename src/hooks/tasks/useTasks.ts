@@ -19,13 +19,13 @@ export interface TaskListItem {
   serviceLine: string;
   status: string;
   archived: boolean;
-  clientId: number | null;
+  clientId: number | null;  // Internal ID - for queries
   taxYear: number | null;
   createdAt: string;
   updatedAt: string;
   client?: {
     id: number;
-    ClientID: string;
+    GSClientID: string;  // External ID
     clientNameFull: string | null;
     clientCode: string | null;
   } | null;

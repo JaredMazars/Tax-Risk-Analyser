@@ -3,7 +3,7 @@
 import { BanknotesIcon } from '@heroicons/react/24/outline';
 
 interface RecoverabilityTabProps {
-  clientId?: string;
+  clientId?: string;  // Can be internal ID or GSClientID depending on context
   groupCode?: string;
 }
 

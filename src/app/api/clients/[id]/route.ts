@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { UpdateClientSchema, ClientIDSchema } from '@/lib/validation/schemas';
+import { UpdateClientSchema, GSClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { z } from 'zod';
@@ -22,10 +22,10 @@ export async function GET(
     }
     
     const params = await context.params;
-    const clientID = params.id;
+    const GSClientID = params.id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json(
         { error: 'Invalid client ID format. Expected GUID.' },
@@ -42,7 +42,7 @@ export async function GET(
     const includeArchived = searchParams.get('includeArchived') === 'true';
     
     // Try to get cached client data
-    const cached = await getCachedClient(clientID, serviceLine, includeArchived);
+    const cached = await getCachedClient(GSClientID, serviceLine, includeArchived);
     if (cached) {
       return NextResponse.json(successResponse(cached));
     }
@@ -52,25 +52,19 @@ export async function GET(
     // Note: serviceLine parameter kept for backwards compatibility but not used for filtering
     // All tasks are returned and filtering is done on the frontend based on SLGroup
 
-    // Build task where clause
+    // Build task where clause using internal clientId
     interface TaskWhereClause {
-      ClientCode: string;
+      clientId: number;
       Active?: string;
     }
-    const taskWhere: TaskWhereClause = {
-      ClientCode: '', // Will be set below after we get the client
-    };
     
-    if (!includeArchived) {
-      taskWhere.Active = 'Yes';
-    }
-
-    // Get the client by ClientID
+    // Parse GSClientID to get internal clientId
+    // First get the client to get its internal id
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       select: {
         id: true,
-        ClientID: true,
+        GSClientID: true,
         clientCode: true,
         clientNameFull: true,
         groupCode: true,
@@ -105,8 +99,14 @@ export async function GET(
       );
     }
 
-    // Set the ClientCode (now GUID) in the where clause
-    taskWhere.ClientCode = client.ClientID;
+    // Build task where clause using internal clientId
+    const taskWhere: TaskWhereClause = {
+      clientId: client.id,  // Use internal ID for query
+    };
+    
+    if (!includeArchived) {
+      taskWhere.Active = 'Yes';
+    }
 
     // Get tasks for this client and task counts in parallel
     const [tasks, totalTasks, taskCountsByServiceLine] = await Promise.all([
@@ -124,7 +124,7 @@ export async function GET(
           updatedAt: true,
           ServLineCode: true, // Include to derive serviceLine
           SLGroup: true, // Include for sub-service line group filtering
-          ExternalTaskID: true,
+          GSTaskID: true,
           TaskDateOpen: true,
           TaskDateTerminate: true,
           TaskPartner: true,
@@ -143,7 +143,7 @@ export async function GET(
         where: taskWhere,
       }),
       // OPTIMIZED: Single aggregated query instead of 9 separate counts
-      getTaskCountsByServiceLine(client.ClientID, includeArchived),
+      getTaskCountsByServiceLine(client.GSClientID, includeArchived),
     ]);
 
     // Calculate total across all service lines
@@ -171,30 +171,30 @@ export async function GET(
       });
     }
 
-    // Fetch WIP data for the tasks by taskId
-    const taskIds = tasks.map(t => t.id);
-    const tasksWipData = taskIds.length > 0 ? await prisma.wipLTD.findMany({
+    // Fetch WIP data for the tasks by GSTaskID
+    const taskGSTaskIDs = tasks.map(t => t.GSTaskID);
+    const tasksWipData = taskGSTaskIDs.length > 0 ? await prisma.wip.findMany({
       where: {
-        taskId: {
-          in: taskIds,
+        GSTaskID: {
+          in: taskGSTaskIDs,
         },
       },
       select: {
-        taskId: true,
+        GSTaskID: true,
         BalWIP: true,
         BalTime: true,
         BalDisb: true,
       },
     }) : [];
 
-    // Create a map of WIP data by taskId
-    const wipByTaskId = new Map<number, { balWIP: number; balTime: number; balDisb: number }>();
+    // Create a map of WIP data by GSTaskID
+    const wipByGSTaskID = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
     tasksWipData.forEach(wip => {
-      if (!wipByTaskId.has(wip.taskId)) {
-        wipByTaskId.set(wip.taskId, { balWIP: 0, balTime: 0, balDisb: 0 });
+      if (!wipByGSTaskID.has(wip.GSTaskID)) {
+        wipByGSTaskID.set(wip.GSTaskID, { balWIP: 0, balTime: 0, balDisb: 0 });
       }
       
-      const taskWip = wipByTaskId.get(wip.taskId)!;
+      const taskWip = wipByGSTaskID.get(wip.GSTaskID)!;
       taskWip.balWIP += wip.BalWIP || 0;
       taskWip.balTime += wip.BalTime || 0;
       taskWip.balDisb += wip.BalDisb || 0;
@@ -205,7 +205,7 @@ export async function GET(
       ...task,
       masterServiceLine: serviceLineMapping[task.ServLineCode] || null,
       subServiceLineGroupCode: servLineToSubGroupMapping[task.ServLineCode] || null,
-      wip: wipByTaskId.get(task.id) || { balWIP: 0, balTime: 0, balDisb: 0 },
+      wip: wipByGSTaskID.get(task.GSTaskID) || { balWIP: 0, balTime: 0, balDisb: 0 },
     }));
 
     const responseData = {
@@ -224,7 +224,7 @@ export async function GET(
     };
 
     // Cache the response
-    await setCachedClient(clientID, responseData, serviceLine, includeArchived);
+    await setCachedClient(GSClientID, responseData, serviceLine, includeArchived);
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
@@ -244,10 +244,10 @@ export async function PUT(
     }
     
     const params = await context.params;
-    const clientID = params.id;
+    const GSClientID = params.id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json(
         { error: 'Invalid client ID format. Expected GUID.' },
@@ -262,7 +262,7 @@ export async function PUT(
 
     // Check if client exists
     const existingClient = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
     });
 
     if (!existingClient) {
@@ -288,13 +288,13 @@ export async function PUT(
 
     // Update client
     const client = await prisma.client.update({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       data: validatedData,
     });
 
     // Invalidate cache after update
-    await invalidateClientCache(clientID);
-    await invalidateClientListCache(clientID);
+    await invalidateClientCache(GSClientID);
+    await invalidateClientListCache(GSClientID);
 
     return NextResponse.json(successResponse(client));
   } catch (error) {
@@ -335,10 +335,10 @@ export async function DELETE(
     }
     
     const params = await context.params;
-    const clientID = params.id;
+    const GSClientID = params.id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json(
         { error: 'Invalid client ID format. Expected GUID.' },
@@ -348,7 +348,7 @@ export async function DELETE(
 
   // Check if client exists
     const existingClient = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       include: {
         _count: {
           select: {
@@ -375,11 +375,11 @@ export async function DELETE(
 
     // Delete client
     await prisma.client.delete({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
     });
 
     // Invalidate cache after delete
-    await invalidateClientCache(clientID);
+    await invalidateClientCache(GSClientID);
 
     return NextResponse.json(
       successResponse({ message: 'Client deleted successfully' })

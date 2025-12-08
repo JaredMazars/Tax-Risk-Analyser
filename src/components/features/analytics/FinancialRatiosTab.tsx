@@ -6,7 +6,7 @@ import { FinancialRatios } from '@/types/analytics';
 import { FinancialRatioCalculator } from '@/lib/services/analytics/financialRatioCalculator';
 
 interface FinancialRatiosTabProps {
-  clientId: string | number;
+  clientId: string | number;  // Can be internal ID or GSClientID depending on context
 }
 
 interface RatioCardProps {

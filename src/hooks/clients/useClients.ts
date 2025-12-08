@@ -13,7 +13,7 @@ export const clientKeys = {
 // Types
 export interface Client {
   id: number;
-  ClientID: string;
+  GSClientID: string;
   clientCode: string;
   clientNameFull: string | null;
   groupCode: string;
@@ -44,7 +44,7 @@ export interface ClientWithTasks extends Client {
     ServLineCode: string;
     SLGroup: string;
     subServiceLineGroupCode?: string | null;
-    ExternalTaskID: string;
+    GSTaskID: string;
     TaskDateOpen: string;
     TaskDateTerminate?: string | null;
     TaskPartner: string;
@@ -158,7 +158,7 @@ export interface UseClientParams {
  * Fetch a single client with paginated projects
  */
 export function useClient(
-  clientId: string | number,
+  GSClientID: string | number,
   params: UseClientParams = {}
 ) {
   const {
@@ -170,7 +170,7 @@ export function useClient(
   } = params;
 
   return useQuery<ClientWithTasks>({
-    queryKey: clientKeys.detail(clientId, {
+    queryKey: clientKeys.detail(GSClientID, {
       taskPage,
       taskLimit,
       serviceLine,
@@ -183,14 +183,14 @@ export function useClient(
       if (serviceLine) searchParams.set('serviceLine', serviceLine);
       if (includeArchived) searchParams.set('includeArchived', 'true');
 
-      const url = `/api/clients/${clientId}?${searchParams.toString()}`;
+      const url = `/api/clients/${GSClientID}?${searchParams.toString()}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch client');
       
       const result = await response.json();
       return result.success ? result.data : result;
     },
-    enabled: enabled && !!clientId,
+    enabled: enabled && !!GSClientID,
     staleTime: 10 * 60 * 1000, // 10 minutes - aligned with Redis cache TTL (increased from 5)
     gcTime: 15 * 60 * 1000, // 15 minutes cache retention (increased from 10)
     refetchOnMount: false, // Don't refetch if data is fresh
@@ -203,12 +203,12 @@ export function useClient(
 /**
  * Update a client
  */
-export function useUpdateClient(clientId: string | number) {
+export function useUpdateClient(GSClientID: string | number) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: Partial<Client>) => {
-      const response = await fetch(`/api/clients/${clientId}`, {
+      const response = await fetch(`/api/clients/${GSClientID}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -221,7 +221,7 @@ export function useUpdateClient(clientId: string | number) {
     },
     onSuccess: () => {
       // Invalidate both the client detail and the clients list
-      queryClient.invalidateQueries({ queryKey: clientKeys.detail(clientId) });
+      queryClient.invalidateQueries({ queryKey: clientKeys.detail(GSClientID) });
       queryClient.invalidateQueries({ queryKey: clientKeys.all });
     },
   });
@@ -234,8 +234,8 @@ export function useDeleteClient() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (clientId: string | number) => {
-      const response = await fetch(`/api/clients/${clientId}`, {
+    mutationFn: async (GSClientID: string | number) => {
+      const response = await fetch(`/api/clients/${GSClientID}`, {
         method: 'DELETE',
       });
       if (!response.ok) {

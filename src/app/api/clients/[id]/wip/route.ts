@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { ClientIDSchema } from '@/lib/validation/schemas';
+import { GSClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 
@@ -110,10 +110,10 @@ export async function GET(
     
     // 2. Parse IDs
     const params = await context.params;
-    const clientID = params.id;
+    const GSClientID = params.id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json(
         { error: 'Invalid client ID format. Expected GUID.' },
@@ -123,10 +123,10 @@ export async function GET(
 
     // 3. Check Permission - verify client exists and user has access
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       select: {
         id: true,
-        ClientID: true,
+        GSClientID: true,
         clientCode: true,
         clientNameFull: true,
       },
@@ -140,9 +140,9 @@ export async function GET(
     }
 
     // 4-5. Execute - Fetch WIP data with Service Line information
-    const wipRecords = await prisma.wipLTD.findMany({
+    const wipRecords = await prisma.wip.findMany({
       where: {
-        ClientCode: clientID,
+        GSClientID: GSClientID,
       },
       select: {
         ServLineCode: true,
@@ -287,9 +287,9 @@ export async function GET(
     const overall = calculateProfitabilityMetrics(overallTotals);
 
     // Get the latest update timestamp
-    const latestWip = await prisma.wipLTD.findFirst({
+    const latestWip = await prisma.wip.findFirst({
       where: {
-        ClientCode: clientID,
+        GSClientID: GSClientID,
       },
       orderBy: {
         updatedAt: 'desc',
@@ -301,7 +301,7 @@ export async function GET(
 
     // 6. Respond
     const responseData = {
-      clientId: client.ClientID,
+      GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       clientName: client.clientNameFull,
       overall,

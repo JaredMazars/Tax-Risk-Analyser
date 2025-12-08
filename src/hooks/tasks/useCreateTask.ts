@@ -7,7 +7,7 @@ import { clientKeys } from '@/hooks/clients/useClients';
 export interface CreateTaskInput {
   name: string;
   description?: string;
-  clientId?: number | null;
+  clientId?: number | null;  // Internal ID - for queries
   projectType?: string;
   serviceLine?: string;
   taxYear?: number;

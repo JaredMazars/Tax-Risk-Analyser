@@ -1,11 +1,16 @@
 /**
  * Authorization Service
  * Handles system-level, service-line-level, and task-level permissions
+ * 
+ * This service provides role-based checks and delegates feature-based
+ * permission checks to the new feature permission system.
  */
 
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 import { SystemRole, ServiceLineRole } from '@/types';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
 
 /**
  * Check if user is a System Admin (database lookup)
@@ -191,6 +196,52 @@ export async function canApproveEngagementLetter(
 ): Promise<boolean> {
   // Same logic as acceptance approval
   return canApproveAcceptance(userId, taskId);
+}
+
+/**
+ * Check if user has a specific feature
+ * Convenience wrapper around checkFeature for use in authorization contexts
+ * 
+ * @param userId - User ID to check
+ * @param feature - Feature to check
+ * @param serviceLine - Optional service line context
+ * @returns true if user has the feature
+ */
+export async function hasFeature(
+  userId: string,
+  feature: Feature,
+  serviceLine?: string
+): Promise<boolean> {
+  return checkFeature(userId, feature, serviceLine);
+}
+
+/**
+ * Feature-based authorization checks
+ * These provide convenient wrappers for common permission checks
+ */
+
+export async function canManageTasks(userId: string, serviceLine?: string): Promise<boolean> {
+  return checkFeature(userId, Feature.MANAGE_TASKS, serviceLine);
+}
+
+export async function canManageClients(userId: string, serviceLine?: string): Promise<boolean> {
+  return checkFeature(userId, Feature.MANAGE_CLIENTS, serviceLine);
+}
+
+export async function canAccessAdmin(userId: string): Promise<boolean> {
+  return checkFeature(userId, Feature.ACCESS_ADMIN);
+}
+
+export async function canManageUsers(userId: string): Promise<boolean> {
+  return checkFeature(userId, Feature.MANAGE_USERS);
+}
+
+export async function canViewAnalytics(userId: string, serviceLine?: string): Promise<boolean> {
+  return checkFeature(userId, Feature.ACCESS_ANALYTICS, serviceLine);
+}
+
+export async function canExportData(userId: string, serviceLine?: string): Promise<boolean> {
+  return checkFeature(userId, Feature.EXPORT_REPORTS, serviceLine);
 }
 
 

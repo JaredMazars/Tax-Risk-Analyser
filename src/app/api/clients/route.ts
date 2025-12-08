@@ -16,10 +16,11 @@ export async function GET(request: NextRequest) {
 
     // Check permission
     // Users with service line assignments automatically have client read access
-    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
+    const { checkFeature } = await import('@/lib/permissions/checkFeature');
+    const { Feature } = await import('@/lib/permissions/features');
     const { getUserSubServiceLineGroups } = await import('@/lib/services/service-lines/serviceLineService');
     
-    const hasPagePermission = await checkUserPermission(user.id, 'clients', 'READ');
+    const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
     const userSubGroups = await getUserSubServiceLineGroups(user.id);
     const hasServiceLineAccess = userSubGroups.length > 0;
     
@@ -132,7 +133,7 @@ export async function GET(request: NextRequest) {
       orderBy,
       select: {
         id: true,
-        ClientID: true,
+        GSClientID: true,
         clientCode: true,
         clientNameFull: true,
         groupDesc: true,

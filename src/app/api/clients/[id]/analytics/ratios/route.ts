@@ -5,7 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { parseFinancialRatios } from '@/lib/utils/jsonValidation';
 import { logger } from '@/lib/utils/logger';
-import { ClientIDSchema } from '@/lib/validation/schemas';
+import { GSClientIDSchema } from '@/lib/validation/schemas';
 
 /**
  * GET /api/clients/[id]/analytics/ratios
@@ -22,28 +22,28 @@ export async function GET(
     }
 
     const { id } = await context.params;
-    const clientID = id;
+    const GSClientID = id;
 
-    // Validate ClientID is a valid GUID
-    const validationResult = ClientIDSchema.safeParse(clientID);
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
     if (!validationResult.success) {
       return NextResponse.json({ error: 'Invalid client ID format. Expected GUID.' }, { status: 400 });
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientID);
+    const hasAccess = await checkClientAccess(user.id, GSClientID);
     if (!hasAccess) {
       logger.warn('Unauthorized ratios access attempt', {
         userId: user.id,
         userEmail: user.email,
-        clientID,
+        GSClientID,
       });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get client by ClientID to get numeric id
+    // Get client by GSClientID to get numeric id
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
+      where: { GSClientID: GSClientID },
       select: { id: true },
     });
 
@@ -77,7 +77,7 @@ export async function GET(
     const ratios = parseFinancialRatios(latestRating.financialRatios);
 
     logger.info('Financial ratios retrieved', {
-      clientId: client.id,
+        clientId: client.id,
       ratingId: latestRating.id,
       ratingDate: latestRating.ratingDate,
       ratiosCount: Object.keys(ratios).filter(key => ratios[key as keyof typeof ratios] !== undefined).length,

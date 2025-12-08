@@ -13,7 +13,7 @@ import { DocumentType, ClientDocument } from '@/types';
 import { formatDate } from '@/lib/utils/taskUtils';
 
 interface ClientDocumentsProps {
-  clientId: string | number;
+  GSClientID: string | number;
 }
 
 const DOCUMENT_TYPE_LABELS = {
@@ -32,14 +32,14 @@ function formatFileSize(bytes: number): string {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-export function ClientDocuments({ clientId }: ClientDocumentsProps) {
+export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
   const [activeTab, setActiveTab] = useState<DocumentType>(DocumentType.ENGAGEMENT_LETTER);
   const [searchTerm, setSearchTerm] = useState('');
-  const { data, isLoading, error } = useClientDocuments(clientId);
+  const { data, isLoading, error } = useClientDocuments(GSClientID);
 
   const handleDownload = (doc: ClientDocument) => {
     downloadClientDocument(
-      clientId,
+      GSClientID,
       doc.documentType,
       doc.id,
       doc.taskId,

@@ -13,7 +13,7 @@ import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLine
 function ClientDocumentsContent() {
   const params = useParams();
   
-  const clientId = (params?.id as string) || '';
+  const GSClientID = (params?.id as string) || '';
   const serviceLine = (params?.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params?.subServiceLineGroup as string;
 
@@ -28,10 +28,10 @@ function ClientDocumentsContent() {
   const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
 
   // Fetch client data - hooks must be called unconditionally
-  const { data: clientData, isLoading } = useClient(clientId, {
+  const { data: clientData, isLoading } = useClient(GSClientID, {
     taskPage: 1,
     taskLimit: 1,
-    enabled: !!params && !!clientId,
+    enabled: !!params && !!GSClientID,
   });
 
   // Transform client data to match expected format
@@ -107,7 +107,7 @@ function ClientDocumentsContent() {
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link 
-            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}`}
+            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`}
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {clientName}
@@ -121,7 +121,7 @@ function ClientDocumentsContent() {
 
         {/* Documents Component */}
         <div className="mt-6">
-          <ClientDocuments clientId={clientId} />
+          <ClientDocuments GSClientID={GSClientID} />
         </div>
       </div>
     </div>

@@ -5,7 +5,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkUserPermission, PermissionAction } from '@/lib/services/permissions/permissionService';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
+
+// For backward compatibility
+type PermissionAction = 'CREATE' | 'READ' | 'UPDATE' | 'DELETE';
 
 /**
  * User from getCurrentUser with full details
@@ -71,6 +75,7 @@ export function withAuth<T = unknown>(
 }
 
 /**
+ * @deprecated Use withFeature() instead with Feature enum
  * Wraps a route handler with authentication and permission check
  * 
  * @param handler - The route handler function
@@ -98,8 +103,41 @@ export function withPermission<T = unknown>(
       return unauthorized() as NextResponse<T>;
     }
 
-    const hasPermission = await checkUserPermission(user.id, resource, action);
-    if (!hasPermission) {
+    // This is deprecated - always deny access
+    console.warn(`withPermission is deprecated. Use withFeature() instead. Resource: ${resource}, Action: ${action}`);
+    return forbidden('withPermission is deprecated. Use withFeature() instead.') as NextResponse<T>;
+  };
+}
+
+/**
+ * Wraps a route handler with authentication and feature check
+ * 
+ * @param handler - The route handler function
+ * @param feature - The feature to check
+ * @param serviceLine - Optional service line context
+ * 
+ * @example
+ * export const GET = withFeature(
+ *   async (req, context, user) => {
+ *     // Your route logic here
+ *     return NextResponse.json({ data: 'success' });
+ *   },
+ *   Feature.MANAGE_TASKS
+ * );
+ */
+export function withFeature<T = unknown>(
+  handler: AuthenticatedRouteHandler<T>,
+  feature: Feature,
+  serviceLine?: string
+): (request: NextRequest, context: RouteContext) => Promise<NextResponse<T>> {
+  return async (request: NextRequest, context: RouteContext) => {
+    const user = await getCurrentUser();
+    if (!user) {
+      return unauthorized() as NextResponse<T>;
+    }
+
+    const hasFeature = await checkFeature(user.id, feature, serviceLine);
+    if (!hasFeature) {
       return forbidden() as NextResponse<T>;
     }
 
@@ -108,27 +146,8 @@ export function withPermission<T = unknown>(
 }
 
 /**
+ * @deprecated Use withFeatureAndValidation() instead
  * Wraps a route handler with authentication, permission check, and custom validation
- * 
- * @param handler - The route handler function
- * @param resource - The resource key to check permission for
- * @param action - The action to perform
- * @param validator - Custom validation function that returns true if valid
- * @param validationErrorMessage - Error message if validation fails
- * 
- * @example
- * export const GET = withPermissionAndValidation(
- *   async (req, context, user) => {
- *     return NextResponse.json({ data: 'success' });
- *   },
- *   'projects',
- *   'READ',
- *   async (req, context, user) => {
- *     // Custom validation logic
- *     return true;
- *   },
- *   'Validation failed'
- * );
  */
 export function withPermissionAndValidation<T = unknown>(
   handler: AuthenticatedRouteHandler<T>,
@@ -147,8 +166,52 @@ export function withPermissionAndValidation<T = unknown>(
       return unauthorized() as NextResponse<T>;
     }
 
-    const hasPermission = await checkUserPermission(user.id, resource, action);
-    if (!hasPermission) {
+    console.warn(`withPermissionAndValidation is deprecated. Use withFeatureAndValidation() instead.`);
+    return forbidden('withPermissionAndValidation is deprecated. Use withFeatureAndValidation() instead.') as NextResponse<T>;
+  };
+}
+
+/**
+ * Wraps a route handler with authentication, feature check, and custom validation
+ * 
+ * @param handler - The route handler function
+ * @param feature - The feature to check
+ * @param validator - Custom validation function that returns true if valid
+ * @param validationErrorMessage - Error message if validation fails
+ * @param serviceLine - Optional service line context
+ * 
+ * @example
+ * export const GET = withFeatureAndValidation(
+ *   async (req, context, user) => {
+ *     return NextResponse.json({ data: 'success' });
+ *   },
+ *   Feature.MANAGE_TASKS,
+ *   async (req, context, user) => {
+ *     // Custom validation logic
+ *     return true;
+ *   },
+ *   'Validation failed'
+ * );
+ */
+export function withFeatureAndValidation<T = unknown>(
+  handler: AuthenticatedRouteHandler<T>,
+  feature: Feature,
+  validator: (
+    request: NextRequest,
+    context: RouteContext,
+    user: AuthenticatedUser
+  ) => Promise<boolean>,
+  validationErrorMessage = 'Validation failed',
+  serviceLine?: string
+): (request: NextRequest, context: RouteContext) => Promise<NextResponse<T>> {
+  return async (request: NextRequest, context: RouteContext) => {
+    const user = await getCurrentUser();
+    if (!user) {
+      return unauthorized() as NextResponse<T>;
+    }
+
+    const hasFeature = await checkFeature(user.id, feature, serviceLine);
+    if (!hasFeature) {
       return forbidden() as NextResponse<T>;
     }
 

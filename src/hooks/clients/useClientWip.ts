@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 // Query Keys
 export const clientWipKeys = {
   all: ['client-wip'] as const,
-  detail: (clientId: string) => [...clientWipKeys.all, clientId] as const,
+  detail: (GSClientID: string) => [...clientWipKeys.all, GSClientID] as const,
 };
 
 // Types
@@ -39,7 +39,7 @@ export interface MasterServiceLineInfo {
 }
 
 export interface ClientWipData {
-  clientId: string;
+  GSClientID: string;
   clientCode: string;
   clientName: string | null;
   overall: ProfitabilityMetrics;
@@ -58,22 +58,22 @@ export interface UseClientWipParams {
  * Returns aggregated WIP balances across all client tasks
  */
 export function useClientWip(
-  clientId: string,
+  GSClientID: string,
   params: UseClientWipParams = {}
 ) {
   const { enabled = true } = params;
 
   return useQuery<ClientWipData>({
-    queryKey: clientWipKeys.detail(clientId),
+    queryKey: clientWipKeys.detail(GSClientID),
     queryFn: async () => {
-      const url = `/api/clients/${clientId}/wip`;
+      const url = `/api/clients/${GSClientID}/wip`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch client WIP data');
       
       const result = await response.json();
       return result.success ? result.data : result;
     },
-    enabled: enabled && !!clientId,
+    enabled: enabled && !!GSClientID,
     staleTime: 10 * 60 * 1000, // 10 minutes - aligned with business rules cache TTL
     gcTime: 15 * 60 * 1000, // 15 minutes cache retention
     refetchOnMount: false, // Don't refetch if data is fresh

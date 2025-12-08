@@ -9,7 +9,7 @@ interface ClientHeaderProps {
 }
 
 export function ClientHeader({ client }: ClientHeaderProps) {
-  const { data: wipData } = useClientWip(client.ClientID);
+  const { data: wipData } = useClientWip(client.GSClientID);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ZA', {

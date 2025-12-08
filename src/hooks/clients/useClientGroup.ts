@@ -28,7 +28,7 @@ export interface ClientGroupDetail {
     createdAt: string;
     updatedAt: string;
     Client: {
-      ClientID: string;
+      GSClientID: string;
       clientCode: string;
       clientNameFull: string | null;
     };

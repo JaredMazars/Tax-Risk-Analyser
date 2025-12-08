@@ -162,13 +162,13 @@ export async function invalidateListCache(
 /**
  * Invalidate client lists when a client is updated
  */
-export async function invalidateClientListCache(clientID?: string): Promise<void> {
+export async function invalidateClientListCache(GSClientID?: string): Promise<void> {
   // Invalidate all client lists
   await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:list`);
   
   // Also invalidate the specific client detail cache if provided
-  if (clientID) {
-    await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:${clientID}`);
+  if (GSClientID) {
+    await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:${GSClientID}`);
   }
 }
 

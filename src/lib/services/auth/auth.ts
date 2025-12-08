@@ -130,6 +130,22 @@ export async function handleCallback(code: string, redirectUri: string) {
   if (!dbUser) {
     log.info('Creating new user in database', { email, userId });
     
+    // Check if this is the first user in the system
+    const userCount = await withRetry(
+      async () => {
+        return await prisma.user.count();
+      },
+      RetryPresets.AZURE_SQL_COLD_START,
+      'Auth callback - count users'
+    );
+    
+    const isFirstUser = userCount === 0;
+    const assignedRole = isFirstUser ? 'SYSTEM_ADMIN' : 'USER';
+    
+    if (isFirstUser) {
+      log.info('Creating first user in system - assigning SYSTEM_ADMIN role', { email });
+    }
+    
     // Create new user in database with retry logic
     dbUser = await withRetry(
       async () => {
@@ -138,13 +154,20 @@ export async function handleCallback(code: string, redirectUri: string) {
             id: userId,
             email,
             name,
-            role: 'USER', // Default role
+            role: assignedRole,
           },
         });
       },
       RetryPresets.AZURE_SQL_COLD_START,
       'Auth callback - create user'
     );
+    
+    if (isFirstUser) {
+      log.info('First system administrator created successfully', { 
+        userId: dbUser.id, 
+        email: dbUser.email 
+      });
+    }
   }
 
   const user: SessionUser = {
@@ -516,7 +539,7 @@ export async function checkProjectAccess(
  */
 export async function checkClientAccess(
   userId: string,
-  clientID: string
+  GSClientID: string
 ): Promise<boolean> {
   try {
     // Check if user is a superuser (full access)
@@ -531,8 +554,8 @@ export async function checkClientAccess(
 
     // Check if client exists
     const client = await prisma.client.findUnique({
-      where: { ClientID: clientID },
-      select: { ClientID: true },
+      where: { GSClientID: GSClientID },
+      select: { GSClientID: true },
     });
 
     if (!client) {
@@ -542,7 +565,7 @@ export async function checkClientAccess(
     // Get all unique service lines from tasks for this client
     const taskServiceLines = await prisma.task.findMany({
       where: { 
-        Client: { ClientID: clientID }
+        Client: { GSClientID: GSClientID }
       },
       select: { ServLineCode: true },
       distinct: ['ServLineCode'],
@@ -569,7 +592,7 @@ export async function checkClientAccess(
       where: {
         userId,
         Task: {
-          Client: { ClientID: clientID },
+          Client: { GSClientID: GSClientID },
         },
       },
     });
@@ -693,7 +716,7 @@ export async function getUserProjects(
   serviceLine: string;
   status: string;
   archived: boolean;
-  clientId: number | null;
+  GSClientID: number | null;
   taxYear: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -708,44 +731,28 @@ export async function getUserProjects(
 }
 
 /**
- * Check if user has a specific permission
- * Integrates with the permission service
- * @param userId - The user ID
- * @param resource - The resource key
- * @param action - The action to check
- * @returns true if user has permission, false otherwise
+ * @deprecated This function is deprecated. Use checkFeature() from @/lib/permissions/checkFeature instead.
+ * Kept for backward compatibility only - always returns false.
  */
 export async function checkUserPermission(
   userId: string,
   resource: string,
   action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
 ): Promise<boolean> {
-  try {
-    // Dynamic import to avoid circular dependency
-    const { checkUserPermission: checkPermission } = await import('@/lib/services/permissions/permissionService');
-    return await checkPermission(userId, resource, action);
-  } catch (error) {
-    log.error('Error checking user permission', error);
-    return false;
-  }
+  log.warn('checkUserPermission is deprecated. Use checkFeature() from @/lib/permissions/checkFeature instead.', { resource, action });
+  return false;
 }
 
 /**
- * Require specific permission - throws error if user doesn't have it
- * @param userId - The user ID
- * @param resource - The resource key
- * @param action - The action to check
- * @throws Error if user doesn't have permission
+ * @deprecated This function is deprecated. Use requireFeature() from @/lib/permissions/checkFeature instead.
+ * Kept for backward compatibility only - always throws an error.
  */
 export async function requirePermission(
   userId: string,
   resource: string,
   action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
 ): Promise<void> {
-  const hasPermission = await checkUserPermission(userId, resource, action);
-  
-  if (!hasPermission) {
-    throw new Error(`Permission denied: ${action} on ${resource}`);
-  }
+  log.warn('requirePermission is deprecated. Use requireFeature() from @/lib/permissions/checkFeature instead.', { resource, action });
+  throw new Error(`Permission denied: ${action} on ${resource} - Use feature-based permissions instead`);
 }
 

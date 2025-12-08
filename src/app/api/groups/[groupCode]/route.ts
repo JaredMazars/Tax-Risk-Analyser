@@ -17,8 +17,9 @@ export async function GET(
     }
 
     // 2. Check Permission
-    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
+    const { checkFeature } = await import('@/lib/permissions/checkFeature');
+    const { Feature } = await import('@/lib/permissions/features');
+    const hasPermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
     }
@@ -106,6 +107,7 @@ export async function GET(
           },
           select: {
             id: true,
+            GSTaskID: true,
             TaskDesc: true,
             TaskCode: true,
             Active: true,
@@ -116,7 +118,7 @@ export async function GET(
             updatedAt: true,
             Client: {
               select: {
-                ClientID: true,
+                GSClientID: true,
                 clientCode: true,
                 clientNameFull: true,
               },
@@ -151,30 +153,30 @@ export async function GET(
         serviceLineExternalData.map(sl => [sl.ServLineCode, sl.SubServlineGroupCode])
       );
 
-      // Fetch WIP data for all tasks by taskId
-      const taskIds = tasksRaw.map(t => t.id);
-      const tasksWipData = taskIds.length > 0 ? await prisma.wipLTD.findMany({
+      // Fetch WIP data for all tasks by GSTaskID
+      const taskGSTaskIDs = tasksRaw.map(t => t.GSTaskID);
+      const tasksWipData = taskGSTaskIDs.length > 0 ? await prisma.wip.findMany({
         where: {
-          taskId: {
-            in: taskIds,
+          GSTaskID: {
+            in: taskGSTaskIDs,
           },
         },
         select: {
-          taskId: true,
+          GSTaskID: true,
           BalWIP: true,
           BalTime: true,
           BalDisb: true,
         },
       }) : [];
 
-      // Create a map of WIP data by taskId
-      const wipByTaskId = new Map<number, { balWIP: number; balTime: number; balDisb: number }>();
+      // Create a map of WIP data by GSTaskID
+      const wipByGSTaskID = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
       tasksWipData.forEach(wip => {
-        if (!wipByTaskId.has(wip.taskId)) {
-          wipByTaskId.set(wip.taskId, { balWIP: 0, balTime: 0, balDisb: 0 });
+        if (!wipByGSTaskID.has(wip.GSTaskID)) {
+          wipByGSTaskID.set(wip.GSTaskID, { balWIP: 0, balTime: 0, balDisb: 0 });
         }
         
-        const taskWip = wipByTaskId.get(wip.taskId)!;
+        const taskWip = wipByGSTaskID.get(wip.GSTaskID)!;
         taskWip.balWIP += wip.BalWIP || 0;
         taskWip.balTime += wip.BalTime || 0;
         taskWip.balDisb += wip.BalDisb || 0;
@@ -183,7 +185,7 @@ export async function GET(
       // Map tasks with master service line info, sub-service line group code, and WIP data
       const tasks = tasksRaw.map(task => {
         // Get WIP for this specific task
-        const wip = wipByTaskId.get(task.id) || { balWIP: 0, balTime: 0, balDisb: 0 };
+        const wip = wipByGSTaskID.get(task.GSTaskID) || { balWIP: 0, balTime: 0, balDisb: 0 };
         
         return {
           id: task.id,
@@ -267,7 +269,7 @@ export async function GET(
         },
         select: {
           id: true,
-          ClientID: true,
+          GSClientID: true,
           clientCode: true,
           clientNameFull: true,
           clientPartner: true,
@@ -283,15 +285,15 @@ export async function GET(
     ]);
 
     // Fetch WIP data for all clients in this page
-    const clientIDs = clients.map(c => c.ClientID);
-    const wipData = clientIDs.length > 0 ? await prisma.wipLTD.findMany({
+    const GSClientIDs = clients.map(c => c.GSClientID);
+    const wipData = GSClientIDs.length > 0 ? await prisma.wip.findMany({
       where: {
-        ClientCode: {
-          in: clientIDs,
+        GSClientID: {
+          in: GSClientIDs,
         },
       },
       select: {
-        ClientCode: true,
+        GSClientID: true,
         BalWIP: true,
         BalTime: true,
         BalDisb: true,
@@ -301,13 +303,13 @@ export async function GET(
     // Aggregate WIP data by client
     const wipByClient = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
     wipData.forEach(wip => {
-      if (!wip.ClientCode) return;
+      if (!wip.GSClientID) return;
       
-      if (!wipByClient.has(wip.ClientCode)) {
-        wipByClient.set(wip.ClientCode, { balWIP: 0, balTime: 0, balDisb: 0 });
+      if (!wipByClient.has(wip.GSClientID)) {
+        wipByClient.set(wip.GSClientID, { balWIP: 0, balTime: 0, balDisb: 0 });
       }
       
-      const clientWip = wipByClient.get(wip.ClientCode)!;
+      const clientWip = wipByClient.get(wip.GSClientID)!;
       clientWip.balWIP += wip.BalWIP || 0;
       clientWip.balTime += wip.BalTime || 0;
       clientWip.balDisb += wip.BalDisb || 0;
@@ -316,7 +318,7 @@ export async function GET(
     // Add WIP data to clients
     const clientsWithWip = clients.map(client => ({
       ...client,
-      wip: wipByClient.get(client.ClientID) || { balWIP: 0, balTime: 0, balDisb: 0 },
+      wip: wipByClient.get(client.GSClientID) || { balWIP: 0, balTime: 0, balDisb: 0 },
     }));
 
     const responseData = {

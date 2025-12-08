@@ -7,10 +7,11 @@ import { DeleteDocumentWithRatingsModal } from './DeleteDocumentWithRatingsModal
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface AnalyticsDocumentsTabProps {
-  clientId: string | number;
+  clientId: string | number;  // Can be internal ID or GSClientID depending on context
 }
 
 export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) {
+  const GSClientID = clientId;  // Alias for backward compatibility with hooks
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
     onConfirm: () => {},
   });
   
-  const { data: documentsData, isLoading } = useAnalyticsDocuments(clientId);
+  const { data: documentsData, isLoading } = useAnalyticsDocuments(GSClientID);
   const deleteMutation = useDeleteAnalyticsDocument();
   const deleteRatingMutation = useDeleteCreditRating();
 
@@ -66,7 +67,7 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
       onConfirm: async () => {
         setDeleteError(null);
         try {
-          await deleteMutation.mutateAsync({ clientId, documentId });
+          await deleteMutation.mutateAsync({ GSClientID, documentId });
         } catch (error) {
           // Check if this is a 409 conflict (document used in ratings)
           if (error && typeof error === 'object' && 'status' in error && error.status === 409 && 'ratingsAffected' in error) {
@@ -96,14 +97,14 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
       // Delete all affected ratings first
       for (const rating of affectedRatings) {
         await deleteRatingMutation.mutateAsync({
-          clientId,
+          GSClientID,
           ratingId: rating.id,
         });
       }
       
       // Now delete the document
       await deleteMutation.mutateAsync({
-        clientId,
+        GSClientID,
         documentId: documentToDelete.id,
       });
       

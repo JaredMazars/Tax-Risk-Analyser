@@ -7,6 +7,8 @@ export type TaskId = number & { readonly __brand: 'TaskId' };
 export type UserId = string & { readonly __brand: 'UserId' };
 export type DraftId = number & { readonly __brand: 'DraftId' };
 export type ClientId = number & { readonly __brand: 'ClientId' };
+export type GSClientID = string & { readonly __brand: 'GSClientID' };
+export type GSTaskID = string & { readonly __brand: 'GSTaskID' };
 export type AdjustmentId = number & { readonly __brand: 'AdjustmentId' };
 export type DocumentId = number & { readonly __brand: 'DocumentId' };
 export type TemplateId = number & { readonly __brand: 'TemplateId' };
@@ -60,6 +62,26 @@ export const toClientId = (value: unknown): ClientId => {
     throw new Error(`Invalid ClientId: ${value}`);
   }
   return id as ClientId;
+};
+
+/**
+ * Convert unknown value to GSClientID with validation
+ */
+export const toGSClientID = (value: unknown): GSClientID => {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`Invalid GSClientID: ${value}`);
+  }
+  return value as GSClientID;
+};
+
+/**
+ * Convert unknown value to GSTaskID with validation
+ */
+export const toGSTaskID = (value: unknown): GSTaskID => {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`Invalid GSTaskID: ${value}`);
+  }
+  return value as GSTaskID;
 };
 
 /**

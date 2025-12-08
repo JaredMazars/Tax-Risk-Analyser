@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkUserPermission } from '@/lib/services/permissions/permissionService';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { setExternalMapping } from '@/lib/utils/serviceLineExternal';
@@ -22,11 +23,7 @@ export async function PUT(
     }
 
     // 2. Check permission
-    const hasPermission = await checkUserPermission(
-      user.id,
-      'admin.service-line-mapping',
-      'UPDATE'
-    );
+    const hasPermission = await checkFeature(user.id, Feature.MANAGE_SERVICE_LINES);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

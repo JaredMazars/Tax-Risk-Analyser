@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkUserPermission } from '@/lib/services/permissions/permissionService';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getSubServiceLineGroupsByMaster } from '@/lib/utils/serviceLineExternal';
@@ -26,7 +27,7 @@ export async function GET(
     const masterCode = serviceLine.toUpperCase();
 
     // 3. Check permission
-    const hasPermission = await checkUserPermission(user.id, 'dashboard', 'READ');
+    const hasPermission = await checkFeature(user.id, Feature.ACCESS_DASHBOARD);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

@@ -101,7 +101,7 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
   const [editData, setEditData] = useState({
     name: task.name,
     description: task.description || '',
-    clientId: task.clientId || null,
+    clientId: task.client?.id || null,  // Use internal ID
     projectType: task.projectType as TaskType,
     taxYear: task.taxYear || new Date().getFullYear(),
     taxPeriodStart: task.taxPeriodStart instanceof Date ? task.taxPeriodStart : (task.taxPeriodStart ? new Date(task.taxPeriodStart) : null),
@@ -223,7 +223,7 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
                     setEditData({
                       name: task.name,
                       description: task.description || '',
-                      clientId: task.clientId || null,
+                      clientId: task.client?.id || null,  // Use internal ID
                       projectType: task.projectType as TaskType,
                       taxYear: task.taxYear || new Date().getFullYear(),
                       taxPeriodStart: task.taxPeriodStart instanceof Date ? task.taxPeriodStart : (task.taxPeriodStart ? new Date(task.taxPeriodStart) : null),
@@ -358,7 +358,7 @@ export default function ClientProjectPage() {
   
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params.subServiceLineGroup as string;
-  const clientId = params.id as string;
+  const GSClientID = params.id as string;
   const taskId = params.taskId as string;
   
   // Lazy load sub-service line groups to get the description (non-critical for breadcrumb)
@@ -673,7 +673,7 @@ export default function ClientProjectPage() {
           <ChevronRightIcon className="h-4 w-4" />
           
           <Link 
-            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}`} 
+            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {task?.client?.clientNameFull || task?.client?.clientCode || 'Client'}
@@ -719,7 +719,7 @@ export default function ClientProjectPage() {
                 
                 {task?.client && (
                   <Link 
-                    href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${clientId}`}
+                    href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`}
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                   >
                     {task.client.clientNameFull || task.client.clientCode}

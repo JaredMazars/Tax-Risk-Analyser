@@ -60,8 +60,9 @@ export async function GET(
       where: { id: taskId },
       select: {
         id: true,
+        clientId: true,
         TaskDesc: true,
-        ClientCode: true,
+        GSClientID: true,
         TaskCode: true,
         ServLineCode: true,
         ServLineDesc: true,
@@ -77,7 +78,7 @@ export async function GET(
         Client: {
           select: {
             id: true,
-            ClientID: true,
+            GSClientID: true,
             clientCode: true,
             clientNameFull: true,
             clientPartner: true,
@@ -166,8 +167,7 @@ export async function GET(
       ...taskData,
       name: task.TaskDesc,
       description: task.TaskDesc,
-      clientId: Client?.id || null,
-      ClientCode: task.ClientCode,
+      clientId: task.clientId,
       client: Client, // Transform Client → client for consistency
       serviceLine: task.ServLineCode,
       projectType: 'TAX_CALCULATION', // Default based on service line
@@ -274,19 +274,19 @@ export async function PUT(
     // Note: Task model doesn't have these fields, they should be in TaskAcceptance or TaskEngagementLetter
     // For now, we'll just acknowledge them but not update
     
-    if (body.clientId !== undefined) {
-      // Need to get ClientID from the client numeric id
-      if (body.clientId !== null) {
+    if (body.GSClientID !== undefined) {
+      // Need to get GSClientID from the client numeric id
+      if (body.GSClientID !== null) {
         const client = await prisma.client.findUnique({
-          where: { id: body.clientId },
-          select: { ClientID: true },
+          where: { id: body.GSClientID },
+          select: { GSClientID: true },
         });
         if (client) {
-          updateData.ClientCode = client.ClientID;
+          updateData.GSClientID = client.GSClientID;
         }
       } else {
         // Setting to null removes client association
-        updateData.ClientCode = null;
+        updateData.GSClientID = null;
       }
     }
 
@@ -311,8 +311,8 @@ export async function PUT(
     await invalidateTaskListCache(Number(taskId));
     
     // Invalidate client cache if client association changed
-    if (task.ClientCode) {
-      await invalidateClientCache(task.ClientCode);
+    if (task.GSClientID) {
+      await invalidateClientCache(task.GSClientID);
     }
 
     // Transform data to match expected format
@@ -321,8 +321,8 @@ export async function PUT(
       ...taskData,
       name: task.TaskDesc,
       description: task.TaskDesc,
-      clientId: Client?.id || null,
-      ClientCode: task.ClientCode,
+      GSClientID: Client?.id || null,
+      ClientCode: task.GSClientID,
       client: Client,
       serviceLine: task.ServLineCode,
       projectType: 'TAX_CALCULATION',
@@ -404,8 +404,8 @@ export async function PATCH(
       // Invalidate cache after restore
       await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
       await invalidateTaskListCache(Number(taskId));
-      if (task.ClientCode) {
-        await invalidateClientCache(task.ClientCode);
+      if (task.GSClientID) {
+        await invalidateClientCache(task.GSClientID);
       }
 
       return NextResponse.json(successResponse({ 
@@ -466,8 +466,8 @@ export async function DELETE(
     // Invalidate cache after archive
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
     await invalidateTaskListCache(Number(taskId));
-    if (task.ClientCode) {
-      await invalidateClientCache(task.ClientCode);
+    if (task.GSClientID) {
+      await invalidateClientCache(task.GSClientID);
     }
 
     return NextResponse.json(successResponse({ 

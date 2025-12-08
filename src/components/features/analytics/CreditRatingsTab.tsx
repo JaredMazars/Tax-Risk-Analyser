@@ -7,13 +7,14 @@ import { CreditRating, CreditRatingGrade } from '@/types/analytics';
 import { RatingReportModal } from './RatingReportModal';
 
 interface CreditRatingsTabProps {
-  clientId: string | number;
+  clientId: string | number;  // Can be internal ID or GSClientID depending on context
 }
 
 export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
+  const GSClientID = clientId;  // Alias for backward compatibility with hooks
   const [selectedRatingId, setSelectedRatingId] = useState<number | null>(null);
-  const { data: latestRating, isLoading: isLoadingLatest, error: latestError } = useLatestCreditRating(clientId);
-  const { data: ratingsData, isLoading: isLoadingHistory, error: historyError } = useCreditRatings(clientId, { limit: 10 });
+  const { data: latestRating, isLoading: isLoadingLatest, error: latestError } = useLatestCreditRating(GSClientID);
+  const { data: ratingsData, isLoading: isLoadingHistory, error: historyError } = useCreditRatings(GSClientID, { limit: 10 });
 
   const ratings = ratingsData?.ratings || [];
   const previousRating = ratings.length > 1 ? ratings[1] : null;
@@ -304,7 +305,7 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
       {/* Rating Report Modal */}
       {selectedRatingId && (
         <RatingReportModal
-          clientId={clientId}
+          clientId={GSClientID}
           ratingId={selectedRatingId}
           onClose={() => setSelectedRatingId(null)}
         />

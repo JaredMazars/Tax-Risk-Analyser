@@ -11,8 +11,8 @@ import { CreditRatingGrade, AnalyticsDocumentType } from '@/types/analytics';
  */
 const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const ClientIDSchema = z.string().regex(guidRegex, {
-  message: 'ClientID must be a valid GUID (UniqueIdentifier)',
+export const GSClientIDSchema = z.string().regex(guidRegex, {
+  message: 'GSClientID must be a valid GUID (UniqueIdentifier)',
 });
 
 /**
@@ -506,8 +506,8 @@ export const UpdateBDContactSchema = z.object({
 export const CreateBDOpportunitySchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().max(10000).optional(),
-  clientId: z.number().int().positive().optional(), // For existing clients  
-  companyName: z.string().min(1).max(500).optional(), // For new prospects - required if clientId not provided
+  GSClientID: z.number().int().positive().optional(), // For existing clients  
+  companyName: z.string().min(1).max(500).optional(), // For new prospects - required if GSClientID not provided
   contactId: z.number().int().positive().optional(),
   serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']),
   stageId: z.number().int().positive(),
@@ -517,14 +517,14 @@ export const CreateBDOpportunitySchema = z.object({
   source: z.enum(['REFERRAL', 'WEBSITE', 'COLD_CALL', 'NETWORKING', 'EXISTING_CLIENT', 'OTHER']).optional(),
   assignedTo: z.string().min(1).optional(), // Will default to creator if not provided
 }).strict().refine(
-  (data) => data.clientId !== undefined || (data.companyName !== undefined && data.companyName.length > 0),
+  (data) => data.GSClientID !== undefined || (data.companyName !== undefined && data.companyName.length > 0),
   { message: 'Either select an existing client or enter a company name for a new prospect', path: ['companyName'] }
 );
 
 export const UpdateBDOpportunitySchema = z.object({
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(10000).optional(),
-  clientId: z.number().int().positive().nullable().optional(),
+  GSClientID: z.number().int().positive().nullable().optional(),
   companyName: z.string().min(1).max(500).optional(),
   contactId: z.number().int().positive().nullable().optional(),
   serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']).optional(),

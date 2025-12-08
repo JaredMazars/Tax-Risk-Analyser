@@ -21,10 +21,11 @@ export async function GET(request: NextRequest) {
 
     // Check permission
     // Users with service line assignments automatically have task read access
-    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
+    const { checkFeature } = await import('@/lib/permissions/checkFeature');
+    const { Feature } = await import('@/lib/permissions/features');
     const { getUserSubServiceLineGroups } = await import('@/lib/services/service-lines/serviceLineService');
     
-    const hasPagePermission = await checkUserPermission(user.id, 'tasks', 'READ');
+    const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_TASKS);
     const userSubGroups = await getUserSubServiceLineGroups(user.id);
     const hasServiceLineAccess = userSubGroups.length > 0;
     
@@ -93,12 +94,12 @@ export async function GET(request: NextRequest) {
 
     // Filter for internal projects only (no client assigned)
     if (internalOnly) {
-      where.ClientCode = null;
+      where.clientId = null;
     }
 
     // Filter for client tasks only (has client assigned)
     if (clientTasksOnly) {
-      where.ClientCode = { not: null };
+      where.clientId = { not: null };
     }
 
     // Filter by SubServiceLineGroup - show ALL tasks for the specified sub-group
@@ -170,6 +171,7 @@ export async function GET(request: NextRequest) {
         orderBy,
         select: {
           id: true,
+          clientId: true,
           TaskDesc: true,
           ServLineCode: true,
           ServLineDesc: true,
@@ -179,7 +181,7 @@ export async function GET(request: NextRequest) {
           Client: {
             select: {
               id: true,
-              ClientID: true,
+              GSClientID: true,
               clientNameFull: true,
               clientCode: true,
             },
@@ -209,13 +211,13 @@ export async function GET(request: NextRequest) {
         serviceLine: task.ServLineCode,
         status: task.Active === 'Yes' ? 'ACTIVE' : 'INACTIVE',
         archived: task.Active !== 'Yes',
-        clientId: task.Client?.id || null,
+        clientId: task.clientId,
         taxYear: null,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),
         client: task.Client ? {
           id: task.Client.id,
-          ClientID: task.Client.ClientID,
+          GSClientID: task.Client.GSClientID,
           clientNameFull: task.Client.clientNameFull,
           clientCode: task.Client.clientCode,
         } : null,
@@ -254,8 +256,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check permission
-    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'tasks.create', 'CREATE');
+    const { checkFeature } = await import('@/lib/permissions/checkFeature');
+    const { Feature } = await import('@/lib/permissions/features');
+    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TASKS);
     if (!hasPermission) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions to create tasks' }, { status: 403 });
     }

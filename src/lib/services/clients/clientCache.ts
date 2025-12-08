@@ -20,17 +20,17 @@ export const CLIENT_CACHE_TTL = {
 /**
  * Generate cache key for client detail
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  * @param serviceLine - Optional service line filter
  * @param includeArchived - Whether archived tasks are included
  * @returns Cache key
  */
 export function getClientDetailCacheKey(
-  clientID: string,
+  GSClientID: string,
   serviceLine?: string,
   includeArchived: boolean = false
 ): string {
-  const parts = ['client', clientID];
+  const parts = ['client', GSClientID];
   if (serviceLine) parts.push(serviceLine);
   if (includeArchived) parts.push('archived');
   return `${CACHE_PREFIXES.TASK}${parts.join(':')}`;
@@ -39,26 +39,26 @@ export function getClientDetailCacheKey(
 /**
  * Get cached client data
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  * @param serviceLine - Optional service line filter
  * @param includeArchived - Whether archived tasks are included
  * @returns Cached client data or null
  */
 export async function getCachedClient<T>(
-  clientID: string,
+  GSClientID: string,
   serviceLine?: string,
   includeArchived: boolean = false
 ): Promise<T | null> {
-  const cacheKey = getClientDetailCacheKey(clientID, serviceLine, includeArchived);
+  const cacheKey = getClientDetailCacheKey(GSClientID, serviceLine, includeArchived);
   
   try {
     const cached = await cache.get<T>(cacheKey);
     if (cached) {
-      logger.debug('Client cache hit', { clientID, serviceLine, includeArchived });
+      logger.debug('Client cache hit', { GSClientID, serviceLine, includeArchived });
     }
     return cached;
   } catch (error) {
-    logger.error('Error getting cached client', { clientID, error });
+    logger.error('Error getting cached client', { GSClientID, error });
     return null;
   }
 }
@@ -66,24 +66,24 @@ export async function getCachedClient<T>(
 /**
  * Set client data in cache
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  * @param data - Client data to cache
  * @param serviceLine - Optional service line filter
  * @param includeArchived - Whether archived tasks are included
  */
 export async function setCachedClient<T>(
-  clientID: string,
+  GSClientID: string,
   data: T,
   serviceLine?: string,
   includeArchived: boolean = false
 ): Promise<void> {
-  const cacheKey = getClientDetailCacheKey(clientID, serviceLine, includeArchived);
+  const cacheKey = getClientDetailCacheKey(GSClientID, serviceLine, includeArchived);
   
   try {
     await cache.set(cacheKey, data, CLIENT_CACHE_TTL.DETAIL);
-    logger.debug('Client cached', { clientID, serviceLine, includeArchived });
+    logger.debug('Client cached', { GSClientID, serviceLine, includeArchived });
   } catch (error) {
-    logger.error('Error caching client', { clientID, error });
+    logger.error('Error caching client', { GSClientID, error });
   }
 }
 
@@ -91,15 +91,15 @@ export async function setCachedClient<T>(
  * Invalidate all cache entries for a client
  * Called when client is updated or tasks are modified
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  */
-export async function invalidateClientCache(clientID: string): Promise<void> {
+export async function invalidateClientCache(GSClientID: string): Promise<void> {
   try {
-    const pattern = `${CACHE_PREFIXES.TASK}client:${clientID}`;
+    const pattern = `${CACHE_PREFIXES.TASK}client:${GSClientID}`;
     const count = await cache.invalidate(pattern);
-    logger.info('Client cache invalidated', { clientID, count });
+    logger.info('Client cache invalidated', { GSClientID, count });
   } catch (error) {
-    logger.error('Error invalidating client cache', { clientID, error });
+    logger.error('Error invalidating client cache', { GSClientID, error });
   }
 }
 
@@ -107,15 +107,15 @@ export async function invalidateClientCache(clientID: string): Promise<void> {
  * Invalidate task counts cache for a client
  * More targeted invalidation when only counts change
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  */
-export async function invalidateClientTaskCounts(clientID: string): Promise<void> {
+export async function invalidateClientTaskCounts(GSClientID: string): Promise<void> {
   try {
-    const pattern = `${CACHE_PREFIXES.TASK}counts:client:${clientID}`;
+    const pattern = `${CACHE_PREFIXES.TASK}counts:client:${GSClientID}`;
     const count = await cache.invalidate(pattern);
-    logger.debug('Client task counts cache invalidated', { clientID, count });
+    logger.debug('Client task counts cache invalidated', { GSClientID, count });
   } catch (error) {
-    logger.error('Error invalidating client task counts cache', { clientID, error });
+    logger.error('Error invalidating client task counts cache', { GSClientID, error });
   }
 }
 
@@ -137,35 +137,40 @@ export async function invalidateAllClientCaches(): Promise<void> {
  * Warm up cache for a client
  * Pre-loads client data into cache for faster subsequent access
  * 
- * @param clientID - Client ID (GUID)
+ * @param GSClientID - Client ID (GUID)
  * @param dataFetcher - Function that fetches the client data
  * @param serviceLine - Optional service line filter
  * @param includeArchived - Whether archived tasks are included
  */
 export async function warmClientCache<T>(
-  clientID: string,
+  GSClientID: string,
   dataFetcher: () => Promise<T>,
   serviceLine?: string,
   includeArchived: boolean = false
 ): Promise<T> {
   try {
     // Check if already cached
-    const cached = await getCachedClient<T>(clientID, serviceLine, includeArchived);
+    const cached = await getCachedClient<T>(GSClientID, serviceLine, includeArchived);
     if (cached) {
       return cached;
     }
 
     // Fetch and cache
     const data = await dataFetcher();
-    await setCachedClient(clientID, data, serviceLine, includeArchived);
+    await setCachedClient(GSClientID, data, serviceLine, includeArchived);
     
     return data;
   } catch (error) {
-    logger.error('Error warming client cache', { clientID, error });
+    logger.error('Error warming client cache', { GSClientID, error });
     // Fetch without caching on error
     return dataFetcher();
   }
 }
+
+
+
+
+
 
 
 

@@ -8,7 +8,7 @@ import { useTask } from '@/hooks/tasks/useTaskData';
 /**
  * Smart redirect for flat project URLs
  * Redirects to the appropriate hierarchical URL based on project data:
- * - Client projects: /dashboard/[serviceLine]/clients/[clientId]/tasks/[id]
+ * - Client projects: /dashboard/[serviceLine]/clients/[GSClientID]/tasks/[id]
  * - Internal projects: /dashboard/[serviceLine]/internal/tasks/[id]
  * 
  * This maintains backward compatibility with bookmarks and old links.
@@ -24,9 +24,9 @@ export default function ProjectRedirect() {
     if (project && !isLoading) {
       const serviceLine = project.ServLineCode?.toLowerCase() || 'tax';
       
-      if (project.ClientCode && project.client) {
+      if (project.GSClientID && project.client) {
         // Redirect to client project URL
-        router.replace(`/dashboard/${serviceLine}/clients/${project.ClientCode}/tasks/${taskId}`);
+        router.replace(`/dashboard/${serviceLine}/clients/${project.GSClientID}/tasks/${taskId}`);
       } else {
         // Redirect to internal project URL
         router.replace(`/dashboard/${serviceLine}/internal/tasks/${taskId}`);
