@@ -762,4 +762,72 @@ export type RevokeServiceLineAccessInput = z.infer<typeof RevokeServiceLineAcces
 export type UpdateServiceLineRoleInput = z.infer<typeof UpdateServiceLineRoleSchema>;
 export type SwitchAssignmentTypeInput = z.infer<typeof SwitchAssignmentTypeSchema>;
 
+/**
+ * News Bulletin validation schemas
+ */
+
+// Bulletin category enum
+export const BulletinCategorySchema = z.enum([
+  'ANNOUNCEMENT',
+  'POLICY_UPDATE',
+  'EVENT',
+  'ACHIEVEMENT',
+  'REMINDER',
+  'CLIENT_WIN',
+  'MARKET_UPDATE',
+  'INDUSTRY_NEWS',
+  'PARTNERSHIP',
+  'HIRING',
+]);
+
+// Create bulletin schema
+export const CreateNewsBulletinSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(255),
+  summary: z.string().min(1, 'Summary is required').max(500),
+  body: z.string().min(1, 'Body content is required'),
+  category: BulletinCategorySchema,
+  serviceLine: z.string().max(50).nullable().optional(),
+  effectiveDate: z.coerce.date(),
+  expiresAt: z.coerce.date().nullable().optional(),
+  contactPerson: z.string().max(255).nullable().optional(),
+  actionRequired: z.boolean().default(false),
+  callToActionUrl: z.string().url().max(500).nullable().optional(),
+  callToActionText: z.string().max(100).nullable().optional(),
+  isPinned: z.boolean().default(false),
+}).strict();
+
+// Update bulletin schema
+export const UpdateNewsBulletinSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  summary: z.string().min(1).max(500).optional(),
+  body: z.string().min(1).optional(),
+  category: BulletinCategorySchema.optional(),
+  serviceLine: z.string().max(50).nullable().optional(),
+  effectiveDate: z.coerce.date().optional(),
+  expiresAt: z.coerce.date().nullable().optional(),
+  contactPerson: z.string().max(255).nullable().optional(),
+  actionRequired: z.boolean().optional(),
+  callToActionUrl: z.string().url().max(500).nullable().optional(),
+  callToActionText: z.string().max(100).nullable().optional(),
+  isPinned: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+}).strict();
+
+// Bulletin filters schema
+export const NewsBulletinFiltersSchema = z.object({
+  category: BulletinCategorySchema.optional(),
+  serviceLine: z.string().optional(),
+  isActive: z.boolean().optional(),
+  isPinned: z.boolean().optional(),
+  includeExpired: z.boolean().default(false),
+  search: z.string().optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+});
+
+// Inferred types
+export type CreateNewsBulletinInput = z.infer<typeof CreateNewsBulletinSchema>;
+export type UpdateNewsBulletinInput = z.infer<typeof UpdateNewsBulletinSchema>;
+export type NewsBulletinFiltersInput = z.infer<typeof NewsBulletinFiltersSchema>;
+
 

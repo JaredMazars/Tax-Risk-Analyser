@@ -941,6 +941,37 @@ model TemplateSection {
   @@index([templateId])
 }
 
+// News Bulletin - category stored as String (SQL Server doesn't support enums)
+// Valid categories: ANNOUNCEMENT, POLICY_UPDATE, EVENT, ACHIEVEMENT, REMINDER,
+//                   CLIENT_WIN, MARKET_UPDATE, INDUSTRY_NEWS, PARTNERSHIP, HIRING
+model NewsBulletin {
+  id               Int      @id @default(autoincrement())
+  title            String   @db.NVarChar(255)
+  summary          String   @db.NVarChar(500)
+  body             String   @db.NVarChar(Max)
+  category         String   @db.NVarChar(50)
+  serviceLine      String?  @db.NVarChar(50)
+  effectiveDate    DateTime
+  expiresAt        DateTime?
+  contactPerson    String?  @db.NVarChar(255)
+  actionRequired   Boolean  @default(false)
+  callToActionUrl  String?  @db.NVarChar(500)
+  callToActionText String?  @db.NVarChar(100)
+  isPinned         Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  createdBy        User     @relation(fields: [createdById], references: [id], onUpdate: NoAction)
+
+  @@index([category])
+  @@index([serviceLine])
+  @@index([effectiveDate])
+  @@index([isActive])
+  @@index([isPinned])
+  @@index([isActive, effectiveDate(sort: Desc)])
+}
+
 model User {
   id                                                   String                   @id
   name                                                 String?
@@ -954,6 +985,7 @@ model User {
   EmailLog                                             EmailLog[]
   InAppNotification_InAppNotification_fromUserIdToUser InAppNotification[]      @relation("InAppNotification_fromUserIdToUser")
   InAppNotification_InAppNotification_userIdToUser     InAppNotification[]      @relation("InAppNotification_userIdToUser")
+  NewsBulletin                                         NewsBulletin[]
   NotificationPreference                               NotificationPreference[]
   ServiceLineUser                                      ServiceLineUser[]
   Session                                              Session[]

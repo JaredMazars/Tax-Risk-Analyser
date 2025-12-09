@@ -56,6 +56,7 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.MANAGE_OPPORTUNITIES,
     Feature.MANAGE_CONTACTS,
     Feature.VIEW_BD_ANALYTICS,
+    Feature.MANAGE_NEWS,
 
     // Admin
     Feature.MANAGE_USERS,

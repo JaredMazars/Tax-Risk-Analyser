@@ -32,7 +32,7 @@ interface SharedServiceCardProps {
 }
 
 export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
-  const { serviceLine, activeTaskCount, taskCount } = serviceLineData;
+  const { serviceLine } = serviceLineData;
   
   const Icon = iconMap[serviceLine as ServiceLine] || ShieldCheckIcon;
   const name = formatServiceLineName(serviceLine);
@@ -43,15 +43,15 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
   const getDescription = (line: ServiceLine | string) => {
     switch (line) {
       case ServiceLine.QRM:
-        return 'Quality assurance, risk management, and compliance';
+        return 'Quality assurance, risk assessment, and compliance oversight';
       case ServiceLine.BUSINESS_DEV:
-        return 'Marketing campaigns, proposals, and market research';
+        return 'Marketing campaigns, proposal development, and market research';
       case ServiceLine.IT:
-        return 'IT implementations, support, and infrastructure';
+        return 'IT implementations, technical support, and infrastructure';
       case ServiceLine.FINANCE:
-        return 'Financial reporting, budgeting, and analysis';
+        return 'Financial reporting, budgeting, and analysis for internal operations';
       case ServiceLine.HR:
-        return 'Recruitment, training, and policy development';
+        return 'Recruitment, training programs, and policy development';
       default:
         return '';
     }
@@ -80,21 +80,9 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
         </div>
 
         {/* Description */}
-        <p className="text-xs text-forvis-gray-600 mb-3 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-forvis-gray-600 line-clamp-2 leading-relaxed">
           {getDescription(serviceLine)}
         </p>
-
-        {/* Stats - Compact */}
-        <div className="flex items-center gap-4 pt-2 border-t border-forvis-gray-200">
-          <div className="flex items-baseline gap-1">
-            <p className="text-lg font-bold text-forvis-gray-900">{activeTaskCount}</p>
-            <p className="text-xs text-forvis-gray-600">Active</p>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <p className="text-base font-semibold text-forvis-gray-700">{taskCount}</p>
-            <p className="text-xs text-forvis-gray-600">Total</p>
-          </div>
-        </div>
       </div>
     </Link>
   );

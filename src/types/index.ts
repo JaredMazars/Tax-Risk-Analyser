@@ -89,6 +89,46 @@ export enum ServiceLineRole {
   VIEWER = 'VIEWER',     // View-only access
 }
 
+// News Bulletin Categories
+export enum BulletinCategory {
+  ANNOUNCEMENT = 'ANNOUNCEMENT',
+  POLICY_UPDATE = 'POLICY_UPDATE',
+  EVENT = 'EVENT',
+  ACHIEVEMENT = 'ACHIEVEMENT',
+  REMINDER = 'REMINDER',
+  CLIENT_WIN = 'CLIENT_WIN',
+  MARKET_UPDATE = 'MARKET_UPDATE',
+  INDUSTRY_NEWS = 'INDUSTRY_NEWS',
+  PARTNERSHIP = 'PARTNERSHIP',
+  HIRING = 'HIRING',
+}
+
+// News Bulletin
+export interface NewsBulletin {
+  id: number;
+  title: string;
+  summary: string;
+  body: string;
+  category: BulletinCategory;
+  serviceLine: string | null;
+  effectiveDate: Date;
+  expiresAt: Date | null;
+  contactPerson: string | null;
+  actionRequired: boolean;
+  callToActionUrl: string | null;
+  callToActionText: string | null;
+  isPinned: boolean;
+  isActive: boolean;
+  createdById: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+}
+
 // Client/Organization
 export interface Client {
   id: number;

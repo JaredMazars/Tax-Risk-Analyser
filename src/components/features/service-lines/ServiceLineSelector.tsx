@@ -7,6 +7,7 @@ import {
   BuildingOfficeIcon,
   ArrowLeftIcon,
   ChartBarIcon,
+  NewspaperIcon,
 } from '@heroicons/react/24/outline';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 
@@ -18,7 +19,7 @@ export function ServiceLineSelector() {
   // Determine grid columns based on cards shown
   const getGridCols = () => {
     if (serviceLine === 'business_dev') {
-      return 'md:grid-cols-2'; // BD Pipeline + Client Tasks
+      return 'md:grid-cols-3'; // BD Pipeline + Company News + Client Tasks
     }
     if (isShared) {
       return 'md:grid-cols-1'; // Only Client Tasks for other shared services
@@ -47,7 +48,7 @@ export function ServiceLineSelector() {
           </h1>
           <p className="mt-2 text-sm text-forvis-gray-700">
             {serviceLine === 'business_dev' 
-              ? 'Track opportunities and manage client tasks'
+              ? 'Track opportunities, view company news, and manage client tasks'
               : 'Choose the type of tasks you want to view'}
           </p>
         </div>
@@ -70,6 +71,28 @@ export function ServiceLineSelector() {
                   </h2>
                   <p className="text-forvis-gray-600">
                     Track opportunities, prospects, and manage your sales pipeline
+                  </p>
+                </div>
+              </div>
+            </Link>
+          )}
+
+          {/* Company News Card - Only show for Business Development service line */}
+          {serviceLine === 'business_dev' && (
+            <Link
+              href={`/dashboard/${serviceLine}/news`}
+              className="group block"
+            >
+              <div className="card hover:shadow-lg transition-all duration-200 border-2 border-transparent hover:border-forvis-blue-500 cursor-pointer h-full">
+                <div className="flex flex-col items-center text-center p-8">
+                  <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mb-6 group-hover:bg-amber-200 transition-colors">
+                    <NewspaperIcon className="h-10 w-10 text-amber-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-forvis-gray-900 mb-3">
+                    Company News
+                  </h2>
+                  <p className="text-forvis-gray-600">
+                    View company announcements, updates, and important bulletins
                   </p>
                 </div>
               </div>

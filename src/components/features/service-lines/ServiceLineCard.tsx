@@ -8,11 +8,6 @@ import {
   ClipboardDocumentCheckIcon,
   CalculatorIcon,
   LightBulbIcon,
-  ShieldCheckIcon,
-  MegaphoneIcon,
-  ComputerDesktopIcon,
-  BanknotesIcon,
-  UserGroupIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { ServiceLine } from '@/types';
@@ -29,11 +24,6 @@ const iconMap = {
   [ServiceLine.AUDIT]: ClipboardDocumentCheckIcon,
   [ServiceLine.ACCOUNTING]: CalculatorIcon,
   [ServiceLine.ADVISORY]: LightBulbIcon,
-  [ServiceLine.QRM]: ShieldCheckIcon,
-  [ServiceLine.BUSINESS_DEV]: MegaphoneIcon,
-  [ServiceLine.IT]: ComputerDesktopIcon,
-  [ServiceLine.FINANCE]: BanknotesIcon,
-  [ServiceLine.HR]: UserGroupIcon,
 };
 
 interface ServiceLineCardProps {
@@ -41,7 +31,7 @@ interface ServiceLineCardProps {
 }
 
 export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
-  const { serviceLine, activeTaskCount, taskCount } = serviceLineData;
+  const { serviceLine } = serviceLineData;
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
   
@@ -60,23 +50,13 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
   const getDescription = (line: ServiceLine | string) => {
     switch (line) {
       case ServiceLine.TAX:
-        return 'Tax compliance, calculations, opinions, and administration';
+        return 'Comprehensive tax services including compliance, planning, opinions, and administration';
       case ServiceLine.AUDIT:
-        return 'Audit engagements, reviews, and reporting';
+        return 'Professional audit and assurance services ensuring financial statement accuracy';
       case ServiceLine.ACCOUNTING:
-        return 'Financial statements, bookkeeping, and management accounts';
+        return 'Full-service accounting from bookkeeping to financial statements and reporting';
       case ServiceLine.ADVISORY:
-        return 'Consulting, strategy, and advisory services';
-      case ServiceLine.QRM:
-        return 'Quality assurance, risk management, and compliance oversight';
-      case ServiceLine.BUSINESS_DEV:
-        return 'Marketing campaigns, proposals, and market research';
-      case ServiceLine.IT:
-        return 'IT implementations, support, and infrastructure management';
-      case ServiceLine.FINANCE:
-        return 'Financial reporting, budgeting, and analysis';
-      case ServiceLine.HR:
-        return 'Recruitment, training, and policy development';
+        return 'Strategic consulting to help businesses navigate challenges and opportunities';
       default:
         return '';
     }
@@ -109,21 +89,9 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
           <h3 className="text-lg font-bold text-forvis-gray-900 mb-2 group-hover:text-forvis-blue-600 transition-colors duration-200">
             {name}
           </h3>
-          <p className="text-xs text-forvis-gray-700 mb-4 flex-grow leading-relaxed">
+          <p className="text-xs text-forvis-gray-700 flex-grow leading-relaxed">
             {getDescription(serviceLine)}
           </p>
-
-          {/* Stats */}
-          <div className="flex items-center justify-between pt-4 border-t-2 border-forvis-gray-200">
-            <div>
-              <p className="text-2xl font-bold text-forvis-gray-900">{activeTaskCount}</p>
-              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Active</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xl font-semibold text-forvis-gray-700">{taskCount}</p>
-              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Total</p>
-            </div>
-          </div>
         </div>
       </div>
     </Link>

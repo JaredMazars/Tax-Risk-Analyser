@@ -35,6 +35,7 @@ export enum Feature {
   MANAGE_OPPORTUNITIES = 'manage_opportunities',
   MANAGE_CONTACTS = 'manage_contacts',
   VIEW_BD_ANALYTICS = 'view_bd_analytics',
+  MANAGE_NEWS = 'manage_news',
 
   // Admin
   MANAGE_USERS = 'manage_users',
@@ -84,6 +85,7 @@ export const FEATURE_CATEGORIES = {
     Feature.MANAGE_OPPORTUNITIES,
     Feature.MANAGE_CONTACTS,
     Feature.VIEW_BD_ANALYTICS,
+    Feature.MANAGE_NEWS,
   ],
   ADMIN: [
     Feature.MANAGE_USERS,
@@ -124,6 +126,7 @@ export const FEATURE_DESCRIPTIONS: Record<Feature, string> = {
   [Feature.MANAGE_OPPORTUNITIES]: 'Create and manage BD opportunities',
   [Feature.MANAGE_CONTACTS]: 'Create and manage BD contacts',
   [Feature.VIEW_BD_ANALYTICS]: 'View business development analytics',
+  [Feature.MANAGE_NEWS]: 'Create and manage company news bulletins',
 
   [Feature.MANAGE_USERS]: 'Create and manage user accounts',
   [Feature.MANAGE_SERVICE_LINES]: 'Manage service line configurations',

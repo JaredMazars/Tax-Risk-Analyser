@@ -6,6 +6,30 @@
 import { useQuery } from '@tanstack/react-query';
 import { Task } from '@/types';
 
+interface CurrentUser {
+  id: string;
+  email: string;
+  name: string;
+  systemRole: string;
+}
+
+/**
+ * Get current user information
+ */
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async (): Promise<CurrentUser | null> => {
+      const response = await fetch('/api/auth/me');
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      return data.data || null;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
 /**
  * Check if current user can approve acceptance/engagement letter for a task
  */
@@ -146,6 +170,29 @@ export function useFormattedServiceLineRole(serviceLine: string | null | undefin
   return roleMap[role] || role;
 }
 
+/**
+ * Check if user has a specific feature permission
+ * @param feature - The feature to check
+ * @param serviceLine - Optional service line context
+ */
+export function useFeature(feature: string, serviceLine?: string) {
+  return useQuery({
+    queryKey: ['userFeature', feature, serviceLine],
+    queryFn: async (): Promise<boolean> => {
+      const params = new URLSearchParams({ feature });
+      if (serviceLine) {
+        params.append('serviceLine', serviceLine);
+      }
+      
+      const response = await fetch(`/api/permissions/check?${params.toString()}`);
+      if (!response.ok) return false;
+
+      const data = await response.json();
+      return data.data?.hasFeature || false;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
 
 
 
