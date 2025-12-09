@@ -97,7 +97,7 @@ export default function DashboardHomePage() {
           <p className="text-sm font-medium text-forvis-blue-600 mb-1">
             {firstName ? `Welcome back, ${firstName}` : 'Welcome'}
           </p>
-          <h1 className="text-3xl md:text-4xl font-semibold" style={{ color: '#22368c' }}>
+          <h1 className="text-3xl md:text-4xl font-semibold text-forvis-gray-900">
             Forvis Mazars
           </h1>
           <div className="flex justify-center" style={{ overflow: 'visible' }}>
@@ -153,7 +153,13 @@ export default function DashboardHomePage() {
         {/* Shared Services Cards */}
         {sharedServices.length > 0 && (
           <div className="mb-6">
-            <div className="bg-gradient-to-r from-forvis-gray-50 to-forvis-blue-50 rounded-lg border-2 border-forvis-gray-200 p-6">
+            <div 
+              className="rounded-lg border-2 p-6"
+              style={{
+                background: 'linear-gradient(135deg, #E0EDFB 0%, #C7DDEF 100%)',
+                borderColor: '#2E5AAC',
+              }}
+            >
               <div className="mb-4">
                 <h2 className="text-xl font-semibold text-forvis-gray-900 mb-1">
                   Shared Services

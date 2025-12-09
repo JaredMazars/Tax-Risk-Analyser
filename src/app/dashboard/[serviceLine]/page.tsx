@@ -125,7 +125,7 @@ export default function ServiceLineSubGroupsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-500"></div>
       </div>
     );
   }
@@ -199,16 +199,27 @@ export default function ServiceLineSubGroupsPage() {
                   router.push(`/dashboard/${serviceLine.toLowerCase()}/${group.code}`);
                 }}
                 onMouseEnter={() => prefetchTasksForSubGroup(group.code)}
-                className="group block bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 hover:border-forvis-blue-500 relative"
+                className="group block rounded-lg border border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 relative overflow-hidden"
+                style={{
+                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+                }}
               >
+                {/* Hover gradient overlay */}
+                <div 
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
+                  }}
+                />
+                
                 {/* Loading overlay */}
                 {navigatingTo === group.code && (
                   <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
                   </div>
                 )}
                 
-                <div className="p-6">
+                <div className="p-6 relative z-[1]">
                   {/* Icon */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="w-12 h-12 rounded-lg bg-forvis-blue-100 flex items-center justify-center group-hover:bg-forvis-blue-200 transition-colors">
