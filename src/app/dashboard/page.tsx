@@ -156,15 +156,15 @@ export default function DashboardHomePage() {
             <div 
               className="rounded-lg border-2 p-6"
               style={{
-                background: 'linear-gradient(135deg, #E0EDFB 0%, #C7DDEF 100%)',
-                borderColor: '#2E5AAC',
+                background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)',
+                borderColor: '#88815E',
               }}
             >
               <div className="mb-4">
-                <h2 className="text-xl font-semibold text-forvis-gray-900 mb-1">
+                <h2 className="text-xl font-semibold text-white mb-1">
                   Shared Services
                 </h2>
-                <p className="text-sm text-forvis-gray-600">
+                <p className="text-sm text-white opacity-90">
                   Support departments that contribute across all service lines
                 </p>
               </div>

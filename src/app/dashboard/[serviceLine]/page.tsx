@@ -158,110 +158,127 @@ export default function ServiceLineSubGroupsPage() {
           </span>
         </nav>
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-forvis-gray-900 mb-2">
-            {formatServiceLineName(serviceLine)}
-          </h1>
-          <p className="text-forvis-gray-600">
-            Select a sub-service line group to view clients and projects
-          </p>
-          <div className="mt-4 flex gap-6">
-            <div>
-              <div className="text-2xl font-bold text-forvis-blue-600">{totalActiveTasks}</div>
-              <div className="text-sm text-forvis-gray-600">Active Tasks</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-forvis-gray-900">{totalTasks}</div>
-              <div className="text-sm text-forvis-gray-600">Total Tasks</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Sub-Service Line Groups Grid */}
-        {!subGroups || subGroups.length === 0 ? (
-          <div className="card text-center py-12">
-            <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No Sub-Service Line Groups</h3>
-            <p className="mt-1 text-sm text-forvis-gray-600">
-              No sub-service line groups are configured for {formatServiceLineName(serviceLine)}.
+        {/* Gold Container with Header and Cards */}
+        <div 
+          className="rounded-lg border-2 p-6"
+          style={{
+            background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)',
+            borderColor: '#88815E',
+          }}
+        >
+          {/* Header */}
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-white mb-1">
+              {formatServiceLineName(serviceLine)}
+            </h2>
+            <p className="text-sm text-white opacity-90 mb-3">
+              Select a sub-service line group to view clients and projects
             </p>
+            <div className="flex gap-6">
+              <div>
+                <div className="text-2xl font-bold text-white">{totalActiveTasks}</div>
+                <div className="text-xs text-white opacity-90">Active Tasks</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-white">{totalTasks}</div>
+                <div className="text-xs text-white opacity-90">Total Tasks</div>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {subGroups.map((group) => (
-              <Link
-                key={group.code}
-                href={`/dashboard/${serviceLine.toLowerCase()}/${group.code}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setNavigatingTo(group.code);
-                  router.push(`/dashboard/${serviceLine.toLowerCase()}/${group.code}`);
-                }}
-                onMouseEnter={() => prefetchTasksForSubGroup(group.code)}
-                className="group block rounded-lg border border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
-              >
-                {/* Hover gradient overlay */}
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
+
+          {/* Sub-Service Line Groups Grid */}
+          {!subGroups || subGroups.length === 0 ? (
+            <div 
+              className="rounded-lg border border-forvis-gray-200 text-center py-8 shadow-sm"
+              style={{
+                background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+              }}
+            >
+              <FolderIcon className="mx-auto h-10 w-10 text-forvis-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No Sub-Service Line Groups</h3>
+              <p className="mt-1 text-xs text-forvis-gray-600">
+                No sub-service line groups are configured for {formatServiceLineName(serviceLine)}.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {subGroups.map((group) => (
+                <Link
+                  key={group.code}
+                  href={`/dashboard/${serviceLine.toLowerCase()}/${group.code}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setNavigatingTo(group.code);
+                    router.push(`/dashboard/${serviceLine.toLowerCase()}/${group.code}`);
                   }}
-                />
-                
-                {/* Loading overlay */}
-                {navigatingTo === group.code && (
-                  <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
-                  </div>
-                )}
-                
-                <div className="p-6 relative z-[1]">
-                  {/* Icon */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-forvis-blue-100 flex items-center justify-center group-hover:bg-forvis-blue-200 transition-colors">
-                      <ChartBarIcon className="h-6 w-6 text-forvis-blue-600" />
+                  onMouseEnter={() => prefetchTasksForSubGroup(group.code)}
+                  className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+                  }}
+                >
+                  {/* Hover gradient overlay */}
+                  <div 
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
+                    }}
+                  />
+                  
+                  {/* Loading overlay */}
+                  {navigatingTo === group.code && (
+                    <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-forvis-blue-500"></div>
                     </div>
-                    <ChevronRightIcon className="h-5 w-5 text-forvis-gray-400 group-hover:text-forvis-blue-600 transition-colors" />
-                  </div>
+                  )}
+                  
+                  <div className="p-4 relative z-[1]">
+                    {/* Icon and Arrow */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div 
+                        className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm"
+                        style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #1C3667)' }}
+                      >
+                        <ChartBarIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <ChevronRightIcon className="h-4 w-4 text-forvis-gray-400 group-hover:text-forvis-blue-600 transition-colors flex-shrink-0" />
+                    </div>
 
-                  {/* Content */}
-                  <div>
-                    <h3 className="text-lg font-bold text-forvis-gray-900 mb-1 group-hover:text-forvis-blue-600 transition-colors">
-                      {group.description || 'No description available'}
-                    </h3>
-                    <p className="text-sm text-forvis-gray-600 mb-4 line-clamp-2">
-                      {group.code}
-                    </p>
+                    {/* Content */}
+                    <div>
+                      <h3 className="text-sm font-bold text-forvis-gray-900 mb-1 group-hover:text-forvis-blue-600 transition-colors line-clamp-1">
+                        {group.description || 'No description available'}
+                      </h3>
+                      <p className="text-xs text-forvis-gray-600 mb-3 line-clamp-1">
+                        {group.code}
+                      </p>
 
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-forvis-gray-100">
-                      <div>
-                        <div className="text-xs font-medium text-forvis-gray-500 uppercase tracking-wider mb-1">
-                          Active Tasks
+                      {/* Stats */}
+                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-forvis-gray-100">
+                        <div>
+                          <div className="text-xs font-medium text-forvis-gray-500 uppercase tracking-wider mb-1">
+                            Active
+                          </div>
+                          <div className="text-lg font-bold text-forvis-blue-600">
+                            {group.activeTasks}
+                          </div>
                         </div>
-                        <div className="text-xl font-bold text-forvis-blue-600">
-                          {group.activeTasks}
+                        <div>
+                          <div className="text-xs font-medium text-forvis-gray-500 uppercase tracking-wider mb-1">
+                            Total
+                          </div>
+                          <div className="text-lg font-bold text-forvis-gray-900">
+                            {group.totalTasks}
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-xs font-medium text-forvis-gray-500 uppercase tracking-wider mb-1">
-                          Total Tasks
-                        </div>
-                        <div className="text-xl font-bold text-forvis-gray-900">
-                          {group.totalTasks}
-                        </div>
-                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

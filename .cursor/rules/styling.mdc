@@ -30,6 +30,7 @@ import { Button, Card, DashboardCard, Input, Badge, Banner, StatCard, LoadingSpi
 
 **Primary Blues**: forvis-blue-500 (#2E5AAC), 600 (#25488A), 700 (#1C3667), 50 (#EBF2FA), 100 (#D6E4F5)
 **Extended Blues**: #5B93D7, #132445
+**Gold Accent**: 500 (#C7B179), 700 (#88815E)
 **Grays**: 900 (#212529), 800 (#343A40), 700 (#495057), 600 (#6C757D), 300 (#DEE2E6), 200 (#E9ECEF), 100 (#F1F3F5), 50 (#F8F9FA)
 **Light Gradients**: #E0EDFB, #C7DDEF, #F0F7FD, #E5F1FB, #F8FBFE, #EEF6FC
 
@@ -44,6 +45,7 @@ import { Button, Card, DashboardCard, Input, Badge, Banner, StatCard, LoadingSpi
 Always use inline styles (not Tailwind). Use 135deg for diagonal, `to right` for horizontal, `to bottom right` for stats.
 
 ```typescript
+// PRIMARY BLUE GRADIENTS
 // Primary diagonal (headers): style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
 // Horizontal (table headers): style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
 // Stats cards (dark): style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
@@ -56,6 +58,17 @@ Always use inline styles (not Tailwind). Use 135deg for diagonal, `to right` for
 // - Icon backgrounds (small): 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)'
 
 // Info banners: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)'
+
+// GOLD ACCENT GRADIENTS
+// Premium headers/cards: style={{ background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)' }}
+// Horizontal gold: style={{ background: 'linear-gradient(to right, #C7B179, #88815E)' }}
+// Stats cards (gold): style={{ background: 'linear-gradient(to bottom right, #C7B179, #88815E)' }}
+// Buttons (gold): style={{ background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)' }}
+
+// BLUE-GOLD COMBINATION GRADIENTS
+// Premium blue-to-gold: style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #C7B179 100%)' }}
+// Horizontal blue-gold: style={{ background: 'linear-gradient(to right, #2E5AAC, #C7B179)' }}
+// Icon backgrounds (blue-gold): style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #C7B179)' }}
 ```
 
 **Dashboard Gradient Hierarchy:**
@@ -63,6 +76,12 @@ Always use inline styles (not Tailwind). Use 135deg for diagonal, `to right` for
 2. Medium (containers): #E0EDFB → #C7DDEF  
 3. Dark (icon accents): #5B93D7 → #2E5AAC
 4. Darkest (headers): #5B93D7 → #2E5AAC → #1C3667
+
+**Color Usage Guidelines:**
+- **Blue**: Primary brand color for most UI elements (buttons, headers, links, primary actions)
+- **Gold**: Accent color for premium features, achievements, highlights, special designations
+- **Blue-Gold Combination**: Executive dashboards, premium features, high-value clients, partner-level views
+- Use gold sparingly to maintain impact and visual hierarchy
 
 ## Component Usage
 
@@ -106,16 +125,48 @@ Use UI components from `/src/components/ui/` - all variants, props, and styling 
 
 ## Custom Patterns (When Components Don't Apply)
 
-**Shared Service Container** (darker gradient to group cards):
+**Shared Service Container** (gold gradient to group cards):
 ```typescript
 <div 
   className="rounded-lg border-2 p-6"
   style={{
-    background: 'linear-gradient(135deg, #E0EDFB 0%, #C7DDEF 100%)',
-    borderColor: '#2E5AAC',
+    background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)',
+    borderColor: '#88815E',
   }}
 >
-  {/* DashboardCard components inside */}
+  <h2 className="text-xl font-semibold text-white mb-1">Shared Services</h2>
+  <p className="text-sm text-white opacity-90">Description</p>
+  {/* SharedServiceCard components inside */}
+</div>
+```
+
+**Premium/Gold Indicators**:
+```typescript
+// Premium badge/chip
+<span 
+  className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+  style={{ background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)' }}
+>
+  Premium
+</span>
+
+// Gold accent card (for high-value clients, partner features)
+<div 
+  className="rounded-lg border-2 p-6"
+  style={{
+    background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)',
+    borderColor: '#88815E',
+  }}
+>
+  <h3 className="text-white font-semibold">Content</h3>
+</div>
+
+// Blue-to-gold header (executive/partner dashboards)
+<div 
+  className="rounded-lg p-6"
+  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #C7B179 100%)' }}
+>
+  <h2 className="text-white font-semibold">Executive Dashboard</h2>
 </div>
 ```
 
@@ -231,7 +282,7 @@ style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradien
 
 **When to Use Inline Styles:**
 - Gradients (not in Tailwind)
-- Brand hex colors (#2E5AAC, #DC2626)
+- Brand hex colors (#2E5AAC, #C7B179, #88815E, #DC2626)
 - Emphasis borders
 - Dynamic grid templates
 - One-off semi-transparent backgrounds
@@ -245,7 +296,7 @@ style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradien
 
 **Core Standards:**
 1. Type-safe UI components for all common patterns
-2. Brand blue (#2E5AAC) central to design
+2. Brand blue (#2E5AAC) central to design, gold (#C7B179, #88815E) for premium accents
 3. Gradients for visual hierarchy (darker = more important)
 4. White text on all gradients
 5. Standard spacing scale (4, 8, 12, 16, 24, 32px)
