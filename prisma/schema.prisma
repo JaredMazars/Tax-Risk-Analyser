@@ -208,12 +208,12 @@ model BDOpportunity {
   status              String       @default("OPEN")
   lostReason          String?
   assignedTo          String
-  convertedToClientId Int?                                 // Renamed for clarity - uses internal ID
+  convertedToClientId Int?
   convertedAt         DateTime?
   createdBy           String
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
-  clientId            Int?                                 // Renamed from GSClientID - uses internal ID
+  clientId            Int?
   BDActivity          BDActivity[]
   BDNote              BDNote[]
   Client              Client?      @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -331,7 +331,7 @@ model Client {
 model ClientAcceptanceResponse {
   id                 Int                  @id(map: "PK__ClientAc__3213E83F94B62F25") @default(autoincrement())
   taskId             Int
-  clientId           Int                  // Renamed from GSClientID for clarity - uses internal ID
+  clientId           Int
   questionnaireType  String               @db.NVarChar(50)
   overallRiskScore   Float?
   riskRating         String?              @db.NVarChar(20)
@@ -356,7 +356,7 @@ model ClientAcceptanceResponse {
 
 model ClientAnalyticsDocument {
   id                   Int                    @id @default(autoincrement())
-  clientId             Int                    // Renamed from GSClientID for clarity - uses internal ID
+  clientId             Int
   documentType         String
   fileName             String
   filePath             String
@@ -376,7 +376,7 @@ model ClientAnalyticsDocument {
 
 model ClientCreditRating {
   id                   Int                    @id @default(autoincrement())
-  clientId             Int                    // Renamed from GSClientID for clarity - uses internal ID
+  clientId             Int
   ratingScore          Float
   ratingGrade          String
   ratingDate           DateTime               @default(now())
@@ -449,7 +449,7 @@ model EmailLog {
 }
 
 model Employee {
-  GSEmpID         String    @id @db.UniqueIdentifier @default(uuid())
+  GSEmpID         String    @id @default(uuid()) @db.UniqueIdentifier
   EmpCode         String    @db.NVarChar(10)
   EmpName         String    @db.NVarChar(50)
   EmpNameFull     String    @db.NVarChar(63)
@@ -688,7 +688,6 @@ model SarsResponse {
   @@index([status])
 }
 
-// Master service lines (application level)
 model ServiceLineMaster {
   code        String   @id @db.NVarChar(50)
   name        String   @db.NVarChar(200)
@@ -702,7 +701,6 @@ model ServiceLineMaster {
   @@index([sortOrder])
 }
 
-// External DB service lines (from external system)
 model ServiceLineExternal {
   id                   Int      @id @default(autoincrement())
   ServLineCode         String?  @db.NVarChar(10)
@@ -722,15 +720,15 @@ model ServiceLineExternal {
 }
 
 model ServiceLineUser {
-  id                   Int      @id @default(autoincrement())
-  userId               String
-  subServiceLineGroup  String
-  role                 String   @default("USER")
-  assignmentType       String   @default("SPECIFIC_SUBGROUP")
-  parentAssignmentId   Int?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  User                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  Int      @id @default(autoincrement())
+  userId              String
+  subServiceLineGroup String
+  role                String   @default("USER")
+  assignmentType      String   @default("SPECIFIC_SUBGROUP")
+  parentAssignmentId  Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subServiceLineGroup])
   @@index([subServiceLineGroup])
@@ -752,9 +750,9 @@ model Session {
 
 model Task {
   id                       Int                        @id @default(autoincrement())
-  clientId                 Int?                       // Internal FK - for ALL queries and relations
+  clientId                 Int?
   GSTaskID                 String                     @unique @db.UniqueIdentifier
-  GSClientID               String?                    @db.UniqueIdentifier  // External ID - for sync only
+  GSClientID               String?                    @db.UniqueIdentifier
   TaskCode                 String                     @db.NVarChar(10)
   TaskDesc                 String                     @db.NVarChar(150)
   TaskPartner              String                     @db.NVarChar(10)
@@ -771,13 +769,6 @@ model Task {
   createdBy                String?
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
-  Client                   Client?                    @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Wip                      Wip[]
-  TaskTeam                 TaskTeam[]
-  TaskAcceptance           TaskAcceptance?
-  TaskEngagementLetter     TaskEngagementLetter?
-  TaskDocument             TaskDocument[]
   AdjustmentDocument       AdjustmentDocument[]
   AITaxReport              AITaxReport[]
   ClientAcceptanceResponse ClientAcceptanceResponse[]
@@ -790,7 +781,14 @@ model Task {
   OpinionDraft             OpinionDraft[]
   ResearchNote             ResearchNote[]
   SarsResponse             SarsResponse[]
+  Client                   Client?                    @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  TaskAcceptance           TaskAcceptance?
+  TaskDocument             TaskDocument[]
+  TaskEngagementLetter     TaskEngagementLetter?
+  TaskTeam                 TaskTeam[]
   TaxAdjustment            TaxAdjustment[]
+  Wip                      Wip[]
 
   @@index([Active])
   @@index([clientId])
@@ -811,7 +809,6 @@ model TaskTeam {
   id        Int      @id @default(autoincrement())
   taskId    Int
   userId    String
-
   role      String   @default("VIEWER")
   createdAt DateTime @default(now())
   Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -967,50 +964,50 @@ model User {
 }
 
 model Debtors {
-  id                  Int       @id @default(autoincrement())
-  clientId            Int?                                // Internal FK - for queries
-  PeriodRef           Int?
-  PeriodStart         DateTime?
-  PeriodEnd           DateTime?
-  GSClientID          String    @db.UniqueIdentifier     // External ID - for sync only
-  Biller              String    @db.NVarChar(10)
-  OfficeCode          String    @db.NVarChar(10)
-  ServLineCode        String    @db.NVarChar(10)
-  LTDInv              Float?    @db.Money
-  LTDFee              Float?    @db.Money
-  LTDVat              Float?    @db.Money
-  LTDCn               Float?    @db.Money
-  LTDRec              Float?    @db.Money
-  LTDInt              Float?    @db.Money
-  LTDPLFC             Float?    @db.Money
-  YTDInv              Float?    @db.Money
-  YTDFee              Float?    @db.Money
-  YTDVat              Float?    @db.Money
-  YTDCn               Float?    @db.Money
-  YTDRec              Float?    @db.Money
-  YTDInt              Float?    @db.Money
-  YTDPLFC             Float?    @db.Money
-  PTDInv              Float?    @db.Money
-  PTDFee              Float?    @db.Money
-  PTDVat              Float?    @db.Money
-  PTDCn               Float?    @db.Money
-  PTDRec              Float?    @db.Money
-  PTDInt              Float?    @db.Money
-  PTDPLFC             Float?    @db.Money
-  CBal                Float?    @db.Money
-  BalCurr             Float?    @db.Money
-  Bal30               Float?    @db.Money
-  Bal60               Float?    @db.Money
-  Bal90               Float?    @db.Money
-  Bal120              Float?    @db.Money
-  Bal150              Float?    @db.Money
-  Bal180              Float?    @db.Money
-  DebtorProvision     Float?    @db.Money
-  PTDDebtorProvision  Float?    @db.Money
-  YTDDebtorProvision  Float?    @db.Money
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  Client              Client?   @relation(fields: [clientId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  id                 Int       @id @default(autoincrement())
+  clientId           Int?
+  PeriodRef          Int?
+  PeriodStart        DateTime?
+  PeriodEnd          DateTime?
+  GSClientID         String    @db.UniqueIdentifier
+  Biller             String    @db.NVarChar(10)
+  OfficeCode         String    @db.NVarChar(10)
+  ServLineCode       String    @db.NVarChar(10)
+  LTDInv             Float?    @db.Money
+  LTDFee             Float?    @db.Money
+  LTDVat             Float?    @db.Money
+  LTDCn              Float?    @db.Money
+  LTDRec             Float?    @db.Money
+  LTDInt             Float?    @db.Money
+  LTDPLFC            Float?    @db.Money
+  YTDInv             Float?    @db.Money
+  YTDFee             Float?    @db.Money
+  YTDVat             Float?    @db.Money
+  YTDCn              Float?    @db.Money
+  YTDRec             Float?    @db.Money
+  YTDInt             Float?    @db.Money
+  YTDPLFC            Float?    @db.Money
+  PTDInv             Float?    @db.Money
+  PTDFee             Float?    @db.Money
+  PTDVat             Float?    @db.Money
+  PTDCn              Float?    @db.Money
+  PTDRec             Float?    @db.Money
+  PTDInt             Float?    @db.Money
+  PTDPLFC            Float?    @db.Money
+  CBal               Float?    @db.Money
+  BalCurr            Float?    @db.Money
+  Bal30              Float?    @db.Money
+  Bal60              Float?    @db.Money
+  Bal90              Float?    @db.Money
+  Bal120             Float?    @db.Money
+  Bal150             Float?    @db.Money
+  Bal180             Float?    @db.Money
+  DebtorProvision    Float?    @db.Money
+  PTDDebtorProvision Float?    @db.Money
+  YTDDebtorProvision Float?    @db.Money
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  Client             Client?   @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([clientId])
   @@index([GSClientID])
@@ -1031,16 +1028,16 @@ model VerificationToken {
 
 model Wip {
   id               Int       @id @default(autoincrement())
-  clientId         Int?                                  // Internal FK - for queries
-  taskId           Int?                                  // Internal FK - for queries
+  clientId         Int?
+  taskId           Int?
   GSWipID          String    @unique @db.UniqueIdentifier
   PeriodRef        Int?
   PeriodStart      DateTime?
   PeriodEnd        DateTime?
-  GSClientID       String    @db.UniqueIdentifier       // External ID - for sync only
-  GSTaskID         String    @db.UniqueIdentifier       // External ID - for sync only
-  ClientCode       String    @db.NVarChar(10)           // For display/search only
-  TaskCode         String    @db.NVarChar(10)           // For display/search only
+  GSClientID       String    @db.UniqueIdentifier
+  GSTaskID         String    @db.UniqueIdentifier
+  ClientCode       String    @db.NVarChar(10)
+  TaskCode         String    @db.NVarChar(10)
   OfficeCode       String    @db.NVarChar(10)
   ServLineCode     String    @db.NVarChar(10)
   TaskPartner      String    @db.NVarChar(10)
@@ -1082,8 +1079,8 @@ model Wip {
   PTDHours         Float?    @db.Money
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-  Client           Client?   @relation(fields: [clientId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  Task             Task?     @relation(fields: [taskId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  Client           Client?   @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Task             Task?     @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([clientId])
   @@index([taskId])
