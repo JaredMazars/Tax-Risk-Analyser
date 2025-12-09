@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TaskType, ServiceLine } from '@/types';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { ServiceLine } from '@/types';
 import { ClientSelector } from '../../features/clients/ClientSelector';
-import { TaskTypeSelector } from './TaskTypeSelector';
-import { TaskTimelineInput } from '../../shared/TaskTimelineInput';
+import { UserSelector } from '../../features/users/UserSelector';
+import { OfficeCodeSelector } from './OfficeCodeSelector';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
-import { getTaskTypesForServiceLine } from '@/lib/utils/serviceLineUtils';
 import { useCreateTask } from '@/hooks/tasks/useCreateTask';
 
 interface TaskCreatedResult {
@@ -24,35 +24,61 @@ interface CreateTaskModalProps {
   initialServiceLine?: ServiceLine | null;
 }
 
+interface SubServiceLineGroup {
+  code: string;
+  description: string;
+}
+
 export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, initialServiceLine }: CreateTaskModalProps) {
   const [step, setStep] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { currentServiceLine } = useServiceLine();
-  const createProjectMutation = useCreateTask();
+  const createTaskMutation = useCreateTask();
   
   // Use initialServiceLine if provided, otherwise fall back to currentServiceLine
   const effectiveServiceLine = initialServiceLine || currentServiceLine || ServiceLine.TAX;
-  const isServiceLineLocked = !!initialServiceLine; // Lock when explicitly provided
+  const isServiceLineLocked = !!initialServiceLine;
   
-  // Get default project type based on service line
-  const getDefaultTaskType = (serviceLine?: ServiceLine): TaskType => {
-    const sl = serviceLine || effectiveServiceLine;
-    const types = getTaskTypesForServiceLine(sl);
-    return types[0] || TaskType.TAX_CALCULATION;
-  };
+  // Sub-service line groups state
+  const [subGroups, setSubGroups] = useState<SubServiceLineGroup[]>([]);
+  const [loadingSubGroups, setLoadingSubGroups] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    // Basic Info
+    TaskDesc: '',
+    TaskCode: '',
     clientId: initialClientId || null,
-    projectType: getDefaultTaskType(effectiveServiceLine),
+    
+    // Team & Organization
+    TaskPartner: '',
+    TaskPartnerName: '',
+    TaskManager: '',
+    TaskManagerName: '',
+    OfficeCode: '',
+    
+    // Service Line
     serviceLine: effectiveServiceLine,
-    taxYear: new Date().getFullYear(),
-    taxPeriodStart: null as Date | null,
-    taxPeriodEnd: null as Date | null,
-    assessmentYear: '',
-    submissionDeadline: null as Date | null,
+    SLGroup: '',
+    ServLineCode: '',
+    ServLineDesc: '',
+    
+    // Timeline
+    TaskDateOpen: new Date().toISOString().split('T')[0],
+    TaskDateTerminate: '',
+    
+    // Estimations
+    estimatedHours: '',
+    estimatedTimeValue: '',
+    estimatedDisbursements: '',
+    estimatedAdjustments: '',
   });
+
+  // Fetch sub-groups when service line changes
+  useEffect(() => {
+    if (formData.serviceLine && isOpen) {
+      fetchSubGroups(formData.serviceLine);
+    }
+  }, [formData.serviceLine, isOpen]);
 
   // Update clientId when initialClientId changes
   useEffect(() => {
@@ -61,21 +87,57 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     }
   }, [initialClientId]);
 
-  // Update service line and project type when modal opens or service line changes
+  // Update service line when modal opens
   useEffect(() => {
     if (isOpen) {
       const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
-      const defaultType = getDefaultTaskType(sl);
       setFormData(prev => ({
         ...prev,
         serviceLine: sl,
-        projectType: defaultType,
       }));
     }
   }, [isOpen, initialServiceLine, currentServiceLine]);
 
-  const handleFieldChange = (field: string, value: string | number | Date | null | TaskType | ServiceLine) => {
+  const fetchSubGroups = async (masterCode: string) => {
+    setLoadingSubGroups(true);
+    try {
+      const response = await fetch(`/api/service-lines/${masterCode}/sub-groups`);
+      if (response.ok) {
+        const data = await response.json();
+        const groups = data.success ? data.data : [];
+        setSubGroups(groups);
+        
+        // Auto-select first sub-group if available
+        if (groups.length > 0 && !formData.SLGroup) {
+          handleFieldChange('SLGroup', groups[0].code);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching sub-groups:', error);
+      setSubGroups([]);
+    } finally {
+      setLoadingSubGroups(false);
+    }
+  };
+
+  const handleFieldChange = (field: string, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePartnerChange = (code: string, name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      TaskPartner: code,
+      TaskPartnerName: name,
+    }));
+  };
+
+  const handleManagerChange = (code: string, name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      TaskManager: code,
+      TaskManagerName: name,
+    }));
   };
 
   const handleNextStep = () => {
@@ -98,104 +160,128 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     setTimeout(() => setIsTransitioning(false), 300);
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
-    
-    // Only allow submission on step 3
-    if (step !== 3) {
-      return;
-    }
-    
-    if (!formData.name.trim()) {
-      return;
-    }
-
-    try {
-      // Use mutateAsync to await the mutation and cache invalidation
-      const createdProject = await createProjectMutation.mutateAsync(formData);
-      
-      // Reset form
-      const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
-      const defaultType = getDefaultTaskType(sl);
-      setFormData({
-        name: '',
-        description: '',
-        clientId: initialClientId || null,
-        projectType: defaultType,
-        serviceLine: sl,
-        taxYear: new Date().getFullYear(),
-        taxPeriodStart: null,
-        taxPeriodEnd: null,
-        assessmentYear: '',
-        submissionDeadline: null,
-      });
-      setStep(1);
-      setIsTransitioning(false);
-      
-      // Call parent's onSuccess only after cache has been invalidated
-      onSuccess(createdProject);
-    } catch (error) {
-      // Error is handled by the mutation hook
-      console.error('Failed to create project:', error);
+  const isStepValid = (currentStep: number): boolean => {
+    switch (currentStep) {
+      case 1:
+        return !!formData.TaskDesc.trim() && !!formData.SLGroup;
+      case 2:
+        return !!formData.TaskPartner && !!formData.TaskManager && !!formData.OfficeCode;
+      case 3:
+        return !!formData.TaskDateOpen;
+      case 4:
+        return true; // Review step
+      default:
+        return false;
     }
   };
 
-  const handleClose = () => {
+  const handleSubmit = async () => {
+    if (step !== 4) return;
+
+    try {
+      // Prepare submission data
+      const submitData = {
+        ...formData,
+        // Convert estimation strings to numbers
+        estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours as string) : undefined,
+        estimatedTimeValue: formData.estimatedTimeValue ? parseFloat(formData.estimatedTimeValue as string) : undefined,
+        estimatedDisbursements: formData.estimatedDisbursements ? parseFloat(formData.estimatedDisbursements as string) : undefined,
+        estimatedAdjustments: formData.estimatedAdjustments ? parseFloat(formData.estimatedAdjustments as string) : undefined,
+        // Convert dates
+        TaskDateOpen: new Date(formData.TaskDateOpen),
+        TaskDateTerminate: formData.TaskDateTerminate ? new Date(formData.TaskDateTerminate) : undefined,
+      };
+
+      const createdTask = await createTaskMutation.mutateAsync(submitData);
+      
+      // Reset form
+      resetForm();
+      
+      // Call parent's onSuccess
+      onSuccess(createdTask);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
+  };
+
+  const resetForm = () => {
     const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
-    const defaultType = getDefaultTaskType(sl);
     setFormData({
-      name: '',
-      description: '',
+      TaskDesc: '',
+      TaskCode: '',
       clientId: initialClientId || null,
-      projectType: defaultType,
+      TaskPartner: '',
+      TaskPartnerName: '',
+      TaskManager: '',
+      TaskManagerName: '',
+      OfficeCode: '',
       serviceLine: sl,
-      taxYear: new Date().getFullYear(),
-      taxPeriodStart: null,
-      taxPeriodEnd: null,
-      assessmentYear: '',
-      submissionDeadline: null,
+      SLGroup: '',
+      ServLineCode: '',
+      ServLineDesc: '',
+      TaskDateOpen: new Date().toISOString().split('T')[0],
+      TaskDateTerminate: '',
+      estimatedHours: '',
+      estimatedTimeValue: '',
+      estimatedDisbursements: '',
+      estimatedAdjustments: '',
     });
     setStep(1);
     setIsTransitioning(false);
-    createProjectMutation.reset(); // Reset mutation state
+  };
+
+  const handleClose = () => {
+    resetForm();
+    createTaskMutation.reset();
     onClose();
   };
 
   if (!isOpen) return null;
 
+  const totalEstimatedFees = 
+    (parseFloat(formData.estimatedTimeValue as string) || 0) +
+    (parseFloat(formData.estimatedDisbursements as string) || 0) -
+    (parseFloat(formData.estimatedAdjustments as string) || 0);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div 
+          className="px-6 py-4 border-b border-gray-200"
+          style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+        >
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Create New Project</h2>
-            {isServiceLineLocked && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                {formData.serviceLine}
-              </span>
-            )}
+            <h2 className="text-xl font-bold text-white">Create New Task</h2>
+            <button
+              onClick={handleClose}
+              className="text-white hover:text-gray-200 transition-colors"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
           </div>
           
           {/* Step Indicator */}
           <div className="flex items-center mt-4 space-x-2">
-            <div className={`flex-1 h-2 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-            <div className={`flex-1 h-2 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-            <div className={`flex-1 h-2 rounded-full ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+            <div className={`flex-1 h-2 rounded-full ${step >= 1 ? 'bg-white' : 'bg-white/30'}`} />
+            <div className={`flex-1 h-2 rounded-full ${step >= 2 ? 'bg-white' : 'bg-white/30'}`} />
+            <div className={`flex-1 h-2 rounded-full ${step >= 3 ? 'bg-white' : 'bg-white/30'}`} />
+            <div className={`flex-1 h-2 rounded-full ${step >= 4 ? 'bg-white' : 'bg-white/30'}`} />
           </div>
           
-          <div className="flex justify-between text-xs text-gray-600 mt-1">
+          <div className="flex justify-between text-xs text-white/90 mt-1">
             <span>Basic Info</span>
-            <span>Project Type</span>
-            <span>Timeline</span>
+            <span>Team</span>
+            <span>Timeline & Fees</span>
+            <span>Review</span>
           </div>
         </div>
 
-        <div className="p-6">
-          {createProjectMutation.error && (
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {createTaskMutation.error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-              {createProjectMutation.error.message}
+              {createTaskMutation.error.message}
             </div>
           )}
 
@@ -204,29 +290,33 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Name <span className="text-red-500">*</span>
+                  Task Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => handleFieldChange('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter project name"
+                  value={formData.TaskDesc}
+                  onChange={(e) => handleFieldChange('TaskDesc', e.target.value)}
+                  maxLength={150}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                  placeholder="Enter task name"
                   required
                 />
+                <p className="mt-1 text-xs text-gray-500">{formData.TaskDesc.length}/150 characters</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
+                  Task Code
                 </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleFieldChange('description', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Optional project description"
+                <input
+                  type="text"
+                  value={formData.TaskCode}
+                  onChange={(e) => handleFieldChange('TaskCode', e.target.value.toUpperCase())}
+                  maxLength={10}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 uppercase"
+                  placeholder="Auto-generated if left blank"
                 />
+                <p className="mt-1 text-xs text-gray-500">Leave blank to auto-generate</p>
               </div>
 
               {!initialClientId ? (
@@ -239,63 +329,254 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                     onChange={(clientId) => handleFieldChange('clientId', clientId)}
                     allowCreate={false}
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Optional: Associate this project with a client
-                  </p>
+                  <p className="mt-1 text-xs text-gray-500">Optional: Associate this task with a client</p>
                 </div>
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Client
                   </label>
-                  <div className="px-3 py-2 bg-forvis-gray-50 border border-forvis-gray-300 rounded-md text-sm text-forvis-gray-700">
-                    Project will be created for the current client
+                  <div className="px-3 py-2 bg-forvis-gray-50 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-700">
+                    Task will be created for the current client
                   </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Step 2: Project Type */}
-          {step === 2 && (
-            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Type <span className="text-red-500">*</span>
+                  Service Line Sub-Group <span className="text-red-500">*</span>
                 </label>
-                <TaskTypeSelector
-                  value={formData.projectType}
-                  onChange={(type) => handleFieldChange('projectType', type)}
-                  serviceLine={formData.serviceLine}
-                />
+                {loadingSubGroups ? (
+                  <div className="animate-pulse h-10 bg-gray-200 rounded-lg"></div>
+                ) : (
+                  <select
+                    value={formData.SLGroup}
+                    onChange={(e) => handleFieldChange('SLGroup', e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                    required
+                  >
+                    <option value="">Select sub-group...</option>
+                    {subGroups.map((group) => (
+                      <option key={group.code} value={group.code}>
+                        {group.description || group.code}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           )}
 
-          {/* Step 3: Timeline */}
-          {step === 3 && (
+          {/* Step 2: Team & Organization */}
+          {step === 2 && (
             <div className="space-y-4">
-              <TaskTimelineInput
-                serviceLine={formData.serviceLine}
-                taxYear={formData.taxYear}
-                taxPeriodStart={formData.taxPeriodStart}
-                taxPeriodEnd={formData.taxPeriodEnd}
-                assessmentYear={formData.assessmentYear}
-                submissionDeadline={formData.submissionDeadline}
-                onChange={handleFieldChange}
+              <UserSelector
+                value={formData.TaskPartner}
+                valueName={formData.TaskPartnerName}
+                onChange={handlePartnerChange}
+                label="Task Partner"
+                roleFilter="PARTNER"
+                required
+              />
+
+              <UserSelector
+                value={formData.TaskManager}
+                valueName={formData.TaskManagerName}
+                onChange={handleManagerChange}
+                label="Task Manager"
+                roleFilter="MANAGER"
+                required
+              />
+
+              <OfficeCodeSelector
+                value={formData.OfficeCode}
+                onChange={(code) => handleFieldChange('OfficeCode', code)}
+                required
               />
             </div>
           )}
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
+          {/* Step 3: Timeline & Fees */}
+          {step === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Timeline</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Start Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.TaskDateOpen}
+                      onChange={(e) => handleFieldChange('TaskDateOpen', e.target.value)}
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      End Date (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.TaskDateTerminate}
+                      onChange={(e) => handleFieldChange('TaskDateTerminate', e.target.value)}
+                      min={formData.TaskDateOpen}
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Budget Estimates</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estimated Hours
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.estimatedHours}
+                      onChange={(e) => handleFieldChange('estimatedHours', e.target.value)}
+                      min="0"
+                      step="0.5"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estimated Time Value (Fees)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.estimatedTimeValue}
+                      onChange={(e) => handleFieldChange('estimatedTimeValue', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estimated Disbursements
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.estimatedDisbursements}
+                      onChange={(e) => handleFieldChange('estimatedDisbursements', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estimated Adjustments
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.estimatedAdjustments}
+                      onChange={(e) => handleFieldChange('estimatedAdjustments', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-forvis-gray-700">Total Estimated Fees:</span>
+                    <span className="text-lg font-bold text-forvis-blue-600">
+                      R {totalEstimatedFees.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Review */}
+          {step === 4 && (
+            <div className="space-y-4">
+              <div 
+                className="p-4 rounded-lg border border-forvis-blue-200"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+              >
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Task Summary</h3>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Task Name:</span>
+                    <span className="font-medium text-gray-900">{formData.TaskDesc}</span>
+                  </div>
+                  {formData.TaskCode && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Task Code:</span>
+                      <span className="font-medium text-gray-900">{formData.TaskCode}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Partner:</span>
+                    <span className="font-medium text-gray-900">{formData.TaskPartnerName || formData.TaskPartner}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Manager:</span>
+                    <span className="font-medium text-gray-900">{formData.TaskManagerName || formData.TaskManager}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Office:</span>
+                    <span className="font-medium text-gray-900">{formData.OfficeCode}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Start Date:</span>
+                    <span className="font-medium text-gray-900">{formData.TaskDateOpen}</span>
+                  </div>
+                  {formData.TaskDateTerminate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">End Date:</span>
+                      <span className="font-medium text-gray-900">{formData.TaskDateTerminate}</span>
+                    </div>
+                  )}
+                  {formData.estimatedHours && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Estimated Hours:</span>
+                      <span className="font-medium text-gray-900">{formData.estimatedHours}</span>
+                    </div>
+                  )}
+                  {totalEstimatedFees > 0 && (
+                    <div className="flex justify-between pt-2 border-t border-forvis-blue-200">
+                      <span className="text-gray-700 font-semibold">Total Estimated Fees:</span>
+                      <span className="font-bold text-forvis-blue-600">R {totalEstimatedFees.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex justify-between">
             <div>
               {step > 1 && (
                 <button
                   type="button"
                   onClick={handlePrevStep}
-                  disabled={isTransitioning}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                  disabled={isTransitioning || createTaskMutation.isPending}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Back
                 </button>
@@ -306,28 +587,33 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                disabled={createTaskMutation.isPending}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
 
-              {step < 3 ? (
+              {step < 4 ? (
                 <button
                   type="button"
                   onClick={handleNextStep}
-                  disabled={isTransitioning || (step === 1 && !formData.name.trim())}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                  disabled={isTransitioning || !isStepValid(step)}
+                  className="px-6 py-2 rounded-lg text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ 
+                    background: isStepValid(step) ? 'linear-gradient(to right, #2E5AAC, #25488A)' : '#9CA3AF' 
+                  }}
                 >
                   Next
                 </button>
               ) : (
                 <button
                   type="button"
-                  onClick={() => handleSubmit()}
-                  disabled={createProjectMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                  onClick={handleSubmit}
+                  disabled={createTaskMutation.isPending}
+                  className="px-6 py-2 rounded-lg text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
                 >
-                  {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
+                  {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
                 </button>
               )}
             </div>

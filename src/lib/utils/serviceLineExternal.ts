@@ -363,6 +363,37 @@ export async function getServLineCodesBySubGroup(
 }
 
 /**
+ * Get external service lines for a specific SubServLineGroup
+ * @param subGroupCode - SubServLineGroup code
+ * @param masterCode - Optional master code for additional filtering
+ * @returns Array of external service lines
+ */
+export async function getExternalServiceLinesBySubGroup(
+  subGroupCode: string,
+  masterCode?: string
+): Promise<ServiceLineExternal[]> {
+  try {
+    const where: any = {
+      SubServlineGroupCode: subGroupCode,
+    };
+    
+    if (masterCode) {
+      where.masterCode = masterCode;
+    }
+
+    const results = await prisma.serviceLineExternal.findMany({
+      where,
+      orderBy: { ServLineCode: 'asc' },
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('Error fetching external service lines by SubServLineGroup', { subGroupCode, masterCode, error });
+    return [];
+  }
+}
+
+/**
  * Check if a project belongs to a SubServLineGroup
  * @param projectId - Project ID
  * @param subGroupCode - SubServLineGroup code

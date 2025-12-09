@@ -12,6 +12,7 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';
 import { IconSelector, getIconComponent } from '@/components/features/admin/IconSelector';
 import { ExternalLink } from '@/types/dto';
+import { getUrlValidationError } from '@/lib/validation/urlValidation';
 
 interface LinkFormData {
   name: string;
@@ -142,10 +143,9 @@ export default function ExternalLinksPage() {
     } else if (formData.url.length > 500) {
       errors.url = 'URL must be 500 characters or less';
     } else {
-      try {
-        new URL(formData.url);
-      } catch {
-        errors.url = 'Please enter a valid URL (e.g., https://example.com)';
+      const urlError = getUrlValidationError(formData.url);
+      if (urlError) {
+        errors.url = urlError;
       }
     }
 

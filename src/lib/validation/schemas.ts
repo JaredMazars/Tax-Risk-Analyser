@@ -4,6 +4,20 @@
 
 import { z } from 'zod';
 import { CreditRatingGrade, AnalyticsDocumentType } from '@/types/analytics';
+import { isValidUrl } from './urlValidation';
+
+/**
+ * Custom URL validator that only allows safe protocols (http, https, mailto)
+ * This matches the backend sanitizeUrl() function
+ * 
+ * @param maxLength - Optional maximum length for the URL
+ */
+const safeUrl = (maxLength?: number) => {
+  const baseSchema = maxLength ? z.string().max(maxLength) : z.string();
+  return baseSchema.refine(isValidUrl, {
+    message: 'Must be a valid URL with http://, https://, or mailto: protocol',
+  });
+};
 
 /**
  * GUID/UUID validation helper
@@ -14,6 +28,13 @@ const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 export const GSClientIDSchema = z.string().regex(guidRegex, {
   message: 'GSClientID must be a valid GUID (UniqueIdentifier)',
 });
+
+/**
+ * Helper for optional/nullable GUID fields
+ */
+const guidOrNull = () => z.string().regex(guidRegex, {
+  message: 'Must be a valid GUID (UniqueIdentifier)',
+}).nullable();
 
 /**
  * Project validation schemas
@@ -42,29 +63,41 @@ export const UpdateTaskSchema = z.object({
   taxYear: z.number().int().min(2000).max(2100).nullable().optional(),
 }).strict();
 
+/**
+ * Task creation validation schema
+ * Matches Task table structure with comprehensive fields
+ */
 export const CreateTaskSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().max(1000).nullable().optional(),
-  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT']).optional(),
-  projectType: z.enum([
-    'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
-    'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
-    'FINANCIAL_STATEMENTS', 'BOOKKEEPING', 'MANAGEMENT_ACCOUNTS',
-    'ADVISORY_PROJECT', 'CONSULTING_ENGAGEMENT', 'STRATEGY_REVIEW',
-    'QRM_AUDIT', 'QRM_COMPLIANCE', 'QRM_RISK_ASSESSMENT',
-    'BD_CAMPAIGN', 'BD_PROPOSAL', 'BD_MARKET_RESEARCH',
-    'IT_IMPLEMENTATION', 'IT_SUPPORT', 'IT_INFRASTRUCTURE',
-    'FINANCE_REPORTING', 'FINANCE_BUDGETING', 'FINANCE_ANALYSIS',
-    'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY',
-    'COUNTRY_REPORT', 'COUNTRY_ANALYSIS', 'COUNTRY_DASHBOARD', 'COUNTRY_METRICS'
-  ]),
-  taxYear: z.number().int().min(2000).max(2100).nullable().optional(),
-  taxPeriodStart: z.coerce.date().nullable().optional(),
-  taxPeriodEnd: z.coerce.date().nullable().optional(),
-  assessmentYear: z.string().max(50).optional(),
-  submissionDeadline: z.coerce.date().nullable().optional(),
+  // Core Task Information
+  TaskDesc: z.string().min(1, 'Task name is required').max(150, 'Task name must be 150 characters or less'),
+  TaskCode: z.string().max(10).optional(), // Auto-generated if not provided
+  GSClientID: guidOrNull().optional(), // Optional client assignment
+  
+  // Team & Organization
+  TaskPartner: z.string().min(1, 'Partner code is required').max(10),
+  TaskPartnerName: z.string().min(1, 'Partner name is required').max(50),
+  TaskManager: z.string().min(1, 'Manager code is required').max(10),
+  TaskManagerName: z.string().min(1, 'Manager name is required').max(50),
+  OfficeCode: z.string().min(1, 'Office code is required').max(10),
+  
+  // Service Line Information
+  SLGroup: z.string().min(1, 'Service line group is required').max(10),
+  ServLineCode: z.string().min(1, 'Service line code is required').max(10),
+  ServLineDesc: z.string().min(1, 'Service line description is required').max(150),
+  
+  // Timeline
+  TaskDateOpen: z.coerce.date(),
+  TaskDateTerminate: z.coerce.date().optional().nullable(),
+  
+  // Estimation Fields (stored in WIP record)
+  estimatedHours: z.number().min(0).optional(),
+  estimatedTimeValue: z.number().min(0).optional(), // Fee value for time
+  estimatedDisbursements: z.number().min(0).optional(),
+  estimatedAdjustments: z.number().min(0).optional(), // Write-offs/discounts
+  
+  // System Fields
   createdBy: z.string().optional(),
-}).strict();
+});
 
 /**
  * Project User Management validation schemas
@@ -472,10 +505,10 @@ export const CreateBDContactSchema = z.object({
   phone: z.string().max(50).optional(),
   mobile: z.string().max(50).optional(),
   jobTitle: z.string().max(200).optional(),
-  linkedin: z.string().url().max(500).optional(),
+  linkedin: safeUrl(500).optional(),
   industry: z.string().max(200).optional(),
   sector: z.string().max(200).optional(),
-  website: z.string().url().max(500).optional(),
+  website: safeUrl(500).optional(),
   address: z.string().max(500).optional(),
   city: z.string().max(100).optional(),
   province: z.string().max(100).optional(),
@@ -492,10 +525,10 @@ export const UpdateBDContactSchema = z.object({
   phone: z.string().max(50).optional(),
   mobile: z.string().max(50).optional(),
   jobTitle: z.string().max(200).optional(),
-  linkedin: z.string().url().max(500).optional(),
+  linkedin: safeUrl(500).optional(),
   industry: z.string().max(200).optional(),
   sector: z.string().max(200).optional(),
-  website: z.string().url().max(500).optional(),
+  website: safeUrl(500).optional(),
   address: z.string().max(500).optional(),
   city: z.string().max(100).optional(),
   province: z.string().max(100).optional(),
@@ -794,7 +827,7 @@ export const CreateNewsBulletinSchema = z.object({
   expiresAt: z.coerce.date().nullable().optional(),
   contactPerson: z.string().max(255).nullable().optional(),
   actionRequired: z.boolean().default(false),
-  callToActionUrl: z.string().url().max(500).nullable().optional(),
+  callToActionUrl: safeUrl(500).nullable().optional(),
   callToActionText: z.string().max(100).nullable().optional(),
   isPinned: z.boolean().default(false),
   documentFileName: z.string().max(255).nullable().optional(),
@@ -815,7 +848,7 @@ export const UpdateNewsBulletinSchema = z.object({
   expiresAt: z.coerce.date().nullable().optional(),
   contactPerson: z.string().max(255).nullable().optional(),
   actionRequired: z.boolean().optional(),
-  callToActionUrl: z.string().url().max(500).nullable().optional(),
+  callToActionUrl: safeUrl(500).nullable().optional(),
   callToActionText: z.string().max(100).nullable().optional(),
   isPinned: z.boolean().optional(),
   isActive: z.boolean().optional(),
@@ -848,7 +881,7 @@ export type NewsBulletinFiltersInput = z.infer<typeof NewsBulletinFiltersSchema>
  */
 export const CreateExternalLinkSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or less'),
-  url: z.string().url('Must be a valid URL').max(500, 'URL must be 500 characters or less'),
+  url: safeUrl(500),
   icon: z.string().min(1, 'Icon is required').max(50, 'Icon name must be 50 characters or less'),
   active: z.boolean().default(true),
   sortOrder: z.number().int().default(0),
@@ -856,7 +889,7 @@ export const CreateExternalLinkSchema = z.object({
 
 export const UpdateExternalLinkSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  url: z.string().url().max(500).optional(),
+  url: safeUrl(500).optional(),
   icon: z.string().min(1).max(50).optional(),
   active: z.boolean().optional(),
   sortOrder: z.number().int().optional(),

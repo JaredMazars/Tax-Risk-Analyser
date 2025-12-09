@@ -5,16 +5,33 @@ import { taskListKeys } from './useTasks';
 import { clientKeys } from '@/hooks/clients/useClients';
 
 export interface CreateTaskInput {
-  name: string;
-  description?: string;
-  clientId?: number | null;  // Internal ID - for queries
-  projectType?: string;
+  // Basic Info
+  TaskDesc: string;
+  TaskCode?: string;
+  clientId?: number | null;  // Internal ID - for queries (will be converted to GSClientID)
+  
+  // Team & Organization
+  TaskPartner: string;
+  TaskPartnerName: string;
+  TaskManager: string;
+  TaskManagerName: string;
+  OfficeCode: string;
+  
+  // Service Line
   serviceLine?: string;
-  taxYear?: number;
-  taxPeriodStart?: Date | null;
-  taxPeriodEnd?: Date | null;
-  assessmentYear?: string;
-  submissionDeadline?: Date | null;
+  SLGroup: string;
+  ServLineCode?: string;
+  ServLineDesc?: string;
+  
+  // Timeline
+  TaskDateOpen: Date;
+  TaskDateTerminate?: Date | null;
+  
+  // Estimations
+  estimatedHours?: number;
+  estimatedTimeValue?: number;
+  estimatedDisbursements?: number;
+  estimatedAdjustments?: number;
 }
 
 export interface CreateTaskResult {

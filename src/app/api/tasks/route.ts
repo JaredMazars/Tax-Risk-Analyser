@@ -273,12 +273,177 @@ export async function POST(request: NextRequest) {
         error: 'User not found in database. Please log out and log back in.' 
       }, { status: 400 });
     }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const sanitizedData = sanitizeObject(body);
+    const validatedData = CreateTaskSchema.parse(sanitizedData);
+
+    // Get client data if provided
+    let GSClientID: string | null = null;
+    if (validatedData.GSClientID) {
+      GSClientID = validatedData.GSClientID;
+    } else if (body.clientId) {
+      // Lookup client by internal ID to get GSClientID
+      const client = await prisma.client.findUnique({
+        where: { id: Number(body.clientId) },
+        select: { GSClientID: true },
+      });
+      if (client) {
+        GSClientID = client.GSClientID;
+      }
+    }
+
+    // Get service line external mapping to get ServLineCode and ServLineDesc
+    const { getExternalServiceLinesBySubGroup } = await import('@/lib/utils/serviceLineExternal');
+    const externalServiceLines = await getExternalServiceLinesBySubGroup(validatedData.SLGroup);
     
-    // Task creation is not yet implemented via this endpoint
-    // Tasks are created through BD opportunity conversion or imported from external systems
+    if (!externalServiceLines || externalServiceLines.length === 0) {
+      throw new AppError(400, 'Invalid service line sub-group', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    const externalSL = externalServiceLines[0];
+    const ServLineCode = externalSL.ServLineCode || validatedData.SLGroup;
+    const ServLineDesc = externalSL.ServLineDesc || validatedData.SLGroup;
+
+    // Generate task code if not provided
+    let TaskCode = validatedData.TaskCode || '';
+    if (!TaskCode) {
+      // Generate code: Service line prefix + timestamp suffix
+      const prefix = ServLineCode.substring(0, 3).toUpperCase();
+      const suffix = Date.now().toString().slice(-5);
+      TaskCode = `${prefix}${suffix}`;
+    }
+
+    // Use database transaction to ensure all operations succeed or fail together
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the task
+      const task = await tx.task.create({
+        data: {
+          GSTaskID: crypto.randomUUID(),
+          TaskCode,
+          TaskDesc: validatedData.TaskDesc,
+          GSClientID,
+          TaskPartner: validatedData.TaskPartner,
+          TaskPartnerName: validatedData.TaskPartnerName,
+          TaskManager: validatedData.TaskManager,
+          TaskManagerName: validatedData.TaskManagerName,
+          OfficeCode: validatedData.OfficeCode,
+          SLGroup: validatedData.SLGroup,
+          ServLineCode,
+          ServLineDesc,
+          Active: 'Yes',
+          TaskDateOpen: validatedData.TaskDateOpen,
+          TaskDateTerminate: validatedData.TaskDateTerminate || null,
+          createdBy: user.id,
+        },
+        select: {
+          id: true,
+          GSTaskID: true,
+          TaskCode: true,
+          TaskDesc: true,
+          ServLineCode: true,
+          ServLineDesc: true,
+          createdAt: true,
+          updatedAt: true,
+          Client: {
+            select: {
+              id: true,
+              GSClientID: true,
+              clientNameFull: true,
+              clientCode: true,
+            },
+          },
+        },
+      });
+
+      // Create TaskTeam entry for creator with ADMIN role
+      await tx.taskTeam.create({
+        data: {
+          taskId: task.id,
+          userId: user.id,
+          role: 'ADMIN',
+        },
+      });
+
+      // Create initial WIP record with estimates if provided
+      if (
+        validatedData.estimatedHours ||
+        validatedData.estimatedTimeValue ||
+        validatedData.estimatedDisbursements ||
+        validatedData.estimatedAdjustments
+      ) {
+        await tx.wip.create({
+          data: {
+            GSWipID: crypto.randomUUID(),
+            GSTaskID: task.GSTaskID,
+            GSClientID: GSClientID || '',
+            ClientCode: task.Client?.clientCode || '',
+            TaskCode: task.TaskCode,
+            OfficeCode: validatedData.OfficeCode,
+            ServLineCode,
+            TaskPartner: validatedData.TaskPartner,
+            // Set estimated values as LTD (Life-To-Date) fields
+            LTDHours: validatedData.estimatedHours || 0,
+            LTDFeeTime: validatedData.estimatedTimeValue || 0,
+            LTDFeeDisb: validatedData.estimatedDisbursements || 0,
+            LTDAdjTime: validatedData.estimatedAdjustments || 0,
+            // Initialize all other fields to 0
+            LTDTime: 0,
+            LTDDisb: 0,
+            LTDAdjDisb: 0,
+            LTDCost: 0,
+            YTDTime: 0,
+            YTDDisb: 0,
+            YTDFeeTime: 0,
+            YTDFeeDisb: 0,
+            YTDAdjTime: 0,
+            YTDAdjDisb: 0,
+            YTDCost: 0,
+            PTDTime: 0,
+            PTDDisb: 0,
+            PTDFeeTime: 0,
+            PTDFeeDisb: 0,
+            PTDAdjTime: 0,
+            PTDAdjDisb: 0,
+            PTDCost: 0,
+            BalTime: validatedData.estimatedTimeValue || 0,
+            BalDisb: validatedData.estimatedDisbursements || 0,
+            BalWIP: (validatedData.estimatedTimeValue || 0) + (validatedData.estimatedDisbursements || 0),
+            WipProvision: 0,
+            PTDProvision: 0,
+            YTDProvision: 0,
+            PTDPendingTime: 0,
+            YTDPendingTime: 0,
+            LTDPendingTime: 0,
+            PTDCostExcludeCP: 0,
+            YTDCostExcludeCP: 0,
+            LTDCostExcludeCP: 0,
+            YTDHours: 0,
+            PTDHours: 0,
+          },
+        });
+      }
+
+      return task;
+    });
+
+    // Invalidate task list cache
+    // Use cache service to clear relevant task list caches
+    const { invalidatePattern } = await import('@/lib/services/cache/cacheService');
+    await invalidatePattern('list:tasks:*');
+
+    // Return created task
     return NextResponse.json(
-      { error: 'Direct task creation is not yet implemented. Tasks are created through BD opportunity conversion.' },
-      { status: 501 }
+      successResponse({
+        id: result.id,
+        name: result.TaskDesc,
+        taskCode: result.TaskCode,
+        serviceLine: result.ServLineCode,
+        createdAt: result.createdAt.toISOString(),
+        updatedAt: result.updatedAt.toISOString(),
+        client: result.Client,
+      })
     );
   } catch (error) {
     // Handle Zod validation errors
