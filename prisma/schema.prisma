@@ -314,6 +314,9 @@ model Client {
   Debtors                  Debtors[]
   Task                     Task[]
   Wip                      Wip[]
+  WIPTransactions          WIPTransactions[]
+  DrsTransactions          DrsTransactions[]
+  AgedWip                  AgedWip[]
 
   @@index([active])
   @@index([clientCode])
@@ -788,6 +791,8 @@ model Task {
   TaskTeam                 TaskTeam[]
   TaxAdjustment            TaxAdjustment[]
   Wip                      Wip[]
+  WIPTransactions          WIPTransactions[]
+  AgedWip                  AgedWip[]
 
   @@index([Active])
   @@index([GSClientID])
@@ -1121,4 +1126,153 @@ model Wip {
   @@index([TaskPartner])
   @@index([PeriodRef])
   @@map("Wip")
+}
+
+model WIPTransactions {
+  id                   Int       @id @default(autoincrement())
+  GSWIPTransID         String    @unique @db.UniqueIdentifier
+  GSTaskID             String    @db.UniqueIdentifier
+  GSClientID           String?   @db.UniqueIdentifier
+  OfficeCode           String    @db.NVarChar(10)
+  OfficeDesc           String    @db.NVarChar(100)
+  TranDate             DateTime
+  TranType             String    @db.VarChar(23)
+  TType                String    @db.VarChar(3)
+  Ref                  String?   @db.NVarChar(20)
+  ClientCode           String    @db.NVarChar(10)
+  ClientName           String?   @db.NVarChar(259)
+  TaskCode             String    @db.NVarChar(10)
+  TaskDesc             String    @db.NVarChar(150)
+  TaskPartner          String    @db.NVarChar(10)
+  PartnerName          String    @db.NVarChar(50)
+  TaskManager          String    @db.NVarChar(10)
+  ManagerName          String    @db.NVarChar(50)
+  TaskServLine         String    @db.NVarChar(10)
+  TaskServLineDesc     String    @db.NVarChar(150)
+  EmpCode              String?   @db.NVarChar(10)
+  EmpName              String?   @db.NVarChar(50)
+  EmpOffice            String?   @db.NVarChar(10)
+  EmpServLineCode      String?   @db.NVarChar(10)
+  EmpServLineDesc      String?   @db.NVarChar(150)
+  TranSubServLine      String?   @db.NVarChar(10)
+  TranSubServLineDesc  String?   @db.NVarChar(50)
+  ADOType              String?   @db.NVarChar(10)
+  ADODesc              String?   @db.NVarChar(100)
+  Hour                 Float     @db.Money
+  Rate                 String?   @db.NVarChar(2)
+  Amount               Float?    @db.Money
+  Cost                 Float     @db.Money
+  Narr                 String?   @db.Text
+  TaskDateTerminate    DateTime?
+  Ordinal              Int
+  GroupCode            String?   @db.NVarChar(10)
+  GroupDesc            String?   @db.NVarChar(150)
+  MainServLineCode     String    @db.NVarChar(10)
+  MainServLineDesc     String    @db.NVarChar(150)
+  ServLineGroup        String    @db.NVarChar(10)
+  EmpMainServLineCode  String?   @db.NVarChar(10)
+  EmpMainServLineDesc  String?   @db.NVarChar(150)
+  EmpServLineGroup     String?   @db.NVarChar(10)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  Client               Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Task                 Task?     @relation(fields: [GSTaskID], references: [GSTaskID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([GSTaskID])
+  @@index([TranDate])
+  @@index([OfficeCode])
+  @@index([ServLineGroup])
+  @@index([EmpCode])
+  @@index([GSTaskID, TranDate])
+  @@map("WIPTransactions")
+}
+
+model DrsTransactions {
+  id                  Int       @id @default(autoincrement())
+  GSDebtorsTranID     String    @unique @db.UniqueIdentifier
+  GSClientID          String    @db.UniqueIdentifier
+  ClientCode          String    @db.NVarChar(10)
+  ClientNameFull      String?   @db.NVarChar(222)
+  GroupCode           String    @db.NVarChar(10)
+  GroupDesc           String    @db.NVarChar(150)
+  OfficeCode          String    @db.NVarChar(10)
+  OfficeDesc          String    @db.NVarChar(100)
+  ServLineCode        String    @db.NVarChar(10)
+  ServLineDesc        String    @db.NVarChar(150)
+  Biller              String    @db.NVarChar(10)
+  BillerName          String    @db.NVarChar(50)
+  TranDate            DateTime
+  EntryType           String?   @db.VarChar(19)
+  Ordinal             Int?
+  Reference           String?   @db.NVarChar(20)
+  InvNumber           String?   @db.NVarChar(20)
+  Amount              Float?    @db.Money
+  Vat                 Float?    @db.Money
+  Total               Float?    @db.Money
+  Batch               String?   @db.NVarChar(10)
+  Allocation          String    @db.NVarChar(20)
+  Narration           String?   @db.Text
+  VatCode             String?   @db.NVarChar(2)
+  PeriodKey           Int
+  EntryGroupCode      String?   @db.NVarChar(10)
+  EntryGroup          String?   @db.NVarChar(50)
+  DRAccount           String?   @db.NVarChar(30)
+  CRAccount           String?   @db.NVarChar(30)
+  ClientPartner       String    @db.NVarChar(10)
+  ClientPartnerName   String    @db.NVarChar(50)
+  ClientManager       String    @db.NVarChar(10)
+  ClientManagerName   String    @db.NVarChar(50)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  Client              Client    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([TranDate])
+  @@index([Biller])
+  @@index([OfficeCode])
+  @@index([ServLineCode])
+  @@index([PeriodKey])
+  @@index([GSClientID, TranDate])
+  @@map("DrsTransactions")
+}
+
+model AgedWip {
+  id           Int       @id @default(autoincrement())
+  GSAgedWipID  String    @unique @db.UniqueIdentifier
+  GSClientID   String?   @db.UniqueIdentifier
+  GSTaskID     String?   @db.UniqueIdentifier
+  PeriodRef    Int?
+  PeriodStart  DateTime?
+  PeriodEnd    DateTime?
+  ClientCode   String?   @db.NVarChar(10)
+  TaskCode     String?   @db.NVarChar(10)
+  OfficeCode   String    @db.NVarChar(10)
+  ServLineCode String    @db.NVarChar(10)
+  TaskPartner  String    @db.NVarChar(10)
+  Curr         Float?    @db.Money
+  Bal30        Float?    @db.Money
+  Bal60        Float?    @db.Money
+  Bal90        Float?    @db.Money
+  Bal120       Float?    @db.Money
+  Bal150       Float?    @db.Money
+  Bal180       Float?    @db.Money
+  BalWip       Float?    @db.Money
+  Provision    Float?    @db.Money
+  NettWip      Float?    @db.Money
+  PtdFeeAmt    Float?    @db.Money
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  Client       Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Task         Task?     @relation(fields: [GSTaskID], references: [GSTaskID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([GSTaskID])
+  @@index([PeriodRef])
+  @@index([OfficeCode])
+  @@index([ServLineCode])
+  @@index([TaskPartner])
+  @@index([GSClientID, PeriodRef])
+  @@index([GSTaskID, PeriodRef])
+  @@map("AgedWip")
 }
