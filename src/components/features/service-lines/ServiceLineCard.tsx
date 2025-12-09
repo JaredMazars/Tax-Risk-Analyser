@@ -60,8 +60,11 @@ export function ServiceLineCard({ serviceLineData }: ServiceLineCardProps) {
   };
 
   const iconElement = (
-    <div className={`w-12 h-12 rounded-lg ${bgColor} border-2 ${borderColor} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
-      <Icon className={`h-6 w-6 ${color}`} />
+    <div 
+      className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm"
+      style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+    >
+      <Icon className="h-6 w-6 text-white" />
     </div>
   );
 

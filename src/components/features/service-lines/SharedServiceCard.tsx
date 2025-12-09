@@ -76,8 +76,11 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
       <div className="p-3 relative z-[1]">
         <div className="flex items-center gap-3 mb-2">
           {/* Icon */}
-          <div className={`w-10 h-10 rounded-lg ${bgColor} border ${borderColor} flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110`}>
-            <Icon className={`h-5 w-5 ${color}`} />
+          <div 
+            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+            style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+          >
+            <Icon className="h-5 w-5 text-white" />
           </div>
 
           {/* Title and Arrow */}

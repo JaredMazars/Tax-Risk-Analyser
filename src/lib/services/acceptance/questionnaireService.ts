@@ -27,7 +27,6 @@ async function getTaskData(taskId: number, clientInternalId: number) {
       where: { id: taskId },
       select: {
         id: true,
-        clientId: true,
         Client: {
           select: {
             id: true,
@@ -45,7 +44,9 @@ async function getTaskData(taskId: number, clientInternalId: number) {
     }),
     prisma.task.count({
       where: {
-        clientId: clientInternalId,  // Use internal ID parameter
+        Client: {
+          id: clientInternalId,  // Use internal ID parameter via relation
+        },
         id: { not: taskId },
         TaskAcceptance: {
           acceptanceApproved: true,

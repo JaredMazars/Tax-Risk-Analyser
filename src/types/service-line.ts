@@ -67,9 +67,9 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
     name: 'Accounting',
     description: 'Financial statements, bookkeeping, and management accounts',
     icon: 'CalculatorIcon',
-    color: 'text-purple-600',
-    borderColor: 'border-purple-200',
-    bgColor: 'bg-purple-50',
+    color: 'text-slate-700',
+    borderColor: 'border-slate-200',
+    bgColor: 'bg-slate-50',
     taskTypes: [
       TaskType.FINANCIAL_STATEMENTS,
       TaskType.BOOKKEEPING,

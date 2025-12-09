@@ -61,7 +61,10 @@ export function DashboardCard({
           // Compact layout (horizontal)
           <div className="flex items-center gap-3">
             {icon && (
-              <div className="w-10 h-10 rounded-lg bg-forvis-blue-100 border border-forvis-blue-200 flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
+              <div 
+                className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+                style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+              >
                 {icon}
               </div>
             )}
@@ -78,7 +81,10 @@ export function DashboardCard({
             {/* Icon and Arrow */}
             <div className="flex items-start justify-between mb-4">
               {icon && (
-                <div className="w-12 h-12 rounded-lg bg-forvis-blue-100 border-2 border-forvis-blue-200 flex items-center justify-center transition-transform duration-200 group-hover:scale-110">
+                <div 
+                  className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm"
+                  style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                >
                   {icon}
                 </div>
               )}

@@ -1,0 +1,8 @@
+-- Simple check of Employee table structure
+SELECT TOP 1 * FROM Employee;
+
+-- Get column names
+SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'Employee'
+ORDER BY ORDINAL_POSITION;

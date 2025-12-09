@@ -9,6 +9,8 @@ export type DraftId = number & { readonly __brand: 'DraftId' };
 export type ClientId = number & { readonly __brand: 'ClientId' };
 export type GSClientID = string & { readonly __brand: 'GSClientID' };
 export type GSTaskID = string & { readonly __brand: 'GSTaskID' };
+export type EmployeeId = number & { readonly __brand: 'EmployeeId' };
+export type GSEmployeeID = string & { readonly __brand: 'GSEmployeeID' };
 export type AdjustmentId = number & { readonly __brand: 'AdjustmentId' };
 export type DocumentId = number & { readonly __brand: 'DocumentId' };
 export type TemplateId = number & { readonly __brand: 'TemplateId' };
@@ -82,6 +84,27 @@ export const toGSTaskID = (value: unknown): GSTaskID => {
     throw new Error(`Invalid GSTaskID: ${value}`);
   }
   return value as GSTaskID;
+};
+
+/**
+ * Convert unknown value to EmployeeId with validation
+ */
+export const toEmployeeId = (value: unknown): EmployeeId => {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error(`Invalid EmployeeId: ${value}`);
+  }
+  return id as EmployeeId;
+};
+
+/**
+ * Convert unknown value to GSEmployeeID with validation
+ */
+export const toGSEmployeeID = (value: unknown): GSEmployeeID => {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`Invalid GSEmployeeID: ${value}`);
+  }
+  return value as GSEmployeeID;
 };
 
 /**

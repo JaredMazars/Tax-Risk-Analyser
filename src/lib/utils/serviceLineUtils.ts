@@ -65,7 +65,7 @@ export function getTaskTypeColor(taskType: TaskType | string): string {
   const colorMap: Record<ServiceLine, string> = {
     [ServiceLine.TAX]: 'bg-blue-100 text-blue-700 border-blue-200',
     [ServiceLine.AUDIT]: 'bg-green-100 text-green-700 border-green-200',
-    [ServiceLine.ACCOUNTING]: 'bg-purple-100 text-purple-700 border-purple-200',
+    [ServiceLine.ACCOUNTING]: 'bg-slate-100 text-slate-700 border-slate-200',
     [ServiceLine.ADVISORY]: 'bg-orange-100 text-orange-700 border-orange-200',
     [ServiceLine.QRM]: 'bg-red-100 text-red-700 border-red-200',
     [ServiceLine.BUSINESS_DEV]: 'bg-teal-100 text-teal-700 border-teal-200',
@@ -90,7 +90,7 @@ export function getTaskTypeBorderColor(taskType: TaskType | string): string {
   const colorMap: Record<ServiceLine, string> = {
     [ServiceLine.TAX]: 'border-blue-200',
     [ServiceLine.AUDIT]: 'border-green-200',
-    [ServiceLine.ACCOUNTING]: 'border-purple-200',
+    [ServiceLine.ACCOUNTING]: 'border-slate-200',
     [ServiceLine.ADVISORY]: 'border-orange-200',
     [ServiceLine.QRM]: 'border-red-200',
     [ServiceLine.BUSINESS_DEV]: 'border-teal-200',
@@ -110,7 +110,7 @@ export function getServiceLineColor(serviceLine: ServiceLine | string): string {
   const colorMap: Record<string, string> = {
     TAX: 'text-blue-600',
     AUDIT: 'text-green-600',
-    ACCOUNTING: 'text-purple-600',
+    ACCOUNTING: 'text-slate-700',
     ADVISORY: 'text-orange-600',
     QRM: 'text-red-600',
     BUSINESS_DEV: 'text-teal-600',
@@ -129,7 +129,7 @@ export function getServiceLineBgColor(serviceLine: ServiceLine | string): string
   const colorMap: Record<string, string> = {
     TAX: 'bg-blue-50',
     AUDIT: 'bg-green-50',
-    ACCOUNTING: 'bg-purple-50',
+    ACCOUNTING: 'bg-slate-50',
     ADVISORY: 'bg-orange-50',
     QRM: 'bg-red-50',
     BUSINESS_DEV: 'bg-teal-50',
@@ -148,7 +148,7 @@ export function getServiceLineBorderColor(serviceLine: ServiceLine | string): st
   const colorMap: Record<string, string> = {
     TAX: 'border-blue-200',
     AUDIT: 'border-green-200',
-    ACCOUNTING: 'border-purple-200',
+    ACCOUNTING: 'border-slate-200',
     ADVISORY: 'border-orange-200',
     QRM: 'border-red-200',
     BUSINESS_DEV: 'border-teal-200',
