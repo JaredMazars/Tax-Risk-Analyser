@@ -166,7 +166,7 @@ export function BulletinCard({
         </div>
 
         {/* Document Link */}
-        {bulletin.showDocumentLink && bulletin.documentFileName && (
+        {bulletin.showDocumentLink && bulletin.documentFileName && bulletin.documentFileSize && (
           <div className="mb-4">
             <a
               href={`/api/news/${bulletin.id}/document`}
@@ -190,7 +190,7 @@ export function BulletinCard({
               <DocumentArrowDownIcon className="h-4 w-4" />
               <span>{bulletin.documentFileName}</span>
               <span className="text-xs text-purple-600">
-                ({(bulletin.documentFileSize! / 1024).toFixed(0)} KB)
+                ({(bulletin.documentFileSize / 1024).toFixed(0)} KB)
               </span>
             </a>
           </div>

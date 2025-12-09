@@ -59,10 +59,10 @@ export default function DashboardHomePage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-12">
         {/* Error Message */}
         {errorMessage && showError && (
-          <div className="mb-6 max-w-3xl mx-auto">
+          <div className="mb-6">
             <div className="rounded-xl p-4 border-2 shadow-corporate bg-red-50" style={{ borderColor: '#DC2626' }}>
               <div className="flex items-start gap-3">
                 <div className="rounded-full p-2 bg-red-100">
@@ -112,7 +112,7 @@ export default function DashboardHomePage() {
 
         {/* Info Banner - No Service Lines */}
         {availableServiceLines.length === 0 && (
-          <div className="mb-8 max-w-3xl mx-auto">
+          <div className="mb-8">
             <div className="rounded-xl p-4 border-2 shadow-corporate" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}>
               <div className="flex items-start gap-3">
                 <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>

@@ -172,7 +172,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
           </div>
 
           {/* Document Link */}
-          {bulletin.showDocumentLink && bulletin.documentFileName && (
+          {bulletin.showDocumentLink && bulletin.documentFileName && bulletin.documentFileSize && (
             <div className="mt-6 pt-6 border-t border-forvis-gray-200">
               <h3 className="text-sm font-semibold text-forvis-gray-900 mb-3">Attached Document</h3>
               <a
@@ -198,7 +198,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
                 <div className="flex flex-col items-start">
                   <span>{bulletin.documentFileName}</span>
                   <span className="text-xs text-purple-600">
-                    {(bulletin.documentFileSize! / 1024).toFixed(0)} KB • PDF Document
+                    {(bulletin.documentFileSize / 1024).toFixed(0)} KB • PDF Document
                   </span>
                 </div>
               </a>

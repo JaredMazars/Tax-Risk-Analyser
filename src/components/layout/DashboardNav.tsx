@@ -116,21 +116,21 @@ export default function DashboardNav() {
 
   return (
     <nav 
-      className="w-full bg-forvis-blue-600 shadow-lg border-b-2 border-forvis-blue-800" 
+      className="w-full" 
       style={{ 
         minHeight: '48px',
-        backgroundColor: '#25488A',
+        background: 'linear-gradient(135deg, #5B93D7 0%, #3d6bb8 100%)',
         position: 'relative',
         zIndex: 40
       }} 
       ref={menuRef}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-12">
           <div className="flex items-center space-x-1">
           {/* Service Line Indicator */}
           {currentServiceLine && (
-            <div className="flex items-center px-4 py-2 mr-2 bg-forvis-blue-800 rounded text-white text-sm font-semibold">
+            <div className="flex items-center px-4 py-2 mr-2 rounded text-white text-sm font-semibold" style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)' }}>
               <Squares2X2Icon className="h-4 w-4 mr-2" />
               {formatServiceLineName(currentServiceLine)}
             </div>
@@ -143,12 +143,22 @@ export default function DashboardNav() {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`flex items-center px-4 py-3 text-sm font-semibold transition-colors ${
-                    isActive
-                      ? 'text-white bg-forvis-blue-800'
-                      : 'text-white hover:bg-forvis-blue-700'
-                  }`}
-                  style={{ color: 'white' }}
+                  className="flex items-center px-4 py-3 text-sm font-semibold transition-all text-white"
+                  style={{ 
+                    color: 'white',
+                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                    borderBottom: isActive ? '2px solid rgba(255, 255, 255, 0.5)' : '2px solid transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }
+                  }}
                 >
                   {item.label}
                 </Link>
@@ -159,12 +169,22 @@ export default function DashboardNav() {
               <div key={item.label} className="relative">
                 <button
                   onClick={() => toggleMenu(item.label)}
-                  className={`flex items-center px-4 py-3 text-sm font-semibold transition-colors ${
-                    openMenu === item.label
-                      ? 'text-white bg-forvis-blue-800'
-                      : 'text-white hover:bg-forvis-blue-700'
-                  }`}
-                  style={{ color: 'white' }}
+                  className="flex items-center px-4 py-3 text-sm font-semibold transition-all text-white"
+                  style={{ 
+                    color: 'white',
+                    backgroundColor: openMenu === item.label ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                    borderBottom: openMenu === item.label ? '2px solid rgba(255, 255, 255, 0.5)' : '2px solid transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (openMenu !== item.label) {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (openMenu !== item.label) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }
+                  }}
                 >
                   {item.label}
                   <ChevronDownIcon
