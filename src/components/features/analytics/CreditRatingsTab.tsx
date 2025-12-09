@@ -184,41 +184,81 @@ export function CreditRatingsTab({ clientId }: CreditRatingsTabProps) {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div
-          className="rounded-lg p-4 shadow-corporate text-white"
-          style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+          className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
         >
-          <p className="text-xs font-medium opacity-90">Overall Score</p>
-          <p className="text-3xl font-bold mt-1">{latestRating.ratingScore}</p>
-          <p className="text-xs opacity-80 mt-1">out of 100</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Overall Score</p>
+              <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{latestRating.ratingScore}</p>
+              <p className="text-xs text-forvis-gray-500 mt-1">out of 100</p>
+            </div>
+            <div
+              className="rounded-full p-2.5"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            >
+              <ChartBarIcon className="w-5 h-5 text-white" />
+            </div>
+          </div>
         </div>
 
         <div
-          className="rounded-lg p-4 shadow-corporate text-white"
-          style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+          className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
         >
-          <p className="text-xs font-medium opacity-90">Risk Level</p>
-          <p className="text-2xl font-bold mt-1">
-            {latestRating.ratingScore >= 70 ? 'Low' : latestRating.ratingScore >= 50 ? 'Medium' : 'High'}
-          </p>
-          <p className="text-xs opacity-80 mt-1">credit risk</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Risk Level</p>
+              <p className="text-2xl font-bold mt-2 text-forvis-blue-600">
+                {latestRating.ratingScore >= 70 ? 'Low' : latestRating.ratingScore >= 50 ? 'Medium' : 'High'}
+              </p>
+              <p className="text-xs text-forvis-gray-500 mt-1">credit risk</p>
+            </div>
+            <div
+              className="rounded-full p-2.5"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            >
+              <ChartBarIcon className="w-5 h-5 text-white" />
+            </div>
+          </div>
         </div>
 
         <div
-          className="rounded-lg p-4 shadow-corporate text-white"
-          style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
+          className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
         >
-          <p className="text-xs font-medium opacity-90">Confidence</p>
-          <p className="text-3xl font-bold mt-1">{(latestRating.confidence * 100).toFixed(0)}%</p>
-          <p className="text-xs opacity-80 mt-1">analysis confidence</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Confidence</p>
+              <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{(latestRating.confidence * 100).toFixed(0)}%</p>
+              <p className="text-xs text-forvis-gray-500 mt-1">analysis confidence</p>
+            </div>
+            <div
+              className="rounded-full p-2.5"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            >
+              <ChartBarIcon className="w-5 h-5 text-white" />
+            </div>
+          </div>
         </div>
 
         <div
-          className="rounded-lg p-4 shadow-corporate text-white"
-          style={{ background: 'linear-gradient(to bottom right, #1C3667, #132445)' }}
+          className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
         >
-          <p className="text-xs font-medium opacity-90">Documents</p>
-          <p className="text-3xl font-bold mt-1">{latestRating.documents?.length || 0}</p>
-          <p className="text-xs opacity-80 mt-1">files analyzed</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Documents</p>
+              <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{latestRating.documents?.length || 0}</p>
+              <p className="text-xs text-forvis-gray-500 mt-1">files analyzed</p>
+            </div>
+            <div
+              className="rounded-full p-2.5"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            >
+              <DocumentTextIcon className="w-5 h-5 text-white" />
+            </div>
+          </div>
         </div>
       </div>
 

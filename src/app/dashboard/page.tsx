@@ -156,8 +156,8 @@ export default function DashboardHomePage() {
             <div 
               className="rounded-lg border-2 p-6"
               style={{
-                background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)',
-                borderColor: '#88815E',
+                background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                borderColor: '#C9BCAA',
               }}
             >
               <div className="mb-4">

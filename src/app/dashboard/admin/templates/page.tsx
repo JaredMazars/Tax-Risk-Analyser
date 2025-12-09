@@ -156,11 +156,11 @@ export default function TemplatesPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-forvis-gray-900 flex items-center">
+              <h1 className="text-3xl font-semibold text-forvis-gray-900 flex items-center">
                 <DocumentTextIcon className="h-8 w-8 mr-3 text-forvis-blue-600" />
                 Template Management
               </h1>
-              <p className="mt-2 text-sm text-forvis-gray-700">
+              <p className="mt-2 text-sm font-normal text-forvis-gray-600">
                 Create and manage engagement letter templates for your organization
               </p>
             </div>

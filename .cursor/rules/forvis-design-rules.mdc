@@ -1,0 +1,214 @@
+---
+alwaysApply: true
+---
+# Forvis Mazars Design System Standards
+
+**System Version:** 2.0  
+**Brand Archetype:** Professional, Corporate, Trustworthy, Authoritative.  
+**Core Principle:** UI Consistency via strict Component usage.
+
+## 1. Component Architecture (Strict Enforcement)
+
+**Rule:** Do not build custom UI elements. Use the strictly typed component library.
+
+**Import Path:**
+```typescript
+import { Button, Card, DashboardCard, Input, Badge, Banner, StatCard, LoadingSpinner } from '@/components/ui';
+```
+
+### Component Reference Map
+| Component      | Variants/Props                                   | Usage Context |
+|----------------|--------------------------------------------------|---------------|
+| Button         | primary, secondary, gradient, danger             | All interactive triggers. Use gradient for primary CTAs. |
+| Card           | standard, dashboard, shared-service, stats       | Base containers. `dashboard` adds hover/interaction logic. |
+| DashboardCard  | title, icon, stats, href                         | Interactive navigation cards with hover + stats. |
+| Input          | text, email, password, select, textarea          | Forms with built‑in label + error states. |
+| Badge          | Color variants, dot                              | Status indicators. |
+| Banner         | info, error, warning, success                    | Alerts + notifications. |
+| StatCard       | gradientVariant={1,2}                            | Metrics and high‑visibility KPIs. |
+
+---
+
+## 2. Brand Identity & Design Tokens
+
+### Color Palette (Hex Reference)
+- **Primary Blue:** `#2E5AAC`, `#1C3667`, `#5B93D7`  
+- **Gold Accent:** `#D9CBA8`, `#B0A488`  
+- **Backgrounds:** `#F0F7FD`, `#F8F9FA`, `#FFFFFF`  
+- **Text:** `#212529`, `#343A40`, `#6C757D`
+
+### Gradient Registry (Exact Inline Styles Only)
+
+#### A. Primary Surfaces
+```jsx
+// Diagonal Blue
+style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+
+// Horizontal Blue
+style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+```
+
+#### B. Dashboard Interaction
+```jsx
+// Base Card Background
+style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+
+// Hover Overlay
+style={{ background: 'linear-gradient(135deg, rgba(91,147,215,0.06) 0%, rgba(46,90,172,0.08) 100%)' }}
+```
+
+#### C. Premium / Executive Gold
+```jsx
+// Gold Premium
+style={{ background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)' }}
+
+// Blue → Gold
+style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #D9CBA8 100%)' }}
+```
+
+#### D. Workspaces (Data‑Heavy)
+```jsx
+style={{ background: 'linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%)', borderColor: '#C9BCAA' }}
+```
+
+---
+
+## 3. Typography & Hierarchy
+
+Font Family: **Inter**
+
+| Element | Class | Color |
+|--------|--------|--------|
+| H1 | `text-3xl font-semibold` | `text-forvis-gray-900` |
+| H2 | `text-2xl font-semibold` | `text-forvis-gray-900` |
+| H3 | `text-xl font-semibold` | White on gradients |
+| Body | `text-sm font-normal` | `text-forvis-gray-800` |
+| Muted | `text-sm font-normal` | `text-forvis-gray-600` |
+| Label | `text-sm font-medium` | `text-forvis-gray-700` |
+| Data | tabular nums | red for negatives |
+
+---
+
+## 4. Implementation Patterns
+
+### Layout & Spacing
+- **Container:** `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8`
+- **Vertical Spacing:** `space-y-6`
+- **Grids:**  
+  - Standard: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`  
+  - Dense: `grid grid-cols-1 md:grid-cols-4 gap-3`
+
+### Modals
+`max-w-lg w-full p-6 bg-white rounded-lg shadow-corporate-lg`
+
+---
+
+### Data Tables
+```tsx
+<div className="grid py-2 shadow-sm"
+     style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)', gridTemplateColumns: '...' }}>
+</div>
+
+<div className={\`grid cursor-pointer hover:bg-forvis-blue-50 \${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}\`}>
+</div>
+```
+
+### Dashboard Card Icons
+**Components:** `DashboardCard`, `ServiceLineCard`, `SharedServiceCard`, `ServiceLineSelector`  
+**Locations:** 
+- `@/components/ui/DashboardCard.tsx`
+- `@/components/features/service-lines/ServiceLineCard.tsx`
+- `@/components/features/service-lines/SharedServiceCard.tsx`
+- `@/components/features/service-lines/ServiceLineSelector.tsx`
+
+```tsx
+// Icon Container - Standard Size
+<div 
+  className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm"
+  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+>
+  <Icon className="h-6 w-6 text-white" />
+</div>
+
+// Icon Container - Compact Size (for compact cards)
+<div 
+  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+>
+  <Icon className="h-5 w-5 text-white" />
+</div>
+```
+
+**Key Points:**
+- ✅ Use lighter gradient: `#5B93D7 → #2E5AAC` (135deg angle)
+- ✅ Standard cards: 12x12 container, 6x6 icon
+- ✅ Compact cards: 10x10 container, 5x5 icon
+- ❌ Never use darker gradient: `#2E5AAC → #1C3667`
+- ❌ Never use `to bottom right` direction
+
+### Analytics/Stats Cards (Soft Professional Style)
+**Usage:** Dashboard metrics, pipeline stats, KPI displays  
+**Example:** BD Pipeline page (`/dashboard/[serviceLine]/bd/page.tsx`)
+
+```tsx
+<div
+  className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+  style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+>
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Metric Label</p>
+      <p className="text-2xl font-bold mt-2 text-forvis-blue-600">Value</p>
+    </div>
+    <div
+      className="rounded-full p-2.5"
+      style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+    >
+      <Icon className="w-5 h-5 text-white" />
+    </div>
+  </div>
+</div>
+```
+
+**Key Points:**
+- ✅ Light card background: `#F0F7FD → #E0EDFB`
+- ✅ Blue values: `text-forvis-blue-600`
+- ✅ Gray labels: `text-forvis-gray-600`
+- ✅ Gradient icon circles for visual interest
+- ❌ Never use dark blue backgrounds for stat cards
+- ❌ Never use white text on light backgrounds
+
+### File Upload Area
+```tsx
+<div className="flex justify-center px-6 pt-5 pb-6 border-3 border-dashed rounded-xl"
+     style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)' }}>
+</div>
+```
+
+### Premium Gold Container
+```tsx
+<div className="rounded-lg border-2 p-6"
+     style={{ background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)', borderColor: '#C9BCAA' }}>
+  <h2 className="text-xl font-semibold text-white mb-1">Shared Services</h2>
+</div>
+```
+
+---
+
+## 5. Professional Polish & Accessibility
+
+- **Transitions:** `transition-all duration-200 ease-in-out`
+- **Focus states:**  
+  `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
+- **Contrast:** White text on gradients only
+- **Shadows:** `shadow-corporate`, `shadow-corporate-md`
+- **Mobile First:** `flex-col`, `grid-cols-1`
+
+### Common Mistakes to Avoid
+❌ Black text on gradients  
+❌ Mixing Gold + Blue without context  
+❌ Hardcoded paddings  
+❌ Custom button styles  
+❌ Using dark icon gradient (`#2E5AAC → #1C3667`) - use lighter gradient instead
+❌ Inconsistent icon sizes across dashboard cards
+

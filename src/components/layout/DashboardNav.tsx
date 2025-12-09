@@ -119,7 +119,7 @@ export default function DashboardNav() {
       className="w-full" 
       style={{ 
         minHeight: '48px',
-        background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)',
+        background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
         position: 'relative',
         zIndex: 40
       }} 

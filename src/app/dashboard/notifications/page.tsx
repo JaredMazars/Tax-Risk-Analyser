@@ -66,8 +66,8 @@ export default function NotificationsPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-forvis-gray-900">Notifications</h1>
-          <p className="mt-1 text-sm text-forvis-gray-600">
+          <h1 className="text-2xl font-semibold text-forvis-gray-900">Notifications</h1>
+          <p className="mt-1 text-sm font-normal text-forvis-gray-600">
             Stay updated on your projects and messages
           </p>
         </div>

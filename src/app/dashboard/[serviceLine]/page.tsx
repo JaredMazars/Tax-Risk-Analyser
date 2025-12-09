@@ -9,6 +9,7 @@ import {
   FolderIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
+import { LoadingSpinner } from '@/components/ui';
 import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
@@ -125,7 +126,7 @@ export default function ServiceLineSubGroupsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-500"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -149,7 +150,7 @@ export default function ServiceLineSubGroupsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
-          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
+          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
@@ -162,8 +163,8 @@ export default function ServiceLineSubGroupsPage() {
         <div 
           className="rounded-lg border-2 p-6"
           style={{
-            background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)',
-            borderColor: '#88815E',
+            background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+            borderColor: '#C9BCAA',
           }}
         >
           {/* Header */}
@@ -228,7 +229,7 @@ export default function ServiceLineSubGroupsPage() {
                   {/* Loading overlay */}
                   {navigatingTo === group.code && (
                     <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-forvis-blue-500"></div>
+                      <LoadingSpinner size="md" />
                     </div>
                   )}
                   
@@ -237,7 +238,7 @@ export default function ServiceLineSubGroupsPage() {
                     <div className="flex items-center justify-between mb-3">
                       <div 
                         className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                        style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #1C3667)' }}
+                        style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                       >
                         <ChartBarIcon className="h-5 w-5 text-white" />
                       </div>

@@ -12,6 +12,7 @@ import {
 import { MapPinIcon } from '@heroicons/react/24/solid';
 import { NewsBulletin, BulletinCategory } from '@/types';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { Button } from '@/components/ui';
 
 interface BulletinDetailModalProps {
   bulletin: NewsBulletin;
@@ -90,18 +91,15 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
     >
       <div className="bg-white rounded-xl shadow-corporate-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="relative border-b border-forvis-gray-200">
-          {/* Gradient Header Bar */}
-          <div 
-            className="h-2" 
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-          />
-          
-          <div className="p-6 pb-4">
+        <div 
+          className="relative border-2 rounded-t-xl p-6 pb-4"
+          style={{ background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)', borderColor: '#C9BCAA' }}
+        >
+          <div>
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full text-forvis-gray-500 hover:text-forvis-gray-700 hover:bg-forvis-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
+              className="absolute top-4 right-4 p-2 rounded-full text-white hover:text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
               aria-label="Close"
             >
               <XMarkIcon className="h-5 w-5" />
@@ -110,24 +108,24 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
             {/* Badges Row */}
             <div className="flex items-center gap-2 flex-wrap mb-4">
               {/* Category Badge */}
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${categoryStyle.bg} ${categoryStyle.text} border ${categoryStyle.border}`}>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-forvis-gray-900 border border-white shadow-sm">
                 {categoryLabels[bulletin.category]}
               </span>
               
               {/* Service Line Badge */}
               {bulletin.serviceLine ? (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-forvis-gray-100 text-forvis-gray-700 border border-forvis-gray-200">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-forvis-gray-900 border border-white shadow-sm">
                   {formatServiceLineName(bulletin.serviceLine)}
                 </span>
               ) : (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-forvis-gray-900 border border-white shadow-sm">
                   All Service Lines
                 </span>
               )}
 
               {/* Pinned Indicator */}
               {bulletin.isPinned && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-amber-700 border border-white shadow-sm">
                   <MapPinIcon className="h-4 w-4" />
                   Pinned
                 </span>
@@ -135,7 +133,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
 
               {/* Action Required Indicator */}
               {bulletin.actionRequired && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-red-700 border border-white shadow-sm">
                   <ExclamationTriangleIcon className="h-4 w-4" />
                   Action Required
                 </span>
@@ -143,7 +141,7 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
 
               {/* Expired Badge */}
               {isExpired && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-forvis-gray-100 text-forvis-gray-600 border border-forvis-gray-300">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-white/90 text-forvis-gray-700 border border-white shadow-sm">
                   <ClockIcon className="h-4 w-4" />
                   Expired
                 </span>
@@ -153,13 +151,13 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
             {/* Title */}
             <h2 
               id="bulletin-title" 
-              className="text-2xl font-semibold text-forvis-gray-900 pr-8"
+              className="text-2xl font-semibold text-white pr-8"
             >
               {bulletin.title}
             </h2>
 
             {/* Summary */}
-            <p className="mt-2 text-base text-forvis-gray-600 font-medium">
+            <p className="mt-2 text-base text-white/95 font-medium">
               {bulletin.summary}
             </p>
           </div>
@@ -192,12 +190,12 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
                     .catch(err => console.error('Failed to get document URL:', err));
                   e.preventDefault();
                 }}
-                className="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 hover:border-purple-300 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-forvis-blue-700 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg hover:bg-forvis-blue-100 hover:border-forvis-blue-300 transition-colors"
               >
                 <DocumentArrowDownIcon className="h-5 w-5" />
                 <div className="flex flex-col items-start">
                   <span>{bulletin.documentFileName}</span>
-                  <span className="text-xs text-purple-600">
+                  <span className="text-xs text-forvis-blue-600">
                     {(bulletin.documentFileSize / 1024).toFixed(0)} KB • PDF Document
                   </span>
                 </div>
@@ -245,21 +243,23 @@ export function BulletinDetailModal({ bulletin, onClose }: BulletinDetailModalPr
                   href={bulletin.callToActionUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                 >
-                  {bulletin.callToActionText || 'Learn More'}
-                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                  <Button
+                    variant="gradient"
+                    icon={<ArrowTopRightOnSquareIcon className="h-4 w-4" />}
+                  >
+                    {bulletin.callToActionText || 'Learn More'}
+                  </Button>
                 </a>
               )}
 
               {/* Close Button */}
-              <button
+              <Button
+                variant="secondary"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
 

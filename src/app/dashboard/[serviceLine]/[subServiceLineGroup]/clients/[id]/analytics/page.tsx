@@ -14,6 +14,7 @@ import { CreditRatingsTab } from '@/components/features/analytics/CreditRatingsT
 import { FinancialRatiosTab } from '@/components/features/analytics/FinancialRatiosTab';
 import { AnalyticsDocumentsTab } from '@/components/features/analytics/AnalyticsDocumentsTab';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
+import { LoadingSpinner } from '@/components/ui';
 
 type TabType = 'profitability' | 'recoverability' | 'upload' | 'ratings' | 'ratios' | 'documents';
 
@@ -55,7 +56,7 @@ function ClientAnalyticsContent() {
   if (!params) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -63,7 +64,7 @@ function ClientAnalyticsContent() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -125,34 +126,34 @@ function ClientAnalyticsContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
-          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
+          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}`}
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`}
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {subServiceLineGroupDescription}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients`}
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             Clients
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`}
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {clientName}
           </Link>
@@ -210,7 +211,7 @@ export default function ClientAnalyticsPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+          <LoadingSpinner size="lg" />
         </div>
       }
     >

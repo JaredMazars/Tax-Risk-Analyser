@@ -15,6 +15,7 @@ import { PipelineBoard } from '@/components/features/bd/PipelineBoard';
 import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
 import { CreateBDOpportunityInput } from '@/lib/validation/schemas';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { LoadingSpinner } from '@/components/ui';
 
 export default function BDPipelinePage() {
   const params = useParams();
@@ -67,13 +68,13 @@ export default function BDPipelinePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 py-4 mb-2">
-          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
+          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine.toUpperCase())}
           </Link>
@@ -88,7 +89,7 @@ export default function BDPipelinePage() {
               <h1 className="text-3xl font-semibold text-forvis-gray-900">
                 Business Development Pipeline
               </h1>
-              <p className="text-sm text-forvis-gray-600 mt-1">
+              <p className="text-sm font-normal text-forvis-gray-600 mt-1">
                 {serviceLine.toUpperCase() === 'BUSINESS_DEV' 
                   ? 'Viewing all opportunities across all service lines'
                   : `Track opportunities for ${formatServiceLineName(serviceLine.toUpperCase())}`}
@@ -96,7 +97,7 @@ export default function BDPipelinePage() {
             </div>
             <button
               onClick={() => setShowCreateForm(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,13 +116,13 @@ export default function BDPipelinePage() {
           {analytics && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div
-                className="rounded-lg p-3 shadow-sm text-white"
-                style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium opacity-90">Total Pipeline Value</p>
-                    <p className="text-2xl font-bold mt-1">
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Total Pipeline Value</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">
                       {new Intl.NumberFormat('en-ZA', {
                         style: 'currency',
                         currency: 'ZAR',
@@ -130,10 +131,10 @@ export default function BDPipelinePage() {
                     </p>
                   </div>
                   <div
-                    className="rounded-full p-2"
-                    style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}
+                    className="rounded-full p-2.5"
+                    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -146,13 +147,13 @@ export default function BDPipelinePage() {
               </div>
 
               <div
-                className="rounded-lg p-3 shadow-sm text-white"
-                style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium opacity-90">Weighted Value</p>
-                    <p className="text-2xl font-bold mt-1">
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Weighted Value</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">
                       {new Intl.NumberFormat('en-ZA', {
                         style: 'currency',
                         currency: 'ZAR',
@@ -161,10 +162,10 @@ export default function BDPipelinePage() {
                     </p>
                   </div>
                   <div
-                    className="rounded-full p-2"
-                    style={{ backgroundColor: 'rgba(37, 72, 138, 0.5)' }}
+                    className="rounded-full p-2.5"
+                    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -177,19 +178,19 @@ export default function BDPipelinePage() {
               </div>
 
               <div
-                className="rounded-lg p-3 shadow-sm text-white"
-                style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium opacity-90">Open Opportunities</p>
-                    <p className="text-2xl font-bold mt-1">{analytics.opportunityCount || 0}</p>
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Open Opportunities</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{analytics.opportunityCount || 0}</p>
                   </div>
                   <div
-                    className="rounded-full p-2"
-                    style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}
+                    className="rounded-full p-2.5"
+                    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -202,19 +203,19 @@ export default function BDPipelinePage() {
               </div>
 
               <div
-                className="rounded-lg p-3 shadow-sm text-white"
-                style={{ background: 'linear-gradient(to bottom right, #1C3667, #132445)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium opacity-90">Active Stages</p>
-                    <p className="text-2xl font-bold mt-1">{analytics.byStage?.length || 0}</p>
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Active Stages</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{analytics.byStage?.length || 0}</p>
                   </div>
                   <div
-                    className="rounded-full p-2"
-                    style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}
+                    className="rounded-full p-2.5"
+                    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -231,7 +232,7 @@ export default function BDPipelinePage() {
           {/* Pipeline Board */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
+              <LoadingSpinner size="md" />
             </div>
           ) : pipelineData ? (
             <PipelineBoard pipeline={pipelineData} onOpportunityClick={handleOpportunityClick} />
@@ -243,7 +244,7 @@ export default function BDPipelinePage() {
       {showCreateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-corporate-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold text-forvis-gray-900 mb-4">
+            <h2 className="text-xl font-semibold text-forvis-gray-900 mb-4">
               Create New Opportunity
             </h2>
             <OpportunityForm

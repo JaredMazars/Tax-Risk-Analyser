@@ -19,6 +19,7 @@ import { useTasks, type TaskListItem, taskListKeys } from '@/hooks/tasks/useTask
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { LoadingSpinner } from '@/components/ui';
 
 export default function ServiceLineClientsPage() {
   const router = useRouter();
@@ -184,7 +185,7 @@ export default function ServiceLineClientsPage() {
   if (isLoading && !isFetching) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -205,10 +206,10 @@ export default function ServiceLineClientsPage() {
     <div className="min-h-screen bg-forvis-gray-50 relative">
       {/* Loading overlay for tab switches */}
       {isFetching && !isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-20 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600 mx-auto"></div>
-            <p className="mt-4 text-sm text-forvis-gray-700">Loading...</p>
+        <div className="fixed inset-0 bg-white bg-opacity-90 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 shadow-corporate-lg">
+            <LoadingSpinner size="lg" className="mx-auto" />
+            <p className="mt-4 text-sm font-normal text-forvis-gray-600">Loading...</p>
           </div>
         </div>
       )}
@@ -216,20 +217,20 @@ export default function ServiceLineClientsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 py-4 mb-2">
-          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
+          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {subServiceLineGroupDescription}
           </Link>
@@ -241,10 +242,10 @@ export default function ServiceLineClientsPage() {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-forvis-gray-900">
+            <h1 className="text-3xl font-semibold text-forvis-gray-900">
               {formatServiceLineName(serviceLine)} - {subServiceLineGroupDescription}
             </h1>
-            <p className="mt-1 text-sm text-forvis-gray-700">
+            <p className="mt-1 text-sm font-normal text-forvis-gray-600">
               {activeTab === 'clients' 
                 ? 'Select a client to view their tasks and details'
                 : activeTab === 'all-tasks'
@@ -342,19 +343,19 @@ export default function ServiceLineClientsPage() {
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
+              className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
             />
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm text-forvis-gray-700">Show:</label>
             <select
               value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-            >
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+              >
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>

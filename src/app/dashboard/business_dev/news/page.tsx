@@ -18,6 +18,7 @@ import {
 import { BulletinCard } from '@/components/features/news/BulletinCard';
 import { BulletinForm } from '@/components/features/news/BulletinForm';
 import { BulletinDetailModal } from '@/components/features/news/BulletinDetailModal';
+import { Button, Input, LoadingSpinner, Banner } from '@/components/ui';
 import { 
   useNewsBulletins, 
   useCreateBulletin, 
@@ -174,14 +175,13 @@ export default function NewsPage() {
             </div>
             
             {canManageNews && (
-              <button
+              <Button
+                variant="gradient"
                 onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
-                style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                icon={<PlusIcon className="w-5 h-5" />}
               >
-                <PlusIcon className="w-5 h-5" />
                 New Bulletin
-              </button>
+              </Button>
             )}
           </div>
 
@@ -190,37 +190,29 @@ export default function NewsPage() {
             <div className="flex flex-col md:flex-row gap-4">
               {/* Search */}
               <div className="flex-1">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
-                    placeholder="Search bulletins..."
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-forvis-gray-300 text-sm text-forvis-gray-900 placeholder:text-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors"
-                  />
-                </div>
+                <Input
+                  type="text"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search bulletins..."
+                  icon={<MagnifyingGlassIcon className="h-5 w-5" />}
+                />
               </div>
 
               {/* Category Filter */}
               <div className="md:w-48">
-                <select
+                <Input
+                  variant="select"
                   value={categoryFilter}
                   onChange={(e) => {
                     setCategoryFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full px-3 py-2 rounded-lg border border-forvis-gray-300 text-sm text-forvis-gray-900 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors"
-                >
-                  {categoryFilterOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  options={categoryFilterOptions}
+                />
               </div>
 
               {/* Show Expired Toggle */}
@@ -242,26 +234,14 @@ export default function NewsPage() {
           {/* Content */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
+              <LoadingSpinner size="md" />
             </div>
           ) : error ? (
-            <div className="rounded-xl p-4 border-2 shadow-corporate bg-red-50" style={{ borderColor: '#DC2626' }}>
-              <div className="flex items-start gap-3">
-                <div className="rounded-full p-2 bg-red-100">
-                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-base font-bold mb-1 text-red-900">
-                    Error Loading Bulletins
-                  </h3>
-                  <p className="text-sm text-red-800">
-                    Failed to load bulletins. Please try again.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <Banner
+              variant="error"
+              title="Error Loading Bulletins"
+              message="Failed to load bulletins. Please try again."
+            />
           ) : !bulletinsData?.bulletins || bulletinsData.bulletins.length === 0 ? (
             <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-12 text-center">
               <NewspaperIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
@@ -274,14 +254,14 @@ export default function NewsPage() {
                     : 'Check back later for company updates'}
               </p>
               {canManageNews && !search && !categoryFilter && (
-                <button
+                <Button
+                  variant="gradient"
                   onClick={() => setShowCreateModal(true)}
-                  className="mt-6 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg shadow-lg hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  icon={<PlusIcon className="w-4 h-4" />}
+                  className="mt-6"
                 >
-                  <PlusIcon className="w-4 h-4" />
                   Create Bulletin
-                </button>
+                </Button>
               )}
             </div>
           ) : (
@@ -304,23 +284,25 @@ export default function NewsPage() {
               {/* Pagination */}
               {bulletinsData.totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-4">
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
                   >
                     Previous
-                  </button>
+                  </Button>
                   <span className="text-sm text-forvis-gray-600">
                     Page {page} of {bulletinsData.totalPages}
                   </span>
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setPage(p => Math.min(bulletinsData.totalPages, p + 1))}
                     disabled={page === bulletinsData.totalPages}
-                    className="px-3 py-1.5 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
                   >
                     Next
-                  </button>
+                  </Button>
                 </div>
               )}
             </>
@@ -379,19 +361,20 @@ export default function NewsPage() {
               Are you sure you want to delete &quot;{deleteConfirm.title}&quot;? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
                 onClick={handleDelete}
                 disabled={deleteMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                loading={deleteMutation.isPending}
               >
-                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-              </button>
+                Delete
+              </Button>
             </div>
           </div>
         </div>

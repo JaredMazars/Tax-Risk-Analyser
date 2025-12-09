@@ -428,11 +428,11 @@ export default function UserManagementPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-forvis-gray-900 flex items-center">
+          <h1 className="text-3xl font-semibold text-forvis-gray-900 flex items-center">
             <UserGroupIcon className="h-8 w-8 mr-3 text-forvis-blue-600" />
             User Management
           </h1>
-          <p className="mt-2 text-sm text-forvis-gray-700">
+          <p className="mt-2 text-sm font-normal text-forvis-gray-600">
             Manage users, permissions, and task assignments across the system
           </p>
         </div>
@@ -488,7 +488,7 @@ export default function UserManagementPage() {
                   placeholder="Search users, tasks..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
                 />
               </div>
             </div>
@@ -500,16 +500,16 @@ export default function UserManagementPage() {
                 ))}
               </div>
             ) : error ? (
-              <div className="card p-8 text-center">
+              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-8 text-center">
                 <div className="text-red-600 mb-2 text-lg font-semibold">⚠️ Access Denied</div>
-                <p className="text-forvis-gray-600">{error}</p>
+                <p className="text-sm font-normal text-forvis-gray-600">{error}</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {filteredUsers.map(user => (
                   <div
                     key={user.id}
-                    className="card card-hover p-6 cursor-pointer"
+                    className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate hover:shadow-corporate-md transition-all duration-200 ease-in-out p-6 cursor-pointer"
                     onClick={() => handleOpenUserDetail(user)}
                   >
                     <div className="flex items-start justify-between">
@@ -602,7 +602,7 @@ export default function UserManagementPage() {
                           e.stopPropagation();
                           handleRemoveFromAllTasks(user.id);
                         }}
-                        className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                         title="Remove from all tasks"
                       >
                         <TrashIcon className="h-5 w-5" />

@@ -172,7 +172,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}>
               <ChartBarIcon className="h-6 w-6 text-white" />
             </div>
             <h3 className="text-lg font-bold text-forvis-gray-900">Net Revenue</h3>

@@ -79,43 +79,51 @@ export function BulletinCard({
   return (
     <div 
       onClick={handleCardClick}
-      className={`group bg-white rounded-lg shadow-corporate hover:shadow-corporate-md transition-all duration-200 cursor-pointer ${
-        bulletin.isPinned ? 'border-2 border-amber-300 ring-1 ring-amber-200' : 'border border-forvis-gray-200 hover:border-forvis-blue-500'
+      className={`group overflow-hidden rounded-lg shadow-corporate hover:shadow-corporate-md transition-all duration-200 cursor-pointer ${
+        bulletin.isPinned ? 'ring-2 ring-amber-400' : ''
       } ${isExpired ? 'opacity-60' : ''}`}
     >
-      <div className="p-5">
+      {/* Premium Gold Header */}
+      <div 
+        className="px-5 pt-4 pb-3 border-2"
+        style={{ 
+          background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)', 
+          borderColor: '#C9BCAA'
+        }}
+      >
         {/* Header Row */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Category Badge */}
-            <Badge variant={categoryVariant}>
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/90 text-forvis-gray-900 border border-white shadow-sm">
               {categoryLabels[bulletin.category]}
-            </Badge>
+            </span>
             
             {/* Service Line Badge */}
             {bulletin.serviceLine ? (
-              <Badge variant="default">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/90 text-forvis-gray-900 border border-white shadow-sm">
                 {formatServiceLineName(bulletin.serviceLine)}
-              </Badge>
+              </span>
             ) : (
-              <Badge variant="blue">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/90 text-forvis-gray-900 border border-white shadow-sm">
                 All Service Lines
-              </Badge>
+              </span>
             )}
 
             {/* Pinned Indicator */}
             {bulletin.isPinned && (
-              <span className="inline-flex items-center text-amber-600">
-                <MapPinIcon className="h-4 w-4" />
+              <span className="inline-flex items-center px-2.5 py-1 gap-1 rounded-full text-xs font-medium bg-white/90 text-amber-700 border border-white shadow-sm">
+                <MapPinIcon className="h-3.5 w-3.5" />
+                Pinned
               </span>
             )}
 
             {/* Action Required Indicator */}
             {bulletin.actionRequired && (
-              <Badge variant="red">
+              <span className="inline-flex items-center px-2.5 py-1 gap-1 rounded-full text-xs font-medium bg-white/90 text-red-700 border border-white shadow-sm">
                 <ExclamationTriangleIcon className="h-3.5 w-3.5" />
                 Action Required
-              </Badge>
+              </span>
             )}
           </div>
 
@@ -124,14 +132,14 @@ export function BulletinCard({
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onTogglePin?.(bulletin)}
-                className="p-1.5 rounded-md text-forvis-gray-500 hover:text-amber-600 hover:bg-amber-50 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+                className="p-1.5 rounded-md text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1"
                 title={bulletin.isPinned ? 'Unpin' : 'Pin to top'}
               >
                 <MapPinOutlineIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => onEdit?.(bulletin)}
-                className="p-1.5 rounded-md text-forvis-gray-500 hover:text-forvis-blue-600 hover:bg-forvis-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-1"
+                className="p-1.5 rounded-md text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1"
                 title="Edit"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,7 +148,7 @@ export function BulletinCard({
               </button>
               <button
                 onClick={() => onDelete?.(bulletin)}
-                className="p-1.5 rounded-md text-forvis-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                className="p-1.5 rounded-md text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1"
                 title="Delete"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,14 +160,18 @@ export function BulletinCard({
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2 group-hover:text-forvis-blue-600 transition-colors">
+        <h3 className="text-lg font-semibold text-white mb-2">
           {bulletin.title}
         </h3>
 
         {/* Summary */}
-        <p className="text-sm text-forvis-gray-600 mb-4 line-clamp-2">
+        <p className="text-sm text-white/95 line-clamp-2">
           {bulletin.summary}
         </p>
+      </div>
+
+      {/* White Content Area */}
+      <div className="bg-white p-5 pt-4">
 
         {/* Body Content */}
         <div className="text-sm text-forvis-gray-600 mb-4 whitespace-pre-wrap line-clamp-4">
@@ -169,31 +181,31 @@ export function BulletinCard({
         {/* Document Link */}
         {bulletin.showDocumentLink && bulletin.documentFileName && bulletin.documentFileSize && (
           <div className="mb-4">
-            <a
-              href={`/api/news/${bulletin.id}/document`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Fetch the document URL and open it
-                fetch(`/api/news/${bulletin.id}/document`)
-                  .then(res => res.json())
-                  .then(data => {
-                    if (data.data?.url) {
-                      window.open(data.data.url, '_blank');
-                    }
-                  })
-                  .catch(err => console.error('Failed to get document URL:', err));
-                e.preventDefault();
-              }}
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 hover:border-purple-300 transition-colors"
-            >
-              <DocumentArrowDownIcon className="h-4 w-4" />
-              <span>{bulletin.documentFileName}</span>
-              <span className="text-xs text-purple-600">
-                ({(bulletin.documentFileSize / 1024).toFixed(0)} KB)
-              </span>
-            </a>
+              <a
+                href={`/api/news/${bulletin.id}/document`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Fetch the document URL and open it
+                  fetch(`/api/news/${bulletin.id}/document`)
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.data?.url) {
+                        window.open(data.data.url, '_blank');
+                      }
+                    })
+                    .catch(err => console.error('Failed to get document URL:', err));
+                  e.preventDefault();
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-forvis-blue-700 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg hover:bg-forvis-blue-100 hover:border-forvis-blue-300 transition-colors"
+              >
+                <DocumentArrowDownIcon className="h-4 w-4" />
+                <span>{bulletin.documentFileName}</span>
+                <span className="text-xs text-forvis-blue-600">
+                  ({(bulletin.documentFileSize / 1024).toFixed(0)} KB)
+                </span>
+              </a>
           </div>
         )}
 

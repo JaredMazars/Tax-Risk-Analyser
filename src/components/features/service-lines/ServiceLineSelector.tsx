@@ -47,8 +47,8 @@ export function ServiceLineSelector() {
         <div 
           className="rounded-lg border-2 p-6"
           style={{
-            background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)',
-            borderColor: '#88815E',
+            background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+            borderColor: '#C9BCAA',
           }}
         >
           {/* Header */}
@@ -82,14 +82,14 @@ export function ServiceLineSelector() {
                   }}
                 />
 
-                <div className="p-3 relative z-[1]">
-                  <div className="flex items-center gap-3 mb-2">
+                <div className="p-4 relative z-[1]">
+                  <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
                     <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #1C3667)' }}
+                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                     >
-                      <ChartBarIcon className="h-5 w-5 text-white" />
+                      <ChartBarIcon className="h-6 w-6 text-white" />
                     </div>
 
                     {/* Title and Arrow */}
@@ -127,14 +127,14 @@ export function ServiceLineSelector() {
                   }}
                 />
 
-                <div className="p-3 relative z-[1]">
-                  <div className="flex items-center gap-3 mb-2">
+                <div className="p-4 relative z-[1]">
+                  <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
                     <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #1C3667)' }}
+                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                     >
-                      <NewspaperIcon className="h-5 w-5 text-white" />
+                      <NewspaperIcon className="h-6 w-6 text-white" />
                     </div>
 
                     {/* Title and Arrow */}
@@ -172,14 +172,14 @@ export function ServiceLineSelector() {
                   }}
                 />
 
-                <div className="p-3 relative z-[1]">
-                  <div className="flex items-center gap-3 mb-2">
+                <div className="p-4 relative z-[1]">
+                  <div className="flex items-center gap-3 mb-3">
                     {/* Icon */}
                     <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #1C3667)' }}
+                      className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                     >
-                      <FolderIcon className="h-5 w-5 text-white" />
+                      <FolderIcon className="h-6 w-6 text-white" />
                     </div>
 
                     {/* Title and Arrow */}
@@ -217,13 +217,13 @@ export function ServiceLineSelector() {
               />
 
               <div className="p-3 relative z-[1]">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-3">
                   {/* Icon */}
                   <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                    style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #1C3667)' }}
+                    className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                   >
-                    <BuildingOfficeIcon className="h-5 w-5 text-white" />
+                    <BuildingOfficeIcon className="h-6 w-6 text-white" />
                   </div>
 
                   {/* Title and Arrow */}

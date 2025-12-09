@@ -21,6 +21,7 @@ import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
 import { useQuery } from '@tanstack/react-query';
 import type { ActivityWithRelations } from '@/lib/services/bd/activityService';
 import { AlertModal } from '@/components/shared/AlertModal';
+import { LoadingSpinner } from '@/components/ui';
 
 export default function OpportunityDetailPage() {
   const params = useParams();
@@ -120,7 +121,7 @@ export default function OpportunityDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -130,12 +131,12 @@ export default function OpportunityDetailPage() {
       <div className="min-h-screen bg-forvis-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
-            <h3 className="text-lg font-medium text-forvis-gray-900 mb-1">
+            <h3 className="text-lg font-semibold text-forvis-gray-900 mb-1">
               Opportunity not found
             </h3>
             <button
               onClick={() => router.push(`/dashboard/${serviceLine}/bd`)}
-              className="text-sm font-medium text-forvis-blue-500 hover:text-forvis-blue-600"
+              className="text-sm font-medium text-forvis-blue-500 hover:text-forvis-blue-600 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-2"
             >
               Return to BD Pipeline
             </button>

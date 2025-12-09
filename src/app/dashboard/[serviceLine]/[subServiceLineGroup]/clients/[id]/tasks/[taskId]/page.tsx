@@ -36,6 +36,7 @@ import { formatDate } from '@/lib/utils/taskUtils';
 import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
+import { LoadingSpinner } from '@/components/ui';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
 import { TaskTypeSelector } from '@/components/features/tasks/TaskTypeSelector';
 import { TaxYearInput } from '@/components/shared/TaxYearInput';
@@ -149,9 +150,9 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Project Information */}
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
         <div className="px-4 py-2 border-b border-forvis-gray-200 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-forvis-gray-900">Project Information</h2>
+          <h2 className="text-base font-semibold text-forvis-gray-900">Task Information</h2>
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
@@ -272,10 +273,10 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
         </div>
       </div>
 
-      {/* Project Statistics */}
-      <div className="card overflow-hidden">
+      {/* Task Statistics */}
+      <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
         <div className="px-4 py-2 border-b border-forvis-gray-200">
-          <h2 className="text-base font-semibold text-forvis-gray-900">Project Statistics</h2>
+          <h2 className="text-base font-semibold text-forvis-gray-900">Task Statistics</h2>
         </div>
         <div className="px-4 py-3">
           <dl className="grid grid-cols-2 gap-4">
@@ -514,8 +515,8 @@ export default function ClientProjectPage() {
               <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6 mb-6">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-2xl font-bold text-forvis-gray-900">Team Members</h2>
-                    <p className="text-sm text-forvis-gray-600 mt-1">
+                    <h2 className="text-2xl font-semibold text-forvis-gray-900">Team Members</h2>
+                    <p className="text-sm font-normal text-forvis-gray-600 mt-1">
                       {currentUserRole === 'ADMIN' 
                         ? 'Manage task access and roles' 
                         : `View team members • Your role: ${currentUserRole || 'Loading...'}`
@@ -643,14 +644,14 @@ export default function ClientProjectPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
-          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
+          <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
             Home
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
@@ -658,7 +659,7 @@ export default function ClientProjectPage() {
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {subServiceLineGroupDescription}
           </Link>
@@ -666,7 +667,7 @@ export default function ClientProjectPage() {
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients`} 
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             Clients
           </Link>
@@ -674,7 +675,7 @@ export default function ClientProjectPage() {
           
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`} 
-            className="hover:text-forvis-gray-900 transition-colors"
+            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >
             {task?.client?.clientNameFull || task?.client?.clientCode || 'Client'}
           </Link>
@@ -704,12 +705,12 @@ export default function ClientProjectPage() {
         )}
 
         {/* Project Header */}
-        <div className="card-hover mb-4 overflow-hidden">
+        <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate mb-4 overflow-hidden">
           <div className="px-4 py-3">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
-                  <h1 className="text-2xl font-bold text-forvis-gray-900">{task?.name}</h1>
+                  <h1 className="text-2xl font-semibold text-forvis-gray-900">{task?.name}</h1>
                   {task && (
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getTaskTypeColor(task.projectType)}`}>
                       {formatTaskType(task.projectType)}
@@ -720,14 +721,14 @@ export default function ClientProjectPage() {
                 {task?.client && (
                   <Link 
                     href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    className="text-sm text-forvis-blue-600 hover:text-forvis-blue-900 font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
                   >
                     {task.client.clientNameFull || task.client.clientCode}
                   </Link>
                 )}
                 
                 {task?.description && (
-                  <p className="mt-1 text-sm text-forvis-gray-700">{task.description}</p>
+                  <p className="mt-1 text-sm font-normal text-forvis-gray-600">{task.description}</p>
                 )}
                 
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-forvis-gray-600">

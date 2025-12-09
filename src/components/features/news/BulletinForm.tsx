@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { SparklesIcon, DocumentArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { NewsBulletin, BulletinCategory, ServiceLine } from '@/types';
 import type { CreateNewsBulletinInput } from '@/lib/validation/schemas';
+import { Button, Input } from '@/components/ui';
 
 interface BulletinFormProps {
   initialData?: NewsBulletin;
@@ -333,10 +334,13 @@ export function BulletinForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Document Upload Section */}
-      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+      <div 
+        className="border-2 rounded-lg p-4"
+        style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}
+      >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <DocumentArrowUpIcon className="h-5 w-5 text-purple-600" />
+            <DocumentArrowUpIcon className="h-5 w-5 text-forvis-blue-600" />
             <h3 className="text-sm font-medium text-forvis-gray-900">Upload Document for AI Extraction</h3>
           </div>
         </div>
@@ -348,15 +352,15 @@ export function BulletinForm({
               type="file"
               accept=".pdf"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-forvis-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+              className="block w-full text-sm text-forvis-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-forvis-blue-50 file:text-forvis-blue-700 hover:file:bg-forvis-blue-100"
             />
             <p className="mt-1 text-xs text-forvis-gray-500">Upload a PDF document to automatically extract content (max 10MB)</p>
           </div>
 
           {uploadedFile && (
-            <div className="flex items-center justify-between bg-white rounded-lg border border-purple-200 p-3">
+            <div className="flex items-center justify-between bg-white rounded-lg border border-forvis-blue-200 p-3">
               <div className="flex items-center gap-2">
-                <DocumentArrowUpIcon className="h-5 w-5 text-purple-600" />
+                <DocumentArrowUpIcon className="h-5 w-5 text-forvis-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-forvis-gray-900">{uploadedFile.name}</p>
                   <p className="text-xs text-forvis-gray-500">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
@@ -367,8 +371,8 @@ export function BulletinForm({
                   type="button"
                   onClick={handleExtractFromDocument}
                   disabled={isUploading || isLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                  style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)' }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
+                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                 >
                   {isUploading ? (
                     <>
@@ -388,7 +392,7 @@ export function BulletinForm({
                 <button
                   type="button"
                   onClick={handleRemoveDocument}
-                  className="p-1.5 text-forvis-gray-400 hover:text-forvis-gray-600 rounded-lg hover:bg-forvis-gray-100"
+                  className="p-1.5 text-forvis-gray-400 hover:text-forvis-gray-600 rounded-lg hover:bg-forvis-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
                 >
                   <XMarkIcon className="h-4 w-4" />
                 </button>
@@ -401,17 +405,20 @@ export function BulletinForm({
           )}
 
           {isUploading && (
-            <p className="text-xs text-purple-600">AI is extracting content from your document...</p>
+            <p className="text-xs text-forvis-blue-600">AI is extracting content from your document...</p>
           )}
         </div>
       </div>
 
       {/* AI Suggestions Modal */}
       {showSuggestions && aiSuggestions && (
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4 space-y-4">
+        <div 
+          className="border-2 rounded-lg p-4 space-y-4"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', borderColor: '#2E5AAC' }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <SparklesIcon className="h-5 w-5 text-purple-600" />
+              <SparklesIcon className="h-5 w-5 text-forvis-blue-600" />
               <h3 className="text-sm font-semibold text-forvis-gray-900">AI-Generated Suggestions</h3>
             </div>
             <button
@@ -425,13 +432,13 @@ export function BulletinForm({
 
           <div className="space-y-3">
             {/* Title Suggestion */}
-            <div className="bg-white rounded-lg p-3 border border-purple-200">
+            <div className="bg-white rounded-lg p-3 border border-forvis-blue-200">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-forvis-gray-600">Title</span>
                 <button
                   type="button"
                   onClick={() => handleAcceptSuggestion('title')}
-                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                  className="text-xs text-forvis-blue-600 hover:text-forvis-blue-700 font-medium"
                 >
                   Use This
                 </button>
@@ -440,13 +447,13 @@ export function BulletinForm({
             </div>
 
             {/* Summary Suggestion */}
-            <div className="bg-white rounded-lg p-3 border border-purple-200">
+            <div className="bg-white rounded-lg p-3 border border-forvis-blue-200">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-forvis-gray-600">Summary</span>
                 <button
                   type="button"
                   onClick={() => handleAcceptSuggestion('summary')}
-                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                  className="text-xs text-forvis-blue-600 hover:text-forvis-blue-700 font-medium"
                 >
                   Use This
                 </button>
@@ -455,13 +462,13 @@ export function BulletinForm({
             </div>
 
             {/* Body Suggestion */}
-            <div className="bg-white rounded-lg p-3 border border-purple-200">
+            <div className="bg-white rounded-lg p-3 border border-forvis-blue-200">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-forvis-gray-600">Body Content</span>
                 <button
                   type="button"
                   onClick={() => handleAcceptSuggestion('body')}
-                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                  className="text-xs text-forvis-blue-600 hover:text-forvis-blue-700 font-medium"
                 >
                   Use This
                 </button>
@@ -470,13 +477,13 @@ export function BulletinForm({
             </div>
 
             {/* Category Suggestion */}
-            <div className="bg-white rounded-lg p-3 border border-purple-200">
+            <div className="bg-white rounded-lg p-3 border border-forvis-blue-200">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-forvis-gray-600">Category</span>
                 <button
                   type="button"
                   onClick={() => handleAcceptSuggestion('category')}
-                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                  className="text-xs text-forvis-blue-600 hover:text-forvis-blue-700 font-medium"
                 >
                   Use This
                 </button>
@@ -485,19 +492,20 @@ export function BulletinForm({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-purple-200">
-            <button
+          <div className="flex justify-end gap-2 pt-2 border-t border-forvis-blue-200">
+            <Button
+              variant="secondary"
+              size="sm"
               type="button"
               onClick={handleRejectSuggestions}
-              className="px-3 py-1.5 text-xs font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50"
             >
               Dismiss
-            </button>
+            </Button>
             <button
               type="button"
               onClick={handleAcceptAllSuggestions}
-              className="px-3 py-1.5 text-xs font-medium text-white rounded-lg shadow-md hover:shadow-lg transition-all"
-              style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)' }}
+              className="px-3 py-1.5 text-xs font-medium text-white rounded-lg shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
               Accept All Suggestions
             </button>
@@ -507,40 +515,37 @@ export function BulletinForm({
 
       {/* Title */}
       <div>
-        <label htmlFor="title" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-          Title <span className="text-red-500">*</span>
-        </label>
-        <input
+        <Input
           type="text"
           id="title"
           name="title"
           value={formData.title}
           onChange={handleChange}
           maxLength={255}
-          className={`w-full rounded-lg border ${errors.title ? 'border-red-500' : 'border-forvis-gray-300'} px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500`}
           placeholder="Enter bulletin title"
+          label="Title"
+          required
+          error={errors.title}
+          helperText={`${formData.title.length}/255 characters`}
         />
-        {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title}</p>}
-        <p className="mt-1 text-xs text-forvis-gray-500">{formData.title.length}/255 characters</p>
       </div>
 
       {/* Summary */}
       <div>
-        <label htmlFor="summary" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-          Summary <span className="text-red-500">*</span>
-        </label>
-        <textarea
+        <Input
+          variant="textarea"
           id="summary"
           name="summary"
           value={formData.summary}
           onChange={handleChange}
           maxLength={500}
           rows={2}
-          className={`w-full rounded-lg border ${errors.summary ? 'border-red-500' : 'border-forvis-gray-300'} px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500`}
           placeholder="Brief summary of the bulletin"
+          label="Summary"
+          required
+          error={errors.summary}
+          helperText={`${formData.summary.length}/500 characters`}
         />
-        {errors.summary && <p className="mt-1 text-xs text-red-500">{errors.summary}</p>}
-        <p className="mt-1 text-xs text-forvis-gray-500">{formData.summary.length}/500 characters</p>
       </div>
 
       {/* Body */}
@@ -553,8 +558,8 @@ export function BulletinForm({
             type="button"
             onClick={handleGenerateBody}
             disabled={isGenerating || isLoading || !formData.title.trim() || !formData.summary.trim()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-            style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)' }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
+            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             title={!formData.title.trim() || !formData.summary.trim() ? 'Enter title and summary first' : 'Generate body content with AI'}
           >
             {isGenerating ? (
@@ -573,63 +578,50 @@ export function BulletinForm({
             )}
           </button>
         </div>
-        <textarea
+        <Input
+          variant="textarea"
           id="body"
           name="body"
           value={formData.body}
           onChange={handleChange}
           rows={6}
           disabled={isGenerating}
-          className={`w-full rounded-lg border ${errors.body ? 'border-red-500' : 'border-forvis-gray-300'} px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 disabled:bg-forvis-gray-50 disabled:cursor-not-allowed`}
           placeholder="Full content of the bulletin (or click 'Generate with AI' to auto-generate based on title and summary)"
+          error={errors.body || generateError}
         />
-        {errors.body && <p className="mt-1 text-xs text-red-500">{errors.body}</p>}
-        {generateError && <p className="mt-1 text-xs text-red-500">{generateError}</p>}
         {isGenerating && (
-          <p className="mt-1 text-xs text-purple-600">AI is generating content based on your title and summary...</p>
+          <p className="mt-1 text-xs text-forvis-blue-600">AI is generating content based on your title and summary...</p>
         )}
+        />
       </div>
 
       {/* Category and Service Line Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Category */}
         <div>
-          <label htmlFor="category" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-            Category <span className="text-red-500">*</span>
-          </label>
-          <select
+          <Input
+            variant="select"
             id="category"
             name="category"
             value={formData.category}
             onChange={handleChange}
-            className="w-full rounded-lg border border-forvis-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
-          >
-            {categoryOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            label="Category"
+            required
+            options={categoryOptions}
+          />
         </div>
 
         {/* Service Line */}
         <div>
-          <label htmlFor="serviceLine" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-            Service Line
-          </label>
-          <select
+          <Input
+            variant="select"
             id="serviceLine"
             name="serviceLine"
             value={formData.serviceLine}
             onChange={handleChange}
-            className="w-full rounded-lg border border-forvis-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
-          >
-            {serviceLineOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            label="Service Line"
+            options={serviceLineOptions}
+          />
         </div>
       </div>
 
@@ -637,50 +629,42 @@ export function BulletinForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Effective Date */}
         <div>
-          <label htmlFor="effectiveDate" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-            Effective Date <span className="text-red-500">*</span>
-          </label>
-          <input
+          <Input
             type="date"
             id="effectiveDate"
             name="effectiveDate"
             value={formData.effectiveDate}
             onChange={handleChange}
-            className={`w-full rounded-lg border ${errors.effectiveDate ? 'border-red-500' : 'border-forvis-gray-300'} px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500`}
+            label="Effective Date"
+            required
+            error={errors.effectiveDate}
           />
-          {errors.effectiveDate && <p className="mt-1 text-xs text-red-500">{errors.effectiveDate}</p>}
         </div>
 
         {/* Expires At */}
         <div>
-          <label htmlFor="expiresAt" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-            Expires At <span className="text-forvis-gray-400">(optional)</span>
-          </label>
-          <input
+          <Input
             type="date"
             id="expiresAt"
             name="expiresAt"
             value={formData.expiresAt}
             onChange={handleChange}
-            className="w-full rounded-lg border border-forvis-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+            label="Expires At (optional)"
           />
         </div>
       </div>
 
       {/* Contact Person */}
       <div>
-        <label htmlFor="contactPerson" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-          Contact Person <span className="text-forvis-gray-400">(optional)</span>
-        </label>
-        <input
+        <Input
           type="text"
           id="contactPerson"
           name="contactPerson"
           value={formData.contactPerson}
           onChange={handleChange}
           maxLength={255}
-          className="w-full rounded-lg border border-forvis-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
           placeholder="Name of contact person for queries"
+          label="Contact Person (optional)"
         />
       </div>
 
@@ -688,36 +672,30 @@ export function BulletinForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* CTA URL */}
         <div>
-          <label htmlFor="callToActionUrl" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-            Call-to-Action URL <span className="text-forvis-gray-400">(optional)</span>
-          </label>
-          <input
+          <Input
             type="url"
             id="callToActionUrl"
             name="callToActionUrl"
             value={formData.callToActionUrl}
             onChange={handleChange}
             maxLength={500}
-            className={`w-full rounded-lg border ${errors.callToActionUrl ? 'border-red-500' : 'border-forvis-gray-300'} px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500`}
             placeholder="https://example.com/link"
+            label="Call-to-Action URL (optional)"
+            error={errors.callToActionUrl}
           />
-          {errors.callToActionUrl && <p className="mt-1 text-xs text-red-500">{errors.callToActionUrl}</p>}
         </div>
 
         {/* CTA Text */}
         <div>
-          <label htmlFor="callToActionText" className="block text-sm font-medium text-forvis-gray-700 mb-1">
-            Call-to-Action Text <span className="text-forvis-gray-400">(optional)</span>
-          </label>
-          <input
+          <Input
             type="text"
             id="callToActionText"
             name="callToActionText"
             value={formData.callToActionText}
             onChange={handleChange}
             maxLength={100}
-            className="w-full rounded-lg border border-forvis-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
             placeholder="e.g., Learn More, Register Now"
+            label="Call-to-Action Text (optional)"
           />
         </div>
       </div>
@@ -765,22 +743,22 @@ export function BulletinForm({
 
       {/* Form Actions */}
       <div className="flex justify-end gap-3 pt-4 border-t border-forvis-gray-200">
-        <button
+        <Button
+          variant="secondary"
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="gradient"
           type="submit"
           disabled={isLoading}
-          className="px-4 py-2 text-sm font-medium text-white rounded-lg shadow-corporate hover:shadow-corporate-md transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
-          style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+          loading={isLoading}
         >
-          {isLoading ? 'Saving...' : initialData ? 'Update Bulletin' : 'Create Bulletin'}
-        </button>
+          {initialData ? 'Update Bulletin' : 'Create Bulletin'}
+        </Button>
       </div>
     </form>
   );

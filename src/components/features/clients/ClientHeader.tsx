@@ -25,8 +25,11 @@ export function ClientHeader({ client }: ClientHeaderProps) {
       <div className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-4 flex-1">
-            <div className="w-16 h-16 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-              <BuildingOfficeIcon className="h-8 w-8 text-forvis-blue-600" />
+            <div 
+              className="w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
+              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            >
+              <BuildingOfficeIcon className="h-8 w-8 text-white" />
             </div>
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-forvis-gray-900 mb-2">
@@ -51,27 +54,57 @@ export function ClientHeader({ client }: ClientHeaderProps) {
           {wipData && wipData.overall && (
             <div className="ml-8 flex gap-4">
               <div
-                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
-                style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
-                <p className="text-xs font-medium opacity-90">WIP Balance</p>
-                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balWIP)}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balWIP)}</p>
+                  </div>
+                  <div
+                    className="rounded-full p-2.5 ml-3"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
+                  >
+                    <BuildingOfficeIcon className="w-5 h-5 text-white" />
+                  </div>
+                </div>
               </div>
 
               <div
-                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
-                style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
-                <p className="text-xs font-medium opacity-90">Time Balance</p>
-                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balTime)}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Time Balance</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balTime)}</p>
+                  </div>
+                  <div
+                    className="rounded-full p-2.5 ml-3"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
+                  >
+                    <BuildingOfficeIcon className="w-5 h-5 text-white" />
+                  </div>
+                </div>
               </div>
 
               <div
-                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
-                style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
-                <p className="text-xs font-medium opacity-90">Disb Balance</p>
-                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balDisb)}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Disb Balance</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balDisb)}</p>
+                  </div>
+                  <div
+                    className="rounded-full p-2.5 ml-3"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
+                  >
+                    <BuildingOfficeIcon className="w-5 h-5 text-white" />
+                  </div>
+                </div>
               </div>
             </div>
           )}
