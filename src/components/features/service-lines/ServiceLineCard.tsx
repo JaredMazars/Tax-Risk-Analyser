@@ -19,7 +19,7 @@ import {
   formatServiceLineName 
 } from '@/lib/utils/serviceLineUtils';
 
-const iconMap = {
+const iconMap: Partial<Record<ServiceLine, typeof DocumentTextIcon>> = {
   [ServiceLine.TAX]: DocumentTextIcon,
   [ServiceLine.AUDIT]: ClipboardDocumentCheckIcon,
   [ServiceLine.ACCOUNTING]: CalculatorIcon,

@@ -41,7 +41,7 @@ const serviceLineOptions: { value: string; label: string }[] = [
 function formatDateForInput(date: Date | string | null | undefined): string {
   if (!date) return '';
   const d = new Date(date);
-  return d.toISOString().split('T')[0];
+  return d.toISOString().split('T')[0] || '';
 }
 
 interface AISuggestions {

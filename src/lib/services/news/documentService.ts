@@ -148,12 +148,18 @@ Professional, informative, and appropriate for corporate internal communications
       ...getModelParams({ temperature: 0.7 }),
     });
 
+    if (!object) {
+      throw new Error('Failed to generate bulletin suggestions: No object returned');
+    }
+
+    const suggestions = object as BulletinSuggestions;
+
     logger.info('Successfully generated bulletin suggestions', { 
-      titleLength: object.title.length,
-      confidence: object.confidence 
+      titleLength: suggestions.title.length,
+      confidence: suggestions.confidence 
     });
 
-    return object;
+    return suggestions;
   } catch (error) {
     logger.error('Failed to generate bulletin suggestions:', error);
     throw new Error(`Failed to generate bulletin content: ${error instanceof Error ? error.message : 'Unknown error'}`);
