@@ -299,11 +299,13 @@ export default function SubServiceLineWorkspacePage() {
               <div className="flex items-center space-x-2">
                 <BuildingOfficeIcon className="h-5 w-5" />
                 <span>Clients</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  activeTab === 'clients'
-                    ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                    : 'bg-forvis-gray-100 text-forvis-gray-600'
-                }`}>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    activeTab === 'clients'
+                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                      : 'bg-forvis-gray-100 text-forvis-gray-600'
+                  }`}
+                >
                   {isLoadingClients && !clientsPagination ? '...' : (clientsPagination?.total ?? 0)}
                 </span>
               </div>
@@ -319,11 +321,13 @@ export default function SubServiceLineWorkspacePage() {
               <div className="flex items-center space-x-2">
                 <FolderIcon className="h-5 w-5" />
                 <span>Tasks</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  activeTab === 'tasks'
-                    ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                    : 'bg-forvis-gray-100 text-forvis-gray-600'
-                }`}>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    activeTab === 'tasks'
+                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                      : 'bg-forvis-gray-100 text-forvis-gray-600'
+                  }`}
+                >
                   {isLoadingTasks && !tasksPagination ? '...' : (tasksPagination?.total ?? 0)}
                 </span>
               </div>
@@ -339,11 +343,13 @@ export default function SubServiceLineWorkspacePage() {
               <div className="flex items-center space-x-2">
                 <UserGroupIcon className="h-5 w-5" />
                 <span>My Tasks</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  activeTab === 'my-tasks'
-                    ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                    : 'bg-forvis-gray-100 text-forvis-gray-600'
-                }`}>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    activeTab === 'my-tasks'
+                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                      : 'bg-forvis-gray-100 text-forvis-gray-600'
+                  }`}
+                >
                   {isLoadingMyTasks && !myTasksPagination ? '...' : (myTasksPagination?.total ?? 0)}
                 </span>
               </div>
@@ -359,11 +365,13 @@ export default function SubServiceLineWorkspacePage() {
               <div className="flex items-center space-x-2">
                 <UserGroupIcon className="h-5 w-5" />
                 <span>Groups</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  activeTab === 'groups'
-                    ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                    : 'bg-forvis-gray-100 text-forvis-gray-600'
-                }`}>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    activeTab === 'groups'
+                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                      : 'bg-forvis-gray-100 text-forvis-gray-600'
+                  }`}
+                >
                   {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
                 </span>
               </div>
