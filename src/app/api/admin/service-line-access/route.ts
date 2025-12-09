@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(successResponse(serviceLines));
     } else {
       // Get all service line users grouped by service line
-      const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR'];
+      const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT'];
       const allData = await Promise.all(
         allServiceLines.map(async (sl) => ({
           serviceLine: sl,

@@ -46,6 +46,11 @@ export function formatTaskType(taskType: TaskType | string): string {
     HR_RECRUITMENT: 'Recruitment',
     HR_TRAINING: 'Training',
     HR_POLICY: 'Policy Development',
+    // Country Management
+    COUNTRY_REPORT: 'Country Reporting',
+    COUNTRY_ANALYSIS: 'Business Analysis',
+    COUNTRY_DASHBOARD: 'Dashboard Development',
+    COUNTRY_METRICS: 'Metrics & KPIs',
   };
 
   return typeMap[taskType] || taskType;
@@ -72,6 +77,7 @@ export function getTaskTypeColor(taskType: TaskType | string): string {
     [ServiceLine.IT]: 'bg-indigo-100 text-indigo-700 border-indigo-200',
     [ServiceLine.FINANCE]: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     [ServiceLine.HR]: 'bg-pink-100 text-pink-700 border-pink-200',
+    [ServiceLine.COUNTRY_MANAGEMENT]: 'bg-purple-100 text-purple-700 border-purple-200',
   };
 
   return colorMap[serviceLine] || 'bg-gray-100 text-gray-700 border-gray-200';
@@ -97,6 +103,7 @@ export function getTaskTypeBorderColor(taskType: TaskType | string): string {
     [ServiceLine.IT]: 'border-indigo-200',
     [ServiceLine.FINANCE]: 'border-yellow-200',
     [ServiceLine.HR]: 'border-pink-200',
+    [ServiceLine.COUNTRY_MANAGEMENT]: 'border-purple-200',
   };
 
   return colorMap[serviceLine] || 'border-gray-200';
@@ -117,6 +124,7 @@ export function getServiceLineColor(serviceLine: ServiceLine | string): string {
     IT: 'text-indigo-600',
     FINANCE: 'text-yellow-600',
     HR: 'text-pink-600',
+    COUNTRY_MANAGEMENT: 'text-purple-600',
   };
 
   return colorMap[serviceLine] || 'text-gray-600';
@@ -136,6 +144,7 @@ export function getServiceLineBgColor(serviceLine: ServiceLine | string): string
     IT: 'bg-indigo-50',
     FINANCE: 'bg-yellow-50',
     HR: 'bg-pink-50',
+    COUNTRY_MANAGEMENT: 'bg-purple-50',
   };
 
   return colorMap[serviceLine] || 'bg-gray-50';
@@ -155,6 +164,7 @@ export function getServiceLineBorderColor(serviceLine: ServiceLine | string): st
     IT: 'border-indigo-200',
     FINANCE: 'border-yellow-200',
     HR: 'border-pink-200',
+    COUNTRY_MANAGEMENT: 'border-purple-200',
   };
 
   return colorMap[serviceLine] || 'border-gray-200';
@@ -206,6 +216,7 @@ export function isSharedService(serviceLine: ServiceLine | string): boolean {
     ServiceLine.IT,
     ServiceLine.FINANCE,
     ServiceLine.HR,
+    ServiceLine.COUNTRY_MANAGEMENT,
   ];
   return sharedServices.includes(serviceLine as ServiceLine);
 }

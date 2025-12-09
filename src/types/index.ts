@@ -21,6 +21,7 @@ export enum ServiceLine {
   IT = 'IT',
   FINANCE = 'FINANCE',
   HR = 'HR',
+  COUNTRY_MANAGEMENT = 'COUNTRY_MANAGEMENT',
 }
 
 export enum TaskType {
@@ -60,6 +61,11 @@ export enum TaskType {
   HR_RECRUITMENT = 'HR_RECRUITMENT',
   HR_TRAINING = 'HR_TRAINING',
   HR_POLICY = 'HR_POLICY',
+  // Country Management Service Line
+  COUNTRY_REPORT = 'COUNTRY_REPORT',
+  COUNTRY_ANALYSIS = 'COUNTRY_ANALYSIS',
+  COUNTRY_DASHBOARD = 'COUNTRY_DASHBOARD',
+  COUNTRY_METRICS = 'COUNTRY_METRICS',
 }
 
 // System-level roles (User.role)

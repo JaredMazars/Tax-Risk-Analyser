@@ -33,7 +33,8 @@ export const UpdateTaskSchema = z.object({
     'BD_CAMPAIGN', 'BD_PROPOSAL', 'BD_MARKET_RESEARCH',
     'IT_IMPLEMENTATION', 'IT_SUPPORT', 'IT_INFRASTRUCTURE',
     'FINANCE_REPORTING', 'FINANCE_BUDGETING', 'FINANCE_ANALYSIS',
-    'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY'
+    'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY',
+    'COUNTRY_REPORT', 'COUNTRY_ANALYSIS', 'COUNTRY_DASHBOARD', 'COUNTRY_METRICS'
   ]).optional(),
   submissionDeadline: z.coerce.date().nullable().optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
@@ -44,7 +45,7 @@ export const UpdateTaskSchema = z.object({
 export const CreateTaskSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).nullable().optional(),
-  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']).optional(),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT']).optional(),
   projectType: z.enum([
     'TAX_CALCULATION', 'TAX_OPINION', 'TAX_ADMINISTRATION',
     'AUDIT_ENGAGEMENT', 'AUDIT_REVIEW', 'AUDIT_REPORT',
@@ -54,7 +55,8 @@ export const CreateTaskSchema = z.object({
     'BD_CAMPAIGN', 'BD_PROPOSAL', 'BD_MARKET_RESEARCH',
     'IT_IMPLEMENTATION', 'IT_SUPPORT', 'IT_INFRASTRUCTURE',
     'FINANCE_REPORTING', 'FINANCE_BUDGETING', 'FINANCE_ANALYSIS',
-    'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY'
+    'HR_RECRUITMENT', 'HR_TRAINING', 'HR_POLICY',
+    'COUNTRY_REPORT', 'COUNTRY_ANALYSIS', 'COUNTRY_DASHBOARD', 'COUNTRY_METRICS'
   ]),
   taxYear: z.number().int().min(2000).max(2100).nullable().optional(),
   taxPeriodStart: z.coerce.date().nullable().optional(),
@@ -509,7 +511,7 @@ export const CreateBDOpportunitySchema = z.object({
   GSClientID: z.number().int().positive().optional(), // For existing clients  
   companyName: z.string().min(1).max(500).optional(), // For new prospects - required if GSClientID not provided
   contactId: z.number().int().positive().optional(),
-  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT']),
   stageId: z.number().int().positive(),
   value: z.number().min(0).optional(),
   probability: z.number().min(0).max(100).optional(),
@@ -527,7 +529,7 @@ export const UpdateBDOpportunitySchema = z.object({
   GSClientID: z.number().int().positive().nullable().optional(),
   companyName: z.string().min(1).max(500).optional(),
   contactId: z.number().int().positive().nullable().optional(),
-  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR']).optional(),
+  serviceLine: z.enum(['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT']).optional(),
   stageId: z.number().int().positive().optional(),
   value: z.number().min(0).nullable().optional(),
   probability: z.number().min(0).max(100).nullable().optional(),
@@ -686,6 +688,7 @@ const ServiceLineCodeSchema = z.enum([
   'IT',
   'FINANCE',
   'HR',
+  'COUNTRY_MANAGEMENT',
 ]);
 
 // Service line assignment type
@@ -839,5 +842,28 @@ export const NewsBulletinFiltersSchema = z.object({
 export type CreateNewsBulletinInput = z.infer<typeof CreateNewsBulletinSchema>;
 export type UpdateNewsBulletinInput = z.infer<typeof UpdateNewsBulletinSchema>;
 export type NewsBulletinFiltersInput = z.infer<typeof NewsBulletinFiltersSchema>;
+
+/**
+ * External Links validation schemas
+ */
+export const CreateExternalLinkSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or less'),
+  url: z.string().url('Must be a valid URL').max(500, 'URL must be 500 characters or less'),
+  icon: z.string().min(1, 'Icon is required').max(50, 'Icon name must be 50 characters or less'),
+  active: z.boolean().default(true),
+  sortOrder: z.number().int().default(0),
+}).strict();
+
+export const UpdateExternalLinkSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  url: z.string().url().max(500).optional(),
+  icon: z.string().min(1).max(50).optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+}).strict();
+
+// Inferred types
+export type CreateExternalLinkInput = z.infer<typeof CreateExternalLinkSchema>;
+export type UpdateExternalLinkInput = z.infer<typeof UpdateExternalLinkSchema>;
 
 

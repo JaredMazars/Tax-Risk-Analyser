@@ -81,6 +81,13 @@ const serviceLines: ServiceLineSeed[] = [
     active: true,
     sortOrder: 9,
   },
+  {
+    code: 'COUNTRY_MANAGEMENT',
+    name: 'Country Management',
+    description: 'Executive reporting and business analysis',
+    active: true,
+    sortOrder: 10,
+  },
 ];
 
 async function main() {

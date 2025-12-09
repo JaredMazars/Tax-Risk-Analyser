@@ -193,6 +193,42 @@ export interface ServiceLineUserDTO {
   updatedAt?: Date;
 }
 
+/**
+ * External Link (from database)
+ */
+export interface ExternalLink {
+  id: number;
+  name: string;
+  url: string;
+  icon: string;
+  active: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * DTO for creating an external link
+ */
+export interface CreateExternalLinkDTO {
+  name: string;
+  url: string;
+  icon: string;
+  active?: boolean;
+  sortOrder?: number;
+}
+
+/**
+ * DTO for updating an external link
+ */
+export interface UpdateExternalLinkDTO {
+  name?: string;
+  url?: string;
+  icon?: string;
+  active?: boolean;
+  sortOrder?: number;
+}
+
 
 
 

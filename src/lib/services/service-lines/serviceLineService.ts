@@ -27,7 +27,7 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
 
     if (isSystemAdmin) {
       // SYSTEM_ADMIN gets access to all service lines with ADMINISTRATOR role
-      const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR'];
+      const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT'];
       
       // Map master codes to actual ServLineCodes from ServiceLineExternal
       const serviceLineMapping = await prisma.serviceLineExternal.findMany({

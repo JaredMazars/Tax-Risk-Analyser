@@ -22,8 +22,16 @@ interface NavItem {
   items?: { label: string; href: string; description?: string }[];
 }
 
+interface ExternalLink {
+  id: number;
+  name: string;
+  url: string;
+  icon: string;
+}
+
 export default function DashboardNav() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [externalLinks, setExternalLinks] = useState<ExternalLink[]>([]);
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
   const { currentServiceLine } = useServiceLine();
@@ -34,6 +42,35 @@ export default function DashboardNav() {
   const { hasFeature: hasServiceLineAccess } = useFeature(Feature.MANAGE_SERVICE_LINES);
   const { hasFeature: hasServiceLineMappingAccess } = useFeature(Feature.MANAGE_SERVICE_LINES);
   const { hasFeature: hasTemplatesAccess } = useFeature(Feature.MANAGE_TEMPLATES);
+  const { hasFeature: hasExternalLinksAccess } = useFeature(Feature.MANAGE_EXTERNAL_LINKS);
+
+  // Fetch external links on mount and when pathname changes
+  useEffect(() => {
+    const fetchExternalLinks = async () => {
+      try {
+        const response = await fetch('/api/admin/external-links?activeOnly=true');
+        const data = await response.json();
+        if (data.success) {
+          setExternalLinks(data.data);
+        }
+      } catch (error) {
+        // Silently fail - links just won't show
+      }
+    };
+
+    fetchExternalLinks();
+
+    // Listen for custom event to refresh links
+    const handleRefreshLinks = () => {
+      fetchExternalLinks();
+    };
+
+    window.addEventListener('refreshExternalLinks', handleRefreshLinks);
+
+    return () => {
+      window.removeEventListener('refreshExternalLinks', handleRefreshLinks);
+    };
+  }, [pathname]); // Refetch when pathname changes
 
   // Base nav items - always visible
   const baseNavItems: NavItem[] = [
@@ -42,6 +79,20 @@ export default function DashboardNav() {
       href: '/dashboard',
     },
   ];
+
+  // External links dropdown - show only if there are active links
+  const linksNavItems: NavItem[] = externalLinks.length > 0
+    ? [
+        {
+          label: 'Links',
+          items: externalLinks.map((link) => ({
+            label: link.name,
+            href: link.url,
+            description: undefined,
+          })),
+        },
+      ]
+    : [];
 
   // Service line specific nav items
   const serviceLineNavItems: NavItem[] = currentServiceLine
@@ -83,6 +134,13 @@ export default function DashboardNav() {
       description: 'Manage engagement letter templates',
     });
   }
+  if (hasExternalLinksAccess) {
+    adminMenuItems.push({
+      label: 'External Links',
+      href: '/dashboard/admin/external-links',
+      description: 'Manage external software links',
+    });
+  }
 
   const adminNavItems: NavItem[] = hasAdminAccess && adminMenuItems.length > 0
     ? [
@@ -93,7 +151,7 @@ export default function DashboardNav() {
       ]
     : [];
 
-  const navItems: NavItem[] = [...baseNavItems, ...serviceLineNavItems, ...adminNavItems];
+  const navItems: NavItem[] = [...baseNavItems, ...linksNavItems, ...serviceLineNavItems, ...adminNavItems];
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -196,23 +254,50 @@ export default function DashboardNav() {
 
                 {openMenu === item.label && item.items && (
                   <div className="absolute left-0 mt-0 w-72 bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 py-2 z-50">
-                    {item.items.map((subItem) => (
-                      <Link
-                        key={subItem.href}
-                        href={subItem.href}
-                        onClick={() => setOpenMenu(null)}
-                        className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
-                      >
-                        <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
-                          {subItem.label}
-                        </div>
-                        {subItem.description && (
-                          <div className="text-xs text-forvis-gray-700 mt-0.5">
-                            {subItem.description}
+                    {item.items.map((subItem) => {
+                      // Check if this is an external link
+                      const isExternal = subItem.href.startsWith('http://') || subItem.href.startsWith('https://');
+                      
+                      if (isExternal) {
+                        return (
+                          <a
+                            key={subItem.href}
+                            href={subItem.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setOpenMenu(null)}
+                            className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
+                          >
+                            <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
+                              {subItem.label}
+                            </div>
+                            {subItem.description && (
+                              <div className="text-xs text-forvis-gray-700 mt-0.5">
+                                {subItem.description}
+                              </div>
+                            )}
+                          </a>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          onClick={() => setOpenMenu(null)}
+                          className="block px-4 py-3 hover:bg-forvis-blue-50 transition-colors group"
+                        >
+                          <div className="font-medium text-forvis-gray-900 group-hover:text-forvis-blue-700">
+                            {subItem.label}
                           </div>
-                        )}
-                      </Link>
-                    ))}
+                          {subItem.description && (
+                            <div className="text-xs text-forvis-gray-700 mt-0.5">
+                              {subItem.description}
+                            </div>
+                          )}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>

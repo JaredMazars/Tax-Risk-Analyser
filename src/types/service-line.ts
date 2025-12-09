@@ -14,6 +14,7 @@ import {
   ComputerDesktopIcon,
   BanknotesIcon,
   UserGroupIcon,
+  PresentationChartLineIcon,
 } from '@heroicons/react/24/outline';
 
 /**
@@ -160,6 +161,21 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
       TaskType.HR_POLICY,
     ],
   },
+  [ServiceLine.COUNTRY_MANAGEMENT]: {
+    id: ServiceLine.COUNTRY_MANAGEMENT,
+    name: 'Country Management',
+    description: 'Executive reporting and business analysis',
+    icon: 'PresentationChartLineIcon',
+    color: 'text-purple-600',
+    borderColor: 'border-purple-200',
+    bgColor: 'bg-purple-50',
+    taskTypes: [
+      TaskType.COUNTRY_REPORT,
+      TaskType.COUNTRY_ANALYSIS,
+      TaskType.COUNTRY_DASHBOARD,
+      TaskType.COUNTRY_METRICS,
+    ],
+  },
 };
 
 /**
@@ -195,6 +211,7 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<React.SVGProps<SVGSVGE
   ComputerDesktopIcon,
   BanknotesIcon,
   UserGroupIcon,
+  PresentationChartLineIcon,
 };
 
 /**
@@ -252,5 +269,6 @@ export const SERVICE_LINE_DETAILS: Record<ServiceLine, ServiceLineDetails> = {
   [ServiceLine.IT]: getServiceLineDetails(ServiceLine.IT),
   [ServiceLine.FINANCE]: getServiceLineDetails(ServiceLine.FINANCE),
   [ServiceLine.HR]: getServiceLineDetails(ServiceLine.HR),
+  [ServiceLine.COUNTRY_MANAGEMENT]: getServiceLineDetails(ServiceLine.COUNTRY_MANAGEMENT),
 };
 

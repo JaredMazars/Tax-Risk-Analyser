@@ -37,6 +37,7 @@ const serviceLineOptions: { value: string; label: string }[] = [
   { value: ServiceLine.IT, label: 'Information Technology' },
   { value: ServiceLine.FINANCE, label: 'Finance' },
   { value: ServiceLine.HR, label: 'Human Resources' },
+  { value: ServiceLine.COUNTRY_MANAGEMENT, label: 'Country Management' },
 ];
 
 function formatDateForInput(date: Date | string | null | undefined): string {
@@ -587,12 +588,11 @@ export function BulletinForm({
           rows={6}
           disabled={isGenerating}
           placeholder="Full content of the bulletin (or click 'Generate with AI' to auto-generate based on title and summary)"
-          error={errors.body || generateError}
+          error={errors.body || generateError || undefined}
         />
         {isGenerating && (
           <p className="mt-1 text-xs text-forvis-blue-600">AI is generating content based on your title and summary...</p>
         )}
-        />
       </div>
 
       {/* Category and Service Line Row */}

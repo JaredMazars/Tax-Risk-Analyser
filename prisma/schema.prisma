@@ -1278,3 +1278,17 @@ model AgedWip {
   @@index([GSTaskID, PeriodRef])
   @@map("AgedWip")
 }
+
+model ExternalLink {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.NVarChar(100)
+  url       String   @db.NVarChar(500)
+  icon      String   @db.NVarChar(50)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@index([name])
+}

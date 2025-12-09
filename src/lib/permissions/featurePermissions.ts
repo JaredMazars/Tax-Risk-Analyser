@@ -62,6 +62,7 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.MANAGE_USERS,
     Feature.MANAGE_SERVICE_LINES,
     Feature.MANAGE_TEMPLATES,
+    Feature.MANAGE_EXTERNAL_LINKS,
 
     // Advanced
     Feature.USE_AI_TOOLS,

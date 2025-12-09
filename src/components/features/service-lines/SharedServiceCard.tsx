@@ -7,6 +7,7 @@ import {
   ComputerDesktopIcon,
   BanknotesIcon,
   UserGroupIcon,
+  PresentationChartLineIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { ServiceLine } from '@/types';
@@ -25,6 +26,7 @@ const iconMap: Record<string, ForwardRefExoticComponent<SVGProps<SVGSVGElement>>
   [ServiceLine.IT]: ComputerDesktopIcon,
   [ServiceLine.FINANCE]: BanknotesIcon,
   [ServiceLine.HR]: UserGroupIcon,
+  [ServiceLine.COUNTRY_MANAGEMENT]: PresentationChartLineIcon,
 };
 
 interface SharedServiceCardProps {
@@ -52,6 +54,8 @@ export function SharedServiceCard({ serviceLineData }: SharedServiceCardProps) {
         return 'Financial reporting, budgeting, and analysis for internal operations';
       case ServiceLine.HR:
         return 'Recruitment, training programs, and policy development';
+      case ServiceLine.COUNTRY_MANAGEMENT:
+        return 'Executive reporting and business analysis';
       default:
         return '';
     }
