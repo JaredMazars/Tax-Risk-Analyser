@@ -150,7 +150,7 @@ export default function ServiceLineSubGroupsPage() {
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
-            Dashboard
+            Home
           </Link>
           <ChevronRightIcon className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">

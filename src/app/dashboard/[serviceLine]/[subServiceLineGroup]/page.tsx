@@ -221,7 +221,10 @@ export default function SubServiceLineWorkspacePage() {
   if (isLoading && !isFetching) {
     return (
       <div className="min-h-screen bg-forvis-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-500 mx-auto"></div>
+          <p className="mt-4 text-sm text-forvis-gray-700 font-medium">Loading workspace...</p>
+        </div>
       </div>
     );
   }
@@ -234,17 +237,17 @@ export default function SubServiceLineWorkspacePage() {
     <div className="min-h-screen bg-forvis-gray-50 relative">
       {/* Loading overlay for tab switches */}
       {isFetching && !isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-20 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600 mx-auto"></div>
-            <p className="mt-4 text-sm text-forvis-gray-700">Loading...</p>
+        <div className="fixed inset-0 bg-white bg-opacity-90 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 shadow-corporate-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-500 mx-auto"></div>
+            <p className="mt-4 text-sm text-forvis-gray-700 font-medium">Loading...</p>
           </div>
         </div>
       )}
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 py-4 mb-2">
+        <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
             Dashboard
           </Link>
@@ -261,26 +264,26 @@ export default function SubServiceLineWorkspacePage() {
           </span>
         </nav>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
-          <div>
-            <h1 className="text-3xl font-bold text-forvis-gray-900">
-              {subServiceLineGroupDescription}
-            </h1>
-            <p className="mt-1 text-sm text-forvis-gray-700">
-              {activeTab === 'clients' 
-                ? 'All clients across the organization'
-                : activeTab === 'tasks'
-                ? `Tasks in ${subServiceLineGroupDescription}`
-                : activeTab === 'my-tasks'
-                ? `Your tasks in ${subServiceLineGroupDescription}`
-                : 'Client groups across the organization'}
-            </p>
-          </div>
-          
-          <div className="text-right">
-            <div className="text-2xl font-bold text-forvis-blue-600">{totalCount}</div>
-            <div className="text-sm text-forvis-gray-600">
-              Total {activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : activeTab === 'my-tasks' ? 'My Tasks' : 'Groups'}
+        {/* Page header with stats */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-forvis-gray-900 mb-2">
+            {subServiceLineGroupDescription}
+          </h1>
+          <p className="text-forvis-gray-600">
+            {activeTab === 'clients' 
+              ? 'All clients across the organization'
+              : activeTab === 'tasks'
+              ? `Tasks in ${subServiceLineGroupDescription}`
+              : activeTab === 'my-tasks'
+              ? `Your tasks in ${subServiceLineGroupDescription}`
+              : 'Client groups across the organization'}
+          </p>
+          <div className="mt-4 flex gap-6">
+            <div>
+              <div className="text-2xl font-bold text-forvis-blue-600">{totalCount}</div>
+              <div className="text-sm text-forvis-gray-600">
+                Total {activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : activeTab === 'my-tasks' ? 'My Tasks' : 'Groups'}
+              </div>
             </div>
           </div>
         </div>
@@ -427,7 +430,7 @@ export default function SubServiceLineWorkspacePage() {
         {activeTab === 'groups' ? (
           /* Groups List */
           groups.length === 0 ? (
-            <div className="card text-center py-12">
+            <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
               <UserGroupIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No groups</h3>
               <p className="mt-1 text-sm text-forvis-gray-600">
@@ -436,38 +439,38 @@ export default function SubServiceLineWorkspacePage() {
             </div>
           ) : (
             <>
-              <div className="card overflow-hidden">
+              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full divide-y divide-forvis-gray-200" style={{ tableLayout: 'fixed' }}>
+                  <table className="w-full" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
                       <col style={{ width: '45%' }} />
                       <col style={{ width: '25%' }} />
                       <col style={{ width: '20%' }} />
                       <col style={{ width: '10%' }} />
                     </colgroup>
-                    <thead className="bg-forvis-gray-50">
-                      <tr>
-                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                    <thead>
+                      <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Group Name
                         </th>
-                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Group Code
                         </th>
-                        <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                           Clients
                         </th>
-                        <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-forvis-gray-200">
-                      {groups.map((group) => (
-                        <tr key={group.groupCode} className="hover:bg-forvis-gray-50 transition-colors">
-                          <td className="px-3 py-2 truncate">
+                    <tbody className="divide-y divide-forvis-gray-200">
+                      {groups.map((group, index) => (
+                        <tr key={group.groupCode} className={`hover:bg-forvis-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}`}>
+                          <td className="px-3 py-3 truncate">
                             <div className="flex items-center space-x-2 min-w-0">
-                              <div className="w-7 h-7 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                                <UserGroupIcon className="h-3.5 w-3.5 text-forvis-blue-600" />
+                              <div className="w-8 h-8 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
+                                <UserGroupIcon className="h-4 w-4 text-forvis-blue-600" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="text-sm font-medium text-forvis-gray-900 truncate" title={group.groupDesc}>
@@ -476,20 +479,20 @@ export default function SubServiceLineWorkspacePage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-2">
-                            <div className="text-sm text-forvis-gray-600 truncate" title={group.groupCode}>
+                          <td className="px-3 py-3">
+                            <div className="text-sm text-forvis-gray-700 truncate" title={group.groupCode}>
                               {group.groupCode}
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-center">
-                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
+                          <td className="px-3 py-3 text-center">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
                               {group.clientCount}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-3 py-3 text-center">
                             <Link
                               href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/groups/${encodeURIComponent(group.groupCode)}`}
-                              className="text-forvis-blue-600 hover:text-forvis-blue-900 text-xs font-medium"
+                              className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium transition-colors"
                             >
                               View
                             </Link>
@@ -567,7 +570,7 @@ export default function SubServiceLineWorkspacePage() {
         ) : activeTab === 'clients' ? (
           /* Clients List */
           clients.length === 0 ? (
-            <div className="card text-center py-12">
+            <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
               <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
               <p className="mt-1 text-sm text-forvis-gray-600">
@@ -576,9 +579,9 @@ export default function SubServiceLineWorkspacePage() {
             </div>
           ) : (
           <>
-            <div className="card overflow-hidden">
+            <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full divide-y divide-forvis-gray-200" style={{ tableLayout: 'fixed' }}>
+                <table className="w-full" style={{ tableLayout: 'fixed' }}>
                   <colgroup>
                     <col style={{ width: '32%' }} />
                     <col style={{ width: '22%' }} />
@@ -587,35 +590,35 @@ export default function SubServiceLineWorkspacePage() {
                     <col style={{ width: '8%' }} />
                     <col style={{ width: '6%' }} />
                   </colgroup>
-                  <thead className="bg-forvis-gray-50">
-                    <tr>
-                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                  <thead>
+                    <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+                      <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Client
                       </th>
-                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Group
                       </th>
-                      <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Industry
                       </th>
-                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                         Partner
                       </th>
-                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                         Tasks
                       </th>
-                      <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-forvis-gray-200">
-                    {clients.map((client) => (
-                        <tr key={client.id} className="hover:bg-forvis-gray-50 transition-colors">
-                          <td className="px-3 py-2 truncate">
+                  <tbody className="divide-y divide-forvis-gray-200">
+                    {clients.map((client, index) => (
+                        <tr key={client.id} className={`hover:bg-forvis-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}`}>
+                          <td className="px-3 py-3 truncate">
                             <div className="flex items-center space-x-2 min-w-0">
-                              <div className="w-7 h-7 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                                <BuildingOfficeIcon className="h-3.5 w-3.5 text-forvis-blue-600" />
+                              <div className="w-8 h-8 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
+                                <BuildingOfficeIcon className="h-4 w-4 text-forvis-blue-600" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="text-sm font-medium text-forvis-gray-900 truncate">
@@ -625,30 +628,30 @@ export default function SubServiceLineWorkspacePage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-2">
-                            <div className="text-sm text-forvis-gray-600 truncate" title={client.groupDesc}>
+                          <td className="px-3 py-3">
+                            <div className="text-sm text-forvis-gray-700 truncate" title={client.groupDesc}>
                               {client.groupDesc}
                             </div>
                           </td>
-                          <td className="px-3 py-2">
-                            <div className="text-sm text-forvis-gray-600 truncate" title={client.industry || client.sector || '-'}>
+                          <td className="px-3 py-3">
+                            <div className="text-sm text-forvis-gray-700 truncate" title={client.industry || client.sector || '-'}>
                               {client.industry || client.sector || '-'}
                             </div>
                           </td>
-                          <td className="px-3 py-2">
-                            <div className="text-sm text-forvis-gray-600 text-center truncate" title={client.clientPartner}>
+                          <td className="px-3 py-3">
+                            <div className="text-sm text-forvis-gray-700 text-center truncate" title={client.clientPartner}>
                               {client.clientPartner}
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-center">
-                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
+                          <td className="px-3 py-3 text-center">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
                               {client._count.Task || 0}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-center">
+                          <td className="px-3 py-3 text-center">
                             <Link
                               href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${client.GSClientID}`}
-                              className="text-forvis-blue-600 hover:text-forvis-blue-900 text-xs font-medium"
+                              className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium transition-colors"
                             >
                               View
                             </Link>
@@ -729,7 +732,7 @@ export default function SubServiceLineWorkspacePage() {
         ) : (
           /* Tasks List */
           (activeTab === 'tasks' ? tasks : myTasks).length === 0 ? (
-            <div className="card text-center py-12">
+            <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
               <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
               <p className="mt-1 text-sm text-forvis-gray-600">
@@ -742,35 +745,35 @@ export default function SubServiceLineWorkspacePage() {
             </div>
           ) : (
             <>
-              <div className="card overflow-hidden">
+              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full divide-y divide-forvis-gray-200">
-                    <thead className="bg-forvis-gray-50">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Task Name
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Client
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Type
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Status
                         </th>
-                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                           Updated
                         </th>
-                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-forvis-gray-200">
-                      {(activeTab === 'tasks' ? tasks : myTasks).map((task) => {
+                    <tbody className="divide-y divide-forvis-gray-200">
+                      {(activeTab === 'tasks' ? tasks : myTasks).map((task, index) => {
                         return (
-                          <tr key={task.id} className="transition-colors hover:bg-forvis-gray-50">
+                          <tr key={task.id} className={`hover:bg-forvis-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}`}>
                             <td className="px-6 py-4">
                               <div className="flex items-center space-x-3">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-forvis-blue-100">
@@ -792,9 +795,9 @@ export default function SubServiceLineWorkspacePage() {
                               {task.client && (
                                 <Link
                                   href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.GSClientID}`}
-                                  className="block"
+                                  className="block group"
                                 >
-                                  <div className="text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-900">
+                                  <div className="text-sm font-medium text-forvis-blue-600 group-hover:text-forvis-blue-900 transition-colors">
                                     {task.client.clientNameFull || task.client.clientCode}
                                   </div>
                                   <div className="text-xs text-forvis-gray-500">{task.client.clientCode}</div>
@@ -802,7 +805,7 @@ export default function SubServiceLineWorkspacePage() {
                               )}
                             </td>
                             <td className="px-6 py-4">
-                              <span className="text-sm text-forvis-gray-600">
+                              <span className="text-sm text-forvis-gray-700">
                                 {task.projectType || task.serviceLine}
                               </span>
                             </td>
@@ -810,8 +813,8 @@ export default function SubServiceLineWorkspacePage() {
                               <StatusBadge status={task.status} />
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <div className="flex items-center justify-center text-sm text-forvis-gray-600">
-                                <ClockIcon className="h-4 w-4 mr-1" />
+                              <div className="flex items-center justify-center text-sm text-forvis-gray-700">
+                                <ClockIcon className="h-4 w-4 mr-1 text-forvis-gray-500" />
                                 {formatDate(task.updatedAt)}
                               </div>
                             </td>
@@ -820,7 +823,7 @@ export default function SubServiceLineWorkspacePage() {
                                 href={task.client?.GSClientID 
                                   ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.client.GSClientID}/tasks/${task.id}`
                                   : `/dashboard/tasks/${task.id}`}
-                                className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium"
+                                className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium transition-colors"
                               >
                                 View
                               </Link>
