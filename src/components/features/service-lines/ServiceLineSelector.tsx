@@ -8,11 +8,23 @@ import {
   ArrowLeftIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
-import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 
 export function ServiceLineSelector() {
   const params = useParams();
   const serviceLine = (params.serviceLine as string)?.toLowerCase();
+  const isShared = isSharedService(serviceLine.toUpperCase());
+
+  // Determine grid columns based on cards shown
+  const getGridCols = () => {
+    if (serviceLine === 'business_dev') {
+      return 'md:grid-cols-2'; // BD Pipeline + Client Tasks
+    }
+    if (isShared) {
+      return 'md:grid-cols-1'; // Only Client Tasks for other shared services
+    }
+    return 'md:grid-cols-2'; // Internal Tasks + Client Tasks for main service lines
+  };
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
@@ -35,13 +47,13 @@ export function ServiceLineSelector() {
           </h1>
           <p className="mt-2 text-sm text-forvis-gray-700">
             {serviceLine === 'business_dev' 
-              ? 'Track opportunities and manage internal or client tasks'
+              ? 'Track opportunities and manage client tasks'
               : 'Choose the type of tasks you want to view'}
           </p>
         </div>
 
         {/* Selection Cards */}
-        <div className={`grid grid-cols-1 gap-6 max-w-6xl ${serviceLine === 'business_dev' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+        <div className={`grid grid-cols-1 gap-6 max-w-6xl ${getGridCols()}`}>
           {/* BD Pipeline Card - Only show for Business Development service line */}
           {serviceLine === 'business_dev' && (
             <Link
@@ -64,25 +76,27 @@ export function ServiceLineSelector() {
             </Link>
           )}
 
-          {/* Internal Tasks Card */}
-          <Link
-            href={`/dashboard/${serviceLine}/internal`}
-            className="group block"
-          >
-            <div className="card hover:shadow-lg transition-all duration-200 border-2 border-transparent hover:border-forvis-blue-500 cursor-pointer h-full">
-              <div className="flex flex-col items-center text-center p-8">
-                <div className="w-20 h-20 rounded-full bg-forvis-blue-100 flex items-center justify-center mb-6 group-hover:bg-forvis-blue-200 transition-colors">
-                  <FolderIcon className="h-10 w-10 text-forvis-blue-600" />
+          {/* Internal Tasks Card - Only show for non-shared service lines */}
+          {!isShared && (
+            <Link
+              href={`/dashboard/${serviceLine}/internal`}
+              className="group block"
+            >
+              <div className="card hover:shadow-lg transition-all duration-200 border-2 border-transparent hover:border-forvis-blue-500 cursor-pointer h-full">
+                <div className="flex flex-col items-center text-center p-8">
+                  <div className="w-20 h-20 rounded-full bg-forvis-blue-100 flex items-center justify-center mb-6 group-hover:bg-forvis-blue-200 transition-colors">
+                    <FolderIcon className="h-10 w-10 text-forvis-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-forvis-gray-900 mb-3">
+                    Internal Tasks
+                  </h2>
+                  <p className="text-forvis-gray-600">
+                    View and manage internal tasks for {formatServiceLineName(serviceLine.toUpperCase())}
+                  </p>
                 </div>
-                <h2 className="text-2xl font-bold text-forvis-gray-900 mb-3">
-                  Internal Tasks
-                </h2>
-                <p className="text-forvis-gray-600">
-                  View and manage internal tasks for {formatServiceLineName(serviceLine.toUpperCase())}
-                </p>
               </div>
-            </div>
-          </Link>
+            </Link>
+          )}
 
           {/* Client Tasks Card */}
           <Link

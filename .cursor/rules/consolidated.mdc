@@ -99,12 +99,54 @@ const clients = await prisma.client.findMany({
 });
 ```
 
+## Service Lines & Shared Services
+
+**Service Lines** (Client-facing, billable work):
+- `TAX` - Tax services
+- `AUDIT` - Audit services
+- `ACCOUNTING` - Accounting services
+- `ADVISORY` - Advisory services
+
+**Shared Services** (Internal support functions):
+- `QRM` - Quality & Risk Management
+- `BUSINESS_DEV` - Business Development
+- `IT` - Information Technology
+- `FINANCE` - Internal Finance
+- `HR` - Human Resources
+
+**Defined in:** `types/index.ts` → `ServiceLine` enum (single source of truth)
+
+**Utility:** `isSharedService()` in `@/lib/utils/serviceLineUtils.ts` distinguishes between client-facing and shared services
+
+### Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `ServiceLineMaster` | Application-level master list (seeded) - `code`, `name`, `description`, `active`, `sortOrder` |
+| `ServiceLineExternal` | External system sync - maps `ServLineCode` → `masterCode` and `SubServlineGroupCode` |
+| `ServiceLineUser` | User assignments - links users to `subServiceLineGroup` with `role` |
+
+### SubServiceLineGroup Mapping
+
+`ServiceLineExternal` bridges external system codes to application service lines:
+
+```
+ServLineCode → SubServlineGroupCode → masterCode (ServiceLineMaster.code)
+```
+
+- **Task.ServLineCode**: External service line code on tasks
+- **ServiceLineExternal.SubServlineGroupCode**: Groups external codes into sub-service line groupings
+- **ServiceLineExternal.masterCode**: Links to `ServiceLineMaster.code` for application routing
+- **ServiceLineUser.subServiceLineGroup**: User access is granted at the `SubServlineGroupCode` level
+
+**Query Pattern:** Map task's `ServLineCode` → find matching `SubServlineGroupCode` → check user's `ServiceLineUser` assignments
+
 ## URL Structure
 
 `/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/tasks/[taskId]`
 
-- `serviceLine`: TAX, AUDIT, ACCOUNTING, ADVISORY
-- `subServiceLineGroup`: Dynamic grouping from database
+- `serviceLine`: TAX, AUDIT, ACCOUNTING, ADVISORY (or shared services: QRM, BUSINESS_DEV, IT, FINANCE, HR)
+- `subServiceLineGroup`: Dynamic grouping from `ServiceLineExternal.SubServlineGroupCode`
 - `id`: Internal client ID (integer, from Client.id)
 - `taskId`: Internal task ID (integer, from Task.id)
 - Even if the user refers to projects they actually mean tasks
