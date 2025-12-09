@@ -264,182 +264,196 @@ export default function SubServiceLineWorkspacePage() {
           </span>
         </nav>
 
-        {/* Page header with stats */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-forvis-gray-900 mb-2">
-            {subServiceLineGroupDescription}
-          </h1>
-          <p className="text-forvis-gray-600">
-            {activeTab === 'clients' 
-              ? 'All clients across the organization'
-              : activeTab === 'tasks'
-              ? `Tasks in ${subServiceLineGroupDescription}`
-              : activeTab === 'my-tasks'
-              ? `Your tasks in ${subServiceLineGroupDescription}`
-              : 'Client groups across the organization'}
-          </p>
-          <div className="mt-4 flex gap-6">
-            <div>
-              <div className="text-2xl font-bold text-forvis-blue-600">{totalCount}</div>
-              <div className="text-sm text-forvis-gray-600">
-                Total {activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : activeTab === 'my-tasks' ? 'My Tasks' : 'Groups'}
+        {/* Light Gold Container with Header and Content */}
+        <div 
+          className="rounded-lg border-2 p-6"
+          style={{
+            background: 'linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%)',
+            borderColor: '#C9BCAA',
+          }}
+        >
+          {/* Header */}
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-forvis-gray-900 mb-1">
+              {subServiceLineGroupDescription}
+            </h2>
+            <p className="text-sm text-forvis-gray-700 opacity-90 mb-3">
+              {activeTab === 'clients' 
+                ? 'All clients across the organization'
+                : activeTab === 'tasks'
+                ? `Tasks in ${subServiceLineGroupDescription}`
+                : activeTab === 'my-tasks'
+                ? `Your tasks in ${subServiceLineGroupDescription}`
+                : 'Client groups across the organization'}
+            </p>
+            <div className="flex gap-6">
+              <div>
+                <div className="text-2xl font-bold text-forvis-gray-900">{totalCount}</div>
+                <div className="text-xs text-forvis-gray-700 opacity-90">
+                  Total {activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : activeTab === 'my-tasks' ? 'My Tasks' : 'Groups'}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="mb-6 border-b border-forvis-gray-200">
-          <nav className="flex -mb-px space-x-8">
-            <button
-              onClick={() => setActiveTab('clients')}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'clients'
-                  ? 'border-forvis-blue-600 text-forvis-blue-600'
-                  : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <BuildingOfficeIcon className="h-5 w-5" />
-                <span>Clients</span>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    activeTab === 'clients'
-                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                      : 'bg-forvis-gray-100 text-forvis-gray-600'
-                  }`}
-                >
-                  {isLoadingClients && !clientsPagination ? '...' : (clientsPagination?.total ?? 0)}
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'tasks'
-                  ? 'border-forvis-blue-600 text-forvis-blue-600'
-                  : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <FolderIcon className="h-5 w-5" />
-                <span>Tasks</span>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    activeTab === 'tasks'
-                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                      : 'bg-forvis-gray-100 text-forvis-gray-600'
-                  }`}
-                >
-                  {isLoadingTasks && !tasksPagination ? '...' : (tasksPagination?.total ?? 0)}
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('my-tasks')}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'my-tasks'
-                  ? 'border-forvis-blue-600 text-forvis-blue-600'
-                  : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <UserGroupIcon className="h-5 w-5" />
-                <span>My Tasks</span>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    activeTab === 'my-tasks'
-                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                      : 'bg-forvis-gray-100 text-forvis-gray-600'
-                  }`}
-                >
-                  {isLoadingMyTasks && !myTasksPagination ? '...' : (myTasksPagination?.total ?? 0)}
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('groups')}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'groups'
-                  ? 'border-forvis-blue-600 text-forvis-blue-600'
-                  : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <UserGroupIcon className="h-5 w-5" />
-                <span>Groups</span>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    activeTab === 'groups'
-                      ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                      : 'bg-forvis-gray-100 text-forvis-gray-600'
-                  }`}
-                >
-                  {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
-                </span>
-              </div>
-            </button>
-          </nav>
-        </div>
-
-        {/* Search and Filter Bar */}
-        <div className="mb-6 flex gap-4 items-center">
-          <div className="relative flex-1 max-w-md">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-            <input
-              type="text"
-              placeholder={
-                activeTab === 'clients'
-                  ? 'Search by name, code, group, or industry...'
-                  : activeTab === 'groups'
-                  ? 'Search by group name or code...'
-                  : 'Search by task name, client, or service line...'
-              }
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-            />
+          {/* Tabs */}
+          <div className="mb-4 border-b border-forvis-gray-300">
+            <nav className="flex -mb-px space-x-8">
+              <button
+                onClick={() => setActiveTab('clients')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'clients'
+                    ? 'border-forvis-blue-600 text-forvis-blue-600'
+                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <BuildingOfficeIcon className="h-5 w-5" />
+                  <span>Clients</span>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      activeTab === 'clients'
+                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                        : 'bg-forvis-gray-100 text-forvis-gray-600'
+                    }`}
+                  >
+                    {isLoadingClients && !clientsPagination ? '...' : (clientsPagination?.total ?? 0)}
+                  </span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('tasks')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'tasks'
+                    ? 'border-forvis-blue-600 text-forvis-blue-600'
+                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <FolderIcon className="h-5 w-5" />
+                  <span>Tasks</span>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      activeTab === 'tasks'
+                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                        : 'bg-forvis-gray-100 text-forvis-gray-600'
+                    }`}
+                  >
+                    {isLoadingTasks && !tasksPagination ? '...' : (tasksPagination?.total ?? 0)}
+                  </span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('my-tasks')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'my-tasks'
+                    ? 'border-forvis-blue-600 text-forvis-blue-600'
+                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <UserGroupIcon className="h-5 w-5" />
+                  <span>My Tasks</span>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      activeTab === 'my-tasks'
+                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                        : 'bg-forvis-gray-100 text-forvis-gray-600'
+                    }`}
+                  >
+                    {isLoadingMyTasks && !myTasksPagination ? '...' : (myTasksPagination?.total ?? 0)}
+                  </span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('groups')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'groups'
+                    ? 'border-forvis-blue-600 text-forvis-blue-600'
+                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <UserGroupIcon className="h-5 w-5" />
+                  <span>Groups</span>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      activeTab === 'groups'
+                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                        : 'bg-forvis-gray-100 text-forvis-gray-600'
+                    }`}
+                  >
+                    {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
+                  </span>
+                </div>
+              </button>
+            </nav>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-forvis-gray-700">Show:</label>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
+
+          {/* Search and Filter Bar */}
+          <div className="mb-4 flex gap-4 items-center">
+            <div className="relative flex-1 max-w-md">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+              <input
+                type="text"
+                placeholder={
+                  activeTab === 'clients'
+                    ? 'Search by name, code, group, or industry...'
+                    : activeTab === 'groups'
+                    ? 'Search by group name or code...'
+                    : 'Search by task name, client, or service line...'
+                }
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent bg-white"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-forvis-gray-700">Show:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent bg-white"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Results count */}
+          {debouncedSearch && pagination && (
+            <div className="mb-4 text-sm text-forvis-gray-700">
+              Found <span className="font-medium">{pagination.total}</span>{' '}
+              {activeTab === 'clients' ? 'client' : activeTab === 'groups' ? 'group' : 'task'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
+            </div>
+          )}
+
+          {/* Content - Clients, Tasks, My Tasks, or Groups */}
+          {activeTab === 'groups' ? (
+            /* Groups List */
+            <div 
+              className="rounded-lg border border-forvis-gray-200 shadow-sm p-4"
+              style={{
+                background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
               }}
-              className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
             >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Results count */}
-        {debouncedSearch && pagination && (
-          <div className="mb-4 text-sm text-forvis-gray-600">
-            Found <span className="font-medium">{pagination.total}</span>{' '}
-            {activeTab === 'clients' ? 'client' : activeTab === 'groups' ? 'group' : 'task'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
-          </div>
-        )}
-
-        {/* Content - Clients, Tasks, My Tasks, or Groups */}
-        {activeTab === 'groups' ? (
-          /* Groups List */
-          groups.length === 0 ? (
-            <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
-              <UserGroupIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No groups</h3>
-              <p className="mt-1 text-sm text-forvis-gray-600">
-                {searchTerm ? 'No groups match your search.' : 'No client groups available in the system.'}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
+              {groups.length === 0 ? (
+                <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
+                  <UserGroupIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No groups</h3>
+                  <p className="mt-1 text-sm text-forvis-gray-600">
+                    {searchTerm ? 'No groups match your search.' : 'No client groups available in the system.'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
@@ -565,21 +579,28 @@ export default function SubServiceLineWorkspacePage() {
                   )}
                 </div>
               )}
-            </>
-          )
-        ) : activeTab === 'clients' ? (
-          /* Clients List */
-          clients.length === 0 ? (
-            <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
-              <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
-              <p className="mt-1 text-sm text-forvis-gray-600">
-                {searchTerm ? 'No clients match your search.' : 'No clients available in the system.'}
-              </p>
+                </>
+              )}
             </div>
-          ) : (
-          <>
-            <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
+          ) : activeTab === 'clients' ? (
+            /* Clients List */
+            <div 
+              className="rounded-lg border border-forvis-gray-200 shadow-sm p-4"
+              style={{
+                background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+              }}
+            >
+              {clients.length === 0 ? (
+                <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
+                  <BuildingOfficeIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
+                  <p className="mt-1 text-sm text-forvis-gray-600">
+                    {searchTerm ? 'No clients match your search.' : 'No clients available in the system.'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full" style={{ tableLayout: 'fixed' }}>
                   <colgroup>
@@ -726,26 +747,33 @@ export default function SubServiceLineWorkspacePage() {
                 </div>
               )}
             </div>
-            )}
-          </>
-        )
-        ) : (
-          /* Tasks List */
-          (activeTab === 'tasks' ? tasks : myTasks).length === 0 ? (
-            <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
-              <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
-              <p className="mt-1 text-sm text-forvis-gray-600">
-                {searchTerm 
-                  ? 'No tasks match your search.' 
-                  : activeTab === 'my-tasks'
-                  ? `You are not a team member on any tasks in ${subServiceLineGroupDescription}.`
-                  : `No tasks available in ${subServiceLineGroupDescription}.`}
-              </p>
+              )}
+                </>
+              )}
             </div>
           ) : (
-            <>
-              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
+            /* Tasks List */
+            <div 
+              className="rounded-lg border border-forvis-gray-200 shadow-sm p-4"
+              style={{
+                background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+              }}
+            >
+              {(activeTab === 'tasks' ? tasks : myTasks).length === 0 ? (
+                <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
+                  <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
+                  <p className="mt-1 text-sm text-forvis-gray-600">
+                    {searchTerm 
+                      ? 'No tasks match your search.' 
+                      : activeTab === 'my-tasks'
+                      ? `You are not a team member on any tasks in ${subServiceLineGroupDescription}.`
+                      : `No tasks available in ${subServiceLineGroupDescription}.`}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
@@ -904,10 +932,12 @@ export default function SubServiceLineWorkspacePage() {
                   </div>
                 )}
               </div>
+                )}
+                </>
               )}
-            </>
-          )
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

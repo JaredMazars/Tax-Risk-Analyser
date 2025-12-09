@@ -65,6 +65,11 @@ Always use inline styles (not Tailwind). Use 135deg for diagonal, `to right` for
 // Stats cards (gold): style={{ background: 'linear-gradient(to bottom right, #C7B179, #88815E)' }}
 // Buttons (gold): style={{ background: 'linear-gradient(135deg, #C7B179 0%, #88815E 100%)' }}
 
+// LIGHT GOLD GRADIENTS (Work Pages & Lists)
+// Work page containers: style={{ background: 'linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%)', borderColor: '#C9BCAA' }}
+// Horizontal light gold: style={{ background: 'linear-gradient(to right, #F0EAE0, #E0D5C3)' }}
+// Usage: Workspace pages with data tables, list views, extended user interaction
+
 // BLUE-GOLD COMBINATION GRADIENTS
 // Premium blue-to-gold: style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #C7B179 100%)' }}
 // Horizontal blue-gold: style={{ background: 'linear-gradient(to right, #2E5AAC, #C7B179)' }}
@@ -80,6 +85,7 @@ Always use inline styles (not Tailwind). Use 135deg for diagonal, `to right` for
 **Color Usage Guidelines:**
 - **Blue**: Primary brand color for most UI elements (buttons, headers, links, primary actions)
 - **Gold**: Accent color for premium features, achievements, highlights, special designations
+- **Light Gold**: Softer variant for work pages and list views where users spend extended time
 - **Blue-Gold Combination**: Executive dashboards, premium features, high-value clients, partner-level views
 - Use gold sparingly to maintain impact and visual hierarchy
 
@@ -137,6 +143,21 @@ Use UI components from `/src/components/ui/` - all variants, props, and styling 
   <h2 className="text-xl font-semibold text-white mb-1">Shared Services</h2>
   <p className="text-sm text-white opacity-90">Description</p>
   {/* SharedServiceCard components inside */}
+</div>
+```
+
+**Work Page Container** (light gold gradient for data-heavy pages):
+```typescript
+<div 
+  className="rounded-lg border-2 p-6"
+  style={{
+    background: 'linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%)',
+    borderColor: '#C9BCAA',
+  }}
+>
+  <h2 className="text-xl font-semibold text-forvis-gray-900 mb-1">Title</h2>
+  <p className="text-sm text-forvis-gray-700 opacity-90">Description</p>
+  {/* Content with light blue gradient cards inside */}
 </div>
 ```
 
