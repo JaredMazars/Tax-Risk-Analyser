@@ -13,6 +13,7 @@ import {
   Database,
 } from 'lucide-react';
 import { AlertModal } from '@/components/shared/AlertModal';
+import { Button, Input, LoadingSpinner } from '@/components/ui';
 
 interface ServiceLineMaster {
   code: string;
@@ -403,45 +404,45 @@ export default function ServiceLineMasterPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex flex-col md:flex-row gap-4 flex-1">
               {/* Search */}
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-                <input
-                  type="text"
+              <div className="flex-1">
+                <Input
+                  icon={<Search className="h-5 w-5" />}
                   placeholder="Search service lines..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
                 />
               </div>
 
               {/* Filter by Status */}
-              <select
+              <Input
+                variant="select"
                 value={filterActive}
                 onChange={(e) => setFilterActive(e.target.value as 'all' | 'active' | 'inactive')}
-                className="px-4 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active Only</option>
-                <option value="inactive">Inactive Only</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'All Status' },
+                  { value: 'active', label: 'Active Only' },
+                  { value: 'inactive', label: 'Inactive Only' }
+                ]}
+              />
             </div>
 
             {/* Create Button */}
-            <button
+            <Button
+              variant="gradient"
               onClick={openCreateModal}
-              className="flex items-center px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
-              style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+              icon={<Plus className="h-5 w-5" />}
             >
-              <Plus className="h-5 w-5 mr-2" />
               Create Service Line
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Service Lines List */}
         {isLoading ? (
           <div className="text-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600 mx-auto"></div>
+            <div className="flex justify-center">
+              <LoadingSpinner size="lg" />
+            </div>
             <p className="mt-4 text-forvis-gray-600">Loading service lines...</p>
           </div>
         ) : filteredServiceLines.length === 0 ? (
@@ -561,77 +562,51 @@ export default function ServiceLineMasterPage() {
               <form onSubmit={handleSubmit} className="p-6">
                 <div className="space-y-4">
                   {modalMode === 'create' && (
-                    <div>
-                      <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
-                        Code <span className="text-red-600">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength={50}
-                        value={formData.code}
-                        onChange={(e) =>
-                          setFormData({ ...formData, code: e.target.value.toUpperCase() })
-                        }
-                        className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent font-mono"
-                        placeholder="e.g., TAX"
-                      />
-                      <p className="text-xs text-forvis-gray-600 mt-1">
-                        Unique identifier (automatically converted to uppercase)
-                      </p>
-                    </div>
+                    <Input
+                      label="Code"
+                      required
+                      maxLength={50}
+                      value={formData.code}
+                      onChange={(e) =>
+                        setFormData({ ...formData, code: e.target.value.toUpperCase() })
+                      }
+                      className="font-mono"
+                      placeholder="e.g., TAX"
+                      helperText="Unique identifier (automatically converted to uppercase)"
+                    />
                   )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
-                      Name <span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={200}
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-                      placeholder="e.g., Tax Services"
-                    />
-                  </div>
+                  <Input
+                    label="Name"
+                    required
+                    maxLength={200}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g., Tax Services"
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      maxLength={500}
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData({ ...formData, description: e.target.value })
-                      }
-                      rows={3}
-                      className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-                      placeholder="Optional description"
-                    />
-                    <p className="text-xs text-forvis-gray-600 mt-1">
-                      {formData.description.length}/500 characters
-                    </p>
-                  </div>
+                  <Input
+                    variant="textarea"
+                    label="Description"
+                    maxLength={500}
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    rows={3}
+                    placeholder="Optional description"
+                    helperText={`${formData.description.length}/500 characters`}
+                  />
 
-                  <div>
-                    <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
-                      Sort Order
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.sortOrder}
-                      onChange={(e) =>
-                        setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })
-                      }
-                      className="w-full px-3 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
-                    />
-                    <p className="text-xs text-forvis-gray-600 mt-1">
-                      Lower numbers appear first (can also drag-and-drop to reorder)
-                    </p>
-                  </div>
+                  <Input
+                    variant="number"
+                    label="Sort Order"
+                    value={formData.sortOrder}
+                    onChange={(e) =>
+                      setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })
+                    }
+                    helperText="Lower numbers appear first (can also drag-and-drop to reorder)"
+                  />
 
                   <div className="flex items-center">
                     <input
@@ -648,28 +623,23 @@ export default function ServiceLineMasterPage() {
                 </div>
 
                 <div className="mt-6 flex space-x-3">
-                  <button
+                  <Button
+                    variant="secondary"
                     type="button"
                     onClick={closeModal}
                     disabled={isSubmitting}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 disabled:opacity-50"
+                    className="flex-1"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="gradient"
                     type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                    style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+                    loading={isSubmitting}
+                    className="flex-1"
                   >
-                    {isSubmitting
-                      ? modalMode === 'create'
-                        ? 'Creating...'
-                        : 'Updating...'
-                      : modalMode === 'create'
-                      ? 'Create'
-                      : 'Update'}
-                  </button>
+                    {modalMode === 'create' ? 'Create' : 'Update'}
+                  </Button>
                 </div>
               </form>
             </div>
@@ -706,20 +676,22 @@ export default function ServiceLineMasterPage() {
               </div>
 
               <div className="px-6 py-4 border-t border-forvis-gray-200 flex space-x-3">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => setDeleteConfirmCode(null)}
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 disabled:opacity-50"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="danger"
                   onClick={() => handleDelete(deleteConfirmCode)}
-                  disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  loading={isSubmitting}
+                  className="flex-1"
                 >
-                  {isSubmitting ? 'Deleting...' : 'Delete'}
-                </button>
+                  Delete
+                </Button>
               </div>
             </div>
           </div>
