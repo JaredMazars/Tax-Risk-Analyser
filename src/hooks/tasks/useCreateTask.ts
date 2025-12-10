@@ -6,6 +6,7 @@ import { clientKeys } from '@/hooks/clients/useClients';
 
 export interface CreateTaskInput {
   // Basic Info
+  taskYear: number;
   TaskDesc: string;
   TaskCode?: string;
   clientId?: number | null;  // Internal ID - for queries (will be converted to GSClientID)

@@ -46,3 +46,6 @@ const employees = await prisma.employee.findMany({
 - Follow dual-ID pattern for any new relationships with this table
 - Use `id` for internal-only relationships
 - Use `GSEmployeeID` for relationships with other externally-synced tables
+
+
+

@@ -42,8 +42,10 @@ export interface ClientWithTasks extends Client {
     createdAt: string;
     updatedAt: string;
     ServLineCode: string;
+    ServLineDesc?: string;
     SLGroup: string;
     subServiceLineGroupCode?: string | null;
+    subServiceLineGroupDesc?: string | null;
     GSTaskID: string;
     TaskDateOpen: string;
     TaskDateTerminate?: string | null;
@@ -52,6 +54,7 @@ export interface ClientWithTasks extends Client {
     TaskManager: string;
     TaskManagerName: string;
     masterServiceLine: string | null;
+    masterServiceLineDesc?: string | null;
     wip?: {
       balWIP: number;
       balTime: number;

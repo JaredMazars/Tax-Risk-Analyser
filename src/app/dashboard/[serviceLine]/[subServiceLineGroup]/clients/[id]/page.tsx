@@ -136,7 +136,8 @@ export default function ServiceLineClientDetailPage() {
     // Filter tasks that belong to the current sub-service line group
     return allTasks.filter((task: any) => {
       const taskSubGroup = task.subServiceLineGroupCode || task.SLGroup;
-      return taskSubGroup?.toUpperCase() === subServiceLineGroup?.toUpperCase();
+      // Case-insensitive comparison with trimming
+      return taskSubGroup?.trim().toUpperCase() === subServiceLineGroup?.trim().toUpperCase();
     });
   }, [client, subServiceLineGroup]);
 
@@ -147,7 +148,8 @@ export default function ServiceLineClientDetailPage() {
     // Filter tasks that don't belong to the current sub-service line group
     return allTasks.filter((task: any) => {
       const taskSubGroup = task.subServiceLineGroupCode || task.SLGroup;
-      return taskSubGroup?.toUpperCase() !== subServiceLineGroup?.toUpperCase();
+      // Case-insensitive comparison with trimming
+      return taskSubGroup?.trim().toUpperCase() !== subServiceLineGroup?.trim().toUpperCase();
     });
   }, [client, subServiceLineGroup]);
 
@@ -277,7 +279,7 @@ export default function ServiceLineClientDetailPage() {
         </nav>
 
         {/* Client Header */}
-        <ClientHeader client={client} />
+        <ClientHeader client={client} tasks={client.tasks} />
 
         {/* Create Task Modal */}
         <CreateTaskModal
@@ -286,6 +288,7 @@ export default function ServiceLineClientDetailPage() {
           onSuccess={handleTaskCreated}
           initialClientId={client ? client.id : null}
           initialServiceLine={serviceLine as ServiceLine}
+          initialSubServiceLineGroup={subServiceLineGroup}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">

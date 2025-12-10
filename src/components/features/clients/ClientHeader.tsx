@@ -1,15 +1,16 @@
 'use client';
 
-import { BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { Client } from '@/types';
-import { useClientWip } from '@/hooks/clients/useClientWip';
+import { useClientBalances } from '@/hooks/clients/useClientBalances';
 
 interface ClientHeaderProps {
   client: Client;
+  tasks?: any[];
 }
 
-export function ClientHeader({ client }: ClientHeaderProps) {
-  const { data: wipData } = useClientWip(client.GSClientID);
+export function ClientHeader({ client, tasks }: ClientHeaderProps) {
+  const { data: balancesData } = useClientBalances(client.GSClientID);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -50,8 +51,8 @@ export function ClientHeader({ client }: ClientHeaderProps) {
             </div>
           </div>
 
-          {/* WIP Balances */}
-          {wipData && wipData.overall && (
+          {/* Client Balances */}
+          {balancesData && (
             <div className="ml-8 flex gap-4">
               <div
                 className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
@@ -60,7 +61,7 @@ export function ClientHeader({ client }: ClientHeaderProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
-                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balWIP)}</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(balancesData.wipBalance)}</p>
                   </div>
                   <div
                     className="rounded-full p-2.5 ml-3"
@@ -77,32 +78,14 @@ export function ClientHeader({ client }: ClientHeaderProps) {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Time Balance</p>
-                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balTime)}</p>
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Debtor Balance</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(balancesData.debtorBalance)}</p>
                   </div>
                   <div
                     className="rounded-full p-2.5 ml-3"
                     style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
                   >
-                    <BuildingOfficeIcon className="w-5 h-5 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
-                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Disb Balance</p>
-                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balDisb)}</p>
-                  </div>
-                  <div
-                    className="rounded-full p-2.5 ml-3"
-                    style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
-                  >
-                    <BuildingOfficeIcon className="w-5 h-5 text-white" />
+                    <BanknotesIcon className="w-5 h-5 text-white" />
                   </div>
                 </div>
               </div>

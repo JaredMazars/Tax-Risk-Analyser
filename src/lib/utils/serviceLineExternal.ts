@@ -373,12 +373,16 @@ export async function getExternalServiceLinesBySubGroup(
   masterCode?: string
 ): Promise<ServiceLineExternal[]> {
   try {
+    // Normalize input for consistent matching
+    const normalizedSubGroupCode = subGroupCode.toUpperCase().trim();
+    const normalizedMasterCode = masterCode?.toUpperCase().trim();
+    
     const where: any = {
-      SubServlineGroupCode: subGroupCode,
+      SubServlineGroupCode: normalizedSubGroupCode,
     };
     
-    if (masterCode) {
-      where.masterCode = masterCode;
+    if (normalizedMasterCode) {
+      where.masterCode = normalizedMasterCode;
     }
 
     const results = await prisma.serviceLineExternal.findMany({

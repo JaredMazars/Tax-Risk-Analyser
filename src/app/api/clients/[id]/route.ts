@@ -152,20 +152,54 @@ export async function GET(
     const allServLineCodes = tasks.map(t => t.ServLineCode);
     const serviceLineMapping: Record<string, string> = {};
     const servLineToSubGroupMapping: Record<string, string> = {};
+    const servLineDescMapping: Record<string, string> = {};
+    const subGroupDescMapping: Record<string, string> = {};
     
     if (allServLineCodes.length > 0) {
       const mappings = await prisma.serviceLineExternal.findMany({
         where: { ServLineCode: { in: allServLineCodes } },
-        select: { ServLineCode: true, masterCode: true, SubServlineGroupCode: true },
+        select: { 
+          ServLineCode: true, 
+          ServLineDesc: true,
+          masterCode: true, 
+          SubServlineGroupCode: true, 
+          SubServlineGroupDesc: true,
+          SLGroup: true 
+        },
       });
       mappings.forEach(m => {
         if (m.ServLineCode) {
           if (m.masterCode) {
             serviceLineMapping[m.ServLineCode] = m.masterCode;
           }
+          if (m.ServLineDesc) {
+            servLineDescMapping[m.ServLineCode] = m.ServLineDesc;
+          }
+          // Priority: SubServlineGroupCode, fallback to SLGroup from the mapping table
           if (m.SubServlineGroupCode) {
             servLineToSubGroupMapping[m.ServLineCode] = m.SubServlineGroupCode;
+          } else if (m.SLGroup) {
+            servLineToSubGroupMapping[m.ServLineCode] = m.SLGroup;
           }
+          if (m.SubServlineGroupDesc) {
+            subGroupDescMapping[m.ServLineCode] = m.SubServlineGroupDesc;
+          }
+        }
+      });
+    }
+    
+    // Fetch ServiceLineMaster records to get master service line descriptions
+    const masterCodes = Array.from(new Set(Object.values(serviceLineMapping).filter(Boolean)));
+    const masterServiceLineDescMapping: Record<string, string> = {};
+    
+    if (masterCodes.length > 0) {
+      const masterServiceLines = await prisma.serviceLineMaster.findMany({
+        where: { code: { in: masterCodes } },
+        select: { code: true, description: true },
+      });
+      masterServiceLines.forEach(m => {
+        if (m.description) {
+          masterServiceLineDescMapping[m.code] = m.description;
         }
       });
     }
@@ -199,13 +233,19 @@ export async function GET(
       taskWip.balDisb += wip.BalDisb || 0;
     });
 
-    // Add masterServiceLine, subServiceLineGroupCode, and WIP data to each task
-    const tasksWithMasterServiceLine = tasks.map(task => ({
-      ...task,
-      masterServiceLine: serviceLineMapping[task.ServLineCode] || null,
-      subServiceLineGroupCode: servLineToSubGroupMapping[task.ServLineCode] || null,
-      wip: wipByGSTaskID.get(task.GSTaskID) || { balWIP: 0, balTime: 0, balDisb: 0 },
-    }));
+    // Add masterServiceLine, subServiceLineGroupCode, descriptions, and WIP data to each task
+    const tasksWithMasterServiceLine = tasks.map(task => {
+      const masterCode = serviceLineMapping[task.ServLineCode] || null;
+      return {
+        ...task,
+        masterServiceLine: masterCode,
+        masterServiceLineDesc: masterCode ? masterServiceLineDescMapping[masterCode] || null : null,
+        subServiceLineGroupCode: servLineToSubGroupMapping[task.ServLineCode] || task.SLGroup,
+        subServiceLineGroupDesc: subGroupDescMapping[task.ServLineCode] || null,
+        ServLineDesc: servLineDescMapping[task.ServLineCode] || task.ServLineDesc,
+        wip: wipByGSTaskID.get(task.GSTaskID) || { balWIP: 0, balTime: 0, balDisb: 0 },
+      };
+    });
 
     const responseData = {
       ...client,

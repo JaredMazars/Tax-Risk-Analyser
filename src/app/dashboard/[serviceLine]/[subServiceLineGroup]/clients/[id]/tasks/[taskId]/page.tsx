@@ -22,7 +22,8 @@ import {
   DocumentCheckIcon,
   CheckCircleIcon,
   LockClosedIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import BalanceSheetPage from '@/app/dashboard/tasks/[id]/balance-sheet/page';
 import IncomeStatementPage from '@/app/dashboard/tasks/[id]/income-statement/page';
@@ -36,7 +37,7 @@ import { formatDate } from '@/lib/utils/taskUtils';
 import { getTaskTypeColor, formatTaskType } from '@/lib/utils/serviceLineUtils';
 import { isSharedService, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
-import { LoadingSpinner } from '@/components/ui';
+import { LoadingSpinner, Button, Card, Banner, Input } from '@/components/ui';
 import { ClientSelector } from '@/components/features/clients/ClientSelector';
 import { TaskTypeSelector } from '@/components/features/tasks/TaskTypeSelector';
 import { TaxYearInput } from '@/components/shared/TaxYearInput';
@@ -150,44 +151,36 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Project Information */}
-      <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
+      <Card variant="standard" className="overflow-hidden">
         <div className="px-4 py-2 border-b border-forvis-gray-200 flex items-center justify-between">
           <h2 className="text-base font-semibold text-forvis-gray-900">Task Information</h2>
           {!isEditing && (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"
+              icon={<PencilIcon className="h-3.5 w-3.5" />}
             >
-              <PencilIcon className="h-3.5 w-3.5 mr-1.5" />
               Edit
-            </button>
+            </Button>
           )}
         </div>
         <div className="px-4 py-3">
           {isEditing ? (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-                  Project Name
-                </label>
-                <input
-                  type="text"
-                  value={editData.name ?? ''}
-                  onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={editData.description}
-                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                  className="input-field"
-                  rows={3}
-                />
-              </div>
+              <Input
+                variant="text"
+                label="Project Name"
+                value={editData.name ?? ''}
+                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+              />
+              <Input
+                variant="textarea"
+                label="Description"
+                value={editData.description}
+                onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                rows={3}
+              />
               <div>
                 <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                   Client
@@ -218,7 +211,9 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
                 />
               </div>
               <div className="flex justify-end space-x-3 pt-2">
-                <button
+                <Button
+                  variant="secondary"
+                  size="md"
                   onClick={() => {
                     setIsEditing(false);
                     setEditData({
@@ -233,32 +228,22 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
                       submissionDeadline: task.submissionDeadline instanceof Date ? task.submissionDeadline : (task.submissionDeadline ? new Date(task.submissionDeadline) : null),
                     });
                   }}
-                  className="btn-secondary"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={handleSave}
-                  disabled={isSubmitting}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  loading={isSubmitting}
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
-                </button>
+                  Save Changes
+                </Button>
               </div>
             </div>
           ) : (
             <dl className="space-y-4">
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Name</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">{task.name}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-forvis-gray-600">Description</dt>
-                <dd className="mt-1 text-sm text-forvis-gray-900">
-                  {task.description || 'No description provided'}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <dt className="text-sm font-medium text-forvis-gray-600">Created</dt>
                   <dd className="mt-1 text-sm text-forvis-gray-900">{formatDate(task.createdAt)}</dd>
@@ -268,36 +253,16 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
                   <dd className="mt-1 text-sm text-forvis-gray-900">{formatDate(task.updatedAt)}</dd>
                 </div>
               </div>
+              <div className="pt-2 text-sm text-forvis-gray-600">
+                <p>Click "Edit" to modify task details, client assignment, and tax year information.</p>
+              </div>
             </dl>
           )}
         </div>
-      </div>
-
-      {/* Task Statistics */}
-      <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate overflow-hidden">
-        <div className="px-4 py-2 border-b border-forvis-gray-200">
-          <h2 className="text-base font-semibold text-forvis-gray-900">Task Statistics</h2>
-        </div>
-        <div className="px-4 py-3">
-          <dl className="grid grid-cols-2 gap-4">
-            <div className="bg-forvis-blue-50 rounded-lg p-3 border border-forvis-blue-100">
-              <dt className="text-xs font-medium text-forvis-blue-800">Mapped Accounts</dt>
-              <dd className="mt-1 text-xl font-semibold text-forvis-blue-600">
-                {task._count?.mappings ?? 0}
-              </dd>
-            </div>
-            <div className="bg-forvis-blue-100 rounded-lg p-3 border border-forvis-blue-200">
-              <dt className="text-xs font-medium text-forvis-blue-900">Tax Adjustments</dt>
-              <dd className="mt-1 text-xl font-semibold text-forvis-blue-700">
-                {task._count?.taxAdjustments ?? 0}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </div>
+      </Card>
 
       {/* Danger Zone */}
-      <div className="bg-white rounded-lg border border-red-200 overflow-hidden shadow-corporate">
+      <Card variant="standard" className="border-red-200 overflow-hidden">
         <div className="px-4 py-2 border-b border-red-200 bg-red-50">
           <h2 className="text-base font-semibold text-red-900">Danger Zone</h2>
         </div>
@@ -309,41 +274,43 @@ function SettingsTab({ task, onUpdate }: SettingsTabProps) {
                 Once archived, this task will be hidden from your dashboard. You can restore it later.
               </p>
             </div>
-            <button
+            <Button
+              variant="danger"
+              size="sm"
               onClick={() => setShowDeleteModal(true)}
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100 transition-colors"
+              icon={<ArchiveBoxIcon className="h-3.5 w-3.5" />}
             >
-              <ArchiveBoxIcon className="h-3.5 w-3.5 mr-1.5" />
               Archive
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-corporate-lg p-4 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-3 text-forvis-gray-900">Archive Task</h2>
-            <p className="text-sm text-forvis-gray-700 mb-4">
+          <div className="max-w-lg w-full p-6 bg-white rounded-lg shadow-corporate-lg space-y-4">
+            <h2 className="text-xl font-semibold text-forvis-gray-900">Archive Task</h2>
+            <p className="text-sm text-forvis-gray-700">
               Are you sure you want to archive <span className="font-semibold">{task.name}</span>? 
               This will hide the task from your main view.
             </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setShowDeleteModal(false)}
-                className="btn-secondary text-xs"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={handleArchive}
-                disabled={isSubmitting}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-corporate"
+                loading={isSubmitting}
               >
-                {isSubmitting ? 'Archiving...' : 'Archive Project'}
-              </button>
+                Archive Project
+              </Button>
             </div>
           </div>
         </div>
@@ -512,7 +479,7 @@ export default function ClientProjectPage() {
           <div className="p-6 bg-forvis-gray-50">
             <div className="max-w-5xl mx-auto">
               {/* Header Card */}
-              <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6 mb-6">
+              <Card variant="standard" className="p-6 mb-6">
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-semibold text-forvis-gray-900">Team Members</h2>
@@ -525,16 +492,14 @@ export default function ClientProjectPage() {
                   </div>
 
                   {currentUserRole ? (
-                    <button
+                    <Button
+                      variant="gradient"
+                      size="md"
                       onClick={() => setShowAddUserModal(true)}
-                      className="inline-flex items-center px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                      icon={<PlusIcon className="w-5 h-5" />}
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
                       Add Team Member
-                    </button>
+                    </Button>
                   ) : (
                     <div className="text-sm text-forvis-gray-600 bg-forvis-gray-100 px-4 py-2 rounded-lg border-2 border-forvis-gray-300 shadow-corporate">
                       <svg className="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -544,7 +509,7 @@ export default function ClientProjectPage() {
                     </div>
                   )}
                 </div>
-              </div>
+              </Card>
 
               {loadingTeam ? (
                 <div className="animate-pulse space-y-4">
@@ -686,35 +651,57 @@ export default function ClientProjectPage() {
 
         {/* Workflow Status Banner */}
         {task && isClientTask(task) && !canAccessWorkTabs(task) && (
-          <div className="mb-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 shadow-corporate">
-            <div className="flex items-start">
-              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-yellow-900 mb-1">
-                  Task Setup Required
-                </h3>
-                <p className="text-sm text-yellow-800">
-                  {!task.acceptanceApproved 
-                    ? 'Complete client acceptance and continuance to continue with this task.'
-                    : 'Upload the signed engagement letter to access task work tabs.'
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
+          <Banner
+            variant="warning"
+            title="Task Setup Required"
+            message={
+              !task.acceptanceApproved 
+                ? 'Complete client acceptance and continuance to continue with this task.'
+                : 'Upload the signed engagement letter to access task work tabs.'
+            }
+            className="mb-4"
+          />
         )}
 
         {/* Project Header */}
-        <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate mb-4 overflow-hidden">
+        <Card variant="standard" className="mb-4 overflow-hidden">
           <div className="px-4 py-3">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h1 className="text-2xl font-semibold text-forvis-gray-900">{task?.name}</h1>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-3">
+                    <h1 className="text-2xl font-semibold text-forvis-gray-900">{task?.name}</h1>
+                    {task && (
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getTaskTypeColor(task.projectType)}`}>
+                        {formatTaskType(task.projectType)}
+                      </span>
+                    )}
+                    {task?.Active && task.Active !== 'Yes' && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
+                        {task.Active === 'Archived' ? 'Archived' : 'Inactive'}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Service Line Hierarchy - Right Aligned */}
                   {task && (
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getTaskTypeColor(task.projectType)}`}>
-                      {formatTaskType(task.projectType)}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {task.masterServiceLine && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200">
+                          {task.masterServiceLine}
+                        </span>
+                      )}
+                      {task.subServiceLineGroupCode && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200">
+                          {task.subServiceLineGroupCode}
+                        </span>
+                      )}
+                      {task.ServLineCode && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200">
+                          {task.ServLineCode}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 
@@ -752,6 +739,18 @@ export default function ClientProjectPage() {
                       <span className="ml-1">{formatDate(task.submissionDeadline)}</span>
                     </div>
                   )}
+                  {task?.TaskPartnerName && (
+                    <div className="flex items-center">
+                      <span className="font-medium text-forvis-gray-700">Partner:</span>
+                      <span className="ml-1">{task.TaskPartnerName || task.TaskPartner}</span>
+                    </div>
+                  )}
+                  {task?.TaskManagerName && (
+                    <div className="flex items-center">
+                      <span className="font-medium text-forvis-gray-700">Manager:</span>
+                      <span className="ml-1">{task.TaskManagerName || task.TaskManager}</span>
+                    </div>
+                  )}
                   <span>•</span>
                   <span>{task?._count?.mappings ?? 0} accounts</span>
                   <span>{task?._count?.taxAdjustments ?? 0} adjustments</span>
@@ -759,6 +758,47 @@ export default function ClientProjectPage() {
                     <span>{task.users.length} team members</span>
                   )}
                 </div>
+
+                {/* WIP Balances */}
+                {task?.wip && (
+                  <div className="mt-3 pt-3 border-t border-forvis-gray-200">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-forvis-gray-600">WIP Balance</p>
+                        <p className="text-sm font-semibold text-forvis-gray-900">
+                          {new Intl.NumberFormat('en-ZA', {
+                            style: 'currency',
+                            currency: 'ZAR',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(task.wip.balWIP)}
+                        </p>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-forvis-gray-600">Time</p>
+                        <p className="text-sm font-semibold text-forvis-gray-900">
+                          {new Intl.NumberFormat('en-ZA', {
+                            style: 'currency',
+                            currency: 'ZAR',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(task.wip.balTime)}
+                        </p>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-forvis-gray-600">Disb</p>
+                        <p className="text-sm font-semibold text-forvis-gray-900">
+                          {new Intl.NumberFormat('en-ZA', {
+                            style: 'currency',
+                            currency: 'ZAR',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(task.wip.balDisb)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -911,7 +951,7 @@ export default function ClientProjectPage() {
               </Tab>
             </nav>
           </div>
-        </div>
+        </Card>
 
         {/* Tab Content */}
         <div>

@@ -131,3 +131,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return handleApiError(error, 'DELETE /api/admin/external-links/[id]');
   }
 }
+
+
+

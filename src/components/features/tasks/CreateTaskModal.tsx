@@ -22,14 +22,18 @@ interface CreateTaskModalProps {
   onSuccess: (task: TaskCreatedResult) => void;
   initialClientId?: number | null;  // Internal ID
   initialServiceLine?: ServiceLine | null;
+  initialSubServiceLineGroup?: string | null;
 }
 
-interface SubServiceLineGroup {
-  code: string;
-  description: string;
+interface ExternalServiceLine {
+  id: number;
+  ServLineCode: string | null;
+  ServLineDesc: string | null;
+  SubServlineGroupCode: string | null;
+  masterCode: string | null;
 }
 
-export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, initialServiceLine }: CreateTaskModalProps) {
+export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, initialServiceLine, initialSubServiceLineGroup }: CreateTaskModalProps) {
   const [step, setStep] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { currentServiceLine } = useServiceLine();
@@ -39,12 +43,13 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   const effectiveServiceLine = initialServiceLine || currentServiceLine || ServiceLine.TAX;
   const isServiceLineLocked = !!initialServiceLine;
   
-  // Sub-service line groups state
-  const [subGroups, setSubGroups] = useState<SubServiceLineGroup[]>([]);
-  const [loadingSubGroups, setLoadingSubGroups] = useState(false);
+  // External service lines state
+  const [externalServiceLines, setExternalServiceLines] = useState<ExternalServiceLine[]>([]);
+  const [loadingExternalServiceLines, setLoadingExternalServiceLines] = useState(false);
 
   const [formData, setFormData] = useState({
     // Basic Info
+    taskYear: new Date().getFullYear(),
     TaskDesc: '',
     TaskCode: '',
     clientId: initialClientId || null,
@@ -73,12 +78,18 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     estimatedAdjustments: '',
   });
 
-  // Fetch sub-groups when service line changes
+  // Fetch external service lines when service line is available
   useEffect(() => {
     if (formData.serviceLine && isOpen) {
-      fetchSubGroups(formData.serviceLine);
+      if (initialSubServiceLineGroup) {
+        // Fetch external service lines for specific sub-service line group
+        fetchExternalServiceLines(formData.serviceLine, initialSubServiceLineGroup);
+      } else {
+        // Fetch all external service lines for the service line
+        fetchAllExternalServiceLines(formData.serviceLine);
+      }
     }
-  }, [formData.serviceLine, isOpen]);
+  }, [formData.serviceLine, initialSubServiceLineGroup, isOpen]);
 
   // Update clientId when initialClientId changes
   useEffect(() => {
@@ -98,30 +109,84 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     }
   }, [isOpen, initialServiceLine, currentServiceLine]);
 
-  const fetchSubGroups = async (masterCode: string) => {
-    setLoadingSubGroups(true);
+  const fetchExternalServiceLines = async (masterCode: string, subGroupCode: string) => {
+    setLoadingExternalServiceLines(true);
     try {
-      const response = await fetch(`/api/service-lines/${masterCode}/sub-groups`);
+      const response = await fetch(`/api/service-lines/${masterCode}/${subGroupCode}/external-lines`);
       if (response.ok) {
         const data = await response.json();
-        const groups = data.success ? data.data : [];
-        setSubGroups(groups);
+        const lines = data.success ? data.data : [];
+        setExternalServiceLines(lines);
         
-        // Auto-select first sub-group if available
-        if (groups.length > 0 && !formData.SLGroup) {
-          handleFieldChange('SLGroup', groups[0].code);
+        // Auto-select first external service line if available
+        if (lines.length > 0 && !formData.ServLineCode) {
+          handleServLineCodeChange(lines[0].ServLineCode || '');
         }
       }
     } catch (error) {
-      console.error('Error fetching sub-groups:', error);
-      setSubGroups([]);
+      console.error('Error fetching external service lines:', error);
+      setExternalServiceLines([]);
     } finally {
-      setLoadingSubGroups(false);
+      setLoadingExternalServiceLines(false);
     }
+  };
+
+  const fetchAllExternalServiceLines = async (masterCode: string) => {
+    setLoadingExternalServiceLines(true);
+    try {
+      const response = await fetch(`/api/service-lines/${masterCode}/external-lines`);
+      if (response.ok) {
+        const data = await response.json();
+        const lines = data.success ? data.data : [];
+        setExternalServiceLines(lines);
+        
+        // Auto-select first external service line if available
+        if (lines.length > 0 && !formData.ServLineCode) {
+          handleServLineCodeChange(lines[0].ServLineCode || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching all external service lines:', error);
+      setExternalServiceLines([]);
+    } finally {
+      setLoadingExternalServiceLines(false);
+    }
+  };
+
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 10;
+    const endYear = currentYear + 1;
+    const years = [];
+    
+    for (let year = endYear; year >= startYear; year--) {
+      years.push(year);
+    }
+    
+    return years;
   };
 
   const handleFieldChange = (field: string, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleServLineCodeChange = (servLineCode: string) => {
+    // Find the selected external service line
+    const selectedLine = externalServiceLines.find(line => line.ServLineCode === servLineCode);
+    
+    if (selectedLine) {
+      setFormData(prev => ({
+        ...prev,
+        ServLineCode: servLineCode,
+        ServLineDesc: selectedLine.ServLineDesc || '',
+        SLGroup: selectedLine.SubServlineGroupCode || '',
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        ServLineCode: servLineCode,
+      }));
+    }
   };
 
   const handlePartnerChange = (code: string, name: string) => {
@@ -163,7 +228,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   const isStepValid = (currentStep: number): boolean => {
     switch (currentStep) {
       case 1:
-        return !!formData.TaskDesc.trim() && !!formData.SLGroup;
+        return !!formData.taskYear && !!formData.TaskDesc.trim() && !!formData.ServLineCode;
       case 2:
         return !!formData.TaskPartner && !!formData.TaskManager && !!formData.OfficeCode;
       case 3:
@@ -207,6 +272,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
   const resetForm = () => {
     const sl = initialServiceLine || currentServiceLine || ServiceLine.TAX;
     setFormData({
+      taskYear: new Date().getFullYear(),
       TaskDesc: '',
       TaskCode: '',
       clientId: initialClientId || null,
@@ -290,6 +356,47 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Service Line <span className="text-red-500">*</span>
+                </label>
+                {loadingExternalServiceLines ? (
+                  <div className="animate-pulse h-10 bg-gray-200 rounded-lg"></div>
+                ) : (
+                  <select
+                    value={formData.ServLineCode}
+                    onChange={(e) => handleServLineCodeChange(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                    required
+                  >
+                    <option value="">Select service line...</option>
+                    {externalServiceLines.map((line) => (
+                      <option key={line.id} value={line.ServLineCode || ''}>
+                        {line.ServLineCode} - {line.ServLineDesc || line.ServLineCode}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Year <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.taskYear}
+                  onChange={(e) => handleFieldChange('taskYear', parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                  required
+                >
+                  {generateYearOptions().map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Task Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -341,29 +448,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                   </div>
                 </div>
               )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Service Line Sub-Group <span className="text-red-500">*</span>
-                </label>
-                {loadingSubGroups ? (
-                  <div className="animate-pulse h-10 bg-gray-200 rounded-lg"></div>
-                ) : (
-                  <select
-                    value={formData.SLGroup}
-                    onChange={(e) => handleFieldChange('SLGroup', e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-                    required
-                  >
-                    <option value="">Select sub-group...</option>
-                    {subGroups.map((group) => (
-                      <option key={group.code} value={group.code}>
-                        {group.description || group.code}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
             </div>
           )}
 
@@ -516,6 +600,10 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Task Summary</h3>
                 
                 <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Year:</span>
+                    <span className="font-medium text-gray-900">{formData.taskYear}</span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Task Name:</span>
                     <span className="font-medium text-gray-900">{formData.TaskDesc}</span>

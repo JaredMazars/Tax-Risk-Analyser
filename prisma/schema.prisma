@@ -770,6 +770,7 @@ model Task {
   Active                   String                     @db.VarChar(3)
   TaskDateOpen             DateTime
   TaskDateTerminate        DateTime?
+  taskYear                 Int
   createdBy                String?
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
@@ -808,6 +809,7 @@ model Task {
   @@index([updatedAt(sort: Desc)])
   @@index([ServLineCode, Active, updatedAt(sort: Desc)])
   @@index([TaskDesc])
+  @@index([taskYear])
 }
 
 model TaskTeam {

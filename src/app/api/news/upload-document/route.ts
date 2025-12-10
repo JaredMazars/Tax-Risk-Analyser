@@ -112,3 +112,6 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/news/upload-document');
   }
 }
+
+
+

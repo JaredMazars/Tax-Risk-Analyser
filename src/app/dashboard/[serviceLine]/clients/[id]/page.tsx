@@ -579,26 +579,55 @@ export default function ServiceLineClientDetailPage() {
                               : 'opacity-60 cursor-not-allowed'
                           }`}
                         >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-2 mb-1 flex-wrap">
-                                <h3 className="text-sm font-semibold text-forvis-gray-900">
-                                  {task.TaskDesc}
-                                </h3>
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                  {task.TaskCode}
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                            <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold text-forvis-gray-900">
+                                {task.TaskDesc}
+                              </h3>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                                {task.TaskCode}
+                              </span>
+                              {!isAccessible && task.masterServiceLine && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                                  Available in {formatServiceLineName(task.masterServiceLine)}
                                 </span>
-                                {!isAccessible && task.masterServiceLine && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-                                    Available in {formatServiceLineName(task.masterServiceLine)}
-                                  </span>
-                                )}
-                                {task.Active !== 'Yes' && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
-                                    Inactive
-                                  </span>
-                                )}
-                              </div>
+                              )}
+                              {task.Active !== 'Yes' && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Service Line Hierarchy - Right Aligned */}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {task.masterServiceLine && (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  isAccessible
+                                    ? 'bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200'
+                                    : 'bg-forvis-gray-50 text-forvis-gray-500 border border-forvis-gray-200'
+                                }`}>
+                                  {task.masterServiceLine}
+                                </span>
+                              )}
+                              {task.subServiceLineGroupCode && (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  isAccessible
+                                    ? 'bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200'
+                                    : 'bg-forvis-gray-50 text-forvis-gray-500 border border-forvis-gray-200'
+                                }`}>
+                                  {task.subServiceLineGroupCode}
+                                </span>
+                              )}
+                              {task.ServLineCode && (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  isAccessible
+                                    ? 'bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200'
+                                    : 'bg-forvis-gray-50 text-forvis-gray-500 border border-forvis-gray-200'
+                                }`}>
+                                  {task.ServLineCode}
+                                </span>
+                              )}
                             </div>
                           </div>
                           

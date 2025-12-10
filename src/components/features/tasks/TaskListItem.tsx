@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ClockIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { AlertModal } from '@/components/shared/AlertModal';
+import { useTaskBalances } from '@/hooks/tasks/useTaskBalances';
 
 interface TaskListItemProps {
   task: {
@@ -16,6 +17,8 @@ interface TaskListItemProps {
     ServLineDesc?: string;
     SLGroup: string;
     subServiceLineGroupCode?: string | null; // The sub-service line group code this task belongs to
+    subServiceLineGroupDesc?: string | null; // The sub-service line group description
+    masterServiceLineDesc?: string | null; // The master service line description
     createdAt: string | Date;
     updatedAt: string | Date;
     TaskPartner?: string;
@@ -56,6 +59,9 @@ export function TaskListItem({
 }: TaskListItemProps) {
   const [showAccessModal, setShowAccessModal] = useState(false);
   
+  // Fetch task balances broken down by TTYPE
+  const { data: balancesData } = useTaskBalances(task.id);
+  
   // Check if task belongs to the current sub-service line group
   // Use subServiceLineGroupCode if available, otherwise fall back to SLGroup
   const taskSubGroup = task.subServiceLineGroupCode || task.SLGroup;
@@ -83,39 +89,59 @@ export function TaskListItem({
 
   const content = (
     <>
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 mb-1 flex-wrap">
-            <h3 className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-              {task.TaskDesc}
-            </h3>
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-              isAccessible 
-                ? 'bg-gray-100 text-gray-700 border border-gray-200'
-                : 'bg-forvis-gray-100 text-forvis-gray-400 border border-forvis-gray-200'
-            }`}>
-              {task.TaskCode}
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+          <h3 className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
+            {task.TaskDesc}
+          </h3>
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+            isAccessible 
+              ? 'bg-gray-100 text-gray-700 border border-gray-200'
+              : 'bg-forvis-gray-100 text-forvis-gray-400 border border-forvis-gray-200'
+          }`}>
+            {task.TaskCode}
+          </span>
+          {task.Active !== 'Yes' && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
+              {task.Active === 'Archived' ? 'Archived' : 'Inactive'}
             </span>
-            {task.ServLineDesc && (
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                isAccessible
-                  ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                  : 'bg-forvis-gray-100 text-forvis-gray-400'
-              }`}>
-                {task.ServLineDesc}
-              </span>
-            )}
-            {task.Active !== 'Yes' && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-gray-200 text-forvis-gray-700">
-                {task.Active === 'Archived' ? 'Archived' : 'Inactive'}
-              </span>
-            )}
-            {!isAccessible && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
-                Different Group
-              </span>
-            )}
-          </div>
+          )}
+          {!isAccessible && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+              Different Group
+            </span>
+          )}
+        </div>
+        
+        {/* Service Line Hierarchy - Right Aligned */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {task.masterServiceLine && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+              isAccessible
+                ? 'bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200'
+                : 'bg-forvis-gray-50 text-forvis-gray-500 border border-forvis-gray-200'
+            }`}>
+              {task.masterServiceLine}
+            </span>
+          )}
+          {task.subServiceLineGroupCode && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+              isAccessible
+                ? 'bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200'
+                : 'bg-forvis-gray-50 text-forvis-gray-500 border border-forvis-gray-200'
+            }`}>
+              {task.subServiceLineGroupCode}
+            </span>
+          )}
+          {task.ServLineCode && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+              isAccessible
+                ? 'bg-forvis-blue-50 text-forvis-blue-700 border border-forvis-blue-200'
+                : 'bg-forvis-gray-50 text-forvis-gray-500 border border-forvis-gray-200'
+            }`}>
+              {task.ServLineCode}
+            </span>
+          )}
         </div>
       </div>
       
@@ -149,25 +175,25 @@ export function TaskListItem({
       </div>
       
       {/* WIP Balances */}
-      {task.wip && (
+      {balancesData && (
         <div className="mt-2 pt-2 border-t border-forvis-gray-200">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <div className="flex-1">
-              <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>WIP Balance</p>
+              <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Gross WIP</p>
               <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                {formatCurrency(task.wip.balWIP)}
+                {formatCurrency(balancesData.grossWip)}
               </p>
             </div>
             <div className="flex-1">
-              <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Time</p>
+              <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Provision</p>
               <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                {formatCurrency(task.wip.balTime)}
+                {formatCurrency(balancesData.provision)}
               </p>
             </div>
             <div className="flex-1">
-              <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Disb</p>
-              <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                {formatCurrency(task.wip.balDisb)}
+              <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Net WIP</p>
+              <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-blue-600' : 'text-forvis-gray-500'}`}>
+                {formatCurrency(balancesData.netWip)}
               </p>
             </div>
           </div>

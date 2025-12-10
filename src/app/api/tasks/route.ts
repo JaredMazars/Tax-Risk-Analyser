@@ -323,6 +323,7 @@ export async function POST(request: NextRequest) {
           GSTaskID: crypto.randomUUID(),
           TaskCode,
           TaskDesc: validatedData.TaskDesc,
+          taskYear: validatedData.taskYear,
           GSClientID,
           TaskPartner: validatedData.TaskPartner,
           TaskPartnerName: validatedData.TaskPartnerName,
