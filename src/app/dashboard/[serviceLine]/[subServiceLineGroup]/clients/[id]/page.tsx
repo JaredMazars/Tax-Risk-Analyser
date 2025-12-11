@@ -46,7 +46,7 @@ export default function ServiceLineClientDetailPage() {
   const [searchTerm, setSearchTerm] = useState('');
   
   // Fetch sub-service line groups to get the description
-  const { data: subGroups } = useSubServiceLineGroups({
+  const { data: subGroups, isLoading: isLoadingSubGroups } = useSubServiceLineGroups({
     serviceLine: serviceLine || '',
     enabled: !!serviceLine,
   });
@@ -57,10 +57,16 @@ export default function ServiceLineClientDetailPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Fetch client using React Query hook with task pagination
-  const { data: clientData, isLoading, isFetching, error } = useClient(GSClientID, {
+  // Enable refetch on mount to ensure fresh data when navigating back from task page
+  const { data: clientData, isLoading, isFetching, error, refetch } = useClient(GSClientID, {
     taskPage,
     taskLimit,
   });
+  
+  // Force refetch when component mounts to get fresh data
+  useEffect(() => {
+    refetch();
+  }, [GSClientID, refetch]);
 
   // Fetch latest credit rating
   const { data: latestRating, isLoading: isLoadingRating } = useLatestCreditRating(GSClientID);
@@ -129,27 +135,30 @@ export default function ServiceLineClientDetailPage() {
   };
 
   // Get tasks filtered by sub-service line group
+  // Add safeguards to prevent errors when data is not yet loaded
   const currentSubServiceLineTasks = useMemo(() => {
-    if (!client) return [];
+    if (!client || !client.tasks || !subServiceLineGroup) return [];
     const allTasks = client.tasks || [];
     
     // Filter tasks that belong to the current sub-service line group
     return allTasks.filter((task: any) => {
       const taskSubGroup = task.subServiceLineGroupCode || task.SLGroup;
+      if (!taskSubGroup) return false;
       // Case-insensitive comparison with trimming
-      return taskSubGroup?.trim().toUpperCase() === subServiceLineGroup?.trim().toUpperCase();
+      return taskSubGroup.trim().toUpperCase() === subServiceLineGroup.trim().toUpperCase();
     });
   }, [client, subServiceLineGroup]);
 
   const otherTasks = useMemo(() => {
-    if (!client) return [];
+    if (!client || !client.tasks || !subServiceLineGroup) return [];
     const allTasks = client.tasks || [];
     
     // Filter tasks that don't belong to the current sub-service line group
     return allTasks.filter((task: any) => {
       const taskSubGroup = task.subServiceLineGroupCode || task.SLGroup;
+      if (!taskSubGroup) return false;
       // Case-insensitive comparison with trimming
-      return taskSubGroup?.trim().toUpperCase() !== subServiceLineGroup?.trim().toUpperCase();
+      return taskSubGroup.trim().toUpperCase() !== subServiceLineGroup.trim().toUpperCase();
     });
   }, [client, subServiceLineGroup]);
 
@@ -451,42 +460,56 @@ export default function ServiceLineClientDetailPage() {
 
               {/* Task Tabs - Current Sub-Service Line vs Other Tasks */}
               <div className="border-b border-forvis-gray-200 flex-shrink-0">
-                <nav className="flex -mb-px px-4" aria-label="Task Categories">
-                  <button
-                    onClick={() => setActiveTab('current')}
-                    className={`flex items-center space-x-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                      activeTab === 'current'
-                        ? 'border-forvis-blue-600 text-forvis-blue-600'
-                        : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                    }`}
-                  >
-                    <span>{subServiceLineGroupDescription}</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      activeTab === 'current'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}>
-                      {currentSubServiceLineTasks.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('other')}
-                    className={`flex items-center space-x-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                      activeTab === 'other'
-                        ? 'border-forvis-blue-600 text-forvis-blue-600'
-                        : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
-                    }`}
-                  >
-                    <span>Other Tasks</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      activeTab === 'other'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}>
-                      {otherTasks.length}
-                    </span>
-                  </button>
-                </nav>
+                {isLoadingSubGroups ? (
+                  // Loading skeleton for tabs
+                  <nav className="flex -mb-px px-4" aria-label="Task Categories">
+                    <div className="flex items-center space-x-2 px-4 py-3">
+                      <div className="h-5 w-32 bg-forvis-gray-200 rounded animate-pulse"></div>
+                      <div className="h-5 w-8 bg-forvis-gray-200 rounded-full animate-pulse"></div>
+                    </div>
+                    <div className="flex items-center space-x-2 px-4 py-3">
+                      <div className="h-5 w-24 bg-forvis-gray-200 rounded animate-pulse"></div>
+                      <div className="h-5 w-8 bg-forvis-gray-200 rounded-full animate-pulse"></div>
+                    </div>
+                  </nav>
+                ) : (
+                  <nav className="flex -mb-px px-4" aria-label="Task Categories">
+                    <button
+                      onClick={() => setActiveTab('current')}
+                      className={`flex items-center space-x-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                        activeTab === 'current'
+                          ? 'border-forvis-blue-600 text-forvis-blue-600'
+                          : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                      }`}
+                    >
+                      <span>{subServiceLineGroupDescription}</span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        activeTab === 'current'
+                          ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                          : 'bg-forvis-gray-100 text-forvis-gray-600'
+                      }`}>
+                        {currentSubServiceLineTasks.length}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('other')}
+                      className={`flex items-center space-x-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                        activeTab === 'other'
+                          ? 'border-forvis-blue-600 text-forvis-blue-600'
+                          : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                      }`}
+                    >
+                      <span>Other Tasks</span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        activeTab === 'other'
+                          ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                          : 'bg-forvis-gray-100 text-forvis-gray-600'
+                      }`}>
+                        {otherTasks.length}
+                      </span>
+                    </button>
+                  </nav>
+                )}
               </div>
 
               {/* Search Bar */}

@@ -11,6 +11,8 @@ import {
   Clock,
   Users,
   AlertTriangle,
+  Calendar,
+  LayoutGrid,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -32,7 +34,7 @@ export default function SubServiceLineWorkspacePage() {
   const { setCurrentServiceLine } = useServiceLine();
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   
-  const [activeTab, setActiveTab] = useState<'clients' | 'tasks' | 'my-tasks' | 'groups'>('clients');
+  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning'>('groups');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -127,8 +129,8 @@ export default function SubServiceLineWorkspacePage() {
   const groups = groupsData?.groups || [];
   const groupsPagination = groupsData?.pagination;
   
-  const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : isLoadingGroups;
-  const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : isFetchingGroups;
+  const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : false;
+  const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
 
   // Validate service line
   useEffect(() => {
@@ -230,8 +232,8 @@ export default function SubServiceLineWorkspacePage() {
     );
   }
 
-  const currentData = activeTab === 'clients' ? clients : activeTab === 'tasks' ? tasks : activeTab === 'my-tasks' ? myTasks : groups;
-  const pagination = activeTab === 'clients' ? clientsPagination : activeTab === 'tasks' ? tasksPagination : activeTab === 'my-tasks' ? myTasksPagination : groupsPagination;
+  const currentData = activeTab === 'groups' ? groups : activeTab === 'clients' ? clients : activeTab === 'tasks' ? tasks : activeTab === 'my-tasks' ? myTasks : [];
+  const pagination = activeTab === 'groups' ? groupsPagination : activeTab === 'clients' ? clientsPagination : activeTab === 'tasks' ? tasksPagination : activeTab === 'my-tasks' ? myTasksPagination : undefined;
   const totalCount = isFetching && !pagination ? '...' : (pagination?.total ?? 0);
 
   return (
@@ -273,19 +275,23 @@ export default function SubServiceLineWorkspacePage() {
               {subServiceLineGroupDescription}
             </h2>
             <p className="text-sm font-normal text-forvis-gray-600 mb-3">
-              {activeTab === 'clients' 
+              {activeTab === 'groups'
+                ? 'Client groups across the organization'
+                : activeTab === 'clients' 
                 ? 'All clients across the organization'
                 : activeTab === 'tasks'
                 ? `Tasks in ${subServiceLineGroupDescription}`
+                : activeTab === 'planner'
+                ? 'Team resource planning and allocation'
                 : activeTab === 'my-tasks'
                 ? `Your tasks in ${subServiceLineGroupDescription}`
-                : 'Client groups across the organization'}
+                : 'Your personal planning and schedule'}
             </p>
             <div className="flex gap-6">
               <div>
                 <div className="text-2xl font-bold text-forvis-gray-900">{totalCount}</div>
                 <div className="text-sm font-normal text-forvis-gray-600">
-                  Total {activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : activeTab === 'my-tasks' ? 'My Tasks' : 'Groups'}
+                  Total {activeTab === 'groups' ? 'Groups' : activeTab === 'clients' ? 'Clients' : activeTab === 'tasks' ? 'Tasks' : activeTab === 'my-tasks' ? 'My Tasks' : '-'}
                 </div>
               </div>
             </div>
@@ -294,6 +300,28 @@ export default function SubServiceLineWorkspacePage() {
           {/* Tabs */}
           <div className="mb-4 border-b border-forvis-gray-300">
             <nav className="flex -mb-px space-x-8">
+              <button
+                onClick={() => setActiveTab('groups')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
+                  activeTab === 'groups'
+                    ? 'border-forvis-blue-600 text-forvis-blue-600'
+                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Users className="h-5 w-5" />
+                  <span>Groups</span>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
+                      activeTab === 'groups'
+                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                        : 'bg-forvis-gray-100 text-forvis-gray-600'
+                    }`}
+                  >
+                    {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
+                  </span>
+                </div>
+              </button>
               <button
                 onClick={() => setActiveTab('clients')}
                 className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
@@ -339,6 +367,19 @@ export default function SubServiceLineWorkspacePage() {
                 </div>
               </button>
               <button
+                onClick={() => setActiveTab('planner')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
+                  activeTab === 'planner'
+                    ? 'border-forvis-blue-600 text-forvis-blue-600'
+                    : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <LayoutGrid className="h-5 w-5" />
+                  <span>Planner</span>
+                </div>
+              </button>
+              <button
                 onClick={() => setActiveTab('my-tasks')}
                 className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
                   activeTab === 'my-tasks'
@@ -361,25 +402,16 @@ export default function SubServiceLineWorkspacePage() {
                 </div>
               </button>
               <button
-                onClick={() => setActiveTab('groups')}
+                onClick={() => setActiveTab('my-planning')}
                 className={`pb-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out focus:outline-none ${
-                  activeTab === 'groups'
+                  activeTab === 'my-planning'
                     ? 'border-forvis-blue-600 text-forvis-blue-600'
                     : 'border-transparent text-forvis-gray-600 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>Groups</span>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
-                      activeTab === 'groups'
-                        ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                        : 'bg-forvis-gray-100 text-forvis-gray-600'
-                    }`}
-                  >
-                    {isLoadingGroups && !groupsPagination ? '...' : (groupsPagination?.total ?? 0)}
-                  </span>
+                  <Calendar className="h-5 w-5" />
+                  <span>My Planning</span>
                 </div>
               </button>
             </nav>
@@ -392,11 +424,13 @@ export default function SubServiceLineWorkspacePage() {
               <input
                 type="text"
                 placeholder={
-                  activeTab === 'clients'
-                    ? 'Search by name, code, group, or industry...'
-                    : activeTab === 'groups'
+                  activeTab === 'groups'
                     ? 'Search by group name or code...'
-                    : 'Search by task name, client, or service line...'
+                    : activeTab === 'clients'
+                    ? 'Search by name, code, group, or industry...'
+                    : (activeTab === 'tasks' || activeTab === 'my-tasks')
+                    ? 'Search by task name, client, or service line...'
+                    : 'Search...'
                 }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -422,15 +456,37 @@ export default function SubServiceLineWorkspacePage() {
           </div>
 
           {/* Results count */}
-          {debouncedSearch && pagination && (
+          {debouncedSearch && pagination && (activeTab === 'groups' || activeTab === 'clients' || activeTab === 'tasks' || activeTab === 'my-tasks') && (
             <div className="mb-4 text-sm font-normal text-forvis-gray-800">
               Found <span className="font-medium">{pagination.total}</span>{' '}
-              {activeTab === 'clients' ? 'client' : activeTab === 'groups' ? 'group' : 'task'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
+              {activeTab === 'groups' ? 'group' : activeTab === 'clients' ? 'client' : 'task'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
             </div>
           )}
 
-          {/* Content - Clients, Tasks, My Tasks, or Groups */}
-          {activeTab === 'groups' ? (
+          {/* Content - Groups, Clients, Tasks, Planner, My Tasks, or My Planning */}
+          {activeTab === 'planner' ? (
+            /* Planner Placeholder */
+            <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
+              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
+                <LayoutGrid className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">Planner Coming Soon</h3>
+                <p className="mt-1 text-sm text-forvis-gray-600">
+                  Team resource planning and allocation features will be available here.
+                </p>
+              </div>
+            </div>
+          ) : activeTab === 'my-planning' ? (
+            /* My Planning Placeholder */
+            <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
+              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
+                <Calendar className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">My Planning Coming Soon</h3>
+                <p className="mt-1 text-sm text-forvis-gray-600">
+                  Your personal planning and schedule features will be available here.
+                </p>
+              </div>
+            </div>
+          ) : activeTab === 'groups' ? (
             /* Groups List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
               {groups.length === 0 ? (
@@ -680,7 +736,7 @@ export default function SubServiceLineWorkspacePage() {
                     {Math.min(currentPage * itemsPerPage, pagination.total)}
                   </span>{' '}
                   of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}
-                  {activeTab === 'clients' ? 'client' : activeTab === 'groups' ? 'group' : 'task'}{pagination.total !== 1 ? 's' : ''}
+                  {activeTab === 'groups' ? 'group' : activeTab === 'clients' ? 'client' : 'task'}{pagination.total !== 1 ? 's' : ''}
                 </div>
               
               {pagination.totalPages > 1 && (
