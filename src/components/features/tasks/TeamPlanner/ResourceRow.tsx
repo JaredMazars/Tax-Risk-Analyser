@@ -187,7 +187,7 @@ export function ResourceRow({
         </div>
 
         {/* Allocation tiles */}
-        <div className="relative z-0 h-full" style={{ pointerEvents: 'none' }}>
+        <div className="relative h-full" style={{ pointerEvents: 'none', zIndex: 1 }}>
           {/* Allocation tiles with higher z-index */}
           {resource.allocations.map((allocation) => {
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);

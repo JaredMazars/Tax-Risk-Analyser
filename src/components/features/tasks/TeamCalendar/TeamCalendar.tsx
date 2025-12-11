@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { createCalendar, ResourceTimeline, Interaction } from '@event-calendar/core';
 import '@event-calendar/core/index.css';
 import './styles.css';
@@ -55,6 +55,9 @@ export function TeamCalendar({
     allocation: CalendarAllocation;
     teamMemberId: number;
   } | null>(null);
+  
+  // Store calendar instance in ref to prevent recreation
+  const calendarInstanceRef = useRef<any>(null);
 
   // Check if current user can edit allocations
   const canEdit = currentUserRole === 'ADMIN';
@@ -85,16 +88,21 @@ export function TeamCalendar({
       member.allocations.forEach(allocation => {
         // Only show allocations with valid dates
         if (allocation.startDate && allocation.endDate) {
+          const calendarAllocation: CalendarAllocation = {
+            ...allocation,
+            userId: member.userId
+          };
+          
           allEvents.push({
             id: `allocation-${allocation.id}`,
             resourceId: member.userId,
             start: new Date(allocation.startDate),
             end: new Date(allocation.endDate),
-            title: formatAllocationTitle(allocation),
+            title: formatAllocationTitle(calendarAllocation),
             backgroundColor: getRoleColor(allocation.role),
             textColor: '#FFFFFF',
             extendedProps: {
-              allocation,
+              allocation: calendarAllocation,
               teamMemberId: allocation.id
             }
           });
@@ -175,7 +183,7 @@ export function TeamCalendar({
       // We'll use the first allocation's ID if it exists, otherwise fetch it
       let teamMemberId: number | null = null;
       
-      if (member.allocations.length > 0) {
+      if (member.allocations.length > 0 && member.allocations[0]) {
         teamMemberId = member.allocations[0].id;
       } else {
         // Need to fetch the TaskTeam record to get the ID
@@ -239,28 +247,46 @@ export function TeamCalendar({
     })
   }), [resources, events, validRange, canEdit, teamMembers, task.id, onAllocationUpdate]);
 
-  // Initialize calendar
+  // Initialize calendar once
   useEffect(() => {
-    if (!calendarEl) return;
+    if (!calendarEl || calendarInstanceRef.current) return;
 
-    // Create calendar instance
+    // Create calendar instance only once
     const ec = createCalendar(
       calendarEl,
       [ResourceTimeline, Interaction],
       options
     );
+    
+    calendarInstanceRef.current = ec;
 
-    // Cleanup
+    // Cleanup on unmount
     return () => {
-      if (ec) {
-        // The destroy function is not directly available
-        // Clear the container instead
+      if (calendarInstanceRef.current) {
+        // Clear the container
         while (calendarEl.firstChild) {
           calendarEl.removeChild(calendarEl.firstChild);
         }
+        calendarInstanceRef.current = null;
       }
     };
-  }, [calendarEl, options]);
+  }, [calendarEl]); // Only recreate if element changes
+
+  // Update calendar options when they change (without recreating)
+  useEffect(() => {
+    const ec = calendarInstanceRef.current;
+    if (!ec) return;
+
+    // Update dynamic options
+    try {
+      ec.setOption('resources', resources);
+      ec.setOption('events', events);
+      ec.setOption('validRange', validRange);
+      ec.setOption('selectable', canEdit);
+    } catch (error) {
+      console.error('Error updating calendar options:', error);
+    }
+  }, [resources, events, validRange, canEdit]);
 
   return (
     <div className="space-y-4">

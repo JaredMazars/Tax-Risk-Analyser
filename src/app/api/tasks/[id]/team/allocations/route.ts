@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 
 /**
@@ -18,7 +18,7 @@ export async function GET(
     // 1. Authenticate
     const user = await getCurrentUser();
     if (!user?.id) {
-      return handleApiError(new Error('Unauthorized'), 'Get team allocations', 401);
+      return handleApiError(new AppError(401, 'Unauthorized'), 'Get team allocations');
     }
 
     // 2. Parse and validate task ID
@@ -27,53 +27,56 @@ export async function GET(
     // 3. Check task access
     const accessResult = await checkTaskAccess(user.id, taskId, 'VIEWER');
     if (!accessResult.canAccess) {
-      return handleApiError(new Error('Access denied'), 'Get team allocations', 403);
+      return handleApiError(new AppError(403, 'Access denied'), 'Get team allocations');
     }
 
-    // 4. Fetch task to get task name
+    // 4. Fetch task with team members in a single optimized query
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
         id: true,
-        TaskDesc: true
+        TaskDesc: true,
+        TaskCode: true,
+        Client: {
+          select: {
+            clientCode: true,
+            clientNameFull: true
+          }
+        },
+        TaskTeam: {
+          select: {
+            id: true,
+            userId: true,
+            role: true,
+            startDate: true,
+            endDate: true,
+            allocatedHours: true,
+            allocatedPercentage: true,
+            actualHours: true,
+            User: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true
+              }
+            }
+          },
+          orderBy: {
+            User: {
+              name: 'asc'
+            }
+          }
+        }
       }
     });
 
     if (!task) {
-      return handleApiError(new Error('Task not found'), 'Get team allocations', 404);
+      return handleApiError(new AppError(404, 'Task not found'), 'Get team allocations');
     }
 
-    // 5. Fetch team members with allocations
-    const teamMembers = await prisma.taskTeam.findMany({
-      where: { taskId },
-      select: {
-        id: true,
-        userId: true,
-        role: true,
-        startDate: true,
-        endDate: true,
-        allocatedHours: true,
-        allocatedPercentage: true,
-        actualHours: true,
-        createdAt: true,
-        User: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true
-          }
-        }
-      },
-      orderBy: {
-        User: {
-          name: 'asc'
-        }
-      }
-    });
-
-    // 6. Transform to response format
-    const teamMembersWithAllocations = teamMembers.map(member => ({
+    // 5. Transform to response format
+    const teamMembersWithAllocations = task.TaskTeam.map(member => ({
       userId: member.userId,
       user: {
         id: member.User.id,
@@ -85,6 +88,9 @@ export async function GET(
         id: member.id,
         taskId: task.id,
         taskName: task.TaskDesc,
+        taskCode: task.TaskCode,
+        clientName: task.Client?.clientNameFull || null,
+        clientCode: task.Client?.clientCode || null,
         role: member.role,
         startDate: member.startDate,
         endDate: member.endDate,

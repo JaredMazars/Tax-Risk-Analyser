@@ -285,6 +285,11 @@ export interface TaskTeam {
     email: string;
     image?: string | null;
   };
+  // Optional task/client display fields (for allocation display)
+  taskName?: string | null;
+  taskCode?: string | null;
+  clientName?: string | null;
+  clientCode?: string | null;
 }
 
 export interface TeamAllocation {
@@ -661,6 +666,7 @@ export interface AdjustmentDocument {
  * 
  * @deprecated Use Client interface directly - it now includes enriched employee names
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ClientWithEmployees extends Client {}
 
 /**

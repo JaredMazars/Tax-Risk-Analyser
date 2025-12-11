@@ -451,6 +451,11 @@ export default function ClientProjectPage() {
     allocatedPercentage: member.allocatedPercentage,
     actualHours: member.actualHours,
     User: member.User,
+    // Add task/client info from API response for allocation display
+    taskName: (member as any).taskName,
+    taskCode: (member as any).taskCode,
+    clientName: (member as any).clientName,
+    clientCode: (member as any).clientCode,
   }));
 
   // Handle tab query parameter and update default tab when task loads

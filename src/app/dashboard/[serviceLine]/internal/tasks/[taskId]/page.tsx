@@ -365,13 +365,23 @@ export default function InternalTaskPage() {
   } = useTaskTeam(taskId, activeTab === 'team');
   
   // Convert TaskTeamMember[] to TaskTeam[] format
-  const teamMembers: TaskTeam[] = teamMembersData.map((member: { id: number; taskId: number; userId: string; role: TaskRole; createdAt: string; User: { id: string; name: string | null; email: string; image?: string | null } }) => ({
+  const teamMembers: TaskTeam[] = teamMembersData.map((member: any) => ({
     id: member.id,
     taskId: member.taskId,
     userId: member.userId,
     role: member.role,
     createdAt: new Date(member.createdAt),
+    startDate: member.startDate ? new Date(member.startDate) : undefined,
+    endDate: member.endDate ? new Date(member.endDate) : undefined,
+    allocatedHours: member.allocatedHours,
+    allocatedPercentage: member.allocatedPercentage,
+    actualHours: member.actualHours,
     User: member.User,
+    // Add task/client info from API response for allocation display
+    taskName: member.taskName,
+    taskCode: member.taskCode,
+    clientName: member.clientName,
+    clientCode: member.clientCode,
   }));
 
   // Handle tab query parameter and update default tab when project loads

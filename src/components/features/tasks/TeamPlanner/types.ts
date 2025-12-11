@@ -19,6 +19,9 @@ export interface AllocationData {
   id: number;
   taskId: number;
   taskName: string;
+  taskCode?: string;
+  clientName?: string | null;
+  clientCode?: string | null;
   role: TaskRole;
   startDate: Date;
   endDate: Date;

@@ -6,6 +6,7 @@ import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
 import { AllocationModal } from './AllocationModal';
 import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth } from './utils';
+import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
 import { Button, LoadingSpinner } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { TaskRole } from '@/types';
@@ -38,23 +39,20 @@ export function GanttTimeline({
 
   // Determine if user can edit
   const canEdit = currentUserRole === 'ADMIN';
-  // #region agent log
-  console.log('[DEBUG:H2] GanttTimeline rendered:', {canEdit, currentUserRole, timestamp: Date.now()});
-  // #endregion
 
-  // Handler to go to today
-  const handleGoToToday = () => {
+  // Handler to go to today - memoized to prevent recreating on every render
+  const handleGoToToday = useCallback(() => {
     setReferenceDate(new Date());
     setScrollToToday(true);
-  };
+  }, []);
 
-  // Handler for date input change
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handler for date input change - memoized
+  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = new Date(e.target.value);
     if (!isNaN(newDate.getTime())) {
       setReferenceDate(newDate);
     }
-  };
+  }, []);
 
   // Generate date range and columns
   const dateRange = useMemo(() => getDateRange(scale, referenceDate), [scale, referenceDate]);
@@ -62,20 +60,37 @@ export function GanttTimeline({
 
   // Transform team members to resource data
   const resources: ResourceData[] = useMemo(() => {
+    // #region agent log
+    console.log(JSON.stringify({location:'GanttTimeline.tsx:64',message:'TeamMembers Input',data:{count:teamMembers.length,firstMember:teamMembers[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'}));
+    // #endregion
+    
     return teamMembers.map(member => {
       const user = member.User || member.user;
-      const allocations: AllocationData[] = member.startDate && member.endDate ? [{
-        id: member.id,
-        taskId: member.taskId,
-        taskName: 'Current Task',
-        role: member.role,
-        // Normalize dates to start of day for consistent display
-        startDate: startOfDay(new Date(member.startDate)),
-        endDate: startOfDay(new Date(member.endDate)),
-        allocatedHours: member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null,
-        allocatedPercentage: member.allocatedPercentage,
-        actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null
-      }] : [];
+      
+      // Check if allocations array exists (from /api/tasks/:id/team/allocations endpoint)
+      // Otherwise construct from flat member data (from /api/tasks/:id/users endpoint)
+      const allocations: AllocationData[] = (member as any).allocations?.length > 0
+        ? (member as any).allocations.map((alloc: any) => ({
+            ...alloc,
+            // Normalize dates to start of day for consistent display
+            startDate: startOfDay(new Date(alloc.startDate)),
+            endDate: startOfDay(new Date(alloc.endDate))
+          }))
+        : member.startDate && member.endDate ? [{
+            id: member.id,
+            taskId: member.taskId,
+            taskName: (member as any).taskName || 'Current Task',
+            taskCode: (member as any).taskCode,
+            clientName: (member as any).clientName,
+            clientCode: (member as any).clientCode,
+            role: member.role,
+            // Normalize dates to start of day for consistent display
+            startDate: startOfDay(new Date(member.startDate)),
+            endDate: startOfDay(new Date(member.endDate)),
+            allocatedHours: member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null,
+            allocatedPercentage: member.allocatedPercentage,
+            actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null
+          }] : [];
 
       return {
         userId: member.userId,
@@ -86,17 +101,17 @@ export function GanttTimeline({
         officeLocation: user?.officeLocation,
         role: member.role,
         allocations,
-        totalAllocatedHours: calculateTotalHours(allocations),
-        totalAllocatedPercentage: calculateTotalPercentage(allocations)
+        totalAllocatedHours: memoizedCalculateTotalHours(allocations),
+        totalAllocatedPercentage: memoizedCalculateTotalPercentage(allocations)
       };
     });
   }, [teamMembers]);
 
-  const handleEditAllocation = (allocation: AllocationData) => {
+  const handleEditAllocation = useCallback((allocation: AllocationData) => {
     console.log('Opening modal to edit allocation:', allocation);
     setSelectedAllocation(allocation);
     setIsModalOpen(true);
-  };
+  }, []);
 
   const handleCreateAllocation = useCallback((userId: string, startDate?: Date, endDate?: Date) => {
     console.log('Opening modal to create allocation for user:', userId, 'dates:', startDate, endDate);
@@ -117,10 +132,16 @@ export function GanttTimeline({
       return nextWeek;
     })();
 
+    // Get task/client info from existing allocations if available
+    const existingAllocation = (member as any).allocations?.[0];
+    
     const newAllocation = {
       id: member.id, // Use team member id (TaskTeam.id)
       taskId: taskId,
-      taskName: 'Current Task',
+      taskName: existingAllocation?.taskName || (member as any).taskName || 'Current Task',
+      taskCode: existingAllocation?.taskCode || (member as any).taskCode,
+      clientName: existingAllocation?.clientName || (member as any).clientName,
+      clientCode: existingAllocation?.clientCode || (member as any).clientCode,
       role: member.role,
       startDate: startOfDay(allocationStartDate),
       endDate: startOfDay(allocationEndDate),
@@ -136,13 +157,7 @@ export function GanttTimeline({
   }, [teamMembers, taskId]);
 
   const handleSelectionStart = useCallback((userId: string, columnIndex: number) => {
-    // #region agent log
-    console.log('[DEBUG:H1] handleSelectionStart ENTRY:', {userId, columnIndex, canEdit, timestamp: Date.now()});
-    // #endregion
     if (!canEdit) {
-      // #region agent log
-      console.log('[DEBUG:H2] Selection BLOCKED by canEdit:', {canEdit, timestamp: Date.now()});
-      // #endregion
       return;
     }
     console.log('Selection started:', userId, columnIndex);
@@ -152,15 +167,9 @@ export function GanttTimeline({
       startColumnIndex: columnIndex,
       endColumnIndex: columnIndex
     });
-    // #region agent log
-    console.log('[DEBUG:H5] Selection state SET:', {userId, columnIndex, timestamp: Date.now()});
-    // #endregion
   }, [canEdit]);
 
   const handleSelectionMove = useCallback((columnIndex: number) => {
-    // #region agent log
-    console.log('[DEBUG:H1] handleSelectionMove called:', {columnIndex, timestamp: Date.now()});
-    // #endregion
     setDateSelection((prev) => {
       if (!prev) return prev;
       return {
@@ -171,19 +180,10 @@ export function GanttTimeline({
   }, []);
 
   const handleSelectionEnd = useCallback(() => {
-    // #region agent log
-    console.log('[DEBUG:H4] handleSelectionEnd ENTRY:', {timestamp: Date.now()});
-    // #endregion
     setIsSelecting((currentIsSelecting) => {
-      // #region agent log
-      console.log('[DEBUG:H4] handleSelectionEnd checking isSelecting:', {currentIsSelecting, timestamp: Date.now()});
-      // #endregion
       if (!currentIsSelecting) return false;
       
       setDateSelection((currentSelection) => {
-        // #region agent log
-        console.log('[DEBUG:H5] handleSelectionEnd current selection:', {currentSelection, timestamp: Date.now()});
-        // #endregion
         if (!currentSelection) return null;
         
         console.log('Selection ended:', currentSelection);
@@ -204,9 +204,6 @@ export function GanttTimeline({
         const endDate = columns[maxIndex]?.date;
         
         if (startDate && endDate) {
-          // #region agent log
-          console.log('[DEBUG:H5] Opening modal with dates:', {userId, startDate, endDate, minIndex, maxIndex, timestamp: Date.now()});
-          // #endregion
           handleCreateAllocation(userId, startDate, endDate);
         }
         
@@ -256,7 +253,7 @@ export function GanttTimeline({
     };
   }, [handleSelectionEnd]);
 
-  const handleRemoveMember = async (userId: string) => {
+  const handleRemoveMember = useCallback(async (userId: string) => {
     try {
       // Find the team member to get their ID
       const member = teamMembers.find(m => m.userId === userId);
@@ -275,9 +272,9 @@ export function GanttTimeline({
       console.error('Error removing team member:', error);
       alert('Failed to remove team member. Please try again.');
     }
-  };
+  }, [teamMembers, taskId, onAllocationUpdate]);
 
-  const handleSaveAllocation = async (updates: Partial<AllocationData>) => {
+  const handleSaveAllocation = useCallback(async (updates: Partial<AllocationData>) => {
     if (!selectedAllocation) {
       console.error('No allocation selected for save');
       return;
@@ -322,9 +319,9 @@ export function GanttTimeline({
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [selectedAllocation, taskId, onAllocationUpdate]);
 
-  const handleClearAllocation = async (allocationId: number) => {
+  const handleClearAllocation = useCallback(async (allocationId: number) => {
     setIsSaving(true);
     console.log('Clearing allocation:', { teamMemberId: allocationId });
     
@@ -354,9 +351,9 @@ export function GanttTimeline({
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [taskId, onAllocationUpdate]);
 
-  const handleUpdateDates = async (allocationId: number, startDate: Date, endDate: Date) => {
+  const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
     try {
       const response = await fetch(
         `/api/tasks/${taskId}/team/${allocationId}/allocation`,
@@ -383,7 +380,7 @@ export function GanttTimeline({
       const message = error instanceof Error ? error.message : 'Failed to update dates';
       alert(message);
     }
-  };
+  }, [taskId, onAllocationUpdate]);
 
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden">

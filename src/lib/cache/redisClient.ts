@@ -233,8 +233,8 @@ export function getRedisStatus(): {
 
 // Hot module reload cleanup for Next.js dev mode
 if (process.env.NODE_ENV === 'development') {
-  if (module.hot) {
-    module.hot.dispose(() => {
+  if ((module as any).hot) {
+    (module as any).hot.dispose(() => {
       if (globalForRedis.redis) {
         logger.info('Hot reload detected, cleaning up Redis connection');
         globalForRedis.redis.disconnect(false); // Don't reconnect

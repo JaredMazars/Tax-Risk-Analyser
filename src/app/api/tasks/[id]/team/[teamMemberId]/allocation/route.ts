@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { sanitizeObject } from '@/lib/utils/sanitization';
 import { toTaskId } from '@/types/branded';
 import { z } from 'zod';
@@ -29,7 +29,7 @@ export async function PUT(
     // 1. Authenticate
     const user = await getCurrentUser();
     if (!user?.id) {
-      return handleApiError(new Error('Unauthorized'), 'API: Update allocation', 401);
+      return handleApiError(new AppError(401, 'Unauthorized'), 'API: Update allocation');
     }
 
     // 2. Parse and validate IDs
@@ -38,13 +38,13 @@ export async function PUT(
     const teamMemberId = parseInt(params.teamMemberId);
 
     if (isNaN(teamMemberId)) {
-      return handleApiError(new Error('Invalid team member ID'), 'Update allocation', 400);
+      return handleApiError(new AppError(400, 'Invalid team member ID'), 'Update allocation');
     }
 
     // 3. Check task access - must be ADMIN to update allocations
     const accessResult = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!accessResult.canAccess) {
-      return handleApiError(new Error('Only task admins can update allocations'), 'Update allocation', 403);
+      return handleApiError(new AppError(403, 'Only task admins can update allocations'), 'Update allocation');
     }
 
     // 4. Parse and validate request body
@@ -58,9 +58,8 @@ export async function PUT(
       const end = new Date(validatedData.endDate);
       if (start > end) {
         return handleApiError(
-          new Error('End date must be after start date'),
-          'Update allocation',
-          400
+          new AppError(400, 'End date must be after start date'),
+          'Update allocation'
         );
       }
     }
@@ -77,9 +76,8 @@ export async function PUT(
 
     if (!teamMember || teamMember.taskId !== taskId) {
       return handleApiError(
-        new Error('Team member not found'),
-        'Update allocation',
-        404
+        new AppError(404, 'Team member not found'),
+        'Update allocation'
       );
     }
 
@@ -126,9 +124,8 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return handleApiError(
-        new Error(`Validation error: ${error.errors.map(e => e.message).join(', ')}`),
-        'Update allocation',
-        400
+        new AppError(400, `Validation error: ${error.errors.map(e => e.message).join(', ')}`),
+        'Update allocation'
       );
     }
     return handleApiError(error, 'Update allocation');
@@ -147,7 +144,7 @@ export async function DELETE(
     // 1. Authenticate
     const user = await getCurrentUser();
     if (!user?.id) {
-      return handleApiError(new Error('Unauthorized'), 'Clear allocation', 401);
+      return handleApiError(new AppError(401, 'Unauthorized'), 'Clear allocation');
     }
 
     // 2. Parse and validate IDs
@@ -156,13 +153,13 @@ export async function DELETE(
     const teamMemberId = parseInt(params.teamMemberId);
 
     if (isNaN(teamMemberId)) {
-      return handleApiError(new Error('Invalid team member ID'), 'Clear allocation', 400);
+      return handleApiError(new AppError(400, 'Invalid team member ID'), 'Clear allocation');
     }
 
     // 3. Check task access - must be ADMIN to clear allocations
     const accessResult = await checkTaskAccess(user.id, taskId, 'ADMIN');
     if (!accessResult.canAccess) {
-      return handleApiError(new Error('Only task admins can clear allocations'), 'Clear allocation', 403);
+      return handleApiError(new AppError(403, 'Only task admins can clear allocations'), 'Clear allocation');
     }
 
     // 4. Find the team member record
@@ -177,9 +174,8 @@ export async function DELETE(
 
     if (!teamMember || teamMember.taskId !== taskId) {
       return handleApiError(
-        new Error('Team member not found'),
-        'Clear allocation',
-        404
+        new AppError(404, 'Team member not found'),
+        'Clear allocation'
       );
     }
 

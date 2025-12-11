@@ -295,7 +295,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
             return (
               <button
                 key={section.key}
-                ref={(el) => (tabRefs.current[index] = el)}
+                ref={(el) => { tabRefs.current[index] = el; }}
                 onClick={() => handleTabChange(index)}
                 className={`
                   flex-shrink-0 px-6 py-4 text-sm font-semibold transition-all border-r border-forvis-gray-200 last:border-r-0

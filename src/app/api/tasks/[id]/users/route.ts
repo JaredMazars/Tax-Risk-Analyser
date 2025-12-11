@@ -42,6 +42,21 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Get task details including client info
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        TaskDesc: true,
+        TaskCode: true,
+        Client: {
+          select: {
+            clientCode: true,
+            clientNameFull: true,
+          },
+        },
+      },
+    });
+
     // Get all users on this project with Employee data
     const taskTeams = await prisma.taskTeam.findMany({
       where: { taskId },
@@ -58,36 +73,57 @@ export async function GET(
       orderBy: { createdAt: 'asc' },
     });
 
-    // Enrich with Employee data where available
-    const enrichedTaskTeams = await Promise.all(
-      taskTeams.map(async (tt) => {
-        // Try to find employee by email or WinLogon (SQL Server doesn't support mode parameter)
-        const emailPrefix = tt.User.email.split('@')[0];
-        
-        const employee = await prisma.employee.findFirst({
-          where: {
+    // Batch fetch all employees for better performance
+    const emailPrefixes = taskTeams.map(tt => tt.User.email.split('@')[0]);
+    const fullEmails = taskTeams.map(tt => tt.User.email);
+    
+    const employees = await prisma.employee.findMany({
+      where: {
+        AND: [
+          {
             OR: [
-              { WinLogon: { equals: tt.User.email } },
-              { WinLogon: { startsWith: emailPrefix } },
+              { WinLogon: { in: fullEmails } },
+              { WinLogon: { in: emailPrefixes } },
             ],
-            Active: 'Yes',
           },
-          select: {
-            EmpCatDesc: true,
-            OfficeCode: true,
-          },
-        });
+          { Active: 'Yes' },
+        ],
+      },
+      select: {
+        WinLogon: true,
+        EmpCatDesc: true,
+        OfficeCode: true,
+      },
+    });
 
-        return {
-          ...tt,
-          User: {
-            ...tt.User,
-            jobTitle: employee?.EmpCatDesc || null,
-            officeLocation: employee?.OfficeCode || null,
-          },
-        };
-      })
+    // Create a lookup map for O(1) access
+    const employeeMap = new Map(
+      employees.map(emp => [emp.WinLogon?.toLowerCase(), emp])
     );
+
+    // Enrich with Employee data using the lookup map
+    const enrichedTaskTeams = taskTeams.map((tt) => {
+      const emailPrefix = tt.User.email.split('@')[0];
+      const employee = employeeMap.get(tt.User.email.toLowerCase()) || 
+                       employeeMap.get(emailPrefix.toLowerCase());
+
+      return {
+        ...tt,
+        taskName: task?.TaskDesc,
+        taskCode: task?.TaskCode,
+        clientName: task?.Client?.clientNameFull || null,
+        clientCode: task?.Client?.clientCode || null,
+        User: {
+          ...tt.User,
+          jobTitle: employee?.EmpCatDesc || null,
+          officeLocation: employee?.OfficeCode || null,
+        },
+      };
+    });
+    
+    // #region agent log
+    console.log(JSON.stringify({location:'users/route.ts:93',message:'API Response Data',data:{taskName:task?.TaskDesc,clientName:task?.Client?.clientNameFull,clientCode:task?.Client?.clientCode,teamCount:enrichedTaskTeams.length,firstMember:enrichedTaskTeams[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'}));
+    // #endregion
 
     return NextResponse.json(successResponse(enrichedTaskTeams));
   } catch (error) {
