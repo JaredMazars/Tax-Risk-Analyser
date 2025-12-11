@@ -2,9 +2,8 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Info } from 'lucide-react';
 import { AllocationData, GanttPosition, TimeScale } from './types';
-import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays } from './utils';
+import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays, calculateBusinessDays, calculateAvailableHours } from './utils';
 import { debounce } from './optimizations';
 import { format, addDays, startOfDay } from 'date-fns';
 
@@ -15,7 +14,11 @@ interface AllocationTileProps {
   columnWidth: number;
   onEdit: (allocation: AllocationData) => void;
   onUpdateDates?: (allocationId: number, startDate: Date, endDate: Date) => void;
+  onTransfer?: (allocationId: number, targetUserId: string, startDate: Date, endDate: Date) => void;
   isDraggable?: boolean;
+  currentUserId?: string;
+  onRowHover?: (rowOffset: number | null) => void;
+  lane: number;
 }
 
 export function AllocationTile({ 
@@ -25,25 +28,30 @@ export function AllocationTile({
   columnWidth,
   onEdit,
   onUpdateDates,
-  isDraggable = true 
+  onTransfer,
+  isDraggable = true,
+  currentUserId,
+  onRowHover,
+  lane
 }: AllocationTileProps): JSX.Element {
   const [showTooltip, setShowTooltip] = useState(false);
-  const [showInfoTooltip, setShowInfoTooltip] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState<'left' | 'right' | null>(null);
   const [previewDates, setPreviewDates] = useState<{ start: Date; end: Date } | null>(null);
   const [currentDelta, setCurrentDelta] = useState(0);
+  const [dragDeltaY, setDragDeltaY] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [expectedDates, setExpectedDates] = useState<{ start: Date; end: Date } | null>(null);
   const [hasDragged, setHasDragged] = useState(false);
   const dragStartX = useRef(0);
+  const dragStartY = useRef(0);
   const originalLeft = useRef(0);
   const originalWidth = useRef(0);
   const lastAppliedDelta = useRef(0);
   const lastAction = useRef<'drag' | 'resize-left' | 'resize-right' | null>(null);
-  const iconContainerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const hideTooltipTimeout = useRef<NodeJS.Timeout | null>(null);
+  const tileRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Memoize gradient calculation - only depends on role
   const gradient = useMemo(() => getRoleGradient(allocation.role), [allocation.role]);
@@ -106,12 +114,14 @@ export function AllocationTile({
     e.preventDefault();
     
     dragStartX.current = e.clientX;
+    dragStartY.current = e.clientY;
     // Capture current VISUAL position as snapshot (use livePosition, not position)
     // This ensures we capture what the user actually sees, not the server position
     originalLeft.current = livePosition.left;
     originalWidth.current = livePosition.width;
     
     setCurrentDelta(0);
+    setDragDeltaY(0);
     setHasDragged(false);
     
     if (action === 'drag') {
@@ -128,13 +138,30 @@ export function AllocationTile({
     if (!isDragging && !isResizing) return;
     
     const deltaX = e.clientX - dragStartX.current;
+    const deltaY = e.clientY - dragStartY.current;
+    
+    // Track Y-axis movement for cross-lane dragging (only during drag, not resize)
+    if (isDragging) {
+      setDragDeltaY(deltaY);
+      
+      // Calculate which row we're hovering over
+      const ROW_HEIGHT = 36; // Base lane height = 36px
+      const rowOffset = Math.round(deltaY / ROW_HEIGHT);
+      
+      // Notify parent of row hover if handler provided
+      if (onRowHover && Math.abs(deltaY) > ROW_HEIGHT / 4) {
+        onRowHover(rowOffset);
+      } else if (onRowHover && Math.abs(deltaY) <= ROW_HEIGHT / 4) {
+        onRowHover(null);
+      }
+    }
     
     // Snap delta to day boundaries
     const snappedDelta = snapToDay(deltaX, dayPixelWidth);
     setCurrentDelta(snappedDelta);
     
-    // Mark as dragged if moved more than half a day
-    if (Math.abs(snappedDelta) > dayPixelWidth / 2) {
+    // Mark as dragged if moved more than half a day or moved vertically
+    if (Math.abs(snappedDelta) > dayPixelWidth / 2 || Math.abs(deltaY) > 10) {
       setHasDragged(true);
     }
     
@@ -158,7 +185,7 @@ export function AllocationTile({
       // Resize left: change start date, keep end date
       newStart = addDays(currentStart, daysDelta);
       newEnd = currentEnd;
-      // Enforce minimum 1 day
+      // Enforce minimum 1 day (endDate exclusive model: end must be > start)
       if (newStart >= newEnd) {
         newStart = addDays(newEnd, -1);
       }
@@ -166,7 +193,7 @@ export function AllocationTile({
       // Resize right: keep start date, change end date
       newStart = currentStart;
       newEnd = addDays(currentEnd, daysDelta);
-      // Enforce minimum 1 day
+      // Enforce minimum 1 day (endDate exclusive model: end must be > start)
       if (newEnd <= newStart) {
         newEnd = addDays(newStart, 1);
       }
@@ -175,7 +202,7 @@ export function AllocationTile({
     }
     
     setPreviewDates({ start: newStart, end: newEnd });
-  }, [isDragging, isResizing, allocation.startDate, allocation.endDate, dayPixelWidth]);
+  }, [isDragging, isResizing, allocation.startDate, allocation.endDate, dayPixelWidth, onRowHover]);
 
   // Debounce the mouse move handler for ~60fps performance
   const handleMouseMove = useMemo(
@@ -184,7 +211,26 @@ export function AllocationTile({
   );
 
   const handleMouseUp = useCallback(() => {
-    if (previewDates && onUpdateDates) {
+    // Clear row hover indicator
+    if (onRowHover) {
+      onRowHover(null);
+    }
+    
+    // Check if we're dropping on a different row (cross-lane transfer)
+    const ROW_HEIGHT = 36;
+    const rowOffset = Math.round(dragDeltaY / ROW_HEIGHT);
+    const isCrossLaneTransfer = isDragging && Math.abs(dragDeltaY) > ROW_HEIGHT / 2 && rowOffset !== 0;
+    
+    if (previewDates && isCrossLaneTransfer && onTransfer) {
+      // Cross-lane transfer - call onTransfer which will handle the API call
+      // The parent (GanttTimeline) will determine the target user ID based on rowOffset
+      setIsSaving(true);
+      setExpectedDates(previewDates);
+      // Parent component will handle the transfer and refetch
+      // We don't update position here - wait for server data
+      onTransfer(allocation.id, '', previewDates.start, previewDates.end);
+    } else if (previewDates && onUpdateDates && !isCrossLaneTransfer) {
+      // Same-lane date update
       lastAppliedDelta.current = currentDelta; // Store for isSaving state
       // Store which action was performed BEFORE clearing the states
       if (isDragging) {
@@ -202,13 +248,14 @@ export function AllocationTile({
     setIsDragging(false);
     setIsResizing(null);
     setPreviewDates(null);
+    setDragDeltaY(0);
     // Don't reset currentDelta here if saving - keep it for position calculation
     if (!previewDates) {
       setCurrentDelta(0);
     }
     
     setTimeout(() => setHasDragged(false), 100);
-  }, [previewDates, onUpdateDates, allocation.id, currentDelta, isDragging, isResizing]);
+  }, [previewDates, onUpdateDates, onTransfer, allocation.id, currentDelta, dragDeltaY, isDragging, isResizing, onRowHover]);
 
   // Store handlers in refs to avoid recreating listeners on every render
   const handleMouseMoveRef = useRef(handleMouseMove);
@@ -224,7 +271,7 @@ export function AllocationTile({
   useEffect(() => {
     if (isDragging || isResizing) {
       const onMove = (e: MouseEvent) => handleMouseMoveRef.current(e);
-      const onUp = (e: MouseEvent) => handleMouseUpRef.current(e);
+      const onUp = () => handleMouseUpRef.current();
       
       // Use passive: false for mouseup to allow preventDefault if needed
       document.addEventListener('mousemove', onMove);
@@ -294,18 +341,60 @@ export function AllocationTile({
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (hideTooltipTimeout.current) {
-        clearTimeout(hideTooltipTimeout.current);
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
       }
     };
   }, []);
 
+  // Handle mouse enter with 2 second delay
+  const handleMouseEnter = useCallback(() => {
+    if (isDragging || isResizing) return;
+    
+    // Clear any existing timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    
+    // Set tooltip to show after 2 seconds
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowTooltip(true);
+    }, 2000);
+  }, [isDragging, isResizing]);
+
+  // Handle mouse leave
+  const handleMouseLeave = useCallback(() => {
+    // Clear the timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setShowTooltip(false);
+  }, []);
+
+  // Determine opacity based on drag state
+  const tileOpacity = useMemo(() => {
+    if (isSaving) return 1;
+    if (isDragging && Math.abs(dragDeltaY) > 18) return 0.6; // Cross-lane drag (half of 36)
+    if (isDragging || isResizing) return 0.8;
+    return 1;
+  }, [isDragging, isResizing, isSaving, dragDeltaY]);
+  
+  // Calculate tile positioning based on lane
+  const LANE_HEIGHT = 36;
+  const TILE_GAP = 3;
+  const tileTop = lane * LANE_HEIGHT + TILE_GAP;
+  const tileHeight = LANE_HEIGHT - TILE_GAP * 2;
+  
   return (
     <div
-      className={`absolute top-1 bottom-1 rounded-lg shadow-corporate border-2 border-white ${
-        isDragging || isResizing ? 'cursor-grabbing z-20 opacity-80' : 'cursor-grab hover:z-[5]'
+      ref={tileRef}
+      className={`absolute rounded-lg shadow-corporate border-2 border-white ${
+        isDragging || isResizing ? 'cursor-grabbing z-20' : 'cursor-grab hover:z-[5]'
       } hover:shadow-corporate-md overflow-hidden group`}
       style={{
+        top: `${tileTop}px`,
+        height: `${tileHeight}px`,
         left: `${livePosition.left}px`,
         width: `${livePosition.width}px`,
         background: gradient,
@@ -313,7 +402,9 @@ export function AllocationTile({
         pointerEvents: 'auto', // Allow clicks on tiles even though container has pointer-events: none
         // No transition - instant snapping for responsive feel
         transition: 'none',
-        opacity: 1 // No visual feedback during save for seamless UX
+        opacity: tileOpacity,
+        // Apply Y-axis transform during drag for visual feedback
+        transform: isDragging && Math.abs(dragDeltaY) > 10 ? `translateY(${dragDeltaY}px)` : 'none'
       }}
       onClick={(e) => {
         // Don't open modal if this was a drag operation
@@ -326,78 +417,55 @@ export function AllocationTile({
         onEdit(allocation);
       }}
       onMouseDown={(e) => handleMouseDown(e, 'drag')}
-      onMouseEnter={() => !isDragging && !isResizing && setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      {/* Content */}
-      <div className="px-2 py-1 h-full flex flex-col justify-center relative">
-        {/* Project Name - Always visible */}
-        <div className="text-white text-xs font-semibold truncate pr-6">
-          {allocation.taskName}
+      {/* Content - Progressive reveal from left to right */}
+      <div className="px-1.5 h-full flex items-center relative overflow-hidden">
+        <div className="flex items-center gap-1.5 min-w-0 w-full">
+          {/* Client Name - Always visible, left-most priority, never truncates */}
+          {allocation.clientName && (
+            <>
+              <div className="text-white text-[9px] opacity-90 font-medium whitespace-nowrap flex-shrink-0">
+                {allocation.clientName}
+              </div>
+              <div className="text-white text-[9px] opacity-60 flex-shrink-0">•</div>
+            </>
+          )}
+          
+          {/* Task Name - Always visible, can truncate if needed */}
+          <div className="text-white text-[10px] font-semibold truncate min-w-0 flex-1">
+            {allocation.taskName}
+          </div>
+          
+          {/* Hours/Percentage - Only shows when tile is wide enough (>150px) */}
+          {livePosition.width > 150 && (allocation.allocatedHours || allocation.allocatedPercentage) && (
+            <>
+              <div className="text-white text-[9px] opacity-60 flex-shrink-0">•</div>
+              <div className="text-white text-[9px] opacity-80 whitespace-nowrap flex-shrink-0">
+                {allocation.allocatedHours 
+                  ? formatHours(allocation.allocatedHours) 
+                  : allocation.allocatedPercentage 
+                    ? formatPercentage(allocation.allocatedPercentage) 
+                    : ''}
+              </div>
+            </>
+          )}
         </div>
-        
-        {/* Client Name - Show when width > 60px */}
-        {livePosition.width > 60 && allocation.clientName && (
-          <div className="text-white text-[10px] opacity-90 truncate pr-6">
-            {allocation.clientName}
-          </div>
-        )}
-        
-        {/* Hours/Percentage - Show when width > 100px */}
-        {livePosition.width > 100 && (
-          <div className="text-white text-xs opacity-80 truncate pr-6">
-            {allocation.allocatedHours 
-              ? formatHours(allocation.allocatedHours) 
-              : allocation.allocatedPercentage 
-                ? formatPercentage(allocation.allocatedPercentage) 
-                : ''}
-          </div>
-        )}
-        
-        {/* Info Icon */}
-        {livePosition.width > 40 && (
-          <div 
-            ref={iconContainerRef}
-            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 p-1"
-            onMouseEnter={(e) => {
-              e.stopPropagation();
-              // Cancel any pending hide
-              if (hideTooltipTimeout.current) {
-                clearTimeout(hideTooltipTimeout.current);
-                hideTooltipTimeout.current = null;
-              }
-              setShowInfoTooltip(true);
-              setShowTooltip(false);
-            }}
-            onMouseLeave={(e) => {
-              e.stopPropagation();
-              // Delay hiding to allow mouse to reach tooltip (300ms gives enough time)
-              hideTooltipTimeout.current = setTimeout(() => {
-                setShowInfoTooltip(false);
-              }, 300);
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-white bg-opacity-20 hover:bg-opacity-40 rounded p-0.5 backdrop-blur-sm cursor-help transition-all">
-              <Info className="w-3.5 h-3.5 text-white" />
-            </div>
-          </div>
-        )}
-        
-        {/* Progress bar */}
-        {progress > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black bg-opacity-20">
-            <div 
-              className="h-full bg-white bg-opacity-50"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        )}
       </div>
+        
+      {/* Progress bar */}
+      {progress > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black bg-opacity-20">
+          <div 
+            className="h-full bg-white bg-opacity-50"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
 
       {/* Resize handles */}
-      {isDraggable && livePosition.width > 60 && !isDragging && !isResizing && (
+      {isDraggable && livePosition.width >= dayPixelWidth && !isDragging && !isResizing && (
         <>
           <div 
             className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white hover:bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -412,100 +480,99 @@ export function AllocationTile({
         </>
       )}
 
-      {/* Quick Tooltip (on tile hover) */}
-      {showTooltip && !showInfoTooltip && !isDragging && !isResizing && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-forvis-gray-900 text-white text-xs rounded-lg whitespace-nowrap shadow-xl pointer-events-none" style={{ zIndex: 100 }}>
-          <div className="font-semibold">{allocation.taskName}</div>
-          {allocation.clientName && (
-            <div className="text-xs opacity-90 mt-0.5">{allocation.clientName}</div>
-          )}
-          {/* Tooltip arrow */}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-forvis-gray-900" />
-        </div>
-      )}
-
-      {/* Detailed Info Tooltip (on info icon hover) - Using Portal */}
-      {showInfoTooltip && !isDragging && !isResizing && typeof document !== 'undefined' && createPortal(
-        <div 
-          ref={tooltipRef} 
-          className="fixed px-3 py-2.5 bg-forvis-gray-900 text-white rounded-lg shadow-xl min-w-[220px] max-w-[280px]" 
-          style={{ 
-            zIndex: 9999,
-            top: iconContainerRef.current ? `${iconContainerRef.current.getBoundingClientRect().top - 10}px` : '0px',
-            right: iconContainerRef.current ? `${window.innerWidth - iconContainerRef.current.getBoundingClientRect().right}px` : '0px',
-            transform: 'translateY(-100%)'
-          }}
-          onMouseEnter={(e) => {
-            e.stopPropagation();
-            // Cancel any pending hide
-            if (hideTooltipTimeout.current) {
-              clearTimeout(hideTooltipTimeout.current);
-              hideTooltipTimeout.current = null;
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.stopPropagation();
-            // Hide tooltip when leaving
-            setShowInfoTooltip(false);
-          }}
-        >
-          <div className="font-semibold mb-2 text-sm border-b border-white border-opacity-20 pb-1.5">
-            {allocation.taskName}
-          </div>
-          <div className="space-y-1.5 text-xs">
-            {allocation.taskCode && (
-              <div className="flex justify-between gap-2">
-                <span className="opacity-60 shrink-0">Project:</span>
-                <span className="opacity-90 text-right">{allocation.taskCode}</span>
-              </div>
-            )}
-            {allocation.clientName && (
-              <div className="flex justify-between gap-2">
-                <span className="opacity-60 shrink-0">Client:</span>
-                <span className="opacity-90 text-right truncate">
-                  {allocation.clientName}
-                  {allocation.clientCode && <span className="opacity-60 ml-1">({allocation.clientCode})</span>}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between gap-2">
-              <span className="opacity-60 shrink-0">Role:</span>
-              <span className="opacity-90">{allocation.role}</span>
+      {/* Detailed Tooltip (on tile hover for 2+ seconds) - Using Portal */}
+      {showTooltip && !isDragging && !isResizing && typeof document !== 'undefined' && tileRef.current && (() => {
+        // Calculate business days and available hours for tooltip
+        const businessDays = allocation.startDate && allocation.endDate 
+          ? calculateBusinessDays(new Date(allocation.startDate), new Date(allocation.endDate))
+          : 0;
+        const availableHours = allocation.startDate && allocation.endDate
+          ? calculateAvailableHours(new Date(allocation.startDate), new Date(allocation.endDate))
+          : 0;
+        
+        return createPortal(
+          <div 
+            ref={tooltipRef} 
+            className="fixed px-3 py-2.5 bg-forvis-gray-900 text-white rounded-lg shadow-xl min-w-[220px] max-w-[280px]" 
+            style={{ 
+              zIndex: 9999,
+              top: `${tileRef.current.getBoundingClientRect().top - 10}px`,
+              left: `${tileRef.current.getBoundingClientRect().left + (tileRef.current.getBoundingClientRect().width / 2)}px`,
+              transform: 'translate(-50%, -100%)'
+            }}
+          >
+            <div className="font-semibold mb-2 text-sm border-b border-white border-opacity-20 pb-1.5">
+              {allocation.taskName}
             </div>
-            <div className="pt-1 border-t border-white border-opacity-10">
-              <div className="opacity-60 mb-1">Period:</div>
-              <div className="opacity-90 text-xs">
-                {allocation.startDate && format(new Date(allocation.startDate), 'MMM d, yyyy')}
-                {' → '}
-                {allocation.endDate && format(new Date(allocation.endDate), 'MMM d, yyyy')}
+            <div className="space-y-1.5 text-xs">
+              {allocation.taskCode && (
+                <div className="flex justify-between gap-2">
+                  <span className="opacity-60 shrink-0">Project:</span>
+                  <span className="opacity-90 text-right">{allocation.taskCode}</span>
+                </div>
+              )}
+              {allocation.clientName && (
+                <div className="flex justify-between gap-2">
+                  <span className="opacity-60 shrink-0">Client:</span>
+                  <span className="opacity-90 text-right truncate">
+                    {allocation.clientName}
+                    {allocation.clientCode && <span className="opacity-60 ml-1">({allocation.clientCode})</span>}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between gap-2">
+                <span className="opacity-60 shrink-0">Role:</span>
+                <span className="opacity-90">{allocation.role}</span>
               </div>
+              <div className="pt-1 border-t border-white border-opacity-10">
+                <div className="opacity-60 mb-1">Period:</div>
+                <div className="opacity-90 text-xs">
+                  {allocation.startDate && format(new Date(allocation.startDate), 'MMM d, yyyy')}
+                  {' → '}
+                  {allocation.endDate && format(new Date(allocation.endDate), 'MMM d, yyyy')}
+                </div>
+                {businessDays > 0 && (
+                  <div className="opacity-70 text-[10px] mt-0.5">
+                    {businessDays} business days × 8h = {availableHours}h available
+                  </div>
+                )}
+              </div>
+              {allocation.allocatedHours && (
+                <div className="pt-1 border-t border-white border-opacity-10">
+                  <div className="flex justify-between gap-2">
+                    <span className="opacity-60 shrink-0">Allocated:</span>
+                    <span className="text-white font-medium">
+                      {formatHours(allocation.allocatedHours)}
+                      {availableHours > 0 && (
+                        <span className="opacity-70 ml-1">
+                          of {availableHours}h ({allocation.allocatedPercentage || Math.round((allocation.allocatedHours / availableHours) * 100)}%)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {!allocation.allocatedHours && allocation.allocatedPercentage && (
+                <div className="flex justify-between gap-2">
+                  <span className="opacity-60 shrink-0">Allocated:</span>
+                  <span className="opacity-90">{formatPercentage(allocation.allocatedPercentage)}</span>
+                </div>
+              )}
+              {allocation.actualHours && (
+                <div className="flex justify-between gap-2">
+                  <span className="opacity-60 shrink-0">Actual:</span>
+                  <span className="text-white font-medium">
+                    {formatHours(allocation.actualHours)} <span className="opacity-80">({progress.toFixed(0)}%)</span>
+                  </span>
+                </div>
+              )}
             </div>
-            {(allocation.allocatedHours || allocation.allocatedPercentage) && (
-              <div className="flex justify-between gap-2">
-                <span className="opacity-60 shrink-0">Allocated:</span>
-                <span className="opacity-90">
-                  {allocation.allocatedHours 
-                    ? formatHours(allocation.allocatedHours) 
-                    : allocation.allocatedPercentage 
-                      ? formatPercentage(allocation.allocatedPercentage) 
-                      : '-'}
-                </span>
-              </div>
-            )}
-            {allocation.actualHours && (
-              <div className="flex justify-between gap-2">
-                <span className="opacity-60 shrink-0">Actual:</span>
-                <span className="text-white font-medium">
-                  {formatHours(allocation.actualHours)} <span className="opacity-80">({progress.toFixed(0)}%)</span>
-                </span>
-              </div>
-            )}
-          </div>
-          {/* Tooltip arrow */}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-forvis-gray-900" />
-        </div>,
-        document.body
-      )}
+            {/* Tooltip arrow pointing down to tile */}
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-forvis-gray-900" />
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 }
@@ -526,6 +593,7 @@ export default React.memo(AllocationTile, (prevProps, nextProps) => {
     prevProps.position.width === nextProps.position.width &&
     prevProps.scale === nextProps.scale &&
     prevProps.columnWidth === nextProps.columnWidth &&
-    prevProps.isDraggable === nextProps.isDraggable
+    prevProps.isDraggable === nextProps.isDraggable &&
+    prevProps.currentUserId === nextProps.currentUserId
   );
 });

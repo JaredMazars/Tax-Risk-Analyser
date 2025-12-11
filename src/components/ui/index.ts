@@ -25,8 +25,7 @@ export type { StatCardProps, StatCardGradient } from './StatCard';
 export { LoadingSpinner, LoadingOverlay } from './LoadingSpinner';
 export type { LoadingSpinnerProps, LoadingOverlayProps, LoadingSpinnerSize } from './LoadingSpinner';
 
-
-
-
+export { ErrorModal } from './ErrorModal';
+export type { ErrorModalProps } from './ErrorModal';
 
 

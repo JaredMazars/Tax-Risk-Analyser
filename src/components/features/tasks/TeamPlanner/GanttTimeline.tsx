@@ -5,9 +5,9 @@ import { TimeScale, ResourceData, AllocationData, DateSelection } from './types'
 import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
 import { AllocationModal } from './AllocationModal';
-import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth } from './utils';
+import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth, assignLanes, calculateMaxLanes } from './utils';
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
-import { Button, LoadingSpinner } from '@/components/ui';
+import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { TaskRole } from '@/types';
 import { startOfDay, format, isSameDay } from 'date-fns';
@@ -35,6 +35,11 @@ export function GanttTimeline({
   const [dateSelection, setDateSelection] = useState<DateSelection | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [optimisticUpdates, setOptimisticUpdates] = useState<Map<number, Partial<AllocationData>>>(new Map());
+  const [hoveredRowOffset, setHoveredRowOffset] = useState<{ sourceUserId: string; offset: number } | null>(null);
+  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; message: string; title?: string }>({ 
+    isOpen: false, 
+    message: '' 
+  });
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
@@ -106,6 +111,10 @@ export function GanttTimeline({
             return alloc;
           }) : [];
 
+      // Assign lanes to allocations for multi-lane display
+      const allocationsWithLanes = assignLanes(allocations);
+      const maxLanes = calculateMaxLanes(allocationsWithLanes);
+
       return {
         userId: member.userId,
         userName: user?.name || '',
@@ -114,9 +123,10 @@ export function GanttTimeline({
         jobTitle: user?.jobTitle,
         officeLocation: user?.officeLocation,
         role: member.role,
-        allocations,
-        totalAllocatedHours: memoizedCalculateTotalHours(allocations),
-        totalAllocatedPercentage: memoizedCalculateTotalPercentage(allocations)
+        allocations: allocationsWithLanes,
+        totalAllocatedHours: memoizedCalculateTotalHours(allocationsWithLanes),
+        totalAllocatedPercentage: memoizedCalculateTotalPercentage(allocationsWithLanes),
+        maxLanes
       };
     });
   }, [teamMembers, optimisticUpdates]);
@@ -130,7 +140,11 @@ export function GanttTimeline({
     // Find the team member
     const member = teamMembers.find(m => m.userId === userId);
     if (!member) {
-      alert('Team member not found. Please refresh the page and try again.');
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'Team member not found. Please refresh the page and try again.', 
+        title: 'Not Found' 
+      });
       return;
     }
 
@@ -275,7 +289,12 @@ export function GanttTimeline({
 
       onAllocationUpdate();
     } catch (error) {
-      alert('Failed to remove team member. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to remove team member. Please try again.';
+      setErrorModal({ 
+        isOpen: true, 
+        message, 
+        title: 'Remove Failed' 
+      });
     }
   }, [teamMembers, taskId, onAllocationUpdate]);
 
@@ -351,7 +370,11 @@ export function GanttTimeline({
       });
       
       const message = error instanceof Error ? error.message : 'Failed to save allocation';
-      alert(message);
+      setErrorModal({ 
+        isOpen: true, 
+        message, 
+        title: 'Save Failed' 
+      });
       throw error;
     } finally {
       setIsSaving(false);
@@ -380,7 +403,11 @@ export function GanttTimeline({
       setSelectedAllocation(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to clear allocation';
-      alert(message);
+      setErrorModal({ 
+        isOpen: true, 
+        message, 
+        title: 'Clear Failed' 
+      });
       throw error;
     } finally {
       setIsSaving(false);
@@ -434,9 +461,114 @@ export function GanttTimeline({
       });
       
       const message = error instanceof Error ? error.message : 'Failed to update dates';
-      alert(message);
+      setErrorModal({ isOpen: true, message, title: 'Update Failed' });
     }
   }, [taskId, onAllocationUpdate]);
+
+  const handleTransferAllocation = useCallback(async (
+    allocationId: number,
+    _unusedTargetUserId: string,
+    newStartDate: Date,
+    newEndDate: Date
+  ) => {
+    // Find source resource and determine target based on hoveredRowOffset
+    const sourceResource = resources.find(r => 
+      r.allocations.some(a => a.id === allocationId)
+    );
+    
+    if (!sourceResource) {
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'Source allocation not found. Please refresh and try again.', 
+        title: 'Transfer Failed' 
+      });
+      return;
+    }
+    
+    // Determine target user ID from hoveredRowOffset
+    if (!hoveredRowOffset || hoveredRowOffset.sourceUserId !== sourceResource.userId) {
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'Invalid transfer target. Please try again.', 
+        title: 'Transfer Failed' 
+      });
+      return;
+    }
+    
+    const sourceIndex = resources.findIndex(r => r.userId === sourceResource.userId);
+    const targetIndex = sourceIndex + hoveredRowOffset.offset;
+    
+    if (targetIndex < 0 || targetIndex >= resources.length) {
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'Cannot transfer to that row. Please try a different team member.', 
+        title: 'Invalid Target' 
+      });
+      return;
+    }
+    
+    const targetResource = resources[targetIndex];
+    
+    if (!targetResource) {
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'Target team member not found. Please refresh and try again.', 
+        title: 'Transfer Failed' 
+      });
+      return;
+    }
+    
+    // Check if trying to transfer to same user
+    if (sourceResource.userId === targetResource.userId) {
+      // This is just a date change, use normal update
+      handleUpdateDates(allocationId, newStartDate, newEndDate);
+      return;
+    }
+
+    try {
+      // Make API call to transfer
+      const response = await fetch(
+        `/api/tasks/${taskId}/team/${allocationId}/transfer`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUserId: targetResource.userId,
+            startDate: newStartDate.toISOString(),
+            endDate: newEndDate.toISOString()
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || 'Failed to transfer allocation';
+        throw new Error(errorMessage);
+      }
+
+      // Success - refetch to get fresh data
+      onAllocationUpdate();
+      
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to transfer allocation';
+      setErrorModal({ 
+        isOpen: true, 
+        message, 
+        title: 'Transfer Failed' 
+      });
+    } finally {
+      // Clear hover state
+      setHoveredRowOffset(null);
+    }
+  }, [taskId, resources, hoveredRowOffset, onAllocationUpdate, handleUpdateDates]);
+
+  const handleRowHover = useCallback((sourceUserId: string, offset: number | null) => {
+    if (offset === null) {
+      setHoveredRowOffset(null);
+    } else {
+      setHoveredRowOffset({ sourceUserId, offset });
+    }
+  }, []);
 
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden">
@@ -474,17 +606,6 @@ export function GanttTimeline({
                 style={scale === 'week' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
               >
                 Weeks
-              </button>
-              <button
-                onClick={() => setScale('month')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                  scale === 'month'
-                    ? 'text-white shadow-corporate'
-                    : 'text-forvis-gray-700 bg-white border-2 border-forvis-gray-300 hover:border-forvis-blue-400'
-                }`}
-                style={scale === 'month' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
-              >
-                Months
               </button>
             </div>
           </div>
@@ -536,7 +657,7 @@ export function GanttTimeline({
               <p className="text-sm mt-1">Add team members to see their allocations</p>
             </div>
           ) : (
-            resources.map((resource) => (
+            resources.map((resource, index) => (
               <ResourceRow
                 key={resource.userId}
                 resource={resource}
@@ -545,12 +666,18 @@ export function GanttTimeline({
                 dateRange={dateRange}
                 onEditAllocation={canEdit ? handleEditAllocation : () => {}}
                 onUpdateDates={canEdit ? handleUpdateDates : undefined}
+                onTransferAllocation={canEdit ? handleTransferAllocation : undefined}
                 onRemoveMember={canEdit ? handleRemoveMember : undefined}
                 canEdit={canEdit}
                 onSelectionStart={handleSelectionStart}
                 onSelectionMove={handleSelectionMove}
                 dateSelection={dateSelection}
                 isSelecting={isSelecting}
+                isHoveredTarget={hoveredRowOffset !== null && (() => {
+                  const sourceIndex = resources.findIndex(r => r.userId === hoveredRowOffset.sourceUserId);
+                  return sourceIndex !== -1 && (sourceIndex + hoveredRowOffset.offset) === index;
+                })()}
+                onRowHover={handleRowHover}
               />
             ))
           )}
@@ -596,6 +723,14 @@ export function GanttTimeline({
         }}
         onSave={handleSaveAllocation}
         onClear={handleClearAllocation}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal({ isOpen: false, message: '' })}
       />
     </div>
   );

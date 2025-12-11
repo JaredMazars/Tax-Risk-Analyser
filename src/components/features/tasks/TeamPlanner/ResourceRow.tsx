@@ -14,12 +14,15 @@ interface ResourceRowProps {
   dateRange: DateRange;
   onEditAllocation: (allocation: AllocationData) => void;
   onUpdateDates?: (allocationId: number, startDate: Date, endDate: Date) => void;
+  onTransferAllocation?: (allocationId: number, targetUserId: string, startDate: Date, endDate: Date) => void;
   onRemoveMember?: (userId: string) => void;
   canEdit: boolean;
   onSelectionStart: (userId: string, columnIndex: number) => void;
   onSelectionMove: (columnIndex: number) => void;
   dateSelection: DateSelection | null;
   isSelecting: boolean;
+  isHoveredTarget?: boolean;
+  onRowHover?: (sourceUserId: string, offset: number | null) => void;
 }
 
 export function ResourceRow({ 
@@ -29,16 +32,23 @@ export function ResourceRow({
   dateRange,
   onEditAllocation,
   onUpdateDates,
+  onTransferAllocation,
   onRemoveMember,
   canEdit,
   onSelectionStart,
   onSelectionMove,
   dateSelection,
-  isSelecting
+  isSelecting,
+  isHoveredTarget = false,
+  onRowHover
 }: ResourceRowProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const columnWidth = getColumnWidth(scale);
   const totalWidth = columns.length * columnWidth;
+  
+  // Calculate dynamic row height based on max lanes (36px per lane to match user info)
+  const LANE_HEIGHT = 36;
+  const rowHeight = resource.maxLanes * LANE_HEIGHT;
   
   const getInitials = (name: string, email: string) => {
     if (name) {
@@ -68,25 +78,30 @@ export function ResourceRow({
   };
 
   return (
-    <div className="flex border-b border-forvis-gray-200 hover:bg-forvis-blue-50 transition-colors group h-14">
+    <div 
+      className={`flex border-b transition-colors group ${
+        isHoveredTarget 
+          ? 'bg-forvis-blue-100 border-forvis-blue-400 border-2' 
+          : 'border-forvis-gray-200 hover:bg-forvis-blue-50'
+      }`}
+      style={{ height: `${rowHeight}px` }}
+    >
       {/* User Info Sidebar */}
-      <div className="w-64 flex-shrink-0 px-3 py-2 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50 flex items-center">
+      <div className="w-64 flex-shrink-0 px-3 py-1 bg-white border-r-2 border-forvis-gray-300 sticky left-0 z-10 group-hover:bg-forvis-blue-50 flex items-center h-9">
         <div className="flex items-center w-full gap-2">
           <div 
-            className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-8 h-8 text-xs"
+            className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-6 h-6 text-[10px]"
             style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
           >
             {getInitials(resource.userName, resource.userEmail)}
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-2">
             <div className="font-semibold text-forvis-gray-900 truncate text-xs">
               {resource.userName || resource.userEmail}
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className={`px-1.5 py-0.5 rounded border font-medium ${getRoleBadgeColor(resource.role)} text-[10px]`}>
-                {resource.role}
-              </span>
-            </div>
+            <span className={`px-1.5 py-0.5 rounded border font-medium ${getRoleBadgeColor(resource.role)} text-[10px] flex-shrink-0`}>
+              {resource.role}
+            </span>
           </div>
           {canEdit && onRemoveMember && (
             <button
@@ -194,7 +209,11 @@ export function ResourceRow({
                 columnWidth={columnWidth}
                 onEdit={onEditAllocation}
                 onUpdateDates={onUpdateDates}
+                onTransfer={onTransferAllocation}
                 isDraggable={canEdit}
+                currentUserId={resource.userId}
+                onRowHover={(offset) => onRowHover?.(resource.userId, offset)}
+                lane={allocation.lane ?? 0}
               />
             );
           })}

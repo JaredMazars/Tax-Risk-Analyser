@@ -15,6 +15,15 @@ export interface TimelineColumn {
   isToday?: boolean;
 }
 
+/**
+ * Allocation data for team planner timeline
+ * 
+ * Date Model (Exclusive End Date):
+ * - startDate: First day of allocation (inclusive)
+ * - endDate: Day AFTER last day of allocation (exclusive)
+ * - Duration: differenceInDays(endDate, startDate)
+ * - Example: 1-day allocation on Jan 4 → start: Jan 4, end: Jan 5
+ */
 export interface AllocationData {
   id: number;
   taskId: number;
@@ -28,6 +37,7 @@ export interface AllocationData {
   allocatedHours: number | null;
   allocatedPercentage: number | null;
   actualHours: number | null;
+  lane?: number; // Which lane (0-indexed) this allocation occupies in the row
 }
 
 export interface ResourceData {
@@ -41,6 +51,7 @@ export interface ResourceData {
   allocations: AllocationData[];
   totalAllocatedHours: number;
   totalAllocatedPercentage: number;
+  maxLanes: number; // Maximum number of concurrent overlapping allocations
 }
 
 export interface GanttPosition {

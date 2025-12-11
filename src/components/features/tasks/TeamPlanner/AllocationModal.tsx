@@ -6,6 +6,7 @@ import { Button, Input } from '@/components/ui';
 import { X, Calendar, Clock, Percent } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { TaskRole } from '@/types';
+import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 
 interface AllocationModalProps {
   allocation: AllocationData | null;
@@ -27,6 +28,10 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [calculatedInfo, setCalculatedInfo] = useState({
+    businessDays: 0,
+    availableHours: 0
+  });
   
   // Determine if this is an existing allocation (has dates) or a new one
   const isExistingAllocation = allocation && allocation.startDate && allocation.endDate;
@@ -46,6 +51,57 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
     }
   }, [allocation, isOpen]);
 
+  // Update calculation when dates change
+  useEffect(() => {
+    if (formData.startDate && formData.endDate) {
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      
+      if (start < end) {
+        const businessDays = calculateBusinessDays(start, end);
+        const availableHours = calculateAvailableHours(start, end);
+        
+        setCalculatedInfo({
+          businessDays,
+          availableHours
+        });
+      } else {
+        setCalculatedInfo({
+          businessDays: 0,
+          availableHours: 0
+        });
+      }
+    } else {
+      setCalculatedInfo({
+        businessDays: 0,
+        availableHours: 0
+      });
+    }
+  }, [formData.startDate, formData.endDate]);
+
+  // Auto-calculate percentage when hours change
+  useEffect(() => {
+    if (formData.allocatedHours && calculatedInfo.availableHours > 0) {
+      const hours = parseFloat(formData.allocatedHours);
+      if (!isNaN(hours)) {
+        const percentage = calculateAllocationPercentage(
+          hours,
+          calculatedInfo.availableHours
+        );
+        setFormData(prev => ({
+          ...prev,
+          allocatedPercentage: percentage.toString()
+        }));
+      }
+    } else if (!formData.allocatedHours) {
+      // Clear percentage if hours are cleared
+      setFormData(prev => ({
+        ...prev,
+        allocatedPercentage: ''
+      }));
+    }
+  }, [formData.allocatedHours, calculatedInfo.availableHours]);
+
   const handleSave = async () => {
     if (!allocation) return;
 
@@ -55,15 +111,35 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
       return;
     }
 
-    if (new Date(formData.startDate) > new Date(formData.endDate)) {
-      setError('End date must be after or equal to start date');
+    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+      setError('End date must be after start date');
       return;
     }
 
-    // At least one allocation metric should be provided
-    if (!formData.allocatedHours && !formData.allocatedPercentage) {
-      setError('Please specify either allocated hours or percentage');
+    // Check if date range includes at least 1 business day
+    if (calculatedInfo.businessDays === 0) {
+      setError('Date range must include at least one business day (Monday-Friday)');
       return;
+    }
+
+    // Allocated hours is required
+    if (!formData.allocatedHours) {
+      setError('Please specify allocated hours');
+      return;
+    }
+
+    const allocatedHours = parseFloat(formData.allocatedHours);
+    if (isNaN(allocatedHours) || allocatedHours < 0) {
+      setError('Allocated hours must be a positive number');
+      return;
+    }
+
+    // Warn if over-allocated (but don't prevent)
+    if (allocatedHours > calculatedInfo.availableHours) {
+      setError(
+        `Warning: Allocated hours (${allocatedHours}h) exceeds available hours (${calculatedInfo.availableHours}h). This represents ${Math.round((allocatedHours / calculatedInfo.availableHours) * 100)}% allocation.`
+      );
+      // Allow saving despite over-allocation - just show warning
     }
 
     setIsSaving(true);
@@ -167,12 +243,53 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
             </div>
           </div>
 
+          {/* Business Days Calculation Info - Show after dates are selected */}
+          {formData.startDate && formData.endDate && calculatedInfo.businessDays > 0 && (
+            <div 
+              className="p-4 rounded-lg border-2"
+              style={{ 
+                background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+                borderColor: '#5B93D7'
+              }}
+            >
+              <div className="text-sm font-medium text-forvis-blue-900 mb-2">
+                📊 Available Hours Calculation
+              </div>
+              <div className="text-sm text-forvis-blue-800 space-y-1">
+                <div>
+                  <span className="font-semibold">{calculatedInfo.businessDays}</span> business days
+                  <span className="text-forvis-blue-600 mx-1">×</span>
+                  <span className="font-semibold">8</span> hours/day
+                  <span className="text-forvis-blue-600 mx-1">=</span>
+                  <span className="font-bold text-forvis-blue-900">
+                    {calculatedInfo.availableHours} hours available
+                  </span>
+                </div>
+                <div className="text-xs text-forvis-blue-700 mt-1">
+                  (Weekends excluded from calculation)
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Warning if no business days in range */}
+          {formData.startDate && formData.endDate && calculatedInfo.businessDays === 0 && (
+            <div className="p-3 bg-yellow-50 border-2 border-yellow-300 text-yellow-800 rounded-lg text-sm">
+              ⚠️ Selected date range contains no business days (only weekends). Please select a range that includes at least one weekday.
+            </div>
+          )}
+
           {/* Allocation */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                 <Clock className="w-4 h-4 inline mr-1" />
                 Allocated Hours
+                {calculatedInfo.availableHours > 0 && (
+                  <span className="text-forvis-gray-600 font-normal ml-1">
+                    (of {calculatedInfo.availableHours} available)
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -180,24 +297,31 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
                 min="0"
                 value={formData.allocatedHours}
                 onChange={(e) => setFormData({ ...formData, allocatedHours: e.target.value })}
-                placeholder="e.g., 40"
+                placeholder="e.g., 20"
                 className="w-full px-3 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
               />
+              {formData.allocatedHours && calculatedInfo.availableHours > 0 && (
+                <p className="text-xs text-forvis-gray-600 mt-1">
+                  {parseFloat(formData.allocatedHours) > calculatedInfo.availableHours 
+                    ? '⚠️ Over-allocated' 
+                    : '✓ Within available hours'}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
                 <Percent className="w-4 h-4 inline mr-1" />
-                Allocated Percentage
+                Allocation Percentage
+                <span className="text-forvis-gray-600 font-normal ml-1">(calculated)</span>
               </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={formData.allocatedPercentage}
-                onChange={(e) => setFormData({ ...formData, allocatedPercentage: e.target.value })}
-                placeholder="e.g., 50"
-                className="w-full px-3 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-              />
+              <div
+                className="w-full px-3 py-2 border-2 border-forvis-gray-200 rounded-lg bg-forvis-gray-50 text-forvis-gray-700 font-semibold"
+              >
+                {formData.allocatedPercentage ? `${formData.allocatedPercentage}%` : '-'}
+              </div>
+              <p className="text-xs text-forvis-gray-600 mt-1">
+                Auto-calculated from allocated hours
+              </p>
             </div>
           </div>
 

@@ -56,9 +56,9 @@ export async function PUT(
     if (validatedData.startDate && validatedData.endDate) {
       const start = new Date(validatedData.startDate);
       const end = new Date(validatedData.endDate);
-      if (start > end) {
+      if (start >= end) {
         return handleApiError(
-          new AppError(400, 'End date must be after start date'),
+          new AppError(400, 'End date must be after start date (use next day for single-day allocations)'),
           'Update allocation'
         );
       }

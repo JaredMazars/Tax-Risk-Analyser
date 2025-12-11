@@ -196,11 +196,15 @@ export function calculateTilePosition(
   
   // Calculate position in days from range start (now using normalized dates)
   const startDays = differenceInDays(visibleStart, rangeStart);
-  const durationDays = differenceInDays(visibleEnd, visibleStart) + 1;
+  // Calculate duration using difference only (no +1)
+  // Date model: endDate is exclusive (day after last day of allocation)
+  // For 1-day allocation: start = 4th, end = 5th, diff = 1 day ✓
+  // For 2-day allocation: start = 4th, end = 6th, diff = 2 days ✓
+  const durationDays = differenceInDays(visibleEnd, visibleStart);
   
   // Convert days to pixels
   const leftPosition = daysToPixels(startDays, dayPixelWidth);
-  const width = daysToPixels(durationDays, dayPixelWidth);
+  const width = daysToPixels(Math.max(durationDays, 1), dayPixelWidth); // Minimum 1 day visual
 
   return {
     left: leftPosition,
@@ -262,6 +266,141 @@ export function calculateTotalPercentage(allocations: AllocationData[]): number 
   return allocations.reduce((total, alloc) => {
     return total + (alloc.allocatedPercentage || 0);
   }, 0);
+}
+
+/**
+ * Check if two allocations overlap in time
+ */
+export function allocationsOverlap(a: AllocationData, b: AllocationData): boolean {
+  if (!a.startDate || !a.endDate || !b.startDate || !b.endDate) {
+    return false;
+  }
+  
+  const aStart = new Date(a.startDate).getTime();
+  const aEnd = new Date(a.endDate).getTime();
+  const bStart = new Date(b.startDate).getTime();
+  const bEnd = new Date(b.endDate).getTime();
+  
+  return aStart < bEnd && aEnd > bStart;
+}
+
+/**
+ * Assign lanes to allocations to minimize overlaps
+ * Uses a greedy algorithm to pack allocations into lanes
+ */
+export function assignLanes(allocations: AllocationData[]): AllocationData[] {
+  if (allocations.length === 0) {
+    return [];
+  }
+  
+  // Sort by start date
+  const sorted = [...allocations].sort((a, b) => {
+    const aStart = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const bStart = b.startDate ? new Date(b.startDate).getTime() : 0;
+    return aStart - bStart;
+  });
+  
+  // Track lanes: array of arrays, each lane contains allocations
+  const lanes: AllocationData[][] = [];
+  
+  for (const allocation of sorted) {
+    // Find first lane where this allocation doesn't overlap
+    let assignedLane = -1;
+    for (let i = 0; i < lanes.length; i++) {
+      const laneHasOverlap = lanes[i].some(existing => 
+        allocationsOverlap(existing, allocation)
+      );
+      if (!laneHasOverlap) {
+        assignedLane = i;
+        break;
+      }
+    }
+    
+    // If no available lane, create new one
+    if (assignedLane === -1) {
+      assignedLane = lanes.length;
+      lanes.push([]);
+    }
+    
+    allocation.lane = assignedLane;
+    lanes[assignedLane].push(allocation);
+  }
+  
+  return allocations;
+}
+
+/**
+ * Calculate the maximum number of lanes needed for allocations
+ */
+export function calculateMaxLanes(allocations: AllocationData[]): number {
+  if (allocations.length === 0) {
+    return 1; // Minimum 1 lane even with no allocations
+  }
+  
+  // Assign lanes first
+  const withLanes = assignLanes(allocations);
+  
+  // Find the maximum lane index
+  const maxLane = withLanes.reduce((max, alloc) => {
+    return Math.max(max, alloc.lane ?? 0);
+  }, 0);
+  
+  // Return number of lanes (max index + 1)
+  return maxLane + 1;
+}
+
+/**
+ * Calculate number of business days (excluding weekends) between two dates
+ * Uses exclusive end date model (consistent with allocation date model)
+ * @param startDate - First day of the period (inclusive)
+ * @param endDate - Day after last day of the period (exclusive)
+ * @returns Number of business days (Monday-Friday only)
+ */
+export function calculateBusinessDays(startDate: Date, endDate: Date): number {
+  let count = 0;
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+  
+  // Normalize to start of day
+  current.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  
+  while (current < end) {
+    const dayOfWeek = current.getDay();
+    // 0 = Sunday, 6 = Saturday
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return count;
+}
+
+/**
+ * Calculate total available hours based on business days
+ * 8 hours per business day (standard workday)
+ * @param startDate - First day of the period (inclusive)
+ * @param endDate - Day after last day of the period (exclusive)
+ * @returns Total available hours (business days × 8)
+ */
+export function calculateAvailableHours(startDate: Date, endDate: Date): number {
+  const businessDays = calculateBusinessDays(startDate, endDate);
+  return businessDays * 8;
+}
+
+/**
+ * Calculate allocation percentage from hours
+ * @param allocatedHours - Hours allocated to this task
+ * @param totalAvailableHours - Total available hours in the period
+ * @returns Percentage (0-100+), rounded to nearest integer
+ */
+export function calculateAllocationPercentage(
+  allocatedHours: number,
+  totalAvailableHours: number
+): number {
+  if (totalAvailableHours === 0) return 0;
+  return Math.round((allocatedHours / totalAvailableHours) * 100);
 }
 
 
