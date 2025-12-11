@@ -25,6 +25,7 @@ import { ServiceLineSelector } from '@/components/features/service-lines/Service
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { Button, LoadingSpinner } from '@/components/ui';
+import { MyPlanningTimeline } from '@/components/features/planning';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -417,43 +418,45 @@ export default function SubServiceLineWorkspacePage() {
             </nav>
           </div>
 
-          {/* Search and Filter Bar */}
-          <div className="mb-4 flex gap-4 items-center">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-              <input
-                type="text"
-                placeholder={
-                  activeTab === 'groups'
-                    ? 'Search by group name or code...'
-                    : activeTab === 'clients'
-                    ? 'Search by name, code, group, or industry...'
-                    : (activeTab === 'tasks' || activeTab === 'my-tasks')
-                    ? 'Search by task name, client, or service line...'
-                    : 'Search...'
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-              />
+          {/* Search and Filter Bar - Only show for searchable tabs */}
+          {activeTab !== 'planner' && activeTab !== 'my-planning' && (
+            <div className="mb-4 flex gap-4 items-center">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                <input
+                  type="text"
+                  placeholder={
+                    activeTab === 'groups'
+                      ? 'Search by group name or code...'
+                      : activeTab === 'clients'
+                      ? 'Search by name, code, group, or industry...'
+                      : (activeTab === 'tasks' || activeTab === 'my-tasks')
+                      ? 'Search by task name, client, or service line...'
+                      : 'Search...'
+                  }
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-forvis-gray-700">Show:</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-forvis-gray-700">Show:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
+          )}
 
           {/* Results count */}
           {debouncedSearch && pagination && (activeTab === 'groups' || activeTab === 'clients' || activeTab === 'tasks' || activeTab === 'my-tasks') && (
@@ -476,16 +479,8 @@ export default function SubServiceLineWorkspacePage() {
               </div>
             </div>
           ) : activeTab === 'my-planning' ? (
-            /* My Planning Placeholder */
-            <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
-              <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
-                <Calendar className="mx-auto h-12 w-12 text-forvis-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">My Planning Coming Soon</h3>
-                <p className="mt-1 text-sm text-forvis-gray-600">
-                  Your personal planning and schedule features will be available here.
-                </p>
-              </div>
-            </div>
+            /* My Planning Timeline */
+            <MyPlanningTimeline />
           ) : activeTab === 'groups' ? (
             /* Groups List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
