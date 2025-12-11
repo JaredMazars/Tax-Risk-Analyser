@@ -1,0 +1,91 @@
+# CodeRabbit Configuration
+# Visit: https://coderabbit.ai/docs/configuration
+
+# Language settings
+language: en-US
+
+# Review settings
+reviews:
+  # Enable automatic reviews on PRs
+  auto_review: true
+  
+  # Review levels: "basic" or "detailed"
+  level: detailed
+  
+  # File types to review
+  include:
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.js"
+    - "**/*.jsx"
+    - "**/*.yml"
+    - "**/*.yaml"
+    - "**/*.json"
+    - "**/*.md"
+    - "**/*.dockerfile"
+    - "**/Dockerfile"
+  
+  # File patterns to exclude from reviews
+  exclude:
+    - "**/node_modules/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/.next/**"
+    - "**/coverage/**"
+    - "**/*.min.js"
+    - "**/*.min.css"
+    - "**/package-lock.json"
+    - "**/yarn.lock"
+
+# Code quality checks
+checks:
+  # Security vulnerability scanning
+  security: true
+  
+  # Performance issues
+  performance: true
+  
+  # Best practices
+  best_practices: true
+  
+  # Code style and formatting
+  style: true
+  
+  # Error handling
+  error_handling: true
+  
+  # Testing coverage
+  testing: true
+
+# Comment settings
+comments:
+  # Post review summary as comment
+  summary: true
+  
+  # Post inline comments for issues
+  inline: true
+  
+  # Minimum severity to comment (info, warning, error)
+  min_severity: warning
+
+# Auto-fix suggestions
+suggestions:
+  # Provide code fix suggestions
+  enabled: true
+  
+  # Auto-apply safe fixes (be careful with this)
+  auto_apply: false
+
+# Tone of reviews
+tone: professional
+
+# Focus areas for this project
+focus_areas:
+  - security
+  - performance
+  - error_handling
+  - type_safety
+  - best_practices
+  - code_duplication
+  - complexity
+  - maintainability
