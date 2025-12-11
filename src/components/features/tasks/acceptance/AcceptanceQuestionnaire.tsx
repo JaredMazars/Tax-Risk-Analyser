@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CheckCircle, Clock } from 'lucide-react';
 import { QuestionField } from './QuestionField';
 import { DocumentUpload } from './DocumentUpload';
@@ -24,6 +24,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
   const [activeTab, setActiveTab] = useState(0);
   const [answers, setAnswers] = useState<AnswerState>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -63,6 +64,17 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingAnswers]);
 
+  // Auto-scroll active tab into view
+  useEffect(() => {
+    if (tabRefs.current[activeTab]) {
+      tabRefs.current[activeTab]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [activeTab]);
+
   // Autosave functionality (debounced)
   useEffect(() => {
     if (!hasChanges) return;
@@ -85,6 +97,18 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers, hasChanges]); // Removed saveAnswersMutation from deps to prevent re-triggers
+
+  const handleTabChange = useCallback((index: number) => {
+    setActiveTab(index);
+    // Scroll tab into view
+    setTimeout(() => {
+      tabRefs.current[index]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }, 0);
+  }, []);
 
   const handleAnswerChange = useCallback((questionKey: string, answer: string, comment?: string) => {
     setAnswers((prev) => ({
@@ -258,7 +282,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
       {/* Tab Navigation */}
       <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
         <div
-          className="flex overflow-x-auto border-b-2"
+          className="flex overflow-x-auto border-b-2 scrollbar-thin scrollbar-thumb-forvis-blue-300 scrollbar-track-forvis-gray-100"
           style={{ borderColor: '#2E5AAC' }}
         >
           {sections.map((section, index) => {
@@ -271,9 +295,10 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
             return (
               <button
                 key={section.key}
-                onClick={() => setActiveTab(index)}
+                ref={(el) => (tabRefs.current[index] = el)}
+                onClick={() => handleTabChange(index)}
                 className={`
-                  flex-1 min-w-[200px] px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all
+                  flex-shrink-0 px-6 py-4 text-sm font-semibold transition-all border-r border-forvis-gray-200 last:border-r-0
                   ${
                     isActive
                       ? 'text-white'
@@ -286,14 +311,14 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
                     : undefined
                 }
               >
-                <div className="flex items-center justify-center gap-2">
-                  <span>{section.title}</span>
-                  {isComplete && <CheckCircle className="h-4 w-4" />}
-                  {!isComplete && (
-                    <span className={`text-xs ${isActive ? 'opacity-90' : 'opacity-70'}`}>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-center leading-tight">{section.title}</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {isComplete && <CheckCircle className="h-4 w-4" />}
+                    <span className={`text-xs font-medium ${isActive ? 'opacity-90' : 'opacity-70'}`}>
                       ({completion.completed}/{completion.total})
                     </span>
-                  )}
+                  </div>
                 </div>
               </button>
             );
@@ -346,7 +371,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
         {/* Navigation Buttons */}
         <div className="px-6 pb-6 flex items-center justify-between border-t border-forvis-gray-200 pt-4">
           <button
-            onClick={() => setActiveTab((prev) => Math.max(0, prev - 1))}
+            onClick={() => handleTabChange(Math.max(0, activeTab - 1))}
             disabled={activeTab === 0}
             className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
@@ -359,7 +384,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
 
           {activeTab < sections.length - 1 ? (
             <button
-              onClick={() => setActiveTab((prev) => Math.min(sections.length - 1, prev + 1))}
+              onClick={() => handleTabChange(Math.min(sections.length - 1, activeTab + 1))}
               className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >

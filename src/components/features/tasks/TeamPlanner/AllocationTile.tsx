@@ -270,6 +270,7 @@ export function AllocationTile({
         width: `${livePosition.width}px`,
         background: gradient,
         minWidth: '40px',
+        pointerEvents: 'auto', // Allow clicks on tiles even though container has pointer-events: none
         // Smooth transition when not dragging (includes when isSaving completes)
         transition: (isDragging || isResizing) 
           ? 'none' 

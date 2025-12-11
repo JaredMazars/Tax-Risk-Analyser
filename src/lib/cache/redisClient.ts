@@ -1,8 +1,11 @@
 import Redis from 'ioredis';
 import { logger } from '@/lib/utils/logger';
 
-let redis: Redis | null = null;
-let isConnected = false;
+// Use globalThis to survive hot reloads in Next.js dev mode
+const globalForRedis = globalThis as unknown as {
+  redis: Redis | null;
+  isConnected: boolean;
+};
 
 /**
  * Get Redis client instance
@@ -14,7 +17,7 @@ export function getRedisClient(): Redis | null {
     return null;
   }
 
-  if (!redis) {
+  if (!globalForRedis.redis) {
     try {
       const connString = process.env.REDIS_CONNECTION_STRING;
       
@@ -31,7 +34,7 @@ export function getRedisClient(): Redis | null {
         // Handle passwords with = characters (common in base64 keys)
         const password = passwordPart ? passwordPart.substring('password='.length) : undefined;
         
-        redis = new Redis({
+        globalForRedis.redis = new Redis({
           host: host || 'localhost',
           port: Number.parseInt(port || '6380'), // Default Azure Redis SSL port
           password,
@@ -53,7 +56,12 @@ export function getRedisClient(): Redis | null {
           // ACL username for Redis 6.0+ (Azure Redis supports this)
           username: process.env.REDIS_USERNAME,
           retryStrategy(times) {
-            const delay = Math.min(times * 50, 2000);
+            // More conservative retry strategy to prevent connection storms
+            if (times > 10) {
+              logger.warn('Redis retry limit reached, stopping reconnection attempts');
+              return null; // Stop retrying after 10 attempts
+            }
+            const delay = Math.min(times * 100, 3000);
             return delay;
           },
           reconnectOnError(err) {
@@ -69,7 +77,7 @@ export function getRedisClient(): Redis | null {
         // Handle passwords with = characters (common in base64 keys)
         const password = passwordPart ? passwordPart.substring('password='.length) : undefined;
         
-        redis = new Redis({
+        globalForRedis.redis = new Redis({
           host: host || 'localhost',
           port: Number.parseInt(port || '6379'),
           password,
@@ -86,37 +94,42 @@ export function getRedisClient(): Redis | null {
           // ACL username for Redis 6.0+
           username: process.env.REDIS_USERNAME,
           retryStrategy(times) {
-            const delay = Math.min(times * 50, 2000);
+            // More conservative retry strategy to prevent connection storms
+            if (times > 10) {
+              logger.warn('Redis retry limit reached, stopping reconnection attempts');
+              return null; // Stop retrying after 10 attempts
+            }
+            const delay = Math.min(times * 100, 3000);
             return delay;
           },
         });
       }
 
-      redis.on('connect', () => {
+      globalForRedis.redis.on('connect', () => {
         logger.info('Redis client connected', { type: isAzure ? 'Azure' : 'Local' });
-        isConnected = true;
+        globalForRedis.isConnected = true;
       });
 
-      redis.on('ready', () => {
+      globalForRedis.redis.on('ready', () => {
         logger.info('Redis client ready');
-        isConnected = true;
+        globalForRedis.isConnected = true;
       });
 
-      redis.on('error', (err) => {
+      globalForRedis.redis.on('error', (err) => {
         logger.error('Redis client error', {
           errorMessage: err.message,
           errorName: err.name,
           errorCode: (err as any).code,
         });
-        isConnected = false;
+        globalForRedis.isConnected = false;
       });
 
-      redis.on('close', () => {
+      globalForRedis.redis.on('close', () => {
         logger.warn('Redis connection closed');
-        isConnected = false;
+        globalForRedis.isConnected = false;
       });
 
-      redis.on('reconnecting', () => {
+      globalForRedis.redis.on('reconnecting', () => {
         logger.info('Redis reconnecting...');
       });
 
@@ -126,26 +139,26 @@ export function getRedisClient(): Redis | null {
     }
   }
 
-  return redis;
+  return globalForRedis.redis;
 }
 
 /**
  * Check if Redis is available
  */
 export function isRedisAvailable(): boolean {
-  if (!redis) {
+  if (!globalForRedis.redis) {
     return false;
   }
   
   // Check both our flag and the actual connection state
-  const status = redis.status;
-  const available = isConnected && (status === 'ready' || status === 'connecting');
+  const status = globalForRedis.redis.status;
+  const available = globalForRedis.isConnected && (status === 'ready' || status === 'connecting');
   
   // If our flag says connected but Redis says otherwise, update the flag
-  if (isConnected && status !== 'ready' && status !== 'connecting') {
-    isConnected = false;
+  if (globalForRedis.isConnected && status !== 'ready' && status !== 'connecting') {
+    globalForRedis.isConnected = false;
     logger.warn('Redis connection state mismatch', { 
-      ourFlag: isConnected, 
+      ourFlag: globalForRedis.isConnected, 
       redisStatus: status 
     });
   }
@@ -157,15 +170,15 @@ export function isRedisAvailable(): boolean {
  * Gracefully close Redis connection
  */
 export async function closeRedis(): Promise<void> {
-  if (redis) {
+  if (globalForRedis.redis) {
     try {
-      await redis.quit();
+      await globalForRedis.redis.quit();
       logger.info('Redis connection closed gracefully');
     } catch (error) {
       logger.error('Error closing Redis connection', error);
     }
-    redis = null;
-    isConnected = false;
+    globalForRedis.redis = null;
+    globalForRedis.isConnected = false;
   }
 }
 
@@ -213,9 +226,20 @@ export function getRedisStatus(): {
 } {
   return {
     configured: !!process.env.REDIS_CONNECTION_STRING,
-    connected: isConnected,
-    status: redis?.status || null,
+    connected: globalForRedis.isConnected,
+    status: globalForRedis.redis?.status || null,
   };
 }
 
+// Hot module reload cleanup for Next.js dev mode
+if (process.env.NODE_ENV === 'development') {
+  if (module.hot) {
+    module.hot.dispose(() => {
+      if (globalForRedis.redis) {
+        logger.info('Hot reload detected, cleaning up Redis connection');
+        globalForRedis.redis.disconnect(false); // Don't reconnect
+      }
+    });
+  }
+}
 

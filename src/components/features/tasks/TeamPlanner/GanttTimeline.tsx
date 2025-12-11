@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { TimeScale, ResourceData, AllocationData } from './types';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { TimeScale, ResourceData, AllocationData, DateSelection } from './types';
 import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
 import { AllocationModal } from './AllocationModal';
-import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage } from './utils';
+import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth } from './utils';
 import { Button, LoadingSpinner } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { TaskRole } from '@/types';
@@ -31,8 +31,16 @@ export function GanttTimeline({
   const [isSaving, setIsSaving] = useState(false);
   const [creatingForUserId, setCreatingForUserId] = useState<string | null>(null);
   const [scrollToToday, setScrollToToday] = useState(false);
+  const [dateSelection, setDateSelection] = useState<DateSelection | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
+
+  // Determine if user can edit
+  const canEdit = currentUserRole === 'ADMIN';
+  // #region agent log
+  console.log('[DEBUG:H2] GanttTimeline rendered:', {canEdit, currentUserRole, timestamp: Date.now()});
+  // #endregion
 
   // Handler to go to today
   const handleGoToToday = () => {
@@ -51,33 +59,6 @@ export function GanttTimeline({
   // Generate date range and columns
   const dateRange = useMemo(() => getDateRange(scale, referenceDate), [scale, referenceDate]);
   const columns = useMemo(() => generateTimelineColumns(dateRange, scale), [dateRange, scale]);
-
-  // Scroll to today when requested
-  useEffect(() => {
-    if (scrollToToday && timelineContainerRef.current && columns.length > 0) {
-      const today = startOfDay(new Date());
-      const todayColumnIndex = columns.findIndex(col => 
-        isSameDay(startOfDay(col.date), today)
-      );
-      
-      if (todayColumnIndex !== -1) {
-        // Calculate column width based on scale
-        const columnWidth = scale === 'day' ? 120 : scale === 'week' ? 80 : 60;
-        const scrollPosition = todayColumnIndex * columnWidth;
-        
-        // Scroll to center the today column
-        const containerWidth = timelineContainerRef.current.clientWidth;
-        const scrollLeft = Math.max(0, scrollPosition - (containerWidth / 2) + (columnWidth / 2));
-        
-        timelineContainerRef.current.scrollTo({
-          left: scrollLeft,
-          behavior: 'smooth'
-        });
-      }
-      
-      setScrollToToday(false);
-    }
-  }, [scrollToToday, columns, scale]);
 
   // Transform team members to resource data
   const resources: ResourceData[] = useMemo(() => {
@@ -117,8 +98,8 @@ export function GanttTimeline({
     setIsModalOpen(true);
   };
 
-  const handleCreateAllocation = (userId: string) => {
-    console.log('Opening modal to create allocation for user:', userId);
+  const handleCreateAllocation = useCallback((userId: string, startDate?: Date, endDate?: Date) => {
+    console.log('Opening modal to create allocation for user:', userId, 'dates:', startDate, endDate);
     
     // Find the team member
     const member = teamMembers.find(m => m.userId === userId);
@@ -128,18 +109,21 @@ export function GanttTimeline({
       return;
     }
 
-    // Create a new allocation template
-    const today = new Date();
-    const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 7);
+    // Use provided dates or default to today + 7 days
+    const allocationStartDate = startDate || new Date();
+    const allocationEndDate = endDate || (() => {
+      const nextWeek = new Date(allocationStartDate);
+      nextWeek.setDate(allocationStartDate.getDate() + 7);
+      return nextWeek;
+    })();
 
     const newAllocation = {
       id: member.id, // Use team member id (TaskTeam.id)
       taskId: taskId,
       taskName: 'Current Task',
       role: member.role,
-      startDate: today,
-      endDate: nextWeek,
+      startDate: startOfDay(allocationStartDate),
+      endDate: startOfDay(allocationEndDate),
       allocatedHours: null,
       allocatedPercentage: null,
       actualHours: null
@@ -149,7 +133,128 @@ export function GanttTimeline({
     setSelectedAllocation(newAllocation);
     setCreatingForUserId(userId);
     setIsModalOpen(true);
-  };
+  }, [teamMembers, taskId]);
+
+  const handleSelectionStart = useCallback((userId: string, columnIndex: number) => {
+    // #region agent log
+    console.log('[DEBUG:H1] handleSelectionStart ENTRY:', {userId, columnIndex, canEdit, timestamp: Date.now()});
+    // #endregion
+    if (!canEdit) {
+      // #region agent log
+      console.log('[DEBUG:H2] Selection BLOCKED by canEdit:', {canEdit, timestamp: Date.now()});
+      // #endregion
+      return;
+    }
+    console.log('Selection started:', userId, columnIndex);
+    setIsSelecting(true);
+    setDateSelection({
+      userId,
+      startColumnIndex: columnIndex,
+      endColumnIndex: columnIndex
+    });
+    // #region agent log
+    console.log('[DEBUG:H5] Selection state SET:', {userId, columnIndex, timestamp: Date.now()});
+    // #endregion
+  }, [canEdit]);
+
+  const handleSelectionMove = useCallback((columnIndex: number) => {
+    // #region agent log
+    console.log('[DEBUG:H1] handleSelectionMove called:', {columnIndex, timestamp: Date.now()});
+    // #endregion
+    setDateSelection((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        endColumnIndex: columnIndex
+      };
+    });
+  }, []);
+
+  const handleSelectionEnd = useCallback(() => {
+    // #region agent log
+    console.log('[DEBUG:H4] handleSelectionEnd ENTRY:', {timestamp: Date.now()});
+    // #endregion
+    setIsSelecting((currentIsSelecting) => {
+      // #region agent log
+      console.log('[DEBUG:H4] handleSelectionEnd checking isSelecting:', {currentIsSelecting, timestamp: Date.now()});
+      // #endregion
+      if (!currentIsSelecting) return false;
+      
+      setDateSelection((currentSelection) => {
+        // #region agent log
+        console.log('[DEBUG:H5] handleSelectionEnd current selection:', {currentSelection, timestamp: Date.now()});
+        // #endregion
+        if (!currentSelection) return null;
+        
+        console.log('Selection ended:', currentSelection);
+        
+        const { userId, startColumnIndex, endColumnIndex } = currentSelection;
+        
+        if (endColumnIndex === null) {
+          // Single click - use default date range
+          handleCreateAllocation(userId);
+          return null;
+        }
+
+        // Calculate date range from selection
+        const minIndex = Math.min(startColumnIndex, endColumnIndex);
+        const maxIndex = Math.max(startColumnIndex, endColumnIndex);
+        
+        const startDate = columns[minIndex]?.date;
+        const endDate = columns[maxIndex]?.date;
+        
+        if (startDate && endDate) {
+          // #region agent log
+          console.log('[DEBUG:H5] Opening modal with dates:', {userId, startDate, endDate, minIndex, maxIndex, timestamp: Date.now()});
+          // #endregion
+          handleCreateAllocation(userId, startDate, endDate);
+        }
+        
+        return null;
+      });
+      
+      return false;
+    });
+  }, [columns, handleCreateAllocation]);
+
+  // Scroll to today when requested
+  useEffect(() => {
+    if (scrollToToday && timelineContainerRef.current && columns.length > 0) {
+      const today = startOfDay(new Date());
+      const todayColumnIndex = columns.findIndex(col => 
+        isSameDay(startOfDay(col.date), today)
+      );
+      
+      if (todayColumnIndex !== -1) {
+        // Get column width based on scale
+        const columnWidth = getColumnWidth(scale);
+        const scrollPosition = todayColumnIndex * columnWidth;
+        
+        // Scroll to center the today column
+        const containerWidth = timelineContainerRef.current.clientWidth;
+        const scrollLeft = Math.max(0, scrollPosition - (containerWidth / 2) + (columnWidth / 2));
+        
+        timelineContainerRef.current.scrollTo({
+          left: scrollLeft,
+          behavior: 'smooth'
+        });
+      }
+      
+      setScrollToToday(false);
+    }
+  }, [scrollToToday, columns, scale]);
+
+  // Handle global mouse up for drag selection
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      handleSelectionEnd();
+    };
+
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [handleSelectionEnd]);
 
   const handleRemoveMember = async (userId: string) => {
     try {
@@ -280,8 +385,6 @@ export function GanttTimeline({
     }
   };
 
-  const canEdit = currentUserRole === 'ADMIN';
-
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden">
       {/* Controls */}
@@ -358,7 +461,7 @@ export function GanttTimeline({
       </div>
 
       {/* Timeline Container */}
-      <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+      <div ref={timelineContainerRef} className="overflow-x-auto overflow-y-auto max-h-[600px]">
         <div className="min-w-full">
           {/* Header */}
           <div className="flex sticky top-0 z-20">
@@ -390,8 +493,11 @@ export function GanttTimeline({
                 onEditAllocation={canEdit ? handleEditAllocation : () => {}}
                 onUpdateDates={canEdit ? handleUpdateDates : undefined}
                 onRemoveMember={canEdit ? handleRemoveMember : undefined}
-                onCreateAllocation={canEdit ? handleCreateAllocation : undefined}
                 canEdit={canEdit}
+                onSelectionStart={handleSelectionStart}
+                onSelectionMove={handleSelectionMove}
+                dateSelection={dateSelection}
+                isSelecting={isSelecting}
               />
             ))
           )}

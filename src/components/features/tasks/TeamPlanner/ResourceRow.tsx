@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ResourceData, TimelineColumn, TimeScale, DateRange } from './types';
+import { ResourceData, TimelineColumn, TimeScale, DateRange, DateSelection } from './types';
 import { AllocationTile } from './AllocationTile';
 import { getColumnWidth, calculateTilePosition, formatHours, formatPercentage, getRoleGradient } from './utils';
 import { AllocationData } from './types';
@@ -15,8 +15,11 @@ interface ResourceRowProps {
   onEditAllocation: (allocation: AllocationData) => void;
   onUpdateDates?: (allocationId: number, startDate: Date, endDate: Date) => void;
   onRemoveMember?: (userId: string) => void;
-  onCreateAllocation?: (userId: string) => void;
   canEdit: boolean;
+  onSelectionStart: (userId: string, columnIndex: number) => void;
+  onSelectionMove: (columnIndex: number) => void;
+  dateSelection: DateSelection | null;
+  isSelecting: boolean;
 }
 
 export function ResourceRow({ 
@@ -27,8 +30,11 @@ export function ResourceRow({
   onEditAllocation,
   onUpdateDates,
   onRemoveMember,
-  onCreateAllocation,
-  canEdit
+  canEdit,
+  onSelectionStart,
+  onSelectionMove,
+  dateSelection,
+  isSelecting
 }: ResourceRowProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const columnWidth = getColumnWidth(scale);
@@ -132,52 +138,56 @@ export function ResourceRow({
       <div className="flex-1 relative" style={{ minWidth: `${totalWidth}px` }}>
         {/* Grid background */}
         <div className="absolute inset-0 flex z-0">
-          {columns.map((column, index) => (
-            <div
-              key={index}
-              className={`flex-shrink-0 border-r border-forvis-gray-200 ${
-                column.isToday
-                  ? 'bg-forvis-blue-50 border-forvis-blue-300'
-                  : column.isWeekend
-                  ? 'bg-forvis-gray-50'
-                  : 'bg-white'
-              } ${canEdit && onCreateAllocation ? 'cursor-pointer hover:bg-forvis-blue-100 transition-colors' : ''}`}
-              style={{ 
-                width: `${columnWidth}px`,
-                minWidth: `${columnWidth}px`
-              }}
-              onClick={() => {
-                if (canEdit && onCreateAllocation) {
-                  console.log('Timeline cell clicked for user:', resource.userId);
-                  onCreateAllocation(resource.userId);
-                }
-              }}
-            />
-          ))}
+          {columns.map((column, index) => {
+            // Determine if this cell is in the selection range
+            const isInSelection = dateSelection && 
+              dateSelection.userId === resource.userId &&
+              dateSelection.endColumnIndex !== null &&
+              index >= Math.min(dateSelection.startColumnIndex, dateSelection.endColumnIndex) &&
+              index <= Math.max(dateSelection.startColumnIndex, dateSelection.endColumnIndex);
+
+            return (
+              <div
+                key={index}
+                className={`flex-shrink-0 border-r border-forvis-gray-200 select-none ${
+                  isInSelection
+                    ? 'bg-forvis-blue-200 border-forvis-blue-400'
+                    : column.isToday
+                    ? 'bg-forvis-blue-50 border-forvis-blue-300'
+                    : column.isWeekend
+                    ? 'bg-forvis-gray-50'
+                    : 'bg-white'
+                } ${canEdit ? 'cursor-pointer hover:bg-forvis-blue-100 transition-colors' : ''}`}
+                style={{ 
+                  width: `${columnWidth}px`,
+                  minWidth: `${columnWidth}px`,
+                  userSelect: 'none'
+                }}
+                onMouseDown={(e) => {
+                  // #region agent log
+                  console.log('[DEBUG:H3] Cell onMouseDown fired:', {index, userId: resource.userId, canEdit, timestamp: Date.now()});
+                  // #endregion
+                  if (canEdit) {
+                    e.preventDefault();
+                    console.log('Mouse down on cell:', index, 'for user:', resource.userId);
+                    onSelectionStart(resource.userId, index);
+                  }
+                }}
+                onMouseEnter={() => {
+                  // #region agent log
+                  console.log('[DEBUG:H3] Cell onMouseEnter fired:', {index, userId: resource.userId, isSelecting, selectionUserId: dateSelection?.userId, timestamp: Date.now()});
+                  // #endregion
+                  if (isSelecting && dateSelection?.userId === resource.userId) {
+                    onSelectionMove(index);
+                  }
+                }}
+              />
+            );
+          })}
         </div>
 
         {/* Allocation tiles */}
-        <div className="relative z-0 h-full">
-          {/* Show add button when no allocations */}
-          {resource.allocations.length === 0 && canEdit && onCreateAllocation && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[5]">
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('Add Planning button clicked for user:', resource.userId);
-                    onCreateAllocation(resource.userId);
-                  }}
-                  className="flex items-center gap-2 text-xs text-white font-medium px-4 py-2 rounded-lg shadow-corporate-md transition-all hover:scale-105 pointer-events-auto"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
-                  title="Add planning for this team member"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Planning
-                </button>
-              </div>
-            </div>
-          )}
+        <div className="relative z-0 h-full" style={{ pointerEvents: 'none' }}>
           {/* Allocation tiles with higher z-index */}
           {resource.allocations.map((allocation) => {
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);

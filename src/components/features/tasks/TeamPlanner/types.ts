@@ -45,4 +45,10 @@ export interface GanttPosition {
   width: number;
 }
 
+export interface DateSelection {
+  userId: string;
+  startColumnIndex: number;
+  endColumnIndex: number | null;
+}
+
 
