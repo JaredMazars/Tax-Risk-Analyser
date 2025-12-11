@@ -51,26 +51,8 @@ export function MyPlanningView() {
         }
 
         const result = await response.json();
-        console.log('[MyPlanningView] API Response:', result);
-        console.log('[MyPlanningView] Response structure:', {
-          hasSuccess: 'success' in result,
-          hasData: 'data' in result,
-          resultKeys: Object.keys(result)
-        });
-        
         const data = result.data || result;
-        console.log('[MyPlanningView] Extracted data:', {
-          hasClients: 'clients' in data,
-          hasFlatList: 'flatList' in data,
-          clientsLength: data.clients?.length || 0,
-          flatListLength: data.flatList?.length || 0
-        });
-        
-        const clients = data.clients || [];
-        console.log('[MyPlanningView] Clients data:', clients);
-        console.log('[MyPlanningView] First client sample:', clients[0]);
-        
-        setClientsData(clients);
+        setClientsData(data.clients || []);
         
         // Transform flatList dates from strings to Date objects
         const transformedList = (data.flatList || []).map((item: any) => ({
@@ -80,13 +62,8 @@ export function MyPlanningView() {
         }));
         setFlatList(transformedList);
         setError(null);
-        
-        console.log('[MyPlanningView] State updated:', {
-          clientsDataLength: clients.length,
-          flatListLength: transformedList.length
-        });
       } catch (err) {
-        console.error('[MyPlanningView] Error fetching allocations:', err);
+        console.error('Error fetching allocations:', err);
         setError(err instanceof Error ? err.message : 'Failed to load planning data');
       } finally {
         setIsLoading(false);

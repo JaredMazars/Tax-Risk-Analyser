@@ -412,7 +412,7 @@ export function AdminPlanningModal({
 
               {!isLoadingClients && clientSearch === debouncedClientSearch && clientResults.length > 0 && (
                 <div className="border-2 border-forvis-gray-200 rounded-lg divide-y divide-forvis-gray-200 max-h-80 overflow-y-auto">
-                  {clientResults.map((client) => (
+                  {clientResults.map((client: Client) => (
                     <button
                       key={client.id}
                       onClick={() => handleClientSelect(client)}
@@ -445,10 +445,6 @@ export function AdminPlanningModal({
           {/* Step 2: Task Selection */}
           {step === 'task' && selectedClient && (
             <div className="space-y-4">
-              {/* #region agent log */}
-              {fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:435',message:'Rendering task step',data:{step,hasSelectedClient:!!selectedClient,clientCode:selectedClient?.clientCode,activeTasks:activeTasks.length,isLoadingTasks,willShowTasks:!isLoadingTasks&&activeTasks.length>0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{}) && null}
-              {/* #endregion */}
-              
               {/* Selected Client Display */}
               <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -496,9 +492,6 @@ export function AdminPlanningModal({
 
               {!isLoadingTasks && activeTasks.length > 0 && (
                 <div className="border-2 border-forvis-gray-200 rounded-lg divide-y divide-forvis-gray-200 max-h-96 overflow-y-auto">
-                  {/* #region agent log */}
-                  {fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:485',message:'Rendering task list',data:{selectedClientCode:selectedClient?.clientCode,taskCount:activeTasks.length,taskDetails:activeTasks.map(t=>({id:t.id,name:t.name,clientCode:t.client?.clientCode}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H,I',runId:'post-fix'})}).catch(()=>{}) && null}
-                  {/* #endregion */}
                   {activeTasks.map((task) => (
                     <button
                       key={task.id}

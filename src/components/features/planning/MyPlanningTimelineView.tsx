@@ -42,19 +42,6 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Debug: Log clientsData prop
-  useEffect(() => {
-    console.log('[MyPlanningTimelineView] Received clientsData prop:', {
-      isArray: Array.isArray(clientsData),
-      length: clientsData?.length || 0,
-      data: clientsData
-    });
-    if (clientsData && clientsData.length > 0) {
-      console.log('[MyPlanningTimelineView] First client:', clientsData[0]);
-      console.log('[MyPlanningTimelineView] First client allocations:', clientsData[0]?.allocations);
-    }
-  }, [clientsData]);
-
   // Handler to go to today
   const handleGoToToday = useCallback(() => {
     setReferenceDate(new Date());
@@ -90,21 +77,14 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
   // Filter clients based on search term
   const filteredClients = useMemo(() => {
     if (!searchTerm.trim()) {
-      console.log('[MyPlanningTimelineView] No search term, returning all clients:', clientsData?.length || 0);
       return clientsData;
     }
     
     const searchLower = searchTerm.toLowerCase();
-    const filtered = clientsData.filter(client => 
+    return clientsData.filter(client => 
       client.clientName.toLowerCase().includes(searchLower) ||
       client.clientCode.toLowerCase().includes(searchLower)
     );
-    console.log('[MyPlanningTimelineView] Filtered clients:', {
-      searchTerm,
-      originalCount: clientsData?.length || 0,
-      filteredCount: filtered.length
-    });
-    return filtered;
   }, [clientsData, searchTerm]);
 
   // Calculate cumulative row heights
@@ -132,20 +112,7 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
 
   // Transform clients to resource data format
   const resources: ResourceData[] = useMemo(() => {
-    console.log('[MyPlanningTimelineView] Transforming clients to resources:', {
-      filteredClientsCount: filteredClients?.length || 0,
-      filteredClients: filteredClients
-    });
-    
-    const transformed = filteredClients.map((client, index) => {
-      console.log(`[MyPlanningTimelineView] Processing client ${index}:`, {
-        clientId: client.clientId,
-        clientName: client.clientName,
-        clientCode: client.clientCode,
-        allocationsCount: client.allocations?.length || 0,
-        allocations: client.allocations
-      });
-      
+    return filteredClients.map(client => {
       const allocations: AllocationData[] = client.allocations.map((alloc: any) => ({
         ...alloc,
         startDate: startOfDay(new Date(alloc.startDate)),
@@ -155,7 +122,7 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
       const allocationsWithLanes = assignLanes(allocations);
       const maxLanes = calculateMaxLanes(allocationsWithLanes);
 
-      const resource = {
+      return {
         userId: `client-${client.clientId}`, // Fake userId for compatibility
         userName: `${client.clientName} (${client.clientCode})`, // Display name with code
         userEmail: client.clientCode,
@@ -168,23 +135,7 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
         totalAllocatedPercentage: memoizedCalculateTotalPercentage(allocationsWithLanes),
         maxLanes
       };
-      
-      console.log(`[MyPlanningTimelineView] Created resource ${index}:`, {
-        userId: resource.userId,
-        userName: resource.userName,
-        allocationsCount: resource.allocations.length,
-        maxLanes: resource.maxLanes
-      });
-      
-      return resource;
     });
-    
-    console.log('[MyPlanningTimelineView] Final resources:', {
-      count: transformed.length,
-      resources: transformed
-    });
-    
-    return transformed;
   }, [filteredClients]);
 
   // Scroll to today when requested
@@ -342,77 +293,30 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
               <p className="text-sm mt-1">
                 {searchTerm ? `No clients match "${searchTerm}"` : "You don't have any task allocations yet"}
               </p>
-              
-              {/* Debug Information */}
-              <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg text-left max-w-2xl mx-auto">
-                <p className="font-semibold text-yellow-900 mb-2">🔍 Debug Information:</p>
-                <div className="text-xs text-yellow-800 space-y-1">
-                  <div>• clientsData received: {clientsData?.length || 0} clients</div>
-                  <div>• filteredClients: {filteredClients?.length || 0} clients</div>
-                  <div>• resources transformed: {resources.length} resources</div>
-                  <div>• searchTerm: "{searchTerm || '(none)'}"</div>
-                  {clientsData && clientsData.length > 0 && (
-                    <>
-                      <div className="mt-2 font-semibold">First client sample:</div>
-                      <pre className="text-xs bg-yellow-100 p-2 rounded overflow-auto">
-                        {JSON.stringify(clientsData[0], null, 2)}
-                      </pre>
-                    </>
-                  )}
-                  {clientsData && clientsData.length > 0 && clientsData[0]?.allocations && (
-                    <>
-                      <div className="mt-2 font-semibold">First client allocations:</div>
-                      <div>Count: {clientsData[0].allocations.length}</div>
-                      {clientsData[0].allocations.length > 0 && (
-                        <pre className="text-xs bg-yellow-100 p-2 rounded overflow-auto">
-                          {JSON.stringify(clientsData[0].allocations[0], null, 2)}
-                        </pre>
-                      )}
-                    </>
-                  )}
-                </div>
-                <p className="text-xs text-yellow-700 mt-2 italic">
-                  Check browser console (F12) for detailed logs
-                </p>
-              </div>
             </div>
           ) : (
-            resources.map((resource, index) => {
-              const rowMetadata = {
-                rowIndex: index,
-                rowHeight: resource.maxLanes * 36,
-                cumulativeHeights: cumulativeHeights
-              };
-              
-              console.log(`[MyPlanningTimelineView] Rendering ResourceRow ${index}:`, {
-                userId: resource.userId,
-                userName: resource.userName,
-                allocationsCount: resource.allocations.length,
-                maxLanes: resource.maxLanes,
-                rowHeight: rowMetadata.rowHeight,
-                columnsCount: columns.length,
-                scale
-              });
-              
-              return (
-                <ResourceRow
-                  key={resource.userId}
-                  resource={resource}
-                  columns={columns}
-                  scale={scale}
-                  dateRange={dateRange}
-                  onEditAllocation={() => {}} // Read-only
-                  onUpdateDates={undefined} // No drag/drop
-                  onRemoveMember={undefined} // No remove
-                  canEdit={false} // Read-only mode
-                  onSelectionStart={() => {}} // No selection
-                  onSelectionMove={() => {}} // No selection
-                  dateSelection={null}
-                  isSelecting={false}
-                  rowMetadata={rowMetadata}
-                />
-              );
-            })
+            resources.map((resource, index) => (
+              <ResourceRow
+                key={resource.userId}
+                resource={resource}
+                columns={columns}
+                scale={scale}
+                dateRange={dateRange}
+                onEditAllocation={() => {}} // Read-only
+                onUpdateDates={undefined} // No drag/drop
+                onRemoveMember={undefined} // No remove
+                canEdit={false} // Read-only mode
+                onSelectionStart={() => {}} // No selection
+                onSelectionMove={() => {}} // No selection
+                dateSelection={null}
+                isSelecting={false}
+                rowMetadata={{
+                  rowIndex: index,
+                  rowHeight: resource.maxLanes * 36,
+                  cumulativeHeights: cumulativeHeights
+                }}
+              />
+            ))
           )}
           </div>
         </div>
@@ -452,7 +356,7 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-forvis-gray-900 text-xs truncate">
-                        {resource.userName?.split('(')[0].trim()}
+                        {resource.userName?.split('(')[0]?.trim() || resource.userName}
                       </div>
                       <div className="text-[10px] text-forvis-gray-600 truncate">
                         {resource.userEmail}
