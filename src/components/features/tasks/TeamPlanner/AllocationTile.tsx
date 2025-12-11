@@ -185,17 +185,17 @@ export function AllocationTile({
       // Resize left: change start date, keep end date
       newStart = addDays(currentStart, daysDelta);
       newEnd = currentEnd;
-      // Enforce minimum 1 day (endDate exclusive model: end must be > start)
-      if (newStart >= newEnd) {
-        newStart = addDays(newEnd, -1);
+      // Enforce minimum 1 day (endDate INCLUSIVE model: end must be >= start)
+      if (newStart > newEnd) {
+        newStart = newEnd;
       }
     } else if (isResizing === 'right') {
       // Resize right: keep start date, change end date
       newStart = currentStart;
       newEnd = addDays(currentEnd, daysDelta);
-      // Enforce minimum 1 day (endDate exclusive model: end must be > start)
-      if (newEnd <= newStart) {
-        newEnd = addDays(newStart, 1);
+      // Enforce minimum 1 day (endDate INCLUSIVE model: end must be >= start)
+      if (newEnd < newStart) {
+        newEnd = newStart;
       }
     } else {
       return;
@@ -398,7 +398,7 @@ export function AllocationTile({
         left: `${livePosition.left}px`,
         width: `${livePosition.width}px`,
         background: gradient,
-        minWidth: '40px',
+        minWidth: `${Math.max(dayPixelWidth, 20)}px`, // Dynamic minimum: at least 1 day width or 20px
         pointerEvents: 'auto', // Allow clicks on tiles even though container has pointer-events: none
         // No transition - instant snapping for responsive feel
         transition: 'none',

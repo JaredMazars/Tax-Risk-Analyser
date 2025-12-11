@@ -57,7 +57,7 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
       
-      if (start < end) {
+      if (start <= end) {
         const businessDays = calculateBusinessDays(start, end);
         const availableHours = calculateAvailableHours(start, end);
         
@@ -111,8 +111,8 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
       return;
     }
 
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      setError('End date must be after start date');
+    if (new Date(formData.startDate) > new Date(formData.endDate)) {
+      setError('End date cannot be before start date');
       return;
     }
 

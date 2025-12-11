@@ -53,9 +53,9 @@ export async function POST(
     if (validatedData.startDate && validatedData.endDate) {
       const start = new Date(validatedData.startDate);
       const end = new Date(validatedData.endDate);
-      if (start >= end) {
+      if (start > end) {
         return handleApiError(
-          new AppError(400, 'End date must be after start date (use next day for single-day allocations)'),
+          new AppError(400, 'End date cannot be before start date'),
           'Transfer allocation'
         );
       }

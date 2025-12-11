@@ -18,11 +18,12 @@ export interface TimelineColumn {
 /**
  * Allocation data for team planner timeline
  * 
- * Date Model (Exclusive End Date):
+ * Date Model (Inclusive End Date):
  * - startDate: First day of allocation (inclusive)
- * - endDate: Day AFTER last day of allocation (exclusive)
- * - Duration: differenceInDays(endDate, startDate)
- * - Example: 1-day allocation on Jan 4 → start: Jan 4, end: Jan 5
+ * - endDate: Last day of allocation (inclusive)
+ * - Duration: differenceInDays(endDate, startDate) + 1
+ * - Example: 1-day allocation on Jan 4 → start: Jan 4, end: Jan 4
+ * - Example: 2-day allocation Jan 4-5 → start: Jan 4, end: Jan 5
  */
 export interface AllocationData {
   id: number;
