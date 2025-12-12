@@ -12,3 +12,7 @@ CREATE INDEX [TaskTeam_endDate_idx] ON [dbo].[TaskTeam]([endDate]);
 CREATE INDEX [TaskTeam_userId_startDate_endDate_idx] ON [dbo].[TaskTeam]([userId], [startDate], [endDate]);
 
 
+
+
+
+

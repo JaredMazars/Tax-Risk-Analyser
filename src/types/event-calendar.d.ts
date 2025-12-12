@@ -3,3 +3,7 @@ declare module '@event-calendar/core' {
   export class ResourceTimeline {}
   export class Interaction {}
 }
+
+
+
+

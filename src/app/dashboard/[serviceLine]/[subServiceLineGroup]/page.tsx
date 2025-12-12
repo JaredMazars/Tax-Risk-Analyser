@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   Calendar,
   LayoutGrid,
+  List,
+  Kanban,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -29,6 +31,7 @@ import { MyPlanningView } from '@/components/features/planning';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { TaskRole, ServiceLineRole } from '@/types';
+import { KanbanBoard } from '@/components/features/tasks/Kanban';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -45,6 +48,9 @@ export default function SubServiceLineWorkspacePage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  
+  // Task view mode state (list vs kanban)
+  const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban'>('list');
   
   // Planner filters
   const [plannerSearchTerm, setPlannerSearchTerm] = useState('');
@@ -69,6 +75,26 @@ export default function SubServiceLineWorkspacePage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Load view mode preference from localStorage
+  useEffect(() => {
+    if (serviceLine && subServiceLineGroup) {
+      const storageKey = `kanban-view-mode-${serviceLine}-${subServiceLineGroup}`;
+      const savedMode = localStorage.getItem(storageKey);
+      if (savedMode === 'kanban' || savedMode === 'list') {
+        setTaskViewMode(savedMode);
+      }
+    }
+  }, [serviceLine, subServiceLineGroup]);
+
+  // Save view mode preference to localStorage
+  const handleViewModeChange = (mode: 'list' | 'kanban') => {
+    setTaskViewMode(mode);
+    if (serviceLine && subServiceLineGroup) {
+      const storageKey = `kanban-view-mode-${serviceLine}-${subServiceLineGroup}`;
+      localStorage.setItem(storageKey, mode);
+    }
+  };
 
   // Fetch ALL clients (not filtered by SubServiceLineGroup)
   // Prefetch immediately for faster tab switching
@@ -548,8 +574,8 @@ export default function SubServiceLineWorkspacePage() {
             </nav>
           </div>
 
-          {/* Search and Filter Bar - Only show for searchable tabs */}
-          {activeTab !== 'planner' && activeTab !== 'my-planning' && (
+          {/* Search and Filter Bar - Only show for searchable tabs, hide in Kanban mode */}
+          {activeTab !== 'planner' && activeTab !== 'my-planning' && !((activeTab === 'tasks' || activeTab === 'my-tasks') && taskViewMode === 'kanban') && (
             <div className="mb-4 flex gap-4 items-center">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
@@ -1017,10 +1043,49 @@ export default function SubServiceLineWorkspacePage() {
                 </>
               )}
             </div>
-          ) : (
-            /* Tasks List */
-            <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
-              {(activeTab === 'tasks' ? tasks : myTasks).length === 0 ? (
+          ) : (activeTab === 'tasks' || activeTab === 'my-tasks') ? (
+            /* Tasks List or Kanban View */
+            <div className="space-y-4">
+              {/* View Mode Toggle */}
+              <div className="flex items-center justify-end gap-2 bg-white rounded-lg border border-forvis-gray-200 shadow-sm p-3">
+                <span className="text-sm font-medium text-forvis-gray-700 mr-2">View:</span>
+                <div className="inline-flex rounded-lg border border-forvis-gray-300 bg-white">
+                  <button
+                    onClick={() => handleViewModeChange('list')}
+                    className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
+                      taskViewMode === 'list'
+                        ? 'bg-forvis-blue-600 text-white'
+                        : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
+                    }`}
+                  >
+                    <List className="h-4 w-4" />
+                    <span>List</span>
+                  </button>
+                  <button
+                    onClick={() => handleViewModeChange('kanban')}
+                    className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-r-lg border-l border-forvis-gray-300 transition-colors ${
+                      taskViewMode === 'kanban'
+                        ? 'bg-forvis-blue-600 text-white'
+                        : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
+                    }`}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    <span>Kanban</span>
+                  </button>
+                </div>
+              </div>
+
+              {taskViewMode === 'kanban' ? (
+                /* Kanban View */
+                <KanbanBoard
+                  serviceLine={serviceLine}
+                  subServiceLineGroup={subServiceLineGroup}
+                  myTasksOnly={activeTab === 'my-tasks'}
+                />
+              ) : (
+                /* List View */
+                <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
+                  {(activeTab === 'tasks' ? tasks : myTasks).length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
                   <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
@@ -1198,8 +1263,10 @@ export default function SubServiceLineWorkspacePage() {
                 )}
                 </>
               )}
+                </div>
+              )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

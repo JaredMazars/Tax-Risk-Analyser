@@ -17,3 +17,7 @@ This migration adds resource planning fields to the TaskTeam table to support Ga
 - Composite index on `userId`, `startDate`, `endDate` for availability queries
 
 
+
+
+
+

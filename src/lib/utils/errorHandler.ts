@@ -222,6 +222,19 @@ export function handleApiError(error: unknown, context?: string): NextResponse {
     );
   }
   
+  // Handle Zod validation errors
+  if (error?.constructor?.name === 'ZodError') {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Validation failed',
+        code: ErrorCodes.VALIDATION_ERROR,
+        ...(process.env.NODE_ENV === 'development' && (error as any)?.errors ? { details: (error as any).errors } : {}),
+      },
+      { status: 400 }
+    );
+  }
+  
   // Handle OpenAI errors (check for error.status property)
   if (isOpenAILikeError(error)) {
     const appError = handleOpenAIError(error);
