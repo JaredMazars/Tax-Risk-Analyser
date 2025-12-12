@@ -441,24 +441,25 @@ export function GanttTimeline({
       return;
     }
 
-    // Apply optimistic update immediately
-    if (updates.startDate || updates.endDate || updates.allocatedHours !== undefined || 
-        updates.allocatedPercentage !== undefined || updates.role || updates.actualHours !== undefined) {
-      setOptimisticUpdates(prev => {
-        const newMap = new Map(prev);
-        const optimisticData: Partial<AllocationData> = {};
-        
-        if (updates.startDate) optimisticData.startDate = startOfDay(updates.startDate);
-        if (updates.endDate) optimisticData.endDate = startOfDay(updates.endDate);
-        if (updates.allocatedHours !== undefined) optimisticData.allocatedHours = updates.allocatedHours;
-        if (updates.allocatedPercentage !== undefined) optimisticData.allocatedPercentage = updates.allocatedPercentage;
-        if (updates.role) optimisticData.role = updates.role;
-        if (updates.actualHours !== undefined) optimisticData.actualHours = updates.actualHours;
-        
-        newMap.set(selectedAllocation.id, optimisticData);
-        return newMap;
-      });
-    }
+      // Apply optimistic update immediately
+      if (updates.startDate || updates.endDate || updates.allocatedHours !== undefined || 
+          updates.allocatedPercentage !== undefined || updates.role || updates.actualHours !== undefined) {
+        setOptimisticUpdates(prev => {
+          const newMap = new Map(prev);
+          const optimisticData: Partial<AllocationData> = {};
+          
+          if (updates.startDate) optimisticData.startDate = startOfDay(updates.startDate);
+          if (updates.endDate) optimisticData.endDate = startOfDay(updates.endDate);
+          if (updates.allocatedHours !== undefined) optimisticData.allocatedHours = updates.allocatedHours;
+          if (updates.allocatedPercentage !== undefined) optimisticData.allocatedPercentage = updates.allocatedPercentage;
+          if (updates.role) optimisticData.role = updates.role;
+          if (updates.actualHours !== undefined) optimisticData.actualHours = updates.actualHours;
+          
+          const optimisticKey = getAllocationKeyById(selectedAllocation.id, false);
+          newMap.set(optimisticKey, optimisticData);
+          return newMap;
+        });
+      }
 
     setIsSaving(true);
     
@@ -492,7 +493,8 @@ export function GanttTimeline({
       // The refetch will provide fresh server data
       setOptimisticUpdates(prev => {
         const newMap = new Map(prev);
-        newMap.delete(selectedAllocation.id);
+        const optimisticKey = getAllocationKeyById(selectedAllocation.id, false);
+        newMap.delete(optimisticKey);
         return newMap;
       });
       
@@ -506,7 +508,8 @@ export function GanttTimeline({
       // Revert optimistic update on error
       setOptimisticUpdates(prev => {
         const newMap = new Map(prev);
-        newMap.delete(selectedAllocation.id);
+        const optimisticKey = getAllocationKeyById(selectedAllocation.id, false);
+        newMap.delete(optimisticKey);
         return newMap;
       });
       
@@ -746,7 +749,7 @@ export function GanttTimeline({
           // Find the allocation in resources to get its taskId
           for (const resource of resources) {
             const allocation = resource.allocations.find(a => a.id === allocationId);
-            if (allocation) {
+            if (allocation && allocation.taskId) {
               actualTaskId = allocation.taskId;
               break;
             }
@@ -793,7 +796,7 @@ export function GanttTimeline({
       const message = error instanceof Error ? error.message : 'Failed to update dates';
       setErrorModal({ isOpen: true, message, title: 'Update Failed' });
     }
-  }, [taskId, resources, onAllocationUpdate]);
+  }, [taskId, resources, teamMembers, onAllocationUpdate]);
 
   // Handle deletion with optimistic update
   const handleConfirmDelete = useCallback(async () => {
@@ -802,13 +805,6 @@ export function GanttTimeline({
     if (!allocationId || !employeeId) return;
 
     try {
-      // Apply optimistic update - mark as deleting
-      setOptimisticUpdates(prev => {
-        const newMap = new Map(prev);
-        newMap.set(allocationId, { ...newMap.get(allocationId), isDeleting: true });
-        return newMap;
-      });
-
       // Close modal immediately for better UX
       setDeleteConfirmModal({
         isOpen: false,
@@ -817,13 +813,21 @@ export function GanttTimeline({
         eventType: ''
       });
 
-      // Perform deletion
-      await deleteNonClientAllocation.mutateAsync({ id: allocationId, employeeId });
+      // Perform deletion with context for targeted cache invalidation
+      await deleteNonClientAllocation.mutateAsync({ 
+        id: allocationId, 
+        employeeId,
+        context: serviceLine && subServiceLineGroup ? {
+          serviceLine,
+          subServiceLineGroup
+        } : undefined
+      });
       
       // Remove from optimistic updates after successful delete
       setOptimisticUpdates(prev => {
         const newMap = new Map(prev);
-        newMap.delete(allocationId);
+        const optimisticKey = getAllocationKeyById(allocationId, true);
+        newMap.delete(optimisticKey);
         return newMap;
       });
 
@@ -833,14 +837,15 @@ export function GanttTimeline({
       // Revert optimistic update on error
       setOptimisticUpdates(prev => {
         const newMap = new Map(prev);
-        newMap.delete(allocationId);
+        const optimisticKey = getAllocationKeyById(allocationId, true);
+        newMap.delete(optimisticKey);
         return newMap;
       });
       
       const message = error instanceof Error ? error.message : 'Failed to delete event';
       setErrorModal({ isOpen: true, message, title: 'Delete Failed' });
     }
-  }, [deleteConfirmModal, deleteNonClientAllocation, onAllocationUpdate]);
+  }, [deleteConfirmModal, deleteNonClientAllocation, onAllocationUpdate, serviceLine, subServiceLineGroup]);
 
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden">
@@ -1064,7 +1069,7 @@ export function GanttTimeline({
         }}
         onSave={handleSaveAllocation}
         onClear={handleClearAllocation}
-        onDeleteNonClient={(allocationId: number) => {
+        onDeleteNonClient={async (allocationId: number) => {
           // Find the allocation details and employee ID from teamMembers
           let employeeId: number | null = null;
           let eventType = '';

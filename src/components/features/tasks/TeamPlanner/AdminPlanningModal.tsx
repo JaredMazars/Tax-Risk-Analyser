@@ -302,7 +302,11 @@ export function AdminPlanningModal({
       eventType: data.eventType,
       startDate: data.startDate,
       endDate: data.endDate,
-      notes: data.notes
+      notes: data.notes,
+      context: {
+        serviceLine,
+        subServiceLineGroup
+      }
     });
   };
 

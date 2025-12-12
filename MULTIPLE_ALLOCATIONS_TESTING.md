@@ -308,3 +308,4 @@ For issues or questions:
 - Check browser console for client-side errors
 - Review migration README: `prisma/migrations/20251212_allow_multiple_task_allocations/README.md`
 
+

@@ -7,3 +7,4 @@ ALTER TABLE [dbo].[TaskTeam] DROP CONSTRAINT [TaskTeam_taskId_userId_key];
 -- Note: Existing indexes remain intact for query performance
 -- See prisma/schema.prisma for full index definitions
 
+
