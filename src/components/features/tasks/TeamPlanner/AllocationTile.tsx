@@ -6,6 +6,7 @@ import { AllocationData, GanttPosition, TimeScale, RowMetadata } from './types';
 import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays, calculateBusinessDays, calculateAvailableHours, getUtilizationBlendColor } from './utils';
 import { debounce } from './optimizations';
 import { format, addDays, startOfDay } from 'date-fns';
+import { NON_CLIENT_EVENT_COLORS, NON_CLIENT_EVENT_LABELS } from '@/types';
 
 interface AllocationTileProps {
   allocation: AllocationData;
@@ -50,14 +51,21 @@ export function AllocationTile({
   const tileRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Memoize gradient calculation - only depends on role and whether it's current task
+  // Memoize gradient calculation - handles non-client events, role, and task status
   const gradient = useMemo(() => {
+    // Non-client events have special color gradients
+    if (allocation.isNonClientEvent && allocation.nonClientEventType) {
+      const colors = NON_CLIENT_EVENT_COLORS[allocation.nonClientEventType];
+      return `linear-gradient(135deg, ${colors.from} 0%, ${colors.to} 100%)`;
+    }
+    
     // Grey out other task allocations
     if (allocation.isCurrentTask === false) {
       return 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)'; // Grey gradient
     }
+    
     return getRoleGradient(allocation.role);
-  }, [allocation.role, allocation.isCurrentTask]);
+  }, [allocation.role, allocation.isCurrentTask, allocation.isNonClientEvent, allocation.nonClientEventType]);
   
   // Calculate day pixel width based on current scale
   const dayPixelWidth = useMemo(() => 
@@ -109,8 +117,9 @@ export function AllocationTile({
   };
 
   const handleMouseDown = (e: React.MouseEvent, action: 'drag' | 'resize-left' | 'resize-right') => {
-    // Disable dragging/resizing for other task allocations
-    if (!isDraggable || !allocation.startDate || !allocation.endDate || allocation.isCurrentTask === false) {
+    // Disable dragging/resizing for other task allocations only
+    if (!isDraggable || !allocation.startDate || !allocation.endDate || 
+        allocation.isCurrentTask === false) {
       return;
     }
     
@@ -358,14 +367,32 @@ export function AllocationTile({
   const tileTop = lane * LANE_HEIGHT + TILE_GAP;
   const tileHeight = LANE_HEIGHT - TILE_GAP * 2;
   
-  // Determine if this allocation is editable
+  // Determine if this allocation is editable (is current task or non-client event)
   const isEditable = allocation.isCurrentTask !== false;
   const cursorClass = isEditable 
     ? (isDragging || isResizing ? 'cursor-grabbing z-20' : 'cursor-grab hover:z-[5]')
-    : 'cursor-default hover:z-[5]';
+    : 'cursor-pointer hover:z-[5]'; // Changed to cursor-pointer for non-editable to show they're clickable
 
   // Calculate utilization percentage for the fill
-  const utilizationPercentage = allocation.allocatedPercentage || 0;
+  // Use preview dates during drag/resize for real-time updates
+  const utilizationPercentage = useMemo(() => {
+    if (!allocation.allocatedHours) return 0;
+    
+    // Use display dates (preview during drag, actual otherwise)
+    const start = displayDates.start;
+    const end = displayDates.end;
+    
+    if (!start || !end) return allocation.allocatedPercentage || 0;
+    
+    // Calculate business days and available hours for current date range
+    const businessDays = calculateBusinessDays(start, end);
+    const availableHours = businessDays * 8;
+    
+    // Calculate percentage: (allocatedHours / availableHours) * 100
+    return availableHours > 0 
+      ? Math.round((allocation.allocatedHours / availableHours) * 100)
+      : 0;
+  }, [allocation.allocatedHours, allocation.allocatedPercentage, displayDates.start, displayDates.end]);
 
   return (
     <div
@@ -401,24 +428,26 @@ export function AllocationTile({
       onMouseEnter={handleMouseEnter}
       onMouseMove={handleTooltipMouseMove}
       onMouseLeave={handleMouseLeave}
-      title={utilizationPercentage > 0 ? `${utilizationPercentage}% allocated` : undefined}
+      title={utilizationPercentage > 0 ? `${utilizationPercentage.toFixed(0)}% allocated` : undefined}
     >
-      {/* Base tile background (Darker Forvis Mazars gold) */}
+      {/* Base tile background */}
       <div 
         className="absolute inset-0 rounded-lg"
         style={{ 
-          background: 'linear-gradient(135deg, #B0A488 0%, #8B7E66 100%)'
+          background: allocation.isNonClientEvent || allocation.isCurrentTask === false 
+            ? gradient 
+            : 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)' // Gold for client tasks
         }}
       />
       
       {/* Utilization fill layer (bottom-to-top, solid subtle colors) */}
-      {utilizationPercentage > 0 && (
+      {!allocation.isNonClientEvent && utilizationPercentage > 0 && (
         <div 
           className="absolute bottom-0 left-0 right-0 rounded-lg"
           style={{
             height: `${Math.min(utilizationPercentage, 100)}%`,
             background: getUtilizationBlendColor(gradient, utilizationPercentage),
-            transition: 'height 0.2s ease-in-out'
+            transition: (isDragging || isResizing) ? 'none' : 'height 0.2s ease-in-out'
           }}
         />
       )}
@@ -426,34 +455,56 @@ export function AllocationTile({
       {/* Content - Progressive reveal from left to right */}
       <div className="px-1.5 h-full flex items-center relative z-10 overflow-hidden">
         <div className="flex items-center gap-1.5 min-w-0 w-full">
-          {/* Hours/Percentage - Shows first when tile is wide enough (>150px) */}
-          {livePosition.width > 150 && (allocation.allocatedHours || allocation.allocatedPercentage) && (
+          {/* Non-Client Event Display */}
+          {allocation.isNonClientEvent ? (
             <>
-              <div className="text-forvis-gray-800 text-[9px] whitespace-nowrap flex-shrink-0">
-                {allocation.allocatedHours 
-                  ? formatHours(allocation.allocatedHours) 
-                  : allocation.allocatedPercentage 
-                    ? formatPercentage(allocation.allocatedPercentage) 
-                    : ''}
+              {/* Event Type Label - Always visible */}
+              <div className="text-white text-[10px] font-bold truncate min-w-0 flex-1 drop-shadow">
+                {allocation.nonClientEventType && NON_CLIENT_EVENT_LABELS[allocation.nonClientEventType]}
               </div>
-              <div className="text-forvis-gray-700 text-[9px] flex-shrink-0">•</div>
+              {/* Hours - Show when wide enough */}
+              {livePosition.width > 100 && allocation.allocatedHours && (
+                <>
+                  <div className="text-white text-[9px] flex-shrink-0 drop-shadow">•</div>
+                  <div className="text-white text-[9px] font-medium whitespace-nowrap flex-shrink-0 drop-shadow">
+                    {formatHours(allocation.allocatedHours)}
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Client Task Display */}
+              {/* Hours/Percentage - Shows first when tile is wide enough (>150px) */}
+              {livePosition.width > 150 && (allocation.allocatedHours || allocation.allocatedPercentage) && (
+                <>
+                  <div className="text-forvis-gray-800 text-[9px] whitespace-nowrap flex-shrink-0">
+                    {allocation.allocatedHours 
+                      ? formatHours(allocation.allocatedHours) 
+                      : allocation.allocatedPercentage 
+                        ? formatPercentage(allocation.allocatedPercentage) 
+                        : ''}
+                  </div>
+                  <div className="text-forvis-gray-700 text-[9px] flex-shrink-0">•</div>
+                </>
+              )}
+              
+              {/* Client Name - Always visible, never truncates */}
+              {allocation.clientName && (
+                <>
+                  <div className="text-forvis-gray-900 text-[9px] font-medium whitespace-nowrap flex-shrink-0">
+                    {allocation.clientName}
+                  </div>
+                  <div className="text-forvis-gray-700 text-[9px] flex-shrink-0">•</div>
+                </>
+              )}
+              
+              {/* Task Name - Always visible, can truncate if needed */}
+              <div className="text-forvis-gray-900 text-[10px] font-semibold truncate min-w-0 flex-1">
+                {allocation.taskName}
+              </div>
             </>
           )}
-          
-          {/* Client Name - Always visible, never truncates */}
-          {allocation.clientName && (
-            <>
-              <div className="text-forvis-gray-900 text-[9px] font-medium whitespace-nowrap flex-shrink-0">
-                {allocation.clientName}
-              </div>
-              <div className="text-forvis-gray-700 text-[9px] flex-shrink-0">•</div>
-            </>
-          )}
-          
-          {/* Task Name - Always visible, can truncate if needed */}
-          <div className="text-forvis-gray-900 text-[10px] font-semibold truncate min-w-0 flex-1">
-            {allocation.taskName}
-          </div>
         </div>
       </div>
         
@@ -485,12 +536,12 @@ export function AllocationTile({
 
       {/* Detailed Tooltip (on tile hover for 2+ seconds) - Using Portal */}
       {showTooltip && !isDragging && !isResizing && typeof document !== 'undefined' && (() => {
-        // Calculate business days and available hours for tooltip
-        const businessDays = allocation.startDate && allocation.endDate 
-          ? calculateBusinessDays(new Date(allocation.startDate), new Date(allocation.endDate))
+        // Calculate business days and available hours for tooltip (use display dates for live updates)
+        const businessDays = displayDates.start && displayDates.end 
+          ? calculateBusinessDays(displayDates.start, displayDates.end)
           : 0;
-        const availableHours = allocation.startDate && allocation.endDate
-          ? calculateAvailableHours(new Date(allocation.startDate), new Date(allocation.endDate))
+        const availableHours = displayDates.start && displayDates.end
+          ? calculateAvailableHours(displayDates.start, displayDates.end)
           : 0;
         
         return createPortal(
@@ -506,34 +557,54 @@ export function AllocationTile({
             }}
           >
             <div className="font-semibold mb-2 text-sm border-b border-white border-opacity-20 pb-1.5">
-              {allocation.taskName}
+              {allocation.isNonClientEvent && allocation.nonClientEventType 
+                ? NON_CLIENT_EVENT_LABELS[allocation.nonClientEventType]
+                : allocation.taskName}
             </div>
             <div className="space-y-1.5 text-xs">
-              {allocation.taskCode && (
-                <div className="flex justify-between gap-2">
-                  <span className="opacity-60 shrink-0">Project:</span>
-                  <span className="opacity-90 text-right">{allocation.taskCode}</span>
-                </div>
+              {allocation.isNonClientEvent ? (
+                <>
+                  {/* Non-Client Event Info */}
+                  <div className="bg-white bg-opacity-10 rounded p-1.5 mb-2">
+                    <div className="text-[10px] opacity-80">Non-Client Event • 100% Utilization</div>
+                  </div>
+                  {allocation.notes && (
+                    <div className="pt-1 border-t border-white border-opacity-10">
+                      <div className="opacity-60 mb-1">Notes:</div>
+                      <div className="opacity-90 text-[11px]">{allocation.notes}</div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Client Task Info */}
+                  {allocation.taskCode && (
+                    <div className="flex justify-between gap-2">
+                      <span className="opacity-60 shrink-0">Project:</span>
+                      <span className="opacity-90 text-right">{allocation.taskCode}</span>
+                    </div>
+                  )}
+                  {allocation.clientName && (
+                    <div className="flex justify-between gap-2">
+                      <span className="opacity-60 shrink-0">Client:</span>
+                      <span className="opacity-90 text-right truncate">
+                        {allocation.clientName}
+                        {allocation.clientCode && <span className="opacity-60 ml-1">({allocation.clientCode})</span>}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-2">
+                    <span className="opacity-60 shrink-0">Role:</span>
+                    <span className="opacity-90">{allocation.role}</span>
+                  </div>
+                </>
               )}
-              {allocation.clientName && (
-                <div className="flex justify-between gap-2">
-                  <span className="opacity-60 shrink-0">Client:</span>
-                  <span className="opacity-90 text-right truncate">
-                    {allocation.clientName}
-                    {allocation.clientCode && <span className="opacity-60 ml-1">({allocation.clientCode})</span>}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between gap-2">
-                <span className="opacity-60 shrink-0">Role:</span>
-                <span className="opacity-90">{allocation.role}</span>
-              </div>
               <div className="pt-1 border-t border-white border-opacity-10">
                 <div className="opacity-60 mb-1">Period:</div>
                 <div className="opacity-90 text-xs">
-                  {allocation.startDate && format(new Date(allocation.startDate), 'MMM d, yyyy')}
+                  {displayDates.start && format(displayDates.start, 'MMM d, yyyy')}
                   {' → '}
-                  {allocation.endDate && format(new Date(allocation.endDate), 'MMM d, yyyy')}
+                  {displayDates.end && format(displayDates.end, 'MMM d, yyyy')}
                 </div>
                 {businessDays > 0 && (
                   <div className="opacity-70 text-[10px] mt-0.5">
@@ -549,7 +620,7 @@ export function AllocationTile({
                       {formatHours(allocation.allocatedHours)}
                       {availableHours > 0 && (
                         <span className="opacity-70 ml-1">
-                          of {availableHours}h ({allocation.allocatedPercentage || Math.round((allocation.allocatedHours / availableHours) * 100)}%)
+                          of {availableHours}h ({utilizationPercentage}%)
                         </span>
                       )}
                     </span>

@@ -199,6 +199,30 @@ export async function GET(
       }
     }) : [];
 
+    // 10b. Get non-client allocations for employees
+    const employeeIds = employees.map(emp => emp.id);
+    const nonClientAllocations = employeeIds.length > 0 ? await prisma.nonClientAllocation.findMany({
+      where: {
+        employeeId: { in: employeeIds }
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        eventType: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        notes: true
+      },
+      orderBy: {
+        startDate: 'asc'
+      }
+    }) : [];
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:228',message:'Fetched non-client allocations',data:{nonClientAllocationsCount:nonClientAllocations.length,employeeIds:employeeIds.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+
     // 11. Transform to response format
     const employeesWithAllocations = employees.map(employee => {
       const winLogon = employee.WinLogon?.toLowerCase();
@@ -210,9 +234,9 @@ export async function GET(
       const hasUserAccount = !!matchedUser;
       const userId = matchedUser?.id || null;
 
-      // Get allocations for this employee (if they have a user account)
+      // Get task allocations for this employee (if they have a user account)
       // In planner view, all allocations are editable (isCurrentTask: true)
-      const userAllocations = userId
+      const userTaskAllocations = userId
         ? taskAllocations
             .filter(alloc => alloc.userId === userId)
             .filter(alloc => alloc.startDate && alloc.endDate)
@@ -233,6 +257,31 @@ export async function GET(
             }))
         : [];
 
+      // Get non-client allocations for this employee
+      const userNonClientAllocations = nonClientAllocations
+        .filter(alloc => alloc.employeeId === employee.id)
+        .map(alloc => ({
+          id: alloc.id,
+          taskId: null,
+          taskName: alloc.eventType,
+          taskCode: '',
+          clientName: null,
+          clientCode: null,
+          role: 'VIEWER',
+          startDate: alloc.startDate,
+          endDate: alloc.endDate,
+          allocatedHours: alloc.allocatedHours ? parseFloat(alloc.allocatedHours.toString()) : null,
+          allocatedPercentage: alloc.allocatedPercentage,
+          actualHours: null,
+          isCurrentTask: true,
+          isNonClientEvent: true,
+          nonClientEventType: alloc.eventType,
+          notes: alloc.notes
+        }));
+
+      // Combine task and non-client allocations
+      const allAllocations = [...userTaskAllocations, ...userNonClientAllocations];
+
       // Map employee category to service line role
       const serviceLineRole = mapEmployeeCategoryToRole(employee.EmpCatDesc);
       
@@ -250,7 +299,7 @@ export async function GET(
           jobGradeCode: employee.EmpCatCode,
           officeLocation: employee.OfficeCode?.trim() || employee.OfficeCode
         },
-        allocations: userAllocations
+        allocations: allAllocations
       };
     });
 

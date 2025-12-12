@@ -41,12 +41,11 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const taskTeam = await prisma.taskTeam.findUnique({
+    // Get ALL allocations for this user on this task
+    const allocations = await prisma.taskTeam.findMany({
       where: {
-        taskId_userId: {
-          taskId,
-          userId: targetUserId,
-        },
+        taskId,
+        userId: targetUserId,
       },
       include: {
         User: {
@@ -58,16 +57,21 @@ export async function GET(
           },
         },
       },
+      orderBy: [
+        { startDate: 'asc' },
+        { createdAt: 'asc' },
+      ],
     });
 
-    if (!taskTeam) {
+    if (allocations.length === 0) {
       return NextResponse.json(
         { error: 'User not found on this project' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(successResponse(taskTeam));
+    // Return all allocations
+    return NextResponse.json(successResponse({ allocations }));
   } catch (error) {
     return handleApiError(error, 'Get Project User');
   }
@@ -107,13 +111,11 @@ export async function PUT(
     const body = await request.json();
     const validatedData = UpdateTaskTeamSchema.parse(body);
 
-    // Check if target user exists on project
-    const existingTaskTeam = await prisma.taskTeam.findUnique({
+    // Check if target user exists on project (get first allocation)
+    const existingTaskTeam = await prisma.taskTeam.findFirst({
       where: {
-        taskId_userId: {
-          taskId,
-          userId: targetUserId,
-        },
+        taskId,
+        userId: targetUserId,
       },
     });
 
@@ -133,15 +135,18 @@ export async function PUT(
     }
 
     // Check if this is the last ADMIN on the project
+    // Count distinct users with ADMIN role
     if (existingTaskTeam.role === 'ADMIN' && validatedData.role !== 'ADMIN') {
-      const adminCount = await prisma.taskTeam.count({
+      const adminUsers = await prisma.taskTeam.findMany({
         where: {
           taskId,
           role: 'ADMIN',
         },
+        select: { userId: true },
+        distinct: ['userId'],
       });
 
-      if (adminCount === 1) {
+      if (adminUsers.length === 1) {
         return NextResponse.json(
           { error: 'Cannot remove the last admin from the project' },
           { status: 400 }
@@ -152,16 +157,22 @@ export async function PUT(
     // Capture old role for notification
     const oldRole = existingTaskTeam.role;
 
-    // Update user role
-    const taskTeam = await prisma.taskTeam.update({
+    // Update user role for ALL allocations of this user on this task
+    await prisma.taskTeam.updateMany({
       where: {
-        taskId_userId: {
-          taskId,
-          userId: targetUserId,
-        },
+        taskId,
+        userId: targetUserId,
       },
       data: {
         role: validatedData.role,
+      },
+    });
+
+    // Get updated allocations to return
+    const updatedAllocations = await prisma.taskTeam.findMany({
+      where: {
+        taskId,
+        userId: targetUserId,
       },
       include: {
         User: {
@@ -173,7 +184,13 @@ export async function PUT(
           },
         },
       },
+      orderBy: [
+        { startDate: 'asc' },
+        { createdAt: 'asc' },
+      ],
     });
+
+    const taskTeam = updatedAllocations[0]; // Use first allocation for notification
 
     // Create in-app notification (non-blocking)
     try {
@@ -272,12 +289,10 @@ export async function DELETE(
     }
 
     // Check if target user exists on project
-    const existingTaskTeam = await prisma.taskTeam.findUnique({
+    const existingTaskTeam = await prisma.taskTeam.findFirst({
       where: {
-        taskId_userId: {
-          taskId,
-          userId: targetUserId,
-        },
+        taskId,
+        userId: targetUserId,
       },
       include: {
         User: {
@@ -306,15 +321,18 @@ export async function DELETE(
     }
 
     // Check if this is the last ADMIN on the project
+    // Count distinct users with ADMIN role
     if (existingTaskTeam.role === 'ADMIN') {
-      const adminCount = await prisma.taskTeam.count({
+      const adminUsers = await prisma.taskTeam.findMany({
         where: {
           taskId,
           role: 'ADMIN',
         },
+        select: { userId: true },
+        distinct: ['userId'],
       });
 
-      if (adminCount === 1) {
+      if (adminUsers.length === 1) {
         return NextResponse.json(
           { error: 'Cannot remove the last admin from the project' },
           { status: 400 }
@@ -328,13 +346,11 @@ export async function DELETE(
       select: { TaskDesc: true },
     });
 
-    // Remove user from project
-    await prisma.taskTeam.delete({
+    // Remove ALL allocations for this user from project
+    await prisma.taskTeam.deleteMany({
       where: {
-        taskId_userId: {
-          taskId,
-          userId: targetUserId,
-        },
+        taskId,
+        userId: targetUserId,
       },
     });
 

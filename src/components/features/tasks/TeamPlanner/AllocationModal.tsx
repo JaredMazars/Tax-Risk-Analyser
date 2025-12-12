@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { AllocationData } from './types';
 import { Button, Input } from '@/components/ui';
-import { X, Calendar, Clock, Percent } from 'lucide-react';
+import { X, Calendar, Clock, Percent, AlertCircle } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole } from '@/types';
+import { TaskRole, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 
 interface AllocationModalProps {
@@ -14,9 +14,10 @@ interface AllocationModalProps {
   onClose: () => void;
   onSave: (allocation: Partial<AllocationData>) => Promise<void>;
   onClear?: (allocationId: number) => Promise<void>;
+  onDeleteNonClient?: (allocationId: number) => Promise<void>;
 }
 
-export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }: AllocationModalProps) {
+export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear, onDeleteNonClient }: AllocationModalProps) {
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -184,6 +185,98 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear }
   };
 
   if (!isOpen || !allocation) return null;
+
+  // If this is a non-client event, show view/edit modal
+  if (allocation.isNonClientEvent) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-corporate-lg max-w-md w-full border-2 border-forvis-gray-200">
+          <div 
+            className="px-6 py-4 border-b-2 border-forvis-gray-200 flex items-center justify-between"
+            style={{ background: 'linear-gradient(to right, #EBF2FA, #D6E4F5)' }}
+          >
+            <h2 className="text-xl font-bold text-forvis-blue-900">Non-Client Event</h2>
+            <button
+              onClick={onClose}
+              className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-blue-900 mb-2">
+                  {allocation.nonClientEventType && NON_CLIENT_EVENT_LABELS[allocation.nonClientEventType]}
+                </p>
+                <p className="text-sm text-blue-800">
+                  Non-client events (training, leave, etc.) always have 100% utilization.
+                </p>
+                {allocation.notes && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <p className="text-xs font-medium text-blue-900 mb-1">Notes:</p>
+                    <p className="text-sm text-blue-800">{allocation.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-forvis-gray-600">Start Date:</span>
+                <span className="font-medium text-forvis-gray-900">
+                  {format(new Date(allocation.startDate), 'MMM d, yyyy')}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-forvis-gray-600">End Date:</span>
+                <span className="font-medium text-forvis-gray-900">
+                  {format(new Date(allocation.endDate), 'MMM d, yyyy')}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-forvis-gray-600">Allocated Hours:</span>
+                <span className="font-medium text-forvis-gray-900">
+                  {allocation.allocatedHours}h
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-forvis-gray-600">Utilization:</span>
+                <span className="font-medium text-forvis-gray-900">
+                  {allocation.allocatedPercentage}%
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="px-6 py-4 bg-forvis-gray-50 border-t-2 border-forvis-gray-200 flex justify-between">
+            {onDeleteNonClient ? (
+              <Button
+                variant="danger"
+                size="md"
+                onClick={() => {
+                  if (allocation.id) {
+                    onDeleteNonClient(allocation.id);
+                    onClose();
+                  }
+                }}
+              >
+                Delete Event
+              </Button>
+            ) : (
+              <div />
+            )}
+            <Button
+              variant="primary"
+              size="md"
+              onClick={onClose}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

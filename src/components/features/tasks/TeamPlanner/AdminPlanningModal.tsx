@@ -5,8 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, Search, Building2, Briefcase, ChevronRight } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole } from '@/types';
+import { TaskRole, NonClientEventType } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
+import { NonClientEventModal } from './NonClientEventModal';
+import { useCreateNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
 
 interface Client {
   id: number;
@@ -41,7 +43,8 @@ interface AdminPlanningModalProps {
   }) => Promise<void>;
   serviceLine: string;
   subServiceLineGroup: string;
-  userId: string;
+  userId: string; // May be "employee-282" format for unregistered employees
+  employeeId: number; // Actual Employee table ID
   userName: string;
   initialStartDate?: Date;
   initialEndDate?: Date;
@@ -54,13 +57,18 @@ export function AdminPlanningModal({
   serviceLine,
   subServiceLineGroup,
   userId,
+  employeeId,
   userName,
   initialStartDate,
   initialEndDate
 }: AdminPlanningModalProps) {
+  const [mode, setMode] = useState<'client' | 'non-client'>('client');
   const [step, setStep] = useState<'client' | 'task' | 'allocation'>('client');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  
+  // Non-client event mutation
+  const createNonClientAllocation = useCreateNonClientAllocation();
   
   const [clientSearch, setClientSearch] = useState('');
   const [debouncedClientSearch, setDebouncedClientSearch] = useState('');
@@ -110,6 +118,7 @@ export function AdminPlanningModal({
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
+      setMode('client');
       setStep('client');
       setSelectedClient(null);
       setSelectedTask(null);
@@ -282,7 +291,37 @@ export function AdminPlanningModal({
     }
   };
 
+  const handleSaveNonClientEvent = async (data: {
+    eventType: NonClientEventType;
+    startDate: Date;
+    endDate: Date;
+    notes?: string;
+  }) => {
+    await createNonClientAllocation.mutateAsync({
+      employeeId,
+      eventType: data.eventType,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      notes: data.notes
+    });
+  };
+
   if (!isOpen) return null;
+
+  // Render NonClientEventModal if in non-client mode
+  if (mode === 'non-client') {
+    return (
+      <NonClientEventModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onSave={handleSaveNonClientEvent}
+        employeeId={employeeId}
+        userName={userName}
+        initialStartDate={initialStartDate}
+        initialEndDate={initialEndDate}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -304,6 +343,28 @@ export function AdminPlanningModal({
           >
             <X className="w-6 h-6" />
           </button>
+        </div>
+
+        {/* Mode Toggle */}
+        <div className="px-6 py-4 border-b border-forvis-gray-200 bg-white">
+          <div className="flex gap-3">
+            <Button 
+              variant={mode === 'client' ? 'gradient' : 'secondary'}
+              size="md"
+              onClick={() => setMode('client')}
+            >
+              <Briefcase className="w-4 h-4 mr-2" />
+              Assign to Client Task
+            </Button>
+            <Button 
+              variant={mode === 'non-client' ? 'gradient' : 'secondary'}
+              size="md"
+              onClick={() => setMode('non-client')}
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Add Non-Client Event
+            </Button>
+          </div>
         </div>
 
         {/* Progress Indicator */}

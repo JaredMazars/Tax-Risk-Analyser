@@ -8,6 +8,7 @@ import { sanitizeObject } from '@/lib/utils/sanitization';
 import { toTaskId } from '@/types/branded';
 import { calculateBusinessDays } from '@/lib/utils/dateUtils';
 import { z } from 'zod';
+import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
 
 const allocationUpdateSchema = z.object({
   startDate: z.string().datetime().optional(),
@@ -72,6 +73,7 @@ export async function PUT(
         id: true,
         taskId: true,
         userId: true,
+        role: true,
         allocatedHours: true,
         allocatedPercentage: true,
         startDate: true,
@@ -84,6 +86,34 @@ export async function PUT(
         new AppError(404, 'Team member not found'),
         'Update allocation'
       );
+    }
+
+    // 6a. Validate allocation (overlap and role consistency)
+    const finalStartDate = validatedData.startDate 
+      ? new Date(validatedData.startDate) 
+      : teamMember.startDate;
+    const finalEndDate = validatedData.endDate 
+      ? new Date(validatedData.endDate) 
+      : teamMember.endDate;
+    const finalRole = validatedData.role || teamMember.role;
+
+    try {
+      await validateAllocation(
+        taskId,
+        teamMember.userId,
+        finalStartDate,
+        finalEndDate,
+        finalRole,
+        teamMemberId // Exclude current allocation from overlap check
+      );
+    } catch (error) {
+      if (error instanceof AllocationValidationError) {
+        return handleApiError(
+          new AppError(400, error.message, undefined, error.metadata),
+          'Update allocation'
+        );
+      }
+      throw error;
     }
 
     // 7. Auto-calculate percentage if dates are changing but percentage is not provided

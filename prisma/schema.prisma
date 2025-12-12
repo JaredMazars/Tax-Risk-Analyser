@@ -153,7 +153,7 @@ model AITaxReport {
   detailedFindings  String   @db.NVarChar(Max)
   recommendations   String   @db.NVarChar(Max)
   createdAt         DateTime @default(now())
-  updatedAt         DateTime  @updatedAt
+  updatedAt         DateTime @updatedAt
   Task              Task     @relation(fields: [taskId], references: [id])
 
   @@index([taskId])
@@ -174,7 +174,7 @@ model BDActivity {
   assignedTo    String
   createdBy     String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime      @updatedAt
   BDContact     BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
@@ -209,7 +209,7 @@ model BDContact {
   notes         String?         @db.NVarChar(Max)
   createdBy     String
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime        @updatedAt
   BDActivity    BDActivity[]
   BDOpportunity BDOpportunity[]
 
@@ -225,7 +225,7 @@ model BDNote {
   isPrivate     Boolean       @default(false)
   createdBy     String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime      @updatedAt
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([createdAt(sort: Desc)])
@@ -290,7 +290,7 @@ model BDProposal {
   version       Int           @default(1)
   uploadedBy    String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime      @updatedAt
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([opportunityId])
@@ -310,7 +310,7 @@ model BDStage {
   isDefault     Boolean         @default(false)
   color         String?
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime        @updatedAt
   BDOpportunity BDOpportunity[]
 
   @@unique([serviceLine, name])
@@ -560,7 +560,7 @@ model DrsTransactions {
   ClientManager     String   @db.NVarChar(10)
   ClientManagerName String   @db.NVarChar(50)
   createdAt         DateTime @default(now())
-  updatedAt         DateTime  @updatedAt
+  updatedAt         DateTime @updatedAt
   Client            Client   @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
   @@index([Biller])
@@ -591,28 +591,29 @@ model EmailLog {
 }
 
 model Employee {
-  id              Int       @id @default(autoincrement())
-  GSEmployeeID    String    @unique @db.UniqueIdentifier
-  EmpCode         String    @db.NVarChar(10)
-  EmpName         String    @db.NVarChar(50)
-  EmpNameFull     String    @db.NVarChar(63)
-  OfficeCode      String    @db.NVarChar(10)
-  SLGroup         String    @db.NVarChar(10)
-  ServLineCode    String    @db.NVarChar(10)
-  ServLineDesc    String    @db.NVarChar(150)
-  SubServLineCode String    @db.NVarChar(10)
-  SubServLineDesc String    @db.NVarChar(50)
-  EmpCatCode      String    @db.NVarChar(5)
-  EmpCatDesc      String    @db.NVarChar(50)
-  EmpCatType      String?   @db.NVarChar(1)
-  RateValue       Float     @db.Money
-  EmpDateLeft     DateTime?
-  Active          String    @db.VarChar(3)
-  EmpDateStarted  DateTime?
-  Team            String?   @db.NVarChar(100)
-  WinLogon        String?   @db.NVarChar(100)
-  createdAt       DateTime  @default(now(), map: "DF__Employee__create__15C52FC4")
-  updatedAt       DateTime  @updatedAt
+  id                  Int                   @id @default(autoincrement())
+  GSEmployeeID        String                @unique @db.UniqueIdentifier
+  EmpCode             String                @db.NVarChar(10)
+  EmpName             String                @db.NVarChar(50)
+  EmpNameFull         String                @db.NVarChar(63)
+  OfficeCode          String                @db.NVarChar(10)
+  SLGroup             String                @db.NVarChar(10)
+  ServLineCode        String                @db.NVarChar(10)
+  ServLineDesc        String                @db.NVarChar(150)
+  SubServLineCode     String                @db.NVarChar(10)
+  SubServLineDesc     String                @db.NVarChar(50)
+  EmpCatCode          String                @db.NVarChar(5)
+  EmpCatDesc          String                @db.NVarChar(50)
+  EmpCatType          String?               @db.NVarChar(1)
+  RateValue           Float                 @db.Money
+  EmpDateLeft         DateTime?
+  Active              String                @db.VarChar(3)
+  EmpDateStarted      DateTime?
+  Team                String?               @db.NVarChar(100)
+  WinLogon            String?               @db.NVarChar(100)
+  createdAt           DateTime              @default(now(), map: "DF__Employee__create__15C52FC4")
+  updatedAt           DateTime              @updatedAt
+  NonClientAllocation NonClientAllocation[]
 
   @@index([Active])
   @@index([EmpCode])
@@ -1108,7 +1109,6 @@ model TaskTeam {
   Task                Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
   User                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([taskId, userId])
   @@index([endDate])
   @@index([role])
   @@index([startDate])
@@ -1181,6 +1181,25 @@ model TemplateSection {
 
   @@index([sectionKey])
   @@index([templateId])
+}
+
+model NonClientAllocation {
+  id                  Int      @id @default(autoincrement())
+  employeeId          Int
+  eventType           String   @db.NVarChar(50)
+  startDate           DateTime
+  endDate             DateTime
+  allocatedHours      Decimal  @db.Decimal(10, 2)
+  allocatedPercentage Int      @default(100)
+  notes               String?  @db.NVarChar(Max)
+  createdBy           String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  Employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([employeeId, startDate, endDate])
+  @@index([eventType])
 }
 
 model User {

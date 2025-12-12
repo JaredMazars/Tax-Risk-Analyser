@@ -281,7 +281,7 @@ export function allocationsOverlap(a: AllocationData, b: AllocationData): boolea
   const bStart = new Date(b.startDate).getTime();
   const bEnd = new Date(b.endDate).getTime();
   
-  return aStart < bEnd && aEnd > bStart;
+  return aStart <= bEnd && aEnd >= bStart;
 }
 
 /**
@@ -364,6 +364,13 @@ export { calculateBusinessDays, calculateAvailableHours, calculateAllocationPerc
  * @param resources - Array of all visible resources with their allocations
  * @returns Utilization percentage (0-100+)
  */
+/**
+ * Calculate daily utilization percentage for a specific date across all resources
+ * Includes both client task allocations and non-client events (which always contribute 100%)
+ * @param date - The date to calculate utilization for
+ * @param resources - Array of all visible resources with their allocations
+ * @returns Utilization percentage (0-100+)
+ */
 export function calculateDailyUtilization(
   date: Date,
   resources: Array<{ allocations: AllocationData[] }>
@@ -375,7 +382,7 @@ export function calculateDailyUtilization(
   
   // Calculate total hours allocated on this date across all resources
   const totalHours = resources.reduce((sum, resource) => {
-    // Find allocations that include this date
+    // Find allocations that include this date (both client tasks and non-client events)
     const dayAllocations = resource.allocations.filter(allocation => {
       if (!allocation.startDate || !allocation.endDate) return false;
       
@@ -388,7 +395,13 @@ export function calculateDailyUtilization(
     
     // Sum up the percentage allocations for this resource on this day
     // Each allocation contributes (8 hours * percentage / 100)
+    // Non-client events always have 100% allocation, blocking all available time
     const dailyPercentage = dayAllocations.reduce((pct, alloc) => {
+      // Non-client events always contribute 100% (no hours available for client work)
+      if (alloc.isNonClientEvent) {
+        return pct + 100;
+      }
+      // Client tasks contribute their allocated percentage
       return pct + (alloc.allocatedPercentage || 0);
     }, 0);
     

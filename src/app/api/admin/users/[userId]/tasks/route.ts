@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
+import { validateRoleConsistency, AllocationValidationError } from '@/lib/validation/taskAllocation';
 
 /**
  * POST /api/admin/users/[userId]/tasks
@@ -46,25 +47,49 @@ export async function POST(
     }
 
     // Add user to all specified tasks
+    // For each task, check if user already has allocations and validate role consistency
     const results = await Promise.allSettled(
-      taskIds.map((taskId: number) =>
-        prisma.taskTeam.upsert({
+      taskIds.map(async (taskId: number) => {
+        // Check for existing allocations
+        const existingAllocations = await prisma.taskTeam.findMany({
           where: {
-            taskId_userId: {
-              taskId,
-              userId: params.userId,
-            },
-          },
-          update: {
-            role,
-          },
-          create: {
             taskId,
             userId: params.userId,
-            role,
           },
-        })
-      )
+        });
+
+        if (existingAllocations.length > 0) {
+          // User already on task - validate role consistency
+          try {
+            await validateRoleConsistency(taskId, params.userId, role);
+          } catch (error) {
+            if (error instanceof AllocationValidationError) {
+              // Role mismatch - update all allocations to new role
+              await prisma.taskTeam.updateMany({
+                where: {
+                  taskId,
+                  userId: params.userId,
+                },
+                data: { role },
+              });
+              return { taskId, action: 'updated' };
+            }
+            throw error;
+          }
+          // Same role, no action needed
+          return { taskId, action: 'exists' };
+        } else {
+          // Create new allocation without dates (ongoing assignment)
+          await prisma.taskTeam.create({
+            data: {
+              taskId,
+              userId: params.userId,
+              role,
+            },
+          });
+          return { taskId, action: 'created' };
+        }
+      })
     );
 
     const successful = results.filter(r => r.status === 'fulfilled').length;

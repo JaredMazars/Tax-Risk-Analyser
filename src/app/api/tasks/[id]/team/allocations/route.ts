@@ -5,6 +5,7 @@ import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
+import { NON_CLIENT_EVENT_LABELS } from '@/types';
 
 /**
  * GET /api/tasks/[id]/team/allocations
@@ -76,7 +77,9 @@ export async function GET(
     }
 
     // 5. Fetch all other allocations for these team members
-    const userIds = task.TaskTeam.map(member => member.userId);    const otherAllocations = await prisma.taskTeam.findMany({
+    const userIds = task.TaskTeam.map(member => member.userId);
+    
+    const otherAllocations = await prisma.taskTeam.findMany({
       where: {
         userId: { in: userIds },
         taskId: { not: taskId },
@@ -107,6 +110,28 @@ export async function GET(
         }
       }
     });
+
+    // 5b. Fetch non-client allocations for these team members
+    const nonClientAllocations = await prisma.nonClientAllocation.findMany({
+      where: {
+        userId: { in: userIds }
+      },
+      select: {
+        id: true,
+        userId: true,
+        eventType: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        notes: true,
+        createdAt: true
+      },
+      orderBy: {
+        startDate: 'asc'
+      }
+    });
+
     // 6. Transform to response format
     const teamMembersWithAllocations = task.TaskTeam.map(member => {
       // Current task allocation
@@ -123,7 +148,8 @@ export async function GET(
         allocatedHours: member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null,
         allocatedPercentage: member.allocatedPercentage,
         actualHours: member.actualHours ? parseFloat(member.actualHours.toString()) : null,
-        isCurrentTask: true
+        isCurrentTask: true,
+        isNonClientEvent: false
       }] : [];
 
       // Other task allocations for this user
@@ -142,8 +168,32 @@ export async function GET(
           allocatedHours: alloc.allocatedHours ? parseFloat(alloc.allocatedHours.toString()) : null,
           allocatedPercentage: alloc.allocatedPercentage,
           actualHours: alloc.actualHours ? parseFloat(alloc.actualHours.toString()) : null,
-          isCurrentTask: false
+          isCurrentTask: false,
+          isNonClientEvent: false
         }));
+
+      // Non-client event allocations for this user
+      const userNonClientAllocations = nonClientAllocations
+        .filter(alloc => alloc.userId === member.userId)
+        .map(alloc => ({
+          id: alloc.id,
+          taskId: null,
+          taskName: NON_CLIENT_EVENT_LABELS[alloc.eventType],
+          taskCode: undefined,
+          clientName: null,
+          clientCode: null,
+          role: 'VIEWER' as const,
+          startDate: alloc.startDate,
+          endDate: alloc.endDate,
+          allocatedHours: parseFloat(alloc.allocatedHours.toString()),
+          allocatedPercentage: alloc.allocatedPercentage,
+          actualHours: null,
+          isCurrentTask: false,
+          isNonClientEvent: true,
+          nonClientEventType: alloc.eventType,
+          notes: alloc.notes
+        }));
+
       return {
         id: member.id, // TaskTeam.id for the current task - needed for creating/updating allocations
         userId: member.userId,
@@ -154,7 +204,7 @@ export async function GET(
           email: member.User.email || '',
           image: member.User.image
         },
-        allocations: [...currentAllocation, ...otherUserAllocations]
+        allocations: [...currentAllocation, ...otherUserAllocations, ...userNonClientAllocations]
       };
     });
 

@@ -1,4 +1,4 @@
-import { TaskRole } from '@/types';
+import { TaskRole, NonClientEventType } from '@/types';
 
 export type TimeScale = 'day' | 'week' | 'month';
 
@@ -27,7 +27,7 @@ export interface TimelineColumn {
  */
 export interface AllocationData {
   id: number;
-  taskId: number;
+  taskId?: number | null; // Optional for non-client events
   taskName: string;
   taskCode?: string;
   clientName?: string | null;
@@ -40,10 +40,15 @@ export interface AllocationData {
   actualHours: number | null;
   lane?: number; // Which lane (0-indexed) this allocation occupies in the row
   isCurrentTask?: boolean; // Whether this allocation belongs to the current task being viewed
+  // Non-client event fields
+  isNonClientEvent?: boolean;
+  nonClientEventType?: NonClientEventType;
+  notes?: string | null;
 }
 
 export interface ResourceData {
   userId: string;
+  employeeId?: number; // Employee table ID (for non-client event planning)
   userName: string;
   userEmail: string;
   userImage?: string | null;

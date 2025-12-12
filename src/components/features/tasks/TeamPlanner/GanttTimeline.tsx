@@ -10,8 +10,10 @@ import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTo
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
-import { TaskRole } from '@/types';
+import { TaskRole, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { startOfDay, format, isSameDay, addDays, addWeeks } from 'date-fns';
+import { useDeleteNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface GanttTimelineProps {
   taskId: number;
@@ -46,10 +48,27 @@ export function GanttTimeline({
   });
   const [isAdminPlanningModalOpen, setIsAdminPlanningModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
   const [adminModalInitialDates, setAdminModalInitialDates] = useState<{ startDate?: Date; endDate?: Date }>({});
   const [overlayScrollTop, setOverlayScrollTop] = useState(0);
   
+  // Delete confirmation modal state
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    isOpen: boolean;
+    allocationId: number | null;
+    employeeId: number | null;
+    eventType: string;
+  }>({
+    isOpen: false,
+    allocationId: null,
+    employeeId: null,
+    eventType: ''
+  });
+  
   const timelineContainerRef = useRef<HTMLDivElement>(null);
+
+  // Non-client allocation mutation
+  const deleteNonClientAllocation = useDeleteNonClientAllocation();
 
   // Determine if user can edit
   // For planner view (taskId === 0), allow ADMIN, REVIEWER, and EDITOR roles to create allocations
@@ -191,6 +210,7 @@ export function GanttTimeline({
       
       return {
         userId: member.userId,
+        employeeId: (member as any).employeeId, // Include employeeId for non-client allocation planning
         userName: user?.name || '',
         userEmail: user?.email || '',
         userImage: user?.image,
@@ -231,6 +251,9 @@ export function GanttTimeline({
     // If admin and service line context available, show admin planning modal
     if (canEdit && serviceLine && subServiceLineGroup) {
       setSelectedUserId(userId);
+      // Get the employeeId from the member
+      const employeeId = (member as any).employeeId;
+      setSelectedEmployeeId(employeeId || null);
       // Store the selected dates or use defaults
       const allocationStartDate = startDate || new Date();
       const allocationEndDate = endDate || (() => {
@@ -615,6 +638,7 @@ export function GanttTimeline({
       
       setIsAdminPlanningModalOpen(false);
       setSelectedUserId(null);
+      setSelectedEmployeeId(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save allocation';
       setErrorModal({ 
@@ -629,6 +653,80 @@ export function GanttTimeline({
   }, [selectedUserId, onAllocationUpdate]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
+    // Find the allocation being updated and its user
+    let userId: string | null = null;
+    let isNonClientEvent = false;
+    
+    for (const member of teamMembers) {
+      if ((member as any).allocations?.length > 0) {
+        const allocation = (member as any).allocations.find((a: any) => a.id === allocationId);
+        if (allocation) {
+          userId = member.userId;
+          isNonClientEvent = allocation.isNonClientEvent || false;
+          break;
+        }
+      } else if (member.id === allocationId) {
+        userId = member.userId;
+        break;
+      }
+    }
+    
+    // Check for overlaps based on what type of allocation is being moved
+    if (userId) {
+      const member = teamMembers.find(m => m.userId === userId);
+      if (member && (member as any).allocations) {
+        const newStart = startOfDay(startDate);
+        const newEnd = startOfDay(endDate);
+        
+        if (!isNonClientEvent) {
+          // Moving CLIENT allocation - check for non-client event overlaps
+          const nonClientOverlaps = (member as any).allocations.filter((alloc: any) => {
+            if (!alloc.isNonClientEvent || alloc.id === allocationId) return false;
+            
+            const allocStart = startOfDay(new Date(alloc.startDate));
+            const allocEnd = startOfDay(new Date(alloc.endDate));
+            
+            // Check for overlap
+            return newStart <= allocEnd && newEnd >= allocStart;
+          });
+          
+          if (nonClientOverlaps.length > 0) {
+            const eventType = nonClientOverlaps[0].nonClientEventType;
+            const eventLabel = NON_CLIENT_EVENT_LABELS[eventType] || 'Non-Client Event';
+            setErrorModal({
+              isOpen: true,
+              title: 'Cannot Update Allocation',
+              message: `Cannot allocate to client task during this period. User has ${eventLabel} scheduled from ${format(new Date(nonClientOverlaps[0].startDate), 'MMM d')} to ${format(new Date(nonClientOverlaps[0].endDate), 'MMM d, yyyy')}.`
+            });
+            return; // Prevent update
+          }
+        } else {
+          // Moving NON-CLIENT event - check for client allocation overlaps
+          const clientOverlaps = (member as any).allocations.filter((alloc: any) => {
+            if (alloc.isNonClientEvent || alloc.id === allocationId) return false;
+            
+            const allocStart = startOfDay(new Date(alloc.startDate));
+            const allocEnd = startOfDay(new Date(alloc.endDate));
+            
+            // Check for overlap
+            return newStart <= allocEnd && newEnd >= allocStart;
+          });
+          
+          if (clientOverlaps.length > 0) {
+            const taskName = clientOverlaps[0].taskName || 'Client Task';
+            const clientName = clientOverlaps[0].clientName || '';
+            const taskInfo = clientName ? `${clientName} - ${taskName}` : taskName;
+            setErrorModal({
+              isOpen: true,
+              title: 'Cannot Move Non-Client Event',
+              message: `Cannot schedule event during this period. User has client work (${taskInfo}) scheduled from ${format(new Date(clientOverlaps[0].startDate), 'MMM d')} to ${format(new Date(clientOverlaps[0].endDate), 'MMM d, yyyy')}.`
+            });
+            return; // Prevent update
+          }
+        }
+      }
+    }
+    
     // Find the original allocation to get allocatedHours (before any optimistic updates)
     let originalAllocatedHours: number | null = null;
     
@@ -668,22 +766,31 @@ export function GanttTimeline({
     });
 
     try {
-      // For planner view (taskId=0), find the allocation's actual taskId
-      let actualTaskId = taskId;
-      if (taskId === 0) {
-        // Find the allocation in resources to get its taskId
-        for (const resource of resources) {
-          const allocation = resource.allocations.find(a => a.id === allocationId);
-          if (allocation) {
-            actualTaskId = allocation.taskId;
-            break;
+      // Determine which API endpoint to use based on allocation type
+      let endpoint: string;
+      
+      if (isNonClientEvent) {
+        // Non-client events use their own API endpoint
+        endpoint = `/api/non-client-allocations/${allocationId}`;
+      } else {
+        // For planner view (taskId=0), find the allocation's actual taskId
+        let actualTaskId = taskId;
+        if (taskId === 0) {
+          // Find the allocation in resources to get its taskId
+          for (const resource of resources) {
+            const allocation = resource.allocations.find(a => a.id === allocationId);
+            if (allocation) {
+              actualTaskId = allocation.taskId;
+              break;
+            }
           }
         }
+        endpoint = `/api/tasks/${actualTaskId}/team/${allocationId}/allocation`;
       }
       
       // Make API call in background
       const response = await fetch(
-        `/api/tasks/${actualTaskId}/team/${allocationId}/allocation`,
+        endpoint,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -720,6 +827,52 @@ export function GanttTimeline({
     }
   }, [taskId, resources, onAllocationUpdate]);
 
+  // Handle deletion with optimistic update
+  const handleConfirmDelete = useCallback(async () => {
+    const { allocationId, employeeId } = deleteConfirmModal;
+    
+    if (!allocationId || !employeeId) return;
+
+    try {
+      // Apply optimistic update - mark as deleting
+      setOptimisticUpdates(prev => {
+        const newMap = new Map(prev);
+        newMap.set(allocationId, { ...newMap.get(allocationId), isDeleting: true });
+        return newMap;
+      });
+
+      // Close modal immediately for better UX
+      setDeleteConfirmModal({
+        isOpen: false,
+        allocationId: null,
+        employeeId: null,
+        eventType: ''
+      });
+
+      // Perform deletion
+      await deleteNonClientAllocation.mutateAsync({ id: allocationId, employeeId });
+      
+      // Remove from optimistic updates after successful delete
+      setOptimisticUpdates(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(allocationId);
+        return newMap;
+      });
+
+      // Trigger refetch
+      onAllocationUpdate();
+    } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticUpdates(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(allocationId);
+        return newMap;
+      });
+      
+      const message = error instanceof Error ? error.message : 'Failed to delete event';
+      setErrorModal({ isOpen: true, message, title: 'Delete Failed' });
+    }
+  }, [deleteConfirmModal, deleteNonClientAllocation, onAllocationUpdate]);
 
   return (
     <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 overflow-hidden">
@@ -943,21 +1096,49 @@ export function GanttTimeline({
         }}
         onSave={handleSaveAllocation}
         onClear={handleClearAllocation}
+        onDeleteNonClient={(allocationId: number) => {
+          // Find the allocation details and employee ID from teamMembers
+          let employeeId: number | null = null;
+          let eventType = '';
+          
+          for (const member of teamMembers) {
+            if ((member as any).allocations?.length > 0) {
+              const allocation = (member as any).allocations.find((a: any) => a.id === allocationId);
+              if (allocation && allocation.isNonClientEvent) {
+                employeeId = (member as any).employeeId || member.id;
+                eventType = allocation.nonClientEventType || 'event';
+                break;
+              }
+            }
+          }
+          
+          if (employeeId) {
+            // Open confirmation modal instead of deleting immediately
+            setDeleteConfirmModal({
+              isOpen: true,
+              allocationId,
+              employeeId,
+              eventType
+            });
+          }
+        }}
       />
 
       {/* Admin Planning Modal */}
-      {serviceLine && subServiceLineGroup && selectedUserId && (
+      {serviceLine && subServiceLineGroup && selectedUserId && selectedEmployeeId && (
         <AdminPlanningModal
           isOpen={isAdminPlanningModalOpen}
           onClose={() => {
             setIsAdminPlanningModalOpen(false);
             setSelectedUserId(null);
+            setSelectedEmployeeId(null);
             setAdminModalInitialDates({});
           }}
           onSave={handleAdminPlanningModalSave}
           serviceLine={serviceLine}
           subServiceLineGroup={subServiceLineGroup}
           userId={selectedUserId}
+          employeeId={selectedEmployeeId}
           userName={resources.find(r => r.userId === selectedUserId)?.userName || 'Employee'}
           initialStartDate={adminModalInitialDates.startDate}
           initialEndDate={adminModalInitialDates.endDate}
@@ -970,6 +1151,24 @@ export function GanttTimeline({
         title={errorModal.title}
         message={errorModal.message}
         onClose={() => setErrorModal({ isOpen: false, message: '' })}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmModal.isOpen}
+        onClose={() => setDeleteConfirmModal({
+          isOpen: false,
+          allocationId: null,
+          employeeId: null,
+          eventType: ''
+        })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Non-Client Event"
+        message={`Are you sure you want to delete this ${NON_CLIENT_EVENT_LABELS[deleteConfirmModal.eventType as keyof typeof NON_CLIENT_EVENT_LABELS] || 'event'}?`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={deleteNonClientAllocation.isPending}
       />
     </div>
   );

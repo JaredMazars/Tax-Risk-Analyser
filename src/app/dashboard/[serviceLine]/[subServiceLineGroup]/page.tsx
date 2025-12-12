@@ -265,6 +265,7 @@ export default function SubServiceLineWorkspacePage() {
   const transformedPlannerUsers = useMemo(() => {
     const transformed = filteredPlannerUsers.map(user => ({
       userId: user.user.id, // Use user.user.id which is never null (fallback for employees without accounts)
+      employeeId: user.employeeId, // Actual Employee table ID
       User: {
         ...user.user,
         jobGradeCode: user.user.jobGradeCode
@@ -276,6 +277,7 @@ export default function SubServiceLineWorkspacePage() {
         endDate: new Date(alloc.endDate)
       }))
     }));
+
     return transformed;
   }, [filteredPlannerUsers]);
 
@@ -640,110 +642,98 @@ export default function SubServiceLineWorkspacePage() {
           {/* Content - Groups, Clients, Tasks, Planner, My Tasks, or My Planning */}
           {activeTab === 'planner' ? (
             /* Team Planner */
-            <div className="p-6 bg-forvis-gray-50">
-              <div className="max-w-full mx-auto">
-                {/* Header Card */}
-                <Card variant="standard" className="p-6 mb-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <div>
-                      <h2 className="text-2xl font-semibold text-forvis-gray-900">Team Planner</h2>
-                      <p className="text-sm font-normal text-forvis-gray-600 mt-1">
-                        View all team members and their task allocations in {subServiceLineGroupDescription}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-forvis-blue-600">
-                        {filteredPlannerUsers.length}
-                      </div>
-                      <div className="text-sm text-forvis-gray-600">
-                        Team {filteredPlannerUsers.length === 1 ? 'Member' : 'Members'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Search and Filters */}
-                  <div className="flex gap-4 items-center">
-                    <div className="relative flex-1 max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search by name or email..."
-                        value={plannerSearchTerm}
-                        onChange={(e) => setPlannerSearchTerm(e.target.value)}
-                        className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-                      />
-                    </div>
-                    
-                    <select
-                      value={jobGradingFilter}
-                      onChange={(e) => setJobGradingFilter(e.target.value)}
-                      className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-                    >
-                      <option value="">All Job Grades</option>
-                      {uniqueJobGradings.map(jg => (
-                        <option key={jg} value={jg}>{jg}</option>
-                      ))}
-                    </select>
-                    
-                    {uniqueOffices.length > 0 && (
-                      <select
-                        value={officeFilter}
-                        onChange={(e) => setOfficeFilter(e.target.value)}
-                        className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-                      >
-                        <option value="">All Offices</option>
-                        {uniqueOffices.map(office => (
-                          <option key={office} value={office}>{office}</option>
-                        ))}
-                      </select>
-                    )}
-                    
-                    {(plannerSearchTerm || jobGradingFilter || officeFilter) && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          setPlannerSearchTerm('');
-                          setJobGradingFilter('');
-                          setOfficeFilter('');
-                        }}
-                      >
-                        Clear Filters
-                      </Button>
-                    )}
-                  </div>
-                </Card>
-
-                {/* GanttTimeline */}
-                {isLoadingPlannerUsers ? (
-                  <div className="animate-pulse space-y-4">
-                    <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
-                    <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
-                    <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
-                  </div>
-                ) : filteredPlannerUsers.length === 0 ? (
-                  <Card variant="standard" className="text-center py-12">
-                    <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
-                      {plannerSearchTerm || jobGradingFilter || officeFilter ? 'No matching team members' : 'No team members'}
-                    </h3>
-                    <p className="mt-1 text-sm text-forvis-gray-600">
-                      {plannerSearchTerm || jobGradingFilter || officeFilter
-                        ? 'Try adjusting your search or filters.'
-                        : 'No users are currently assigned to this sub-service line group.'}
-                    </p>
-                  </Card>
-                ) : (
-                  <GanttTimeline
-                    taskId={0}
-                    teamMembers={transformedPlannerUsers}
-                    currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
-                    onAllocationUpdate={refetchPlannerUsers}
-                    serviceLine={serviceLine}
-                    subServiceLineGroup={subServiceLineGroup}
+            <div className="space-y-4">
+              {/* Filters Bar */}
+              <div className="flex gap-4 items-center flex-wrap">
+                <div className="relative flex-1 min-w-[300px]">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or email..."
+                    value={plannerSearchTerm}
+                    onChange={(e) => setPlannerSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
                   />
+                </div>
+                
+                <select
+                  value={jobGradingFilter}
+                  onChange={(e) => setJobGradingFilter(e.target.value)}
+                  className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                >
+                  <option value="">All Job Grades</option>
+                  {uniqueJobGradings.map(jg => (
+                    <option key={jg} value={jg}>{jg}</option>
+                  ))}
+                </select>
+                
+                {uniqueOffices.length > 0 && (
+                  <select
+                    value={officeFilter}
+                    onChange={(e) => setOfficeFilter(e.target.value)}
+                    className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                  >
+                    <option value="">All Offices</option>
+                    {uniqueOffices.map(office => (
+                      <option key={office} value={office}>{office}</option>
+                    ))}
+                  </select>
                 )}
+                
+                {(plannerSearchTerm || jobGradingFilter || officeFilter) && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setPlannerSearchTerm('');
+                      setJobGradingFilter('');
+                      setOfficeFilter('');
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+
+                {/* Team Count */}
+                <div className="ml-auto text-right">
+                  <div className="text-2xl font-bold text-forvis-blue-600">
+                    {filteredPlannerUsers.length}
+                  </div>
+                  <div className="text-sm text-forvis-gray-600">
+                    Team {filteredPlannerUsers.length === 1 ? 'Member' : 'Members'}
+                  </div>
+                </div>
               </div>
+
+              {/* Timeline */}
+              {isLoadingPlannerUsers ? (
+                <div className="animate-pulse space-y-4">
+                  <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                  <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                  <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
+                </div>
+              ) : filteredPlannerUsers.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
+                  <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
+                    {plannerSearchTerm || jobGradingFilter || officeFilter ? 'No matching team members' : 'No team members'}
+                  </h3>
+                  <p className="mt-1 text-sm text-forvis-gray-600">
+                    {plannerSearchTerm || jobGradingFilter || officeFilter
+                      ? 'Try adjusting your search or filters.'
+                      : 'No users are currently assigned to this sub-service line group.'}
+                  </p>
+                </div>
+              ) : (
+                <GanttTimeline
+                  taskId={0}
+                  teamMembers={transformedPlannerUsers}
+                  currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
+                  onAllocationUpdate={refetchPlannerUsers}
+                  serviceLine={serviceLine}
+                  subServiceLineGroup={subServiceLineGroup}
+                />
+              )}
             </div>
           ) : activeTab === 'my-planning' ? (
             /* My Planning View */

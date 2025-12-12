@@ -106,6 +106,11 @@ export const CreateTaskSchema = z.object({
 export const AddTaskTeamSchema = z.object({
   userId: z.string().optional(),
   role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).optional().default('VIEWER'),
+  // Allocation fields
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+  allocatedHours: z.number().min(0).optional().nullable(),
+  allocatedPercentage: z.number().int().min(0).max(100).optional().nullable(),
   // Fields for auto-creating user from employee
   employeeCode: z.string().optional(),
   GSEmployeeID: z.string().optional(),
@@ -115,6 +120,27 @@ export const AddTaskTeamSchema = z.object({
 
 export const UpdateTaskTeamSchema = z.object({
   role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']),
+}).strict();
+
+/**
+ * Task Allocation schemas (for multiple allocations per user)
+ */
+export const CreateTaskAllocationSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).default('VIEWER'),
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+  allocatedHours: z.number().min(0).optional().nullable(),
+  allocatedPercentage: z.number().int().min(0).max(100).optional().nullable(),
+}).strict();
+
+export const UpdateTaskAllocationSchema = z.object({
+  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).optional(),
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+  allocatedHours: z.number().min(0).optional().nullable(),
+  allocatedPercentage: z.number().int().min(0).max(100).optional().nullable(),
+  actualHours: z.number().min(0).optional().nullable(),
 }).strict();
 
 /**
@@ -936,5 +962,7 @@ export const ReorderServiceLineMasterSchema = z.object({
 export type CreateServiceLineMasterInput = z.infer<typeof CreateServiceLineMasterSchema>;
 export type UpdateServiceLineMasterInput = z.infer<typeof UpdateServiceLineMasterSchema>;
 export type ReorderServiceLineMasterInput = z.infer<typeof ReorderServiceLineMasterSchema>;
+export type CreateTaskAllocationInput = z.infer<typeof CreateTaskAllocationSchema>;
+export type UpdateTaskAllocationInput = z.infer<typeof UpdateTaskAllocationSchema>;
 
 

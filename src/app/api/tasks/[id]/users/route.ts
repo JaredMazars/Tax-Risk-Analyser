@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { AddTaskTeamSchema } from '@/lib/validation/schemas';
+import { AddTaskTeamSchema, CreateTaskAllocationSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
@@ -12,6 +12,7 @@ import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
 import { toTaskId } from '@/types/branded';
+import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
 
 export async function GET(
   request: NextRequest,
@@ -299,29 +300,44 @@ export async function POST(
       );
     }
 
-    // Check if user is already on project
-    const existingTaskTeam = await prisma.taskTeam.findUnique({
-      where: {
-        taskId_userId: {
-          taskId,
-          userId: targetUserId,
-        },
-      },
-    });
+    // Validate allocation (check for overlaps and role consistency)
+    const role = validatedData.role || 'VIEWER';
+    const startDate = validatedData.startDate ? new Date(validatedData.startDate) : null;
+    const endDate = validatedData.endDate ? new Date(validatedData.endDate) : null;
+    const allocatedHours = validatedData.allocatedHours || null;
+    const allocatedPercentage = validatedData.allocatedPercentage || null;
 
-    if (existingTaskTeam) {
-      return NextResponse.json(
-        { error: 'User is already on this project' },
-        { status: 400 }
+    try {
+      await validateAllocation(
+        taskId,
+        targetUserId,
+        startDate,
+        endDate,
+        role
       );
+    } catch (error) {
+      if (error instanceof AllocationValidationError) {
+        return NextResponse.json(
+          { 
+            error: error.message,
+            metadata: error.metadata,
+          },
+          { status: 400 }
+        );
+      }
+      throw error;
     }
 
-    // Add user to project
+    // Add user to project with allocation details
     const taskTeam = await prisma.taskTeam.create({
       data: {
         taskId,
         userId: targetUserId,
-        role: validatedData.role || 'VIEWER',
+        role,
+        startDate,
+        endDate,
+        allocatedHours,
+        allocatedPercentage,
       },
       include: {
         User: {

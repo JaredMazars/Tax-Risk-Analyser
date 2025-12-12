@@ -577,7 +577,8 @@ export async function archiveTask(taskId: TaskId) {
 }
 
 /**
- * Get task team members
+ * Get task team members with all allocations
+ * Returns all allocation periods for each user
  */
 export async function getTaskTeam(taskId: TaskId) {
   return withRetry(
@@ -588,6 +589,11 @@ export async function getTaskTeam(taskId: TaskId) {
           id: true,
           userId: true,
           role: true,
+          startDate: true,
+          endDate: true,
+          allocatedHours: true,
+          allocatedPercentage: true,
+          actualHours: true,
           createdAt: true,
           User: {
             select: {
@@ -598,6 +604,11 @@ export async function getTaskTeam(taskId: TaskId) {
             },
           },
         },
+        orderBy: [
+          { userId: 'asc' },
+          { startDate: 'asc' },
+          { createdAt: 'asc' },
+        ],
       });
     },
     RetryPresets.AZURE_SQL_COLD_START,
@@ -606,12 +617,19 @@ export async function getTaskTeam(taskId: TaskId) {
 }
 
 /**
- * Add team member to task
+ * Add team member to task with optional allocation details
+ * Note: Overlap validation should be done by the caller
  */
 export async function addTeamMember(
   taskId: TaskId,
   userId: string,
-  role: string = 'VIEWER'
+  role: string = 'VIEWER',
+  allocationDetails?: {
+    startDate?: Date | null;
+    endDate?: Date | null;
+    allocatedHours?: number | null;
+    allocatedPercentage?: number | null;
+  }
 ) {
   return withRetry(
     async () => {
@@ -620,6 +638,12 @@ export async function addTeamMember(
           taskId,
           userId,
           role,
+          ...(allocationDetails && {
+            startDate: allocationDetails.startDate,
+            endDate: allocationDetails.endDate,
+            allocatedHours: allocationDetails.allocatedHours,
+            allocatedPercentage: allocationDetails.allocatedPercentage,
+          }),
         },
       });
     },
@@ -629,7 +653,7 @@ export async function addTeamMember(
 }
 
 /**
- * Remove team member from task
+ * Remove team member from task (removes ALL allocations)
  */
 export async function removeTeamMember(taskId: TaskId, userId: string) {
   return withRetry(
@@ -643,6 +667,72 @@ export async function removeTeamMember(taskId: TaskId, userId: string) {
     },
     RetryPresets.AZURE_SQL_COLD_START,
     'Remove team member'
+  );
+}
+
+/**
+ * Get all allocation periods for a specific user on a task
+ */
+export async function getUserAllocations(taskId: TaskId, userId: string) {
+  return withRetry(
+    async () => {
+      return await prisma.taskTeam.findMany({
+        where: {
+          taskId,
+          userId,
+        },
+        select: {
+          id: true,
+          role: true,
+          startDate: true,
+          endDate: true,
+          allocatedHours: true,
+          allocatedPercentage: true,
+          actualHours: true,
+          createdAt: true,
+        },
+        orderBy: [
+          { startDate: 'asc' },
+          { createdAt: 'asc' },
+        ],
+      });
+    },
+    RetryPresets.AZURE_SQL_COLD_START,
+    'Get user allocations'
+  );
+}
+
+/**
+ * Add a new allocation period for an existing team member
+ * Note: Overlap and role validation should be done by the caller
+ */
+export async function addAllocationPeriod(
+  taskId: TaskId,
+  userId: string,
+  allocationData: {
+    role: string;
+    startDate?: Date | null;
+    endDate?: Date | null;
+    allocatedHours?: number | null;
+    allocatedPercentage?: number | null;
+  }
+) {
+  return withRetry(
+    async () => {
+      return await prisma.taskTeam.create({
+        data: {
+          taskId,
+          userId,
+          role: allocationData.role,
+          startDate: allocationData.startDate,
+          endDate: allocationData.endDate,
+          allocatedHours: allocationData.allocatedHours,
+          allocatedPercentage: allocationData.allocatedPercentage,
+        },
+      });
+    },
+    RetryPresets.AZURE_SQL_COLD_START,
+    'Add allocation period'
   );
 }
 

@@ -95,6 +95,16 @@ export enum ServiceLineRole {
   VIEWER = 'VIEWER',     // View-only access
 }
 
+// Non-Client Event Types
+export enum NonClientEventType {
+  TRAINING = 'TRAINING',
+  ANNUAL_LEAVE = 'ANNUAL_LEAVE',
+  SICK_LEAVE = 'SICK_LEAVE',
+  PUBLIC_HOLIDAY = 'PUBLIC_HOLIDAY',
+  PERSONAL = 'PERSONAL',
+  ADMINISTRATIVE = 'ADMINISTRATIVE',
+}
+
 // News Bulletin Categories
 export enum BulletinCategory {
   ANNOUNCEMENT = 'ANNOUNCEMENT',
@@ -291,6 +301,69 @@ export interface TaskTeam {
   clientName?: string | null;
   clientCode?: string | null;
 }
+
+// Allocation Period (for grouping multiple allocations by user)
+export interface AllocationPeriod {
+  allocationId: number;
+  startDate: Date | null;
+  endDate: Date | null;
+  allocatedHours: number | null;
+  allocatedPercentage: number | null;
+  actualHours: number | null;
+}
+
+// Grouped Task Team (user with multiple allocation periods)
+export interface GroupedTaskTeam {
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+  userImage?: string | null;
+  role: TaskRole;
+  allocations: AllocationPeriod[];
+  totalAllocatedHours: number;
+  totalActualHours: number;
+}
+
+// Non-Client Allocation
+export interface NonClientAllocation {
+  id: number;
+  employeeId: number;
+  eventType: NonClientEventType;
+  startDate: Date;
+  endDate: Date;
+  allocatedHours: number;
+  allocatedPercentage: number;
+  notes?: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  employee?: {
+    id: number;
+    EmpCode: string;
+    EmpName: string;
+    EmpNameFull: string;
+  };
+}
+
+// Non-Client Event Type Labels
+export const NON_CLIENT_EVENT_LABELS: Record<NonClientEventType, string> = {
+  [NonClientEventType.TRAINING]: 'Training',
+  [NonClientEventType.ANNUAL_LEAVE]: 'Annual Leave',
+  [NonClientEventType.SICK_LEAVE]: 'Sick Leave',
+  [NonClientEventType.PUBLIC_HOLIDAY]: 'Public Holiday',
+  [NonClientEventType.PERSONAL]: 'Personal',
+  [NonClientEventType.ADMINISTRATIVE]: 'Administrative',
+};
+
+// Non-Client Event Type Colors (gradients for timeline display)
+export const NON_CLIENT_EVENT_COLORS: Record<NonClientEventType, { from: string; to: string }> = {
+  [NonClientEventType.TRAINING]: { from: '#10B981', to: '#059669' },
+  [NonClientEventType.ANNUAL_LEAVE]: { from: '#3B82F6', to: '#2563EB' },
+  [NonClientEventType.SICK_LEAVE]: { from: '#F59E0B', to: '#D97706' },
+  [NonClientEventType.PUBLIC_HOLIDAY]: { from: '#8B5CF6', to: '#7C3AED' },
+  [NonClientEventType.PERSONAL]: { from: '#EC4899', to: '#DB2777' },
+  [NonClientEventType.ADMINISTRATIVE]: { from: '#6B7280', to: '#4B5563' },
+};
 
 export interface TeamAllocation {
   id: number;
@@ -761,4 +834,56 @@ export interface DrsTransaction {
   ClientManagerName: string; // Already provided by external system
   createdAt: Date;
   updatedAt: Date;
-} 
+}
+
+// Non-Client Event Type Configuration
+export const NON_CLIENT_EVENT_CONFIG: Record<NonClientEventType, {
+  label: string;
+  shortLabel: string;
+  icon: string;
+  gradient: string;
+  description: string;
+}> = {
+  [NonClientEventType.TRAINING]: {
+    label: 'Training',
+    shortLabel: 'Training',
+    icon: '📚',
+    gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+    description: 'Professional development and training sessions'
+  },
+  [NonClientEventType.ANNUAL_LEAVE]: {
+    label: 'Annual Leave',
+    shortLabel: 'Leave',
+    icon: '🏖️',
+    gradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+    description: 'Scheduled annual leave/vacation'
+  },
+  [NonClientEventType.SICK_LEAVE]: {
+    label: 'Sick Leave',
+    shortLabel: 'Sick',
+    icon: '🤒',
+    gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+    description: 'Sick leave and medical appointments'
+  },
+  [NonClientEventType.PUBLIC_HOLIDAY]: {
+    label: 'Public Holiday',
+    shortLabel: 'Holiday',
+    icon: '🎉',
+    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+    description: 'Public holidays and firm closures'
+  },
+  [NonClientEventType.PERSONAL]: {
+    label: 'Personal',
+    shortLabel: 'Personal',
+    icon: '👤',
+    gradient: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
+    description: 'Personal time off'
+  },
+  [NonClientEventType.ADMINISTRATIVE]: {
+    label: 'Administrative',
+    shortLabel: 'Admin',
+    icon: '📋',
+    gradient: 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)',
+    description: 'Administrative tasks and internal work'
+  }
+}; 
