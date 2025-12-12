@@ -23,7 +23,7 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? 'none' : transition, // Disable transition during drag for immediate feedback
     opacity: isDragging ? 0.5 : 1,
   };
 
@@ -40,79 +40,93 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`bg-white rounded-lg shadow-corporate p-3 transition-all duration-200 ${
+      className={`bg-white rounded-lg shadow-corporate transition-shadow duration-200 ${
+        displayMode === 'compact' ? 'p-1.5' : 'p-3'
+      } ${
         isArchived ? 'border border-forvis-gray-400 opacity-70' : 'border border-forvis-gray-200'
       } ${
         canDrag && !isArchived ? 'cursor-move hover:shadow-corporate-md' : 'cursor-pointer hover:shadow-corporate-md'
       } ${isDragging ? 'z-50' : ''}`}
     >
-      {/* Header with Task Code and Client */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-forvis-blue-100">
-            <Folder className="h-4 w-4 text-forvis-blue-600" />
+      {/* Header with Task Code, Client, and Date in top right */}
+      <div className={`flex items-start justify-between ${displayMode === 'compact' ? 'mb-0.5' : 'mb-2'}`}>
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <div className={`rounded flex items-center justify-center flex-shrink-0 bg-forvis-blue-100 ${
+            displayMode === 'compact' ? 'w-5 h-5' : 'w-8 h-8'
+          }`}>
+            <Folder className={`text-forvis-blue-600 ${displayMode === 'compact' ? 'h-2.5 w-2.5' : 'h-4 w-4'}`} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-semibold text-forvis-blue-600 truncate">
+            <div className={`font-semibold text-forvis-blue-600 truncate ${
+              displayMode === 'compact' ? 'text-[9px]' : 'text-xs'
+            }`}>
               {task.code}
             </div>
             {task.client && (
-              <div className="text-xs text-forvis-gray-600 truncate">
-                {task.client.name}
+              <div className={`text-forvis-gray-600 truncate ${
+                displayMode === 'compact' ? 'text-[9px]' : 'text-xs'
+              }`}>
+                {task.client.name} {task.client.code && `(${task.client.code})`}
               </div>
             )}
           </div>
         </div>
+        
+        {/* Date in top right corner */}
+        <div className={`text-forvis-gray-500 flex-shrink-0 ${
+          displayMode === 'compact' ? 'text-[8px]' : 'text-[9px]'
+        }`}>
+          {formatDate(task.dateOpen)}
+        </div>
       </div>
 
       {/* Task Name */}
-      <h4 className="text-sm font-medium text-forvis-gray-900 mb-2 line-clamp-2">
+      <h4 className={`font-medium text-forvis-gray-900 ${
+        displayMode === 'compact' ? 'text-[10px] mb-0.5 line-clamp-1' : 'text-sm mb-2 line-clamp-2'
+      }`}>
         {task.name}
       </h4>
 
-      {displayMode === 'detailed' && (
-        <>
-          {/* Partner & Manager */}
-          <div className="space-y-1 mb-3">
-            {task.partner && (
-              <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
-                <span className="font-medium">Partner:</span>
-                <span className="truncate">{task.partner}</span>
-              </div>
-            )}
-            {task.manager && (
-              <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
-                <span className="font-medium">Manager:</span>
-                <span className="truncate">{task.manager}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Dates */}
-          <div className="flex items-center gap-3 mb-3 text-xs text-forvis-gray-600">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span>{formatDate(task.dateOpen)}</span>
+      {/* Partner & Manager */}
+      {displayMode === 'detailed' ? (
+        <div className="space-y-1 mb-3">
+          {task.partner && (
+            <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
+              <span className="font-medium">Partner:</span>
+              <span className="truncate">{task.partner}</span>
             </div>
-            {task.dateTerminate && (
-              <>
-                <span>→</span>
-                <span>{formatDate(task.dateTerminate)}</span>
-              </>
-            )}
+          )}
+          {task.manager && (
+            <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
+              <span className="font-medium">Manager:</span>
+              <span className="truncate">{task.manager}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Compact mode - single line with abbreviations */
+        (task.partner || task.manager) && (
+          <div className="text-[9px] text-forvis-gray-600 truncate mb-0.5">
+            {task.partner && <span>P: {task.partner}</span>}
+            {task.partner && task.manager && <span className="mx-1">|</span>}
+            {task.manager && <span>M: {task.manager}</span>}
           </div>
-        </>
+        )
       )}
 
-      {/* Team Members */}
+      {/* Team Members - moved to where dates were */}
       {task.team.length > 0 && (
-        <div className="flex items-center gap-2 mb-3">
-          <Users className="h-3 w-3 text-forvis-gray-500 flex-shrink-0" />
-          <div className="flex items-center -space-x-2">
-            {task.team.slice(0, displayMode === 'compact' ? 3 : 5).map((member, idx) => (
+        <div className={`flex items-center gap-1.5 ${displayMode === 'compact' ? 'mb-0' : 'mb-0'}`}>
+          <Users className={`text-forvis-gray-500 flex-shrink-0 ${
+            displayMode === 'compact' ? 'h-2.5 w-2.5' : 'h-3 w-3'
+          }`} />
+          <div className="flex items-center -space-x-1.5">
+            {task.team.slice(0, displayMode === 'compact' ? 2 : 5).map((member, idx) => (
               <div
                 key={member.userId}
-                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white border-2 border-white"
+                className={`rounded-full flex items-center justify-center font-medium text-white border-2 border-white ${
+                  displayMode === 'compact' ? 'w-4 h-4 text-[8px]' : 'w-6 h-6 text-xs'
+                }`}
                 style={{
                   background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)',
                   zIndex: task.team.length - idx,
@@ -122,24 +136,17 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
                 {(member.name || member.email).charAt(0).toUpperCase()}
               </div>
             ))}
-            {task.team.length > (displayMode === 'compact' ? 3 : 5) && (
+            {task.team.length > (displayMode === 'compact' ? 2 : 5) && (
               <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium bg-forvis-gray-300 text-forvis-gray-700 border-2 border-white"
-                title={`+${task.team.length - (displayMode === 'compact' ? 3 : 5)} more`}
+                className={`rounded-full flex items-center justify-center font-medium bg-forvis-gray-300 text-forvis-gray-700 border-2 border-white ${
+                  displayMode === 'compact' ? 'w-4 h-4 text-[8px]' : 'w-6 h-6 text-xs'
+                }`}
+                title={`+${task.team.length - (displayMode === 'compact' ? 2 : 5)} more`}
               >
-                +{task.team.length - (displayMode === 'compact' ? 3 : 5)}
+                +{task.team.length - (displayMode === 'compact' ? 2 : 5)}
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {/* User Role Badge (if user is on team) */}
-      {task.userRole && displayMode === 'detailed' && (
-        <div className="mt-2">
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-blue-100 text-forvis-blue-700">
-            {task.userRole}
-          </span>
         </div>
       )}
     </div>

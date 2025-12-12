@@ -19,15 +19,24 @@ export async function GET(request: NextRequest) {
     const serviceLine = searchParams.get('serviceLine');
     const subServiceLineGroup = searchParams.get('subServiceLineGroup');
     const myTasksOnly = searchParams.get('myTasksOnly') === 'true';
-    const teamMember = searchParams.get('teamMember');
     const search = searchParams.get('search') || '';
     const includeArchived = searchParams.get('includeArchived') === 'true';
+    
+    // Parse multi-value query params
+    const teamMembersParam = searchParams.get('teamMembers');
+    const teamMembers = teamMembersParam ? teamMembersParam.split(',') : [];
+    const partnersParam = searchParams.get('partners');
+    const partners = partnersParam ? partnersParam.split(',') : [];
+    const managersParam = searchParams.get('managers');
+    const managers = managersParam ? managersParam.split(',') : [];
+    const clientsParam = searchParams.get('clients');
+    const clientIds = clientsParam ? clientsParam.split(',').map(Number) : [];
 
     // Check service line access
     const userServiceLines = await getUserServiceLines(user.id);
     
     // Build cache key
-    const cacheKey = `${CACHE_PREFIXES.TASK}kanban:${serviceLine}:${subServiceLineGroup}:${myTasksOnly}:${teamMember}:${search}:${includeArchived}:user:${user.id}`;
+    const cacheKey = `${CACHE_PREFIXES.TASK}kanban:${serviceLine}:${subServiceLineGroup}:${myTasksOnly}:${teamMembers.join(',')}:${partners.join(',')}:${managers.join(',')}:${clientIds.join(',')}:${search}:${includeArchived}:user:${user.id}`;
     
     // Try cache first
     const cached = await cache.get(cacheKey);
@@ -88,19 +97,43 @@ export async function GET(request: NextRequest) {
       where.ServLineCode = { in: servLineCodes };
     }
 
-    // Search filter
+    // Search filter - search across task and client fields
     if (search) {
       where.OR = [
         { TaskDesc: { contains: search } },
         { TaskCode: { contains: search } },
+        { Client: { clientNameFull: { contains: search } } },
+        { Client: { clientCode: { contains: search } } },
       ];
     }
 
-    // OPTIMIZATION: Move team member filtering to WHERE clause
-    if (teamMember || myTasksOnly) {
+    // Partner filter
+    if (partners.length > 0) {
+      where.TaskPartnerName = { in: partners };
+    }
+
+    // Manager filter
+    if (managers.length > 0) {
+      where.TaskManagerName = { in: managers };
+    }
+
+    // Client filter
+    if (clientIds.length > 0) {
+      const clientGSClientIDs = await prisma.client.findMany({
+        where: { id: { in: clientIds } },
+        select: { GSClientID: true },
+      }).then(clients => clients.map(c => c.GSClientID));
+      
+      if (clientGSClientIDs.length > 0) {
+        where.GSClientID = { in: clientGSClientIDs };
+      }
+    }
+
+    // Team member filtering
+    if (teamMembers.length > 0 || myTasksOnly) {
       where.TaskTeam = {
         some: {
-          userId: myTasksOnly ? user.id : teamMember,
+          userId: myTasksOnly ? user.id : { in: teamMembers },
         },
       };
     }

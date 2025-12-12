@@ -113,7 +113,14 @@ export async function createServiceLine(
 ): Promise<ServiceLineMaster> {
   try {
     return await prisma.serviceLineMaster.create({
-      data: serviceLine,
+      data: {
+        code: serviceLine.code,
+        name: serviceLine.name,
+        description: serviceLine.description,
+        active: serviceLine.active,
+        sortOrder: serviceLine.sortOrder,
+        updatedAt: new Date(),
+      },
     });
   } catch (error) {
     logger.error('Error creating service line', { serviceLine, error });

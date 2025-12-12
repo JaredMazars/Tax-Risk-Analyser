@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...validated,
         createdBy: user.id,
+        updatedAt: new Date(),
       },
     });
 

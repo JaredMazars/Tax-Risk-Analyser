@@ -101,9 +101,6 @@ export default function SubServiceLineWorkspacePage() {
   // Invalidate kanban queries when switching between tasks and my-tasks tabs in kanban mode
   useEffect(() => {
     if (taskViewMode === 'kanban' && (activeTab === 'tasks' || activeTab === 'my-tasks')) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:109',message:'Tab switch - invalidating kanban queries',data:{activeTab,taskViewMode},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
-      // #endregion
       queryClient.invalidateQueries({ queryKey: ['kanban'] });
     }
   }, [activeTab, taskViewMode, queryClient]);
@@ -196,11 +193,7 @@ export default function SubServiceLineWorkspacePage() {
   // Log overlay display state for verification (after isFetching is declared)
   useEffect(() => {
     const shouldShowOverlay = isFetching && !isLoading && taskViewMode !== 'kanban';
-    if (isFetching && !isLoading) {
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:200',message:'Overlay condition check',data:{isFetching,isLoading,taskViewMode,shouldShowOverlay,wouldHaveShownBefore:isFetching&&!isLoading,activeTab},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix'})}).catch(()=>{});
-    }
   }, [isFetching, isLoading, taskViewMode, activeTab]);
-  // #endregion
 
   // Map ServiceLineRole to TaskRole for GanttTimeline display
   const mapServiceLineRoleToTaskRole = (serviceLineRole: string): TaskRole => {

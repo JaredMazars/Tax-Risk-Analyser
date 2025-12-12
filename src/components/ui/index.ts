@@ -28,6 +28,11 @@ export type { LoadingSpinnerProps, LoadingOverlayProps, LoadingSpinnerSize } fro
 export { ErrorModal } from './ErrorModal';
 export type { ErrorModalProps } from './ErrorModal';
 
+export { MultiSelect } from './MultiSelect';
+export type { MultiSelectProps, MultiSelectOption } from './MultiSelect';
+
+
+
 
 
 

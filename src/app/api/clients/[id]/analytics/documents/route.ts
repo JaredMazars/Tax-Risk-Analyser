@@ -220,6 +220,7 @@ export async function POST(
         fileSize: file.size,
         uploadedBy: user.email!,
         extractedData: extractedData ? JSON.stringify(extractedData) : null,
+        updatedAt: new Date(),
       },
     });
 

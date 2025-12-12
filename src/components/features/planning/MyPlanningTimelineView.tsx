@@ -281,7 +281,7 @@ export function MyPlanningTimelineView({ clientsData }: MyPlanningTimelineViewPr
               <div className="w-64 flex-shrink-0 h-14 border-b-2 border-forvis-gray-300"></div>
               {/* Timeline header */}
               <div className="flex-1">
-                <TimelineHeader columns={columns} scale={scale} />
+                <TimelineHeader columns={columns} scale={scale} resources={resources} />
               </div>
             </div>
 

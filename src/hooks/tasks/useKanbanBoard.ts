@@ -17,7 +17,10 @@ export interface UseKanbanBoardParams {
   subServiceLineGroup: string;
   myTasksOnly?: boolean;
   search?: string;
-  teamMember?: string | null;
+  teamMembers?: string[];
+  partners?: string[];
+  managers?: string[];
+  clients?: number[];
   includeArchived?: boolean;
 }
 
@@ -30,7 +33,10 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
     subServiceLineGroup,
     myTasksOnly = false,
     search = '',
-    teamMember = null,
+    teamMembers = [],
+    partners = [],
+    managers = [],
+    clients = [],
     includeArchived = false,
   } = params;
 
@@ -40,7 +46,10 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
       subServiceLineGroup,
       myTasksOnly,
       search,
-      teamMember,
+      teamMembers,
+      partners,
+      managers,
+      clients,
       includeArchived,
     }),
     queryFn: async () => {
@@ -49,7 +58,10 @@ export function useKanbanBoard(params: UseKanbanBoardParams) {
       searchParams.set('subServiceLineGroup', subServiceLineGroup);
       if (myTasksOnly) searchParams.set('myTasksOnly', 'true');
       if (search) searchParams.set('search', search);
-      if (teamMember) searchParams.set('teamMember', teamMember);
+      if (teamMembers.length > 0) searchParams.set('teamMembers', teamMembers.join(','));
+      if (partners.length > 0) searchParams.set('partners', partners.join(','));
+      if (managers.length > 0) searchParams.set('managers', managers.join(','));
+      if (clients.length > 0) searchParams.set('clients', clients.join(','));
       // Always include the includeArchived parameter to ensure proper cache invalidation
       searchParams.set('includeArchived', includeArchived ? 'true' : 'false');
       
@@ -133,6 +145,7 @@ export function useUpdateTaskStage() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: ['updateTaskStage'],
     mutationFn: async ({ taskId, stage, notes }: { 
       taskId: number; 
       stage: TaskStage;
@@ -164,22 +177,15 @@ export function useUpdateTaskStage() {
       return result.success ? result.data : result;
     },
     onMutate: async (variables) => {
-      // Cancel any outgoing refetches to prevent optimistic update from being overwritten
+      // Cancel ANY outgoing refetches to prevent cache from being overwritten
       await queryClient.cancelQueries({ queryKey: kanbanKeys.boards() });
+      await queryClient.cancelQueries({ queryKey: ['tasks'] });
       
-      // Snapshot the previous value
+      // Snapshot the current value for rollback on error
+      // Note: Cache was already updated synchronously in handleDragEnd
       const previousData = queryClient.getQueriesData({ queryKey: kanbanKeys.boards() });
       
-      // Optimistically update all kanban board caches
-      queryClient.setQueriesData<KanbanBoardData>(
-        { queryKey: kanbanKeys.boards() },
-        (old) => {
-          if (!old) return old;
-          return updateTaskStageInCache(old, variables.taskId, variables.stage);
-        }
-      );
-      
-      // Return context with snapshot for rollback
+      // Return context with snapshot for rollback on error
       return { previousData };
     },
     onError: (err, variables, context) => {
@@ -190,15 +196,13 @@ export function useUpdateTaskStage() {
         });
       }
     },
-    onSuccess: (data, variables) => {
-      // Invalidate all Kanban board queries to refetch with new data
-      queryClient.invalidateQueries({ queryKey: kanbanKeys.boards() });
-      
-      // Invalidate task list queries
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      
-      // Invalidate specific task detail
-      queryClient.invalidateQueries({ queryKey: ['task', variables.taskId] });
+    onSettled: async (data, error, variables) => {
+      // Use onSettled instead of onSuccess to ensure it runs after everything
+      // Only invalidate task detail for consistency in detail views
+      // Don't invalidate board queries - optimistic update is already correct
+      if (!error) {
+        queryClient.invalidateQueries({ queryKey: ['task', variables.taskId] });
+      }
     },
   });
 }

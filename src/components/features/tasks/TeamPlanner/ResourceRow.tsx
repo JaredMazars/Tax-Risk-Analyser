@@ -24,7 +24,7 @@ interface ResourceRowProps {
 }
 
 export function ResourceRow({ 
-  resource, 
+  resource,
   columns, 
   scale, 
   dateRange,
@@ -96,7 +96,7 @@ export function ResourceRow({
             return (
               <div
                 key={index}
-                className={`flex-shrink-0 border-r border-forvis-gray-200 select-none ${
+                className={`relative flex-shrink-0 border-r border-forvis-gray-200 select-none ${
                   isInSelection
                     ? 'bg-forvis-blue-200 border-forvis-blue-400'
                     : column.isToday

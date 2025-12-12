@@ -316,7 +316,7 @@ export function MyPlanningTimeline() {
             </div>
             {/* Timeline header */}
             <div className="flex-1">
-              <TimelineHeader columns={columns} scale={scale} />
+              <TimelineHeader columns={columns} scale={scale} resources={resources} />
             </div>
           </div>
 
@@ -386,6 +386,8 @@ export function MyPlanningTimeline() {
     </div>
   );
 }
+
+
 
 
 

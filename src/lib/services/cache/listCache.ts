@@ -108,15 +108,7 @@ export async function getCachedList<T>(params: ListCacheParams): Promise<T | nul
 
   const cacheKey = getListCacheKey(params);
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'listCache.ts:104',message:'Cache lookup',data:{cacheKey,clientCode:params.clientCode,status:params.status,endpoint:params.endpoint},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H',runId:'post-fix-v2'})}).catch(()=>{});
-  // #endregion
-  
   const result = await cache.get<T>(cacheKey);
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'listCache.ts:111',message:'Cache result',data:{cacheKey,hit:!!result},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H',runId:'post-fix-v2'})}).catch(()=>{});
-  // #endregion
   
   return result;
 }

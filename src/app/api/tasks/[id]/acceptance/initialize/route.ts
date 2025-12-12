@@ -122,6 +122,29 @@ export async function POST(
     // Get questionnaire structure (uses caching)
     const structure = await getQuestionnaireStructure(questionnaireType);
 
+    // Calculate completion percentage if questionnaire exists
+    let completionPercentage = 0;
+    if (response && structure) {
+      const { getAllQuestions } = await import('@/constants/acceptance-questions');
+      const { calculateCompletionPercentage } = await import('@/lib/services/acceptance/riskCalculation');
+      
+      const questionDefs = getAllQuestions(questionnaireType as any);
+      const answerData = answers.map((a) => ({
+        questionKey: a.AcceptanceQuestion.questionKey,
+        answer: a.answer || '',
+        comment: a.comment || undefined,
+      }));
+
+      completionPercentage = calculateCompletionPercentage(questionDefs, answerData);
+    }
+
+    // Build risk assessment data for easier access
+    const riskAssessment = response ? {
+      overallRiskScore: response.overallRiskScore,
+      riskRating: response.riskRating,
+      riskSummary: response.riskSummary,
+    } : null;
+
     return NextResponse.json(
       successResponse({
         response,
@@ -129,6 +152,8 @@ export async function POST(
         typeInfo: typeResult,
         answers,
         documents,
+        completionPercentage,
+        riskAssessment,
       })
     );
   } catch (error) {

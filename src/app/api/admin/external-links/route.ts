@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
         icon: validated.icon,
         active: validated.active ?? true,
         sortOrder: validated.sortOrder ?? 0,
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -120,6 +121,9 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/admin/external-links');
   }
 }
+
+
+
 
 
 

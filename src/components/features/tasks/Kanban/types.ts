@@ -43,12 +43,10 @@ export interface KanbanBoardData {
 
 export interface KanbanFilters {
   search: string;
-  teamMember: string | null;
-  priority: string | null;
-  dueDateRange: {
-    start: Date | null;
-    end: Date | null;
-  } | null;
+  teamMembers: string[];
+  partners: string[];
+  managers: string[];
+  clients: number[];
   includeArchived: boolean;
 }
 
@@ -81,6 +79,9 @@ export interface KanbanFiltersProps {
   filters: KanbanFilters;
   onFiltersChange: (filters: KanbanFilters) => void;
   teamMembers: { id: string; name: string }[];
+  partners: string[];
+  managers: string[];
+  clients: { id: number; code: string; name: string }[];
 }
 
 export interface KanbanMetricsProps {

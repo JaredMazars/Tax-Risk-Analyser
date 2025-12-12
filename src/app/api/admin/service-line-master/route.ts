@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
         description: validated.description ?? null,
         active: validated.active ?? true,
         sortOrder: validated.sortOrder ?? nextSortOrder,
+        updatedAt: new Date(),
       },
       select: {
         code: true,
@@ -135,6 +136,9 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'POST /api/admin/service-line-master');
   }
 }
+
+
+
 
 
 

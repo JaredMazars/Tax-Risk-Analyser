@@ -134,15 +134,7 @@ export function AdminPlanningModal({
 
   // Fetch active tasks when client is selected - simple reload, no caching
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:136',message:'Effect triggered',data:{hasSelectedClient:!!selectedClient,clientId:selectedClient?.id,clientCode:selectedClient?.clientCode,serviceLine,subServiceLineGroup,currentTasksCount:activeTasks.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D,I'})}).catch(()=>{});
-    // #endregion
-    
     if (!selectedClient) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:141',message:'Clearing tasks - no client',data:{previousTasksCount:activeTasks.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
-      // #endregion
-      
       setActiveTasks([]);
       return;
     }
@@ -151,16 +143,8 @@ export function AdminPlanningModal({
     async function fetchActiveTasks() {
       setIsLoadingTasks(true);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:144',message:'Starting fetch',data:{clientCode:client.clientCode,clientId:client.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-      // #endregion
-      
       try {
         const url = `/api/tasks?serviceLine=${serviceLine}&subServiceLineGroup=${subServiceLineGroup}&status=Active&clientCode=${encodeURIComponent(client.clientCode)}&limit=100&_t=${Date.now()}`;
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:147',message:'Constructed URL',data:{url},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A',runId:'post-fix'})}).catch(()=>{});
-        // #endregion
         
         const response = await fetch(url, {
           cache: 'no-store',
@@ -170,38 +154,16 @@ export function AdminPlanningModal({
           }
         });
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:148',message:'Response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B',runId:'post-fix'})}).catch(()=>{});
-        // #endregion
-        
         if (response.ok) {
           const result = await response.json();
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:150',message:'Parsed response',data:{hasDataTasks:!!result.data?.tasks,hasTasks:!!result.tasks,dataTasksLength:result.data?.tasks?.length,tasksLength:result.tasks?.length,resultKeys:Object.keys(result)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B',runId:'post-fix'})}).catch(()=>{});
-          // #endregion
-          
           const tasks = result.data?.tasks || result.tasks || [];
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:151',message:'Setting tasks',data:{tasksLength:tasks.length,taskIds:tasks.map((t:any)=>t.id).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C',runId:'post-fix'})}).catch(()=>{});
-          // #endregion
-          
           setActiveTasks(tasks);
         }
       } catch (err) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:154',message:'Fetch error',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-        // #endregion
-        
         console.error('Error fetching tasks:', err);
         setActiveTasks([]);
       } finally {
         setIsLoadingTasks(false);
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:157',message:'Fetch completed',data:{loadingState:false},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
       }
     }
 
@@ -259,10 +221,6 @@ export function AdminPlanningModal({
   }, [formData.allocatedHours, calculatedInfo.availableHours]);
 
   const handleClientSelect = (client: Client) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:251',message:'Client selected',data:{clientId:client.id,clientCode:client.clientCode,clientName:client.clientNameFull,currentActiveTasks:activeTasks.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,I'})}).catch(()=>{});
-    // #endregion
-    
     setSelectedClient(client);
     setClientSearch('');
     setStep('task');
@@ -458,10 +416,6 @@ export function AdminPlanningModal({
                 </div>
                 <button
                   onClick={() => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminPlanningModal.tsx:454',message:'Change button clicked',data:{previousClient:selectedClient?.clientCode,previousClientId:selectedClient?.id,currentTasks:activeTasks.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
-                    // #endregion
-                    
                     setSelectedClient(null);
                     setStep('client');
                   }}

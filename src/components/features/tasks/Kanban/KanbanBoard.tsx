@@ -19,7 +19,9 @@ import { KanbanBoardProps, KanbanTask, KanbanFilters, CardDisplayMode } from './
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
 import { KanbanFilters as KanbanFiltersComponent } from './KanbanFilters';
-import { useKanbanBoard, useUpdateTaskStage } from '@/hooks/tasks/useKanbanBoard';
+import { useKanbanBoard, useUpdateTaskStage, kanbanKeys } from '@/hooks/tasks/useKanbanBoard';
+import { useQueryClient } from '@tanstack/react-query';
+import { KanbanBoardData } from './types';
 import { LoadingSpinner } from '@/components/ui';
 import { TaskStage } from '@/types/task-stages';
 import { TaskDetailModal } from '@/components/features/tasks/TaskDetail/TaskDetailModal';
@@ -33,12 +35,14 @@ export function KanbanBoard({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   
   const [filters, setFilters] = useState<KanbanFilters>({
     search: '',
-    teamMember: null,
-    priority: null,
-    dueDateRange: null,
+    teamMembers: [],
+    partners: [],
+    managers: [],
+    clients: [],
     includeArchived: false,
   });
   const [displayMode, setDisplayMode] = useState<CardDisplayMode>('detailed');
@@ -55,16 +59,12 @@ export function KanbanBoard({
     subServiceLineGroup,
     myTasksOnly,
     search: filters.search,
-    teamMember: filters.teamMember,
+    teamMembers: filters.teamMembers,
+    partners: filters.partners,
+    managers: filters.managers,
+    clients: filters.clients,
     includeArchived: filters.includeArchived, // Query will refetch when this changes
   });
-
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KanbanBoard.tsx:60',message:'Loading states changed',data:{isLoading,isFetching,hasData:!!data,dataColumnsCount:data?.columns?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,C'})}).catch(()=>{});
-  }, [isLoading, isFetching, data]);
-  // #endregion
-
 
   // Check for taskModal URL parameter and open modal if present
   useEffect(() => {
@@ -77,12 +77,6 @@ export function KanbanBoard({
 
   // Update task stage mutation
   const updateStageMutation = useUpdateTaskStage();
-
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KanbanBoard.tsx:84',message:'Mutation state changed',data:{isPending:updateStageMutation.isPending,isSuccess:updateStageMutation.isSuccess,isError:updateStageMutation.isError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-  }, [updateStageMutation.isPending, updateStageMutation.isSuccess, updateStageMutation.isError]);
-  // #endregion
 
   // Check if user can drag (has EDITOR, REVIEWER role or higher on at least one task)
   const canDrag = useMemo(() => {
@@ -119,6 +113,63 @@ export function KanbanBoard({
     );
   }, [data]);
 
+  // Get unique partners for filter
+  const partners = useMemo(() => {
+    if (!data?.columns) return [];
+    
+    const partnersSet = new Set<string>();
+    
+    data.columns.forEach(column => {
+      column.tasks.forEach(task => {
+        if (task.partner) {
+          partnersSet.add(task.partner);
+        }
+      });
+    });
+    
+    return Array.from(partnersSet).sort();
+  }, [data]);
+
+  // Get unique managers for filter
+  const managers = useMemo(() => {
+    if (!data?.columns) return [];
+    
+    const managersSet = new Set<string>();
+    
+    data.columns.forEach(column => {
+      column.tasks.forEach(task => {
+        if (task.manager) {
+          managersSet.add(task.manager);
+        }
+      });
+    });
+    
+    return Array.from(managersSet).sort();
+  }, [data]);
+
+  // Get unique clients for filter
+  const clients = useMemo(() => {
+    if (!data?.columns) return [];
+    
+    const clientsMap = new Map<number, { id: number; code: string; name: string }>();
+    
+    data.columns.forEach(column => {
+      column.tasks.forEach(task => {
+        if (task.client && !clientsMap.has(task.client.id)) {
+          clientsMap.set(task.client.id, {
+            id: task.client.id,
+            code: task.client.code,
+            name: task.client.name || 'Unknown Client',
+          });
+        }
+      });
+    });
+    
+    return Array.from(clientsMap.values()).sort((a, b) => 
+      a.name.localeCompare(b.name)
+    );
+  }, [data]);
+
   // Drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -147,15 +198,18 @@ export function KanbanBoard({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveTask(null);
 
-    if (!over) return;
+    if (!over) {
+      setActiveTask(null);
+      return;
+    }
 
     const taskId = Number(active.id);
     const newStage = over.id as TaskStage;
     
     // Prevent dragging to ARCHIVED column
     if (newStage === TaskStage.ARCHIVED) {
+      setActiveTask(null);
       return;
     }
 
@@ -165,25 +219,73 @@ export function KanbanBoard({
       .find(t => t.id === taskId);
 
     if (!task) {
+      setActiveTask(null);
       return;
     }
 
     // Check if stage actually changed
     if (task.stage === newStage) {
+      setActiveTask(null);
       return;
     }
 
     // Check if user has permission to move this task
     // ADMIN, REVIEWER, and EDITOR can all move tasks
     if (!task.userRole || !['ADMIN', 'REVIEWER', 'EDITOR'].includes(task.userRole)) {
+      setActiveTask(null);
       return;
     }
 
     const mutationParams = { taskId, stage: newStage };
 
-    // Update the task stage
-    // Note: Mutation hook handles invalidation automatically, no need for manual refetch
+    // SYNCHRONOUSLY update cache BEFORE mutation to prevent visual jump
+    // This ensures the UI updates immediately when drag ends
+    queryClient.setQueriesData<KanbanBoardData>(
+      { queryKey: kanbanKeys.boards() },
+      (old) => {
+        if (!old) return old;
+        
+        // Move task to new column
+        const updatedColumns = old.columns.map(column => {
+          const filteredTasks = column.tasks.filter(t => t.id !== taskId);
+          
+          if (column.stage === newStage) {
+            const taskToMove = old.columns
+              .flatMap(col => col.tasks)
+              .find(t => t.id === taskId);
+            
+            if (taskToMove) {
+              const newTasks = [...filteredTasks, { ...taskToMove, stage: newStage }];
+              return {
+                ...column,
+                tasks: newTasks,
+                taskCount: newTasks.length,
+                metrics: { count: newTasks.length },
+              };
+            }
+          }
+          
+          if (filteredTasks.length !== column.tasks.length) {
+            return {
+              ...column,
+              tasks: filteredTasks,
+              taskCount: filteredTasks.length,
+              metrics: { count: filteredTasks.length },
+            };
+          }
+          
+          return column;
+        });
+        
+        return { ...old, columns: updatedColumns };
+      }
+    );
+
+    // Trigger mutation for server sync (without optimistic update since we already did it)
     updateStageMutation.mutate(mutationParams);
+    
+    // Clear overlay immediately - cache is already updated
+    setActiveTask(null);
   };
 
   const toggleColumnCollapse = (stage: string) => {
@@ -228,9 +330,6 @@ export function KanbanBoard({
   };
 
   if (isLoading) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KanbanBoard.tsx:285',message:'SPINNER SHOWN - isLoading=true',data:{isLoading,isFetching,hasData:!!data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return (
       <div className="flex items-center justify-center py-12">
         <LoadingSpinner size="lg" />
@@ -298,6 +397,9 @@ export function KanbanBoard({
           filters={filters}
           onFiltersChange={setFilters}
           teamMembers={teamMembers}
+          partners={partners}
+          managers={managers}
+          clients={clients}
         />
 
         {/* Kanban Board */}

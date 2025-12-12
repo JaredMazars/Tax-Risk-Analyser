@@ -7,13 +7,42 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 export const acceptanceKeys = {
   all: ['acceptance'] as const,
   questionnaire: (taskId: string) => [...acceptanceKeys.all, 'questionnaire', taskId] as const,
-  status: (taskId: string) => [...acceptanceKeys.all, 'status', taskId] as const,
+  status: (taskId: string) => [...acceptanceKeys.all, 'status', taskId] as const, // Kept for backwards compatibility
   documents: (taskId: string) => [...acceptanceKeys.all, 'documents', taskId] as const,
 };
 
 /**
+ * Derive status information from questionnaire data
+ * This eliminates the need for a separate status query
+ */
+export function deriveQuestionnaireStatus(data: any) {
+  if (!data?.data) {
+    return {
+      exists: false,
+      completed: false,
+      questionnaireType: null,
+      completionPercentage: 0,
+      riskRating: null,
+      overallRiskScore: null,
+    };
+  }
+
+  const response = data.data.response;
+  const riskAssessment = data.data.riskAssessment;
+  
+  return {
+    exists: !!response,
+    completed: !!response?.completedAt,
+    questionnaireType: response?.questionnaireType || null,
+    completionPercentage: data.data.completionPercentage || 0,
+    riskRating: riskAssessment?.riskRating || response?.riskRating || null,
+    overallRiskScore: riskAssessment?.overallRiskScore || response?.overallRiskScore || null,
+  };
+}
+
+/**
  * Initialize and fetch questionnaire
- * Optimized with reduced stale time and refetch strategies
+ * Optimized with better caching and no separate status query needed
  */
 export function useQuestionnaire(taskId: string) {
   return useQuery({
@@ -38,40 +67,26 @@ export function useQuestionnaire(taskId: string) {
       return res.json();
     },
     enabled: !!taskId && taskId !== '' && taskId !== 'undefined', // Only run when taskId is valid
-    staleTime: 1000 * 60 * 2, // 2 minutes (reduced from 5)
-    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    staleTime: 1000 * 60 * 5, // 5 minutes - longer cache since data doesn't change frequently
+    gcTime: 1000 * 60 * 10, // 10 minutes garbage collection
+    refetchOnWindowFocus: false, // Don't refetch on focus - reduces unnecessary calls
     refetchOnReconnect: true, // Refetch on network reconnect
   });
 }
 
 /**
- * Get questionnaire status
- * Optimized with shorter stale time
+ * @deprecated Use useQuestionnaire and deriveQuestionnaireStatus instead
+ * This hook now derives status from questionnaire data to avoid duplicate API calls
  */
 export function useQuestionnaireStatus(taskId: string) {
-  return useQuery({
-    queryKey: acceptanceKeys.status(taskId),
-    queryFn: async () => {
-      // Guard: Never run if taskId is empty
-      if (!taskId || taskId === '') {
-        throw new Error('Task ID is required');
-      }
-
-      const res = await fetch(`/api/tasks/${taskId}/acceptance/status`);
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to fetch status');
-      }
-
-      return res.json();
-    },
-    enabled: !!taskId && taskId !== '' && taskId !== 'undefined', // Only run when taskId is valid
-    retry: 2, // Limit retries to prevent infinite loading
-    staleTime: 1000 * 15, // 15 seconds (reduced from 30)
-    refetchInterval: false, // Disable polling to prevent background requests
-    refetchOnWindowFocus: false, // Disable auto-refetch on focus
-  });
+  const { data, isLoading, error } = useQuestionnaire(taskId);
+  
+  return {
+    data: data ? { data: deriveQuestionnaireStatus(data) } : undefined,
+    isLoading,
+    error,
+    isFetching: false,
+  };
 }
 
 /**
@@ -132,8 +147,7 @@ export function useSaveAnswers(taskId: string) {
         };
       });
       
-      // Only invalidate status (lightweight query)
-      queryClient.invalidateQueries({ queryKey: acceptanceKeys.status(taskId) });
+      // Status is now derived from questionnaire data, no separate invalidation needed
     },
   });
 }
@@ -159,8 +173,8 @@ export function useSubmitQuestionnaire(taskId: string) {
       return res.json();
     },
     onSuccess: () => {
+      // Only invalidate questionnaire query - status is derived from it
       queryClient.invalidateQueries({ queryKey: acceptanceKeys.questionnaire(taskId) });
-      queryClient.invalidateQueries({ queryKey: acceptanceKeys.status(taskId) });
     },
   });
 }

@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
         filePath: body.filePath,
         fileSize: body.fileSize,
         uploadedBy: user.id,
+        updatedAt: new Date(),
       },
       include: {
         BDOpportunity: {

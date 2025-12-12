@@ -6,9 +6,10 @@ import { Task } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { taskKeys } from '@/hooks/tasks/useTaskData';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
-import { useQuestionnaireStatus } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
+import { useQuestionnaire, deriveQuestionnaireStatus } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { AcceptanceQuestionnaire } from './acceptance/AcceptanceQuestionnaire';
 import { AcceptanceReview } from './acceptance/AcceptanceReview';
+import { AcceptanceTabSkeleton } from './acceptance/AcceptanceTabSkeleton';
 
 interface AcceptanceTabProps {
   task: Task;
@@ -22,47 +23,18 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
   const [viewMode, setViewMode] = useState<'questionnaire' | 'review' | null>(null);
   const queryClient = useQueryClient();
 
-  // Get valid task ID - return early if invalid
+  // Get valid task ID
   const taskId = task?.id?.toString();
   
-  // Clear any invalid cached queries on mount
-  useEffect(() => {
-    // Remove any queries with empty or undefined taskIds
-    queryClient.removeQueries({ queryKey: ['acceptance', 'status', ''] });
-    queryClient.removeQueries({ queryKey: ['acceptance', 'status', 'undefined'] });
-    queryClient.removeQueries({ queryKey: ['acceptance', 'questionnaire', ''] });
-    queryClient.removeQueries({ queryKey: ['acceptance', 'questionnaire', 'undefined'] });
-  }, [queryClient]);
-  
-  // Debug: Log task to see what we're getting
-  useEffect(() => {
-    console.log('AcceptanceTab render:', {
-      hasTask: !!task,
-      taskId: task?.id,
-      taskIdString: taskId,
-      taskIdType: typeof task?.id,
-    });
-  }, [task, taskId]);
-
   // Check if user can approve acceptance (Partners and System Admins only)
   const { data: canApprove = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(task);
 
-  // Get questionnaire status - pass empty string if no taskId (hook will disable itself)
-  const { data: statusData, isLoading: isLoadingStatus, isFetching, error: statusError } = useQuestionnaireStatus(taskId ?? '');
-  const status = statusData?.data;
-
-  // Debug: Log query states
-  useEffect(() => {
-    console.log('Query states:', {
-      taskId: taskId ?? 'NO_TASK_ID',
-      isLoadingStatus,
-      isCheckingPermission,
-      hasStatusData: !!statusData,
-      statusError: statusError?.message,
-      canApprove,
-    });
-  }, [taskId, isLoadingStatus, isCheckingPermission, statusData, statusError, canApprove]);
-
+  // Single query for all acceptance data - no separate status query needed
+  const { data: questionnaireData, isLoading: isLoadingQuestionnaire } = useQuestionnaire(taskId ?? '');
+  
+  // Derive status from questionnaire data
+  const status = deriveQuestionnaireStatus(questionnaireData);
+  
   const isApproved = task?.acceptanceApproved;
 
   const handleApprove = async () => {
@@ -135,17 +107,10 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
     }
   }, [workflowState, viewMode]);
 
-  // Only show loading if task doesn't exist
-  if (!task) {
-    console.log('No task - showing loading');
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-500"></div>
-      </div>
-    );
+  // Show skeleton while loading initial data
+  if (!task || isLoadingQuestionnaire) {
+    return <AcceptanceTabSkeleton />;
   }
-
-  console.log('Rendering AcceptanceTab content');
 
   return (
     <div className="p-6 bg-forvis-gray-50 min-h-screen">
@@ -162,25 +127,20 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
               </p>
             </div>
             
-            {isLoadingStatus ? (
-              <div className="flex items-center space-x-2 px-4 py-2 bg-forvis-gray-100 border-2 border-forvis-gray-300 rounded-lg">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-forvis-blue-500"></div>
-                <span className="text-sm font-semibold text-forvis-gray-700">Loading...</span>
-              </div>
-            ) : isApproved ? (
+            {isApproved ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 border-2 border-green-200 rounded-lg">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-sm font-semibold text-green-700">Approved</span>
               </div>
-            ) : status?.completed ? (
+            ) : status.completed ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg">
                 <FileCheck className="h-5 w-5 text-blue-600" />
                 <span className="text-sm font-semibold text-blue-700">Submitted</span>
               </div>
-            ) : status?.exists ? (
+            ) : status.exists ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
                 <Clock className="h-5 w-5 text-yellow-600" />
-                <span className="text-sm font-semibold text-yellow-700">In Progress ({status?.completionPercentage || 0}%)</span>
+                <span className="text-sm font-semibold text-yellow-700">In Progress ({status.completionPercentage || 0}%)</span>
               </div>
             ) : (
               <div className="flex items-center space-x-2 px-4 py-2 bg-forvis-gray-100 border-2 border-forvis-gray-300 rounded-lg">
@@ -276,7 +236,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
                       </h3>
                       <p className="text-sm text-blue-700">
                         Your questionnaire has been submitted for review by a Partner or System Administrator.
-                        {status?.riskRating && (
+                        {status.riskRating && (
                           <span className="block mt-2 font-semibold">
                             Risk Rating: {status.riskRating} ({status.overallRiskScore}%)
                           </span>
@@ -334,7 +294,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
                           </dd>
                         </div>
                       )}
-                      {status?.riskRating && (
+                      {status.riskRating && (
                         <div>
                           <dt className="text-sm font-medium text-green-800 inline">Final Risk Rating: </dt>
                           <dd className="text-sm text-green-700 inline">

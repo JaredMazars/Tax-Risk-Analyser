@@ -415,4 +415,68 @@ export function calculateAllocationPercentage(
   return Math.round((allocatedHours / totalAvailableHours) * 100);
 }
 
+/**
+ * Calculate daily utilization percentage for a specific date across all resources
+ * @param date - The date to calculate utilization for
+ * @param resources - Array of all visible resources with their allocations
+ * @returns Utilization percentage (0-100+)
+ */
+export function calculateDailyUtilization(
+  date: Date,
+  resources: Array<{ allocations: AllocationData[] }>
+): number {
+  if (!resources || resources.length === 0) return 0;
+  
+  // Normalize the target date to start of day for comparison
+  const targetDate = startOfDay(date);
+  
+  // Calculate total hours allocated on this date across all resources
+  const totalHours = resources.reduce((sum, resource) => {
+    // Find allocations that include this date
+    const dayAllocations = resource.allocations.filter(allocation => {
+      if (!allocation.startDate || !allocation.endDate) return false;
+      
+      const allocStart = startOfDay(new Date(allocation.startDate));
+      const allocEnd = startOfDay(new Date(allocation.endDate));
+      
+      // Check if target date falls within allocation period (inclusive)
+      return targetDate >= allocStart && targetDate <= allocEnd;
+    });
+    
+    // Sum up the percentage allocations for this resource on this day
+    // Each allocation contributes (8 hours * percentage / 100)
+    const dailyPercentage = dayAllocations.reduce((pct, alloc) => {
+      return pct + (alloc.allocatedPercentage || 0);
+    }, 0);
+    
+    const dailyHours = (8 * dailyPercentage) / 100;
+    return sum + dailyHours;
+  }, 0);
+  
+  // Calculate utilization: (total hours worked / total available hours) * 100
+  // Total available hours = number of resources * 8 hours per day
+  const totalAvailableHours = resources.length * 8;
+  const utilizationPercentage = (totalHours / totalAvailableHours) * 100;
+  
+  return utilizationPercentage;
+}
+
+/**
+ * Get color gradient for utilization visualization
+ * @param utilizationPercentage - Utilization percentage (0-100+)
+ * @returns CSS linear-gradient string
+ */
+export function getUtilizationColor(utilizationPercentage: number): string {
+  if (utilizationPercentage < 80) {
+    // Under capacity: Stronger green gradient (bottom to top)
+    return 'linear-gradient(0deg, #C3E6CB 0%, #D4EDDA 100%)';
+  } else if (utilizationPercentage <= 100) {
+    // At capacity: Stronger yellow/amber gradient (bottom to top)
+    return 'linear-gradient(0deg, #FFE69C 0%, #FFF3CD 100%)';
+  } else {
+    // Over capacity: Stronger red gradient (bottom to top)
+    return 'linear-gradient(0deg, #F5C2C7 0%, #F8D7DA 100%)';
+  }
+}
+
 
