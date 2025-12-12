@@ -143,11 +143,13 @@ export async function POST(
     });
 
     // Don't create duplicate stage entries if stage hasn't changed
+    // BUT: Allow the request to succeed (idempotent) rather than returning an error
+    // This prevents issues when the UI cache is out of sync with the database
     if (currentStage && currentStage.stage === stage) {
-      return NextResponse.json(
-        { error: 'Task is already in this stage' },
-        { status: 400 }
-      );
+      return NextResponse.json(successResponse({
+        stage: currentStage,
+        message: 'Task already in this stage',
+      }));
     }
 
     // Create new stage entry
@@ -171,6 +173,10 @@ export async function POST(
     await cache.invalidate(`${CACHE_PREFIXES.TASK}stage:${taskId}`);
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
     await invalidateTaskListCache(taskId);
+    
+    // Invalidate ALL Kanban board caches since task moved between stages
+    // The invalidate method uses pattern matching, so this will match all keys containing "kanban"
+    await cache.invalidate(`${CACHE_PREFIXES.TASK}kanban`);
 
     return NextResponse.json(successResponse({
       stage: newStage,

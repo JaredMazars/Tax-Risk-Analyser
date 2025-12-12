@@ -15,7 +15,6 @@ export function KanbanFilters({ filters, onFiltersChange, teamMembers }: KanbanF
 
   const handleToggleArchived = () => {
     const newValue = !filters.includeArchived;
-    console.log('Toggle includeArchived:', newValue);
     onFiltersChange({ ...filters, includeArchived: newValue });
   };
 
@@ -113,6 +112,7 @@ export function KanbanFilters({ filters, onFiltersChange, teamMembers }: KanbanF
     </div>
   );
 }
+
 
 
 

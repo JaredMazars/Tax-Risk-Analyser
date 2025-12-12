@@ -23,8 +23,6 @@ export interface KanbanTask {
     name: string | null;
     email: string;
   }[];
-  allocatedHours: number;
-  actualHours: number;
   userRole: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -35,8 +33,6 @@ export interface KanbanColumn {
   tasks: KanbanTask[];
   metrics: {
     count: number;
-    totalBudgetHours: number;
-    totalActualHours: number;
   };
 }
 
@@ -90,10 +86,9 @@ export interface KanbanFiltersProps {
 export interface KanbanMetricsProps {
   metrics: {
     count: number;
-    totalBudgetHours: number;
-    totalActualHours: number;
   };
 }
+
 
 
 

@@ -2,7 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Clock, Users, Calendar, Folder } from 'lucide-react';
+import { Users, Calendar, Folder } from 'lucide-react';
 import { KanbanCardProps } from './types';
 import { formatDate } from '@/lib/utils/taskUtils';
 
@@ -32,12 +32,6 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
       onClick();
     }
   };
-
-  const hoursPercentage = task.allocatedHours > 0
-    ? Math.min((task.actualHours / task.allocatedHours) * 100, 100)
-    : 0;
-
-  const isOverBudget = task.actualHours > task.allocatedHours;
 
   return (
     <div
@@ -140,29 +134,6 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
         </div>
       )}
 
-      {/* Hours Progress */}
-      {(task.allocatedHours > 0 || task.actualHours > 0) && (
-        <div className="mt-3 pt-3 border-t border-forvis-gray-200">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
-              <Clock className="h-3 w-3" />
-              <span>Hours</span>
-            </div>
-            <span className={`text-xs font-medium ${isOverBudget ? 'text-red-600' : 'text-forvis-gray-900'}`}>
-              {task.actualHours.toFixed(1)} / {task.allocatedHours.toFixed(1)}h
-            </span>
-          </div>
-          <div className="w-full bg-forvis-gray-200 rounded-full h-1.5 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                isOverBudget ? 'bg-red-500' : 'bg-forvis-blue-600'
-              }`}
-              style={{ width: `${hoursPercentage}%` }}
-            />
-          </div>
-        </div>
-      )}
-
       {/* User Role Badge (if user is on team) */}
       {task.userRole && displayMode === 'detailed' && (
         <div className="mt-2">
@@ -174,6 +145,7 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
     </div>
   );
 }
+
 
 
 

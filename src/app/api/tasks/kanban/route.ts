@@ -133,8 +133,6 @@ export async function GET(request: NextRequest) {
           select: {
             userId: true,
             role: true,
-            allocatedHours: true,
-            actualHours: true,
             User: {
               select: {
                 id: true,
@@ -172,9 +170,6 @@ export async function GET(request: NextRequest) {
     // Only add ARCHIVED stage if includeArchived is true
     if (includeArchived) {
       stages.push(TaskStage.ARCHIVED);
-      console.log('API: Including ARCHIVED stage - total stages:', stages.length);
-    } else {
-      console.log('API: Not including ARCHIVED stage - total stages:', stages.length);
     }
 
     const columns = stages.map(stage => {
@@ -205,15 +200,6 @@ export async function GET(request: NextRequest) {
           
           const userRole = task.TaskTeam.find(member => member.userId === user.id)?.role || null;
 
-          // Calculate total allocated and actual hours
-          const totalAllocatedHours = task.TaskTeam.reduce((sum, member) => {
-            return sum + (member.allocatedHours ? Number(member.allocatedHours) : 0);
-          }, 0);
-
-          const totalActualHours = task.TaskTeam.reduce((sum, member) => {
-            return sum + (member.actualHours ? Number(member.actualHours) : 0);
-          }, 0);
-
           return {
             id: task.id,
             name: task.TaskDesc,
@@ -237,8 +223,6 @@ export async function GET(request: NextRequest) {
               name: member.User.name,
               email: member.User.email,
             })),
-            allocatedHours: totalAllocatedHours,
-            actualHours: totalActualHours,
             userRole,
             createdAt: task.createdAt,
             updatedAt: task.updatedAt,
@@ -247,8 +231,6 @@ export async function GET(request: NextRequest) {
 
       // Calculate metrics for this column
       const count = stageTasks.length;
-      const totalBudgetHours = stageTasks.reduce((sum, task) => sum + task.allocatedHours, 0);
-      const totalActualHours = stageTasks.reduce((sum, task) => sum + task.actualHours, 0);
 
       return {
         stage,
@@ -257,8 +239,6 @@ export async function GET(request: NextRequest) {
         tasks: stageTasks,
         metrics: {
           count,
-          totalBudgetHours,
-          totalActualHours,
         },
       };
     });
@@ -268,8 +248,8 @@ export async function GET(request: NextRequest) {
       totalTasks: tasks.length,
     };
 
-    // Cache for 10 minutes
-    await cache.set(cacheKey, response, 600);
+    // Cache for 30 seconds (reduced from 10 minutes for fresher data)
+    await cache.set(cacheKey, response, 30);
 
     return NextResponse.json(successResponse(response));
   } catch (error) {

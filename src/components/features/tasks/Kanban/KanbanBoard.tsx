@@ -50,7 +50,7 @@ export function KanbanBoard({
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // Fetch Kanban data
-  const { data, isLoading, error, refetch } = useKanbanBoard({
+  const { data, isLoading, isFetching, error, refetch } = useKanbanBoard({
     serviceLine,
     subServiceLineGroup,
     myTasksOnly,
@@ -59,14 +59,12 @@ export function KanbanBoard({
     includeArchived: filters.includeArchived, // Query will refetch when this changes
   });
 
-  // Debug: Log when includeArchived changes
+  // #region agent log
   useEffect(() => {
-    console.log('Kanban Board - includeArchived:', filters.includeArchived);
-    console.log('Kanban Board - columns count:', data?.columns.length || 0);
-    if (data?.columns) {
-      console.log('Kanban Board - stages:', data.columns.map(c => c.stage));
-    }
-  }, [filters.includeArchived, data?.columns]);
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KanbanBoard.tsx:60',message:'Loading states changed',data:{isLoading,isFetching,hasData:!!data,dataColumnsCount:data?.columns?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,C'})}).catch(()=>{});
+  }, [isLoading, isFetching, data]);
+  // #endregion
+
 
   // Check for taskModal URL parameter and open modal if present
   useEffect(() => {
@@ -80,13 +78,19 @@ export function KanbanBoard({
   // Update task stage mutation
   const updateStageMutation = useUpdateTaskStage();
 
-  // Check if user can drag (has EDITOR role or higher on at least one task)
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KanbanBoard.tsx:84',message:'Mutation state changed',data:{isPending:updateStageMutation.isPending,isSuccess:updateStageMutation.isSuccess,isError:updateStageMutation.isError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+  }, [updateStageMutation.isPending, updateStageMutation.isSuccess, updateStageMutation.isError]);
+  // #endregion
+
+  // Check if user can drag (has EDITOR, REVIEWER role or higher on at least one task)
   const canDrag = useMemo(() => {
     if (!data?.columns) return false;
     
     return data.columns.some(column =>
       column.tasks.some(task => 
-        task.userRole && ['ADMIN', 'EDITOR'].includes(task.userRole)
+        task.userRole && ['ADMIN', 'REVIEWER', 'EDITOR'].includes(task.userRole)
       )
     );
   }, [data]);
@@ -160,30 +164,26 @@ export function KanbanBoard({
       .flatMap(col => col.tasks)
       .find(t => t.id === taskId);
 
-    if (!task) return;
-
-    // Check if stage actually changed
-    if (task.stage === newStage) return;
-
-    // Check if user has permission to move this task
-    if (!task.userRole || !['ADMIN', 'EDITOR'].includes(task.userRole)) {
+    if (!task) {
       return;
     }
 
+    // Check if stage actually changed
+    if (task.stage === newStage) {
+      return;
+    }
+
+    // Check if user has permission to move this task
+    // ADMIN, REVIEWER, and EDITOR can all move tasks
+    if (!task.userRole || !['ADMIN', 'REVIEWER', 'EDITOR'].includes(task.userRole)) {
+      return;
+    }
+
+    const mutationParams = { taskId, stage: newStage };
+
     // Update the task stage
-    updateStageMutation.mutate(
-      { taskId, stage: newStage },
-      {
-        onSuccess: () => {
-          // Refetch to get updated data
-          refetch();
-        },
-        onError: (error) => {
-          console.error('Failed to update task stage:', error);
-          // Optionally show error toast
-        },
-      }
-    );
+    // Note: Mutation hook handles invalidation automatically, no need for manual refetch
+    updateStageMutation.mutate(mutationParams);
   };
 
   const toggleColumnCollapse = (stage: string) => {
@@ -228,6 +228,9 @@ export function KanbanBoard({
   };
 
   if (isLoading) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KanbanBoard.tsx:285',message:'SPINNER SHOWN - isLoading=true',data:{isLoading,isFetching,hasData:!!data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     return (
       <div className="flex items-center justify-center py-12">
         <LoadingSpinner size="lg" />

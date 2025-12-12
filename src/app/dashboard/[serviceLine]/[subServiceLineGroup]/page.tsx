@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   Search,
   Building2,
@@ -36,6 +37,7 @@ import { KanbanBoard } from '@/components/features/tasks/Kanban';
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params.subServiceLineGroup as string;
   const { setCurrentServiceLine } = useServiceLine();
@@ -95,6 +97,16 @@ export default function SubServiceLineWorkspacePage() {
       localStorage.setItem(storageKey, mode);
     }
   };
+
+  // Invalidate kanban queries when switching between tasks and my-tasks tabs in kanban mode
+  useEffect(() => {
+    if (taskViewMode === 'kanban' && (activeTab === 'tasks' || activeTab === 'my-tasks')) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:109',message:'Tab switch - invalidating kanban queries',data:{activeTab,taskViewMode},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
+      // #endregion
+      queryClient.invalidateQueries({ queryKey: ['kanban'] });
+    }
+  }, [activeTab, taskViewMode, queryClient]);
 
   // Fetch ALL clients (not filtered by SubServiceLineGroup)
   // Prefetch immediately for faster tab switching
@@ -180,6 +192,16 @@ export default function SubServiceLineWorkspacePage() {
   const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : activeTab === 'planner' ? isLoadingPlannerUsers : false;
   const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
   
+  // #region agent log
+  // Log overlay display state for verification (after isFetching is declared)
+  useEffect(() => {
+    const shouldShowOverlay = isFetching && !isLoading && taskViewMode !== 'kanban';
+    if (isFetching && !isLoading) {
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:200',message:'Overlay condition check',data:{isFetching,isLoading,taskViewMode,shouldShowOverlay,wouldHaveShownBefore:isFetching&&!isLoading,activeTab},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix'})}).catch(()=>{});
+    }
+  }, [isFetching, isLoading, taskViewMode, activeTab]);
+  // #endregion
+
   // Map ServiceLineRole to TaskRole for GanttTimeline display
   const mapServiceLineRoleToTaskRole = (serviceLineRole: string): TaskRole => {
     switch (serviceLineRole) {
@@ -395,8 +417,8 @@ export default function SubServiceLineWorkspacePage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50 relative">
-      {/* Loading overlay for tab switches */}
-      {isFetching && !isLoading && (
+      {/* Loading overlay for tab switches - don't show in Kanban mode (KanbanBoard handles its own loading) */}
+      {isFetching && !isLoading && taskViewMode !== 'kanban' && (
         <div className="fixed inset-0 bg-white bg-opacity-90 z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 shadow-corporate-lg">
             <LoadingSpinner size="lg" className="mx-auto" />
