@@ -6,6 +6,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { sanitizeObject } from '@/lib/utils/sanitization';
 import { toTaskId } from '@/types/branded';
+import { calculateBusinessDays } from '@/lib/utils/dateUtils';
 import { z } from 'zod';
 
 const allocationUpdateSchema = z.object({
@@ -70,7 +71,11 @@ export async function PUT(
       select: {
         id: true,
         taskId: true,
-        userId: true
+        userId: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        startDate: true,
+        endDate: true
       }
     });
 
@@ -81,7 +86,39 @@ export async function PUT(
       );
     }
 
-    // 7. Update allocation
+    // 7. Auto-calculate percentage if dates are changing but percentage is not provided
+    let calculatedData: { allocatedPercentage?: number } = {};
+    
+    if ((validatedData.startDate || validatedData.endDate) && 
+        validatedData.allocatedPercentage === undefined) {
+      
+      // Determine final dates
+      const finalStartDate = validatedData.startDate 
+        ? new Date(validatedData.startDate) 
+        : teamMember.startDate;
+      const finalEndDate = validatedData.endDate 
+        ? new Date(validatedData.endDate) 
+        : teamMember.endDate;
+      
+      // Determine allocated hours (use new value if provided, otherwise use existing)
+      const allocatedHours = validatedData.allocatedHours !== undefined
+        ? validatedData.allocatedHours
+        : (teamMember.allocatedHours ? parseFloat(teamMember.allocatedHours.toString()) : null);
+      
+      // Calculate new percentage if we have all required data
+      if (finalStartDate && finalEndDate && allocatedHours) {
+        const businessDays = calculateBusinessDays(finalStartDate, finalEndDate);
+        const availableHours = businessDays * 8;
+        
+        const newPercentage = availableHours > 0 
+          ? Math.round((allocatedHours / availableHours) * 100) 
+          : 0;
+        
+        calculatedData = { allocatedPercentage: newPercentage };
+      }
+    }
+
+    // 8. Update allocation
     const updated = await prisma.taskTeam.update({
       where: { id: teamMemberId },
       data: {
@@ -89,6 +126,7 @@ export async function PUT(
         ...(validatedData.endDate && { endDate: new Date(validatedData.endDate) }),
         ...(validatedData.allocatedHours !== undefined && { allocatedHours: validatedData.allocatedHours }),
         ...(validatedData.allocatedPercentage !== undefined && { allocatedPercentage: validatedData.allocatedPercentage }),
+        ...calculatedData, // Include auto-calculated percentage
         ...(validatedData.actualHours !== undefined && { actualHours: validatedData.actualHours }),
         ...(validatedData.role && { role: validatedData.role })
       },

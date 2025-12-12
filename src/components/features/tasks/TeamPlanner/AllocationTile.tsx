@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { AllocationData, GanttPosition, TimeScale, RowMetadata } from './types';
-import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays, calculateBusinessDays, calculateAvailableHours } from './utils';
+import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays, calculateBusinessDays, calculateAvailableHours, getUtilizationBlendColor } from './utils';
 import { debounce } from './optimizations';
 import { format, addDays, startOfDay } from 'date-fns';
 
@@ -364,6 +364,9 @@ export function AllocationTile({
     ? (isDragging || isResizing ? 'cursor-grabbing z-20' : 'cursor-grab hover:z-[5]')
     : 'cursor-default hover:z-[5]';
 
+  // Calculate utilization percentage for the fill
+  const utilizationPercentage = allocation.allocatedPercentage || 0;
+
   return (
     <div
       ref={tileRef}
@@ -375,7 +378,6 @@ export function AllocationTile({
         height: `${tileHeight}px`,
         left: `${livePosition.left}px`,
         width: `${livePosition.width}px`,
-        background: gradient,
         minWidth: `${Math.max(dayPixelWidth, 20)}px`, // Dynamic minimum: at least 1 day width or 20px
         pointerEvents: 'auto', // Allow clicks on tiles even though container has pointer-events: none
         // No transition - instant snapping for responsive feel
@@ -399,44 +401,65 @@ export function AllocationTile({
       onMouseEnter={handleMouseEnter}
       onMouseMove={handleTooltipMouseMove}
       onMouseLeave={handleMouseLeave}
+      title={utilizationPercentage > 0 ? `${utilizationPercentage}% allocated` : undefined}
     >
+      {/* Base tile background (Darker Forvis Mazars gold) */}
+      <div 
+        className="absolute inset-0 rounded-lg"
+        style={{ 
+          background: 'linear-gradient(135deg, #B0A488 0%, #8B7E66 100%)'
+        }}
+      />
+      
+      {/* Utilization fill layer (bottom-to-top, solid subtle colors) */}
+      {utilizationPercentage > 0 && (
+        <div 
+          className="absolute bottom-0 left-0 right-0 rounded-lg"
+          style={{
+            height: `${Math.min(utilizationPercentage, 100)}%`,
+            background: getUtilizationBlendColor(gradient, utilizationPercentage),
+            transition: 'height 0.2s ease-in-out'
+          }}
+        />
+      )}
+
       {/* Content - Progressive reveal from left to right */}
-      <div className="px-1.5 h-full flex items-center relative overflow-hidden">
+      <div className="px-1.5 h-full flex items-center relative z-10 overflow-hidden">
         <div className="flex items-center gap-1.5 min-w-0 w-full">
-          {/* Client Name - Always visible, left-most priority, never truncates */}
-          {allocation.clientName && (
-            <>
-              <div className="text-white text-[9px] opacity-90 font-medium whitespace-nowrap flex-shrink-0">
-                {allocation.clientName}
-              </div>
-              <div className="text-white text-[9px] opacity-60 flex-shrink-0">•</div>
-            </>
-          )}
-          
-          {/* Task Name - Always visible, can truncate if needed */}
-          <div className="text-white text-[10px] font-semibold truncate min-w-0 flex-1">
-            {allocation.taskName}
-          </div>
-          
-          {/* Hours/Percentage - Only shows when tile is wide enough (>150px) */}
+          {/* Hours/Percentage - Shows first when tile is wide enough (>150px) */}
           {livePosition.width > 150 && (allocation.allocatedHours || allocation.allocatedPercentage) && (
             <>
-              <div className="text-white text-[9px] opacity-60 flex-shrink-0">•</div>
-              <div className="text-white text-[9px] opacity-80 whitespace-nowrap flex-shrink-0">
+              <div className="text-forvis-gray-800 text-[9px] whitespace-nowrap flex-shrink-0">
                 {allocation.allocatedHours 
                   ? formatHours(allocation.allocatedHours) 
                   : allocation.allocatedPercentage 
                     ? formatPercentage(allocation.allocatedPercentage) 
                     : ''}
               </div>
+              <div className="text-forvis-gray-700 text-[9px] flex-shrink-0">•</div>
             </>
           )}
+          
+          {/* Client Name - Always visible, never truncates */}
+          {allocation.clientName && (
+            <>
+              <div className="text-forvis-gray-900 text-[9px] font-medium whitespace-nowrap flex-shrink-0">
+                {allocation.clientName}
+              </div>
+              <div className="text-forvis-gray-700 text-[9px] flex-shrink-0">•</div>
+            </>
+          )}
+          
+          {/* Task Name - Always visible, can truncate if needed */}
+          <div className="text-forvis-gray-900 text-[10px] font-semibold truncate min-w-0 flex-1">
+            {allocation.taskName}
+          </div>
         </div>
       </div>
         
       {/* Progress bar */}
       {progress > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black bg-opacity-20">
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black bg-opacity-20 z-10">
           <div 
             className="h-full bg-white bg-opacity-50"
             style={{ width: `${progress}%` }}
@@ -448,12 +471,12 @@ export function AllocationTile({
       {isEditable && isDraggable && livePosition.width >= dayPixelWidth && !isDragging && !isResizing && (
         <>
           <div 
-            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white hover:bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white hover:bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity z-10"
             onMouseDown={(e) => handleMouseDown(e, 'resize-left')}
             onClick={(e) => e.stopPropagation()}
           />
           <div 
-            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white hover:bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white hover:bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity z-10"
             onMouseDown={(e) => handleMouseDown(e, 'resize-right')}
             onClick={(e) => e.stopPropagation()}
           />

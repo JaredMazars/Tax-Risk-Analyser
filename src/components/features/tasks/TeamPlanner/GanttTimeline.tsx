@@ -6,7 +6,7 @@ import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
 import { AllocationModal } from './AllocationModal';
 import { AdminPlanningModal } from './AdminPlanningModal';
-import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth, assignLanes, calculateMaxLanes } from './utils';
+import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth, assignLanes, calculateMaxLanes, calculateBusinessDays } from './utils';
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
@@ -629,12 +629,40 @@ export function GanttTimeline({
   }, [selectedUserId, onAllocationUpdate]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
+    // Find the original allocation to get allocatedHours (before any optimistic updates)
+    let originalAllocatedHours: number | null = null;
+    
+    // Search in teamMembers (original data) not resources (which has optimistic updates)
+    for (const member of teamMembers) {
+      if ((member as any).allocations?.length > 0) {
+        const allocation = (member as any).allocations.find((a: any) => a.id === allocationId);
+        if (allocation) {
+          originalAllocatedHours = allocation.allocatedHours ? parseFloat(allocation.allocatedHours.toString()) : null;
+          break;
+        }
+      } else if (member.id === allocationId) {
+        originalAllocatedHours = member.allocatedHours ? parseFloat(member.allocatedHours.toString()) : null;
+        break;
+      }
+    }
+    
+    // Calculate new percentage based on NEW dates and ORIGINAL hours
+    let allocatedPercentage: number | null = null;
+    if (originalAllocatedHours) {
+      const businessDays = calculateBusinessDays(startDate, endDate);
+      const availableHours = businessDays * 8;
+      allocatedPercentage = availableHours > 0 
+        ? Math.round((originalAllocatedHours / availableHours) * 100) 
+        : 0;
+    }
+    
     // Apply optimistic update immediately for instant UI feedback
     setOptimisticUpdates(prev => {
       const newMap = new Map(prev);
       newMap.set(allocationId, {
         startDate: startOfDay(startDate),
-        endDate: startOfDay(endDate)
+        endDate: startOfDay(endDate),
+        ...(allocatedPercentage !== null && { allocatedPercentage })
       });
       return newMap;
     });
