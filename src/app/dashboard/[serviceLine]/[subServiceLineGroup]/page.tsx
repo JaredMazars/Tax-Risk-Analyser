@@ -18,6 +18,7 @@ import {
   Kanban,
   Minimize2,
   Maximize2,
+  Filter,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -29,7 +30,7 @@ import { useClientGroups } from '@/hooks/clients/useClientGroups';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
-import { Button, LoadingSpinner, Card } from '@/components/ui';
+import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
 import { MyPlanningView } from '@/components/features/planning';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
@@ -37,6 +38,7 @@ import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner
 import { TaskRole, ServiceLineRole } from '@/types';
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
 import { KanbanFilters } from '@/components/features/tasks/Kanban/KanbanFilters';
+import { useClientPlannerFilters } from '@/hooks/planning/useClientPlannerFilters';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -79,11 +81,13 @@ export default function SubServiceLineWorkspacePage() {
   const [jobGradingFilter, setJobGradingFilter] = useState<string>('');
   const [officeFilter, setOfficeFilter] = useState<string>('');
   
-  // Client planner filters
+  // Client planner filters (array-based for multiselect)
   const [clientPlannerFilters, setClientPlannerFilters] = useState({
-    search: '',
-    group: '',
-    partner: ''
+    clients: [] as string[],
+    groups: [] as string[],
+    partners: [] as string[],
+    tasks: [] as string[],
+    managers: [] as string[]
   });
 
   // Fetch sub-service line groups to get the description
@@ -197,6 +201,16 @@ export default function SubServiceLineWorkspacePage() {
     serviceLine,
     subServiceLineGroup,
     enabled: activeTab === 'planner' && !!subServiceLineGroup && !!serviceLine
+  });
+
+  // Fetch client planner filter options
+  const { 
+    data: clientPlannerFilterOptions,
+    isLoading: isLoadingFilterOptions
+  } = useClientPlannerFilters({
+    serviceLine,
+    subServiceLineGroup,
+    enabled: activeTab === 'planner' && plannerView === 'clients' && !!subServiceLineGroup && !!serviceLine
   });
  
   // Fetch groups for the Groups tab
@@ -925,43 +939,101 @@ export default function SubServiceLineWorkspacePage() {
                 </div>
               </div>
               ) : (
-                /* Client Filters */
-                <div className="flex gap-4 items-center flex-wrap">
-                  <div className="relative flex-1 min-w-[300px]">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by client name or code..."
-                      value={clientPlannerFilters.search}
-                      onChange={(e) => setClientPlannerFilters(prev => ({ ...prev, search: e.target.value }))}
-                      className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                /* Client Planner Filters with MultiSelect */
+                <div className="space-y-4">
+                  {/* Filter instruction text */}
+                  <div className="text-sm text-forvis-gray-600">
+                    Use filters below to narrow down tasks by project, client, group, partner, or manager
+                  </div>
+                  
+                  {/* Filter Grid - 3 columns on desktop, 2 on tablet, 1 on mobile */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <MultiSelect
+                      options={clientPlannerFilterOptions?.tasks || []}
+                      value={clientPlannerFilters.tasks}
+                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, tasks: values as string[] }))}
+                      placeholder="All Projects"
+                      searchPlaceholder="Search projects..."
+                      label="Project / Task"
+                      disabled={isLoadingFilterOptions}
+                    />
+                    
+                    <MultiSelect
+                      options={clientPlannerFilterOptions?.clients || []}
+                      value={clientPlannerFilters.clients}
+                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, clients: values as string[] }))}
+                      placeholder="All Clients"
+                      searchPlaceholder="Search clients..."
+                      label="Client"
+                      disabled={isLoadingFilterOptions}
+                    />
+                    
+                    <MultiSelect
+                      options={clientPlannerFilterOptions?.groups || []}
+                      value={clientPlannerFilters.groups}
+                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, groups: values as string[] }))}
+                      placeholder="All Groups"
+                      searchPlaceholder="Search groups..."
+                      label="Client Group"
+                      disabled={isLoadingFilterOptions}
+                    />
+                    
+                    <MultiSelect
+                      options={clientPlannerFilterOptions?.partners || []}
+                      value={clientPlannerFilters.partners}
+                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, partners: values as string[] }))}
+                      placeholder="All Partners"
+                      searchPlaceholder="Search partners..."
+                      label="Task Partner"
+                      disabled={isLoadingFilterOptions}
+                    />
+                    
+                    <MultiSelect
+                      options={clientPlannerFilterOptions?.managers || []}
+                      value={clientPlannerFilters.managers}
+                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, managers: values as string[] }))}
+                      placeholder="All Managers"
+                      searchPlaceholder="Search managers..."
+                      label="Task Manager"
+                      disabled={isLoadingFilterOptions}
                     />
                   </div>
                   
-                  <input
-                    type="text"
-                    placeholder="Filter by group..."
-                    value={clientPlannerFilters.group}
-                    onChange={(e) => setClientPlannerFilters(prev => ({ ...prev, group: e.target.value }))}
-                    className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent min-w-[200px]"
-                  />
-                  
-                  <input
-                    type="text"
-                    placeholder="Filter by partner..."
-                    value={clientPlannerFilters.partner}
-                    onChange={(e) => setClientPlannerFilters(prev => ({ ...prev, partner: e.target.value }))}
-                    className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent min-w-[200px]"
-                  />
-                  
-                  {(clientPlannerFilters.search || clientPlannerFilters.group || clientPlannerFilters.partner) && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setClientPlannerFilters({ search: '', group: '', partner: '' })}
-                    >
-                      Clear Filters
-                    </Button>
+                  {/* Active Filters Summary + Clear All */}
+                  {(clientPlannerFilters.clients.length > 0 || 
+                    clientPlannerFilters.groups.length > 0 || 
+                    clientPlannerFilters.partners.length > 0 || 
+                    clientPlannerFilters.tasks.length > 0 || 
+                    clientPlannerFilters.managers.length > 0) && (
+                    <div className="flex items-center justify-between px-4 py-3 bg-forvis-blue-50 rounded-lg border border-forvis-blue-100">
+                      <div className="flex items-center gap-2 text-sm text-forvis-gray-700">
+                        <Filter className="h-4 w-4 text-forvis-blue-600" />
+                        <span className="font-medium">
+                          {clientPlannerFilters.clients.length + 
+                           clientPlannerFilters.groups.length + 
+                           clientPlannerFilters.partners.length + 
+                           clientPlannerFilters.tasks.length + 
+                           clientPlannerFilters.managers.length} filter{(clientPlannerFilters.clients.length + 
+                             clientPlannerFilters.groups.length + 
+                             clientPlannerFilters.partners.length + 
+                             clientPlannerFilters.tasks.length + 
+                             clientPlannerFilters.managers.length) !== 1 ? 's' : ''} active
+                        </span>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setClientPlannerFilters({ 
+                          clients: [], 
+                          groups: [], 
+                          partners: [], 
+                          tasks: [], 
+                          managers: [] 
+                        })}
+                      >
+                        Clear All Filters
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}

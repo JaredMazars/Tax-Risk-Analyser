@@ -4,9 +4,11 @@ import { TaskRole } from '@/types';
 interface UseClientPlannerOptions {
   serviceLine: string;
   subServiceLineGroup: string;
-  clientSearch?: string;
-  groupFilter?: string;
-  partnerFilter?: string;
+  clientCodes?: string[];
+  groupDescs?: string[];
+  partnerCodes?: string[];
+  taskCodes?: string[];
+  managerCodes?: string[];
   page?: number;
   limit?: number;
   enabled?: boolean;
@@ -33,6 +35,10 @@ export interface TaskPlannerRow {
   taskId: number;
   taskCode: string;
   taskName: string;
+  taskManager: string;
+  taskManagerName: string;
+  taskPartner: string;
+  taskPartnerName: string;
   clientId: number;
   clientCode: string;
   clientName: string;
@@ -60,26 +66,33 @@ export interface ClientPlannerResponse {
  * 
  * Performance optimizations:
  * - Server-side Redis caching (5min TTL)
- * - Conditional pagination (50 limit without filters, unlimited with filters)
+ * - Array-based filters with OR logic
  * - Increased staleTime to match server cache (5 min)
  */
 export function useClientPlanner({
   serviceLine,
   subServiceLineGroup,
-  clientSearch = '',
-  groupFilter = '',
-  partnerFilter = '',
+  clientCodes = [],
+  groupDescs = [],
+  partnerCodes = [],
+  taskCodes = [],
+  managerCodes = [],
   page = 1,
   limit = 50,
   enabled = true
 }: UseClientPlannerOptions) {
   return useQuery<ClientPlannerResponse>({
-    queryKey: ['planner', 'tasks', serviceLine, subServiceLineGroup, clientSearch, groupFilter, partnerFilter, page, limit],
+    queryKey: ['planner', 'tasks', serviceLine, subServiceLineGroup, clientCodes, groupDescs, partnerCodes, taskCodes, managerCodes, page, limit],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (clientSearch) params.set('clientSearch', clientSearch);
-      if (groupFilter) params.set('groupFilter', groupFilter);
-      if (partnerFilter) params.set('partnerFilter', partnerFilter);
+      
+      // Add array-based filters
+      clientCodes.forEach(code => params.append('clientCodes[]', code));
+      groupDescs.forEach(desc => params.append('groupDescs[]', desc));
+      partnerCodes.forEach(code => params.append('partnerCodes[]', code));
+      taskCodes.forEach(code => params.append('taskCodes[]', code));
+      managerCodes.forEach(code => params.append('managerCodes[]', code));
+      
       params.set('page', page.toString());
       params.set('limit', limit.toString());
 

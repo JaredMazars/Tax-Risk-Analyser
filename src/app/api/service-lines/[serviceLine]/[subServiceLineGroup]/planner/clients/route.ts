@@ -48,16 +48,18 @@ export async function GET(
       );
     }
 
-    // 4. Get search params for filtering and pagination
+    // 4. Get search params for filtering and pagination (array-based filters)
     const searchParams = request.nextUrl.searchParams;
-    const clientSearch = searchParams.get('clientSearch') || '';
-    const groupFilter = searchParams.get('groupFilter') || '';
-    const partnerFilter = searchParams.get('partnerFilter') || '';
+    const clientCodes = searchParams.getAll('clientCodes[]');
+    const groupDescs = searchParams.getAll('groupDescs[]');
+    const partnerCodes = searchParams.getAll('partnerCodes[]');
+    const taskCodes = searchParams.getAll('taskCodes[]');
+    const managerCodes = searchParams.getAll('managerCodes[]');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // 5. Build comprehensive cache key
-    const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${params.serviceLine}:${subServiceLineGroup}:${clientSearch}:${groupFilter}:${partnerFilter}:${page}:${limit}:user:${user.id}`;
+    // 5. Build comprehensive cache key with array filters
+    const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${params.serviceLine}:${subServiceLineGroup}:clients:${clientCodes.join(',') || 'all'}:groups:${groupDescs.join(',') || 'all'}:partners:${partnerCodes.join(',') || 'all'}:tasks:${taskCodes.join(',') || 'all'}:managers:${managerCodes.join(',') || 'all'}:${page}:${limit}:user:${user.id}`;
     
     // Try cache first
     const cached = await cache.get(cacheKey);
@@ -91,38 +93,43 @@ export async function GET(
       return NextResponse.json(successResponse(emptyResponse));
     }
 
-    // 7. Determine if filters are active (affects pagination behavior)
-    const hasFilters = !!(clientSearch || groupFilter || partnerFilter);
+    // 7. Determine if filters are active
+    const hasFilters = !!(clientCodes.length > 0 || groupDescs.length > 0 || partnerCodes.length > 0 || taskCodes.length > 0 || managerCodes.length > 0);
 
-    // 8. Build task where conditions with CLIENT FILTERS AT DATABASE LEVEL
+    // 8. Build task where conditions with ARRAY-BASED FILTERS AT DATABASE LEVEL
     const taskWhereConditions: any = {
       ServLineCode: { in: externalServLineCodes },
       GSClientID: { not: null }, // Only client tasks
       Active: 'Yes', // Only active tasks (exclude archived)
-      // Push client filters to database query for better performance
-      Client: {}
     };
 
-    // Add client filters to database query (not in-memory filtering)
-    // SQL Server handles case-insensitive by default based on collation
-    if (clientSearch) {
-      taskWhereConditions.Client.OR = [
-        { clientNameFull: { contains: clientSearch } },
-        { clientCode: { contains: clientSearch } }
-      ];
+    // Add client filters using IN operator for OR logic within each filter type
+    const clientFilters: any = {};
+    
+    if (clientCodes.length > 0) {
+      clientFilters.clientCode = { in: clientCodes };
     }
     
-    if (groupFilter) {
-      taskWhereConditions.Client.groupDesc = { contains: groupFilter };
+    if (groupDescs.length > 0) {
+      clientFilters.groupDesc = { in: groupDescs };
     }
     
-    if (partnerFilter) {
-      taskWhereConditions.Client.clientPartner = { contains: partnerFilter };
+    if (partnerCodes.length > 0) {
+      clientFilters.clientPartner = { in: partnerCodes };
     }
 
-    // Remove empty Client filter if no filters applied
-    if (Object.keys(taskWhereConditions.Client).length === 0) {
-      delete taskWhereConditions.Client;
+    // Apply client filters if any exist
+    if (Object.keys(clientFilters).length > 0) {
+      taskWhereConditions.Client = clientFilters;
+    }
+
+    // Add task-level filters
+    if (taskCodes.length > 0) {
+      taskWhereConditions.TaskCode = { in: taskCodes };
+    }
+    
+    if (managerCodes.length > 0) {
+      taskWhereConditions.TaskManager = { in: managerCodes };
     }
 
     // 9. Apply pagination (always paginate, even with filters)
@@ -137,6 +144,10 @@ export async function GET(
           id: true,
           TaskDesc: true,
           TaskCode: true,
+          TaskManager: true,
+          TaskManagerName: true,
+          TaskPartner: true,
+          TaskPartnerName: true,
           GSClientID: true,
           Client: {
             select: {
@@ -301,6 +312,10 @@ export async function GET(
           taskId: task.id,
           taskCode: task.TaskCode,
           taskName: task.TaskDesc,
+          taskManager: task.TaskManager,
+          taskManagerName: task.TaskManagerName,
+          taskPartner: task.TaskPartner,
+          taskPartnerName: task.TaskPartnerName,
           clientId: task.Client.id,
           clientCode: task.Client.clientCode,
           clientName: task.Client.clientNameFull || task.Client.clientCode,

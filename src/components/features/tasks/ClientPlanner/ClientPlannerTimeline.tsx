@@ -28,9 +28,11 @@ interface ClientPlannerTimelineProps {
   subServiceLineGroup: string;
   currentUserRole: TaskRole;
   filters: {
-    search: string;
-    group: string;
-    partner: string;
+    clients: string[];
+    groups: string[];
+    partners: string[];
+    tasks: string[];
+    managers: string[];
   };
 }
 
@@ -87,9 +89,11 @@ export function ClientPlannerTimeline({
   } = useClientPlanner({
     serviceLine,
     subServiceLineGroup,
-    clientSearch: filters.search,
-    groupFilter: filters.group,
-    partnerFilter: filters.partner,
+    clientCodes: filters.clients,
+    groupDescs: filters.groups,
+    partnerCodes: filters.partners,
+    taskCodes: filters.tasks,
+    managerCodes: filters.managers,
     page,
     limit,
     enabled: true
@@ -101,7 +105,7 @@ export function ClientPlannerTimeline({
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filters.search, filters.group, filters.partner]);
+  }, [filters.clients, filters.groups, filters.partners, filters.tasks, filters.managers]);
 
   // Process task data with optimistic updates and recalculate lanes
   // This matches TeamPlanner's approach of recalculating lanes when data changes
@@ -704,7 +708,7 @@ export function ClientPlannerTimeline({
                     {/* Content inline */}
                     <div className="flex-1 min-w-0 flex flex-col">
                       <div className="font-semibold text-forvis-gray-900 text-xs truncate">
-                        {row.clientName}
+                        {row.clientName} ({row.clientCode})
                       </div>
                       <div className="text-xs text-forvis-gray-600 truncate">
                         {row.taskName} ({row.taskCode})
