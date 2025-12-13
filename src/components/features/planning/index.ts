@@ -1,6 +1,8 @@
 export { MyPlanningView } from './MyPlanningView';
 export { MyPlanningTimelineView } from './MyPlanningTimelineView';
 export { MyPlanningList } from './MyPlanningList';
+export { EmployeePlannerList } from './EmployeePlannerList';
+export { ClientPlannerList } from './ClientPlannerList';
 
 
 

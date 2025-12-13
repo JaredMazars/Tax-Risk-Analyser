@@ -82,7 +82,7 @@ export function useClientPlanner({
   enabled = true
 }: UseClientPlannerOptions) {
   return useQuery<ClientPlannerResponse>({
-    queryKey: ['planner', 'tasks', serviceLine, subServiceLineGroup, clientCodes, groupDescs, partnerCodes, taskCodes, managerCodes, page, limit],
+    queryKey: ['planner', 'tasks', 'v2', serviceLine, subServiceLineGroup, clientCodes, groupDescs, partnerCodes, taskCodes, managerCodes, page, limit],
     queryFn: async () => {
       const params = new URLSearchParams();
       
@@ -95,6 +95,9 @@ export function useClientPlanner({
       
       params.set('page', page.toString());
       params.set('limit', limit.toString());
+      
+      // TEMPORARY: Force cache clear during debugging
+      params.set('clearCache', 'true');
 
       const response = await fetch(
         `/api/service-lines/${serviceLine}/${subServiceLineGroup}/planner/clients?${params.toString()}`

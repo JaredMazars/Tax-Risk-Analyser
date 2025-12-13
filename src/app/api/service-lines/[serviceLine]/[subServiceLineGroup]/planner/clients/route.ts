@@ -6,6 +6,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { startOfDay } from 'date-fns';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { mapUsersToEmployees } from '@/lib/services/employees/employeeService';
 
 /**
  * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/clients
@@ -61,10 +62,22 @@ export async function GET(
     // 5. Build comprehensive cache key with array filters
     const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${params.serviceLine}:${subServiceLineGroup}:clients:${clientCodes.join(',') || 'all'}:groups:${groupDescs.join(',') || 'all'}:partners:${partnerCodes.join(',') || 'all'}:tasks:${taskCodes.join(',') || 'all'}:managers:${managerCodes.join(',') || 'all'}:${page}:${limit}:user:${user.id}`;
     
+    // TEMPORARY: Clear stale cache during debugging
+    const clearCache = searchParams.get('clearCache');
+    if (clearCache === 'true') {
+      await cache.delete(cacheKey);
+    }
+    
     // Try cache first
     const cached = await cache.get(cacheKey);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:65',message:'Cache check',data:{cacheHit:!!cached,cacheKey:cacheKey.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
     if (cached) {
       console.log(`[PERF] Client planner cache hit in ${Date.now() - perfStart}ms`);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:70',message:'Returning cached data',data:{cachedTasksCount:cached?.tasks?.length || 0,firstTaskHasAllocations:cached?.tasks?.[0]?.allocations?.length > 0,firstTaskAllocCount:cached?.tasks?.[0]?.allocations?.length || 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
       return NextResponse.json(successResponse(cached));
     }
 
@@ -135,11 +148,43 @@ export async function GET(
     // 9. Apply pagination (always paginate, even with filters)
     const offset = (page - 1) * limit;
 
-    // 10. Fetch tasks with pagination - Use Promise.all for parallel queries
+    // 10. First, find which tasks have allocations (TaskTeam members)
+    // This ensures we only return tasks that have something to show in the list view
+    const tasksWithAllocationsQuery = await prisma.taskTeam.findMany({
+      where: {
+        startDate: { not: null },
+        endDate: { not: null },
+        Task: taskWhereConditions
+      },
+      select: {
+        taskId: true
+      },
+      distinct: ['taskId']
+    });
+    
+    const taskIdsWithAllocations = tasksWithAllocationsQuery.map(t => t.taskId);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:162',message:'Tasks with allocations found',data:{taskIdsWithAllocationsCount:taskIdsWithAllocations.length,firstThree:taskIdsWithAllocations.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
+    
+    if (taskIdsWithAllocations.length === 0) {
+      const emptyResponse = { 
+        tasks: [], 
+        pagination: { page, limit, total: 0, totalPages: 0, hasMore: false } 
+      };
+      await cache.set(cacheKey, emptyResponse, 300);
+      return NextResponse.json(successResponse(emptyResponse));
+    }
+    
+    // 11. Now fetch only those tasks that have allocations
     const queryStart = Date.now();
     const [tasks, totalCount] = await Promise.all([
       prisma.task.findMany({
-        where: taskWhereConditions,
+        where: {
+          ...taskWhereConditions,
+          id: { in: taskIdsWithAllocations }
+        },
         select: {
           id: true,
           TaskDesc: true,
@@ -167,16 +212,21 @@ export async function GET(
         take: limit,
         skip: offset
       }),
-      // Get total count for pagination
-      prisma.task.count({ where: taskWhereConditions })
+      // Get total count for pagination (only tasks with allocations)
+      prisma.task.count({ 
+        where: {
+          ...taskWhereConditions,
+          id: { in: taskIdsWithAllocations }
+        }
+      })
     ]);
 
-    console.log(`[PERF] Task query completed in ${Date.now() - queryStart}ms (${tasks.length} tasks fetched, ${totalCount} total)`);
+    console.log(`[PERF] Task query completed in ${Date.now() - queryStart}ms (${tasks.length} tasks fetched, ${totalCount} total with allocations)`);
 
-    // 11. Tasks are already filtered by database, no need for in-memory filtering
+    // 12. Tasks are already filtered by database, no need for in-memory filtering
     const filteredTasks = tasks;
 
-    // 12. Fetch TaskTeam data for filtered tasks
+    // 13. Fetch TaskTeam data for filtered tasks
     const taskIds = filteredTasks.map(t => t.id);
     
     if (taskIds.length === 0) {
@@ -195,6 +245,10 @@ export async function GET(
     }
 
     const dataFetchStart = Date.now();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:198',message:'Before TaskTeam query',data:{taskIdsCount:taskIds.length,firstThreeTaskIds:taskIds.slice(0,3),taskIdsType:typeof taskIds[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    
     const taskTeamMembers = await prisma.taskTeam.findMany({
       where: {
         taskId: { in: taskIds },
@@ -221,50 +275,21 @@ export async function GET(
         }
       }
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:224',message:'After TaskTeam query',data:{taskTeamMembersCount:taskTeamMembers.length,firstThreeMembersTaskIds:taskTeamMembers.slice(0,3).map(m => m.taskId)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
 
     console.log(`[PERF] TaskTeam fetch completed in ${Date.now() - dataFetchStart}ms (${taskTeamMembers.length} allocations)`);
 
-    // 13. Get user IDs and fetch Employee data
+    // 14. Get user IDs and fetch Employee data using shared service
     const userIds = [...new Set(taskTeamMembers.map(member => member.userId))];
-    
     const employeeFetchStart = Date.now();
-    const employees = userIds.length > 0 ? await prisma.employee.findMany({
-      where: {
-        OR: [
-          { WinLogon: { in: userIds } },
-          // Also try email prefixes
-          ...userIds.map(userId => ({
-            WinLogon: { startsWith: `${userId}@` }
-          }))
-        ]
-      },
-      select: {
-        id: true,
-        GSEmployeeID: true,
-        EmpCode: true,
-        EmpNameFull: true,
-        EmpCatCode: true,
-        OfficeCode: true,
-        WinLogon: true
-      }
-    }) : [];
+    
+    const employeeMap = await mapUsersToEmployees(userIds);
 
-    console.log(`[PERF] Employee fetch completed in ${Date.now() - employeeFetchStart}ms (${employees.length} employees)`);
+    console.log(`[PERF] Employee fetch completed in ${Date.now() - employeeFetchStart}ms (${employeeMap.size} employees)`);
 
-    // 14. Build employee lookup map
-    const employeeMap = new Map<string, typeof employees[0]>();
-    employees.forEach(emp => {
-      if (emp.WinLogon) {
-        const lowerLogon = emp.WinLogon.toLowerCase();
-        const prefix = lowerLogon.split('@')[0];
-        employeeMap.set(lowerLogon, emp);
-        if (prefix) {
-          employeeMap.set(prefix, emp);
-        }
-      }
-    });
-
-    // 15. Group TaskTeam by taskId for easy lookup
+    // 16. Group TaskTeam by taskId for easy lookup
     const taskTeamMap = new Map<number, typeof taskTeamMembers>();
     taskTeamMembers.forEach(member => {
       if (!taskTeamMap.has(member.taskId)) {
@@ -273,7 +298,7 @@ export async function GET(
       taskTeamMap.get(member.taskId)!.push(member);
     });
 
-    // 16. Build flat task rows with employee allocations
+    // 17. Build flat task rows with employee allocations
     const transformStart = Date.now();
     const taskRows = filteredTasks
       .map(task => {
@@ -286,8 +311,8 @@ export async function GET(
         const allocations = teamMembers
           .filter(member => member.startDate && member.endDate)
           .map(member => {
-            const employee = employeeMap.get(member.userId) || 
-                            employeeMap.get(member.userId.split('@')[0]);
+            const employee = employeeMap.get(member.userId.toLowerCase()) || 
+                            employeeMap.get(member.userId.split('@')[0].toLowerCase());
 
             return {
               id: member.id,
@@ -334,7 +359,7 @@ export async function GET(
 
     console.log(`[PERF] Data transformation completed in ${Date.now() - transformStart}ms`);
 
-    // 17. Build pagination metadata
+    // 18. Build pagination metadata
     const finalTotal = totalCount;
     const response = {
       tasks: taskRows,
@@ -358,5 +383,3 @@ export async function GET(
     return handleApiError(error, 'Get client planner data');
   }
 }
-
-

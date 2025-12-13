@@ -32,13 +32,16 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
 import { MyPlanningView } from '@/components/features/planning';
+import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
+import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner';
-import { TaskRole, ServiceLineRole } from '@/types';
+import { TaskRole, ServiceLineRole, NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
 import { KanbanFilters } from '@/components/features/tasks/Kanban/KanbanFilters';
 import { useClientPlannerFilters } from '@/hooks/planning/useClientPlannerFilters';
+import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -76,10 +79,18 @@ export default function SubServiceLineWorkspacePage() {
   // Planner view mode (employees vs clients)
   const [plannerView, setPlannerView] = useState<'employees' | 'clients'>('employees');
   
-  // Employee planner filters
-  const [plannerSearchTerm, setPlannerSearchTerm] = useState('');
-  const [jobGradingFilter, setJobGradingFilter] = useState<string>('');
-  const [officeFilter, setOfficeFilter] = useState<string>('');
+  // Planner view type (timeline vs list)
+  const [employeePlannerViewMode, setEmployeePlannerViewMode] = useState<'timeline' | 'list'>('timeline');
+  const [clientPlannerViewMode, setClientPlannerViewMode] = useState<'timeline' | 'list'>('timeline');
+  
+  // Employee planner filters (array-based for multiselect)
+  const [employeePlannerFilters, setEmployeePlannerFilters] = useState({
+    employees: [] as string[], // User IDs
+    jobGrades: [] as string[], // Job titles
+    offices: [] as string[], // Office locations
+    clients: [] as string[], // Client codes from allocations
+    taskCategories: [] as string[] // Empty = unfiltered (show all)
+  });
   
   // Client planner filters (array-based for multiselect)
   const [clientPlannerFilters, setClientPlannerFilters] = useState({
@@ -212,6 +223,21 @@ export default function SubServiceLineWorkspacePage() {
     subServiceLineGroup,
     enabled: activeTab === 'planner' && plannerView === 'clients' && !!subServiceLineGroup && !!serviceLine
   });
+
+  // Fetch client planner data for list view
+  const { 
+    data: clientPlannerData,
+    isLoading: isLoadingClientPlanner
+  } = useClientPlanner({
+    serviceLine,
+    subServiceLineGroup,
+    clientCodes: clientPlannerFilters.clients,
+    groupDescs: clientPlannerFilters.groups,
+    partnerCodes: clientPlannerFilters.partners,
+    taskCodes: clientPlannerFilters.tasks,
+    managerCodes: clientPlannerFilters.managers,
+    enabled: activeTab === 'planner' && plannerView === 'clients' && clientPlannerViewMode === 'list' && !!subServiceLineGroup && !!serviceLine
+  });
  
   // Fetch groups for the Groups tab
   const {
@@ -235,6 +261,16 @@ export default function SubServiceLineWorkspacePage() {
   useEffect(() => {
     const shouldShowOverlay = isFetching && !isLoading && taskViewMode !== 'kanban';
   }, [isFetching, isLoading, taskViewMode, activeTab]);
+  // #endregion
+
+  // #region agent log
+  // Log clientPlannerData when it changes
+  useEffect(() => {
+    if (activeTab === 'planner' && plannerView === 'clients' && clientPlannerViewMode === 'list') {
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:269',message:'Dashboard - clientPlannerData received',data:{hasData:!!clientPlannerData,tasksCount:clientPlannerData?.tasks?.length || 0,isLoading:isLoadingClientPlanner,firstTask:clientPlannerData?.tasks?.[0] ? {taskId:clientPlannerData.tasks[0].taskId,clientId:clientPlannerData.tasks[0].clientId,clientName:clientPlannerData.tasks[0].clientName,allocationsCount:clientPlannerData.tasks[0].allocations?.length || 0} : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    }
+  }, [activeTab, plannerView, clientPlannerViewMode, clientPlannerData, isLoadingClientPlanner]);
+  // #endregion
 
   // Map ServiceLineRole to TaskRole for GanttTimeline display
   const mapServiceLineRoleToTaskRole = (serviceLineRole: string): TaskRole => {
@@ -256,51 +292,171 @@ export default function SubServiceLineWorkspacePage() {
   // Use the current user's role from state (default to VIEWER)
   const currentUserServiceLineRole = currentUserSubGroupRole;
 
-  // Filter planner users based on search and filters
+  // Filter planner users based on array-based filters with OR logic
   const filteredPlannerUsers = useMemo(() => {
     let filtered = plannerUsers;
 
-    // Search filter (name or email)
-    if (plannerSearchTerm) {
-      const searchLower = plannerSearchTerm.toLowerCase();
+    // Employee filter (by user ID or email)
+    if (employeePlannerFilters.employees.length > 0) {
       filtered = filtered.filter(u => 
-        u.user.name?.toLowerCase().includes(searchLower) ||
-        u.user.email.toLowerCase().includes(searchLower)
+        employeePlannerFilters.employees.includes(u.user.id) ||
+        employeePlannerFilters.employees.includes(u.user.email)
       );
     }
 
-    // Job Grading filter
-    if (jobGradingFilter) {
-      filtered = filtered.filter(u => u.user.jobTitle === jobGradingFilter);
+    // Job Grade filter
+    if (employeePlannerFilters.jobGrades.length > 0) {
+      filtered = filtered.filter(u => 
+        u.user.jobTitle && employeePlannerFilters.jobGrades.includes(u.user.jobTitle)
+      );
     }
 
     // Office filter
-    if (officeFilter) {
-      filtered = filtered.filter(u => u.user.officeLocation?.trim() === officeFilter.trim());
+    if (employeePlannerFilters.offices.length > 0) {
+      filtered = filtered.filter(u => 
+        u.user.officeLocation && 
+        employeePlannerFilters.offices.includes(u.user.officeLocation.trim())
+      );
     }
 
-    return filtered;
-  }, [plannerUsers, plannerSearchTerm, jobGradingFilter, officeFilter]);
+    // Client filter - DON'T filter users, we'll filter allocations later
+    // This allows showing all employees even when filtering by client
 
-  // Get unique job gradings for filter dropdown
-  const uniqueJobGradings = useMemo(() => {
-    const jobGradings = new Set(
+    // Task category filter (client tasks vs specific internal event types)
+    // Empty array = unfiltered (show all)
+    if (employeePlannerFilters.taskCategories.length > 0) {
+      // Special case: if "no_planning" is selected, show users with no allocations
+      if (employeePlannerFilters.taskCategories.includes('no_planning')) {
+        // If ONLY no_planning is selected, show only users with no allocations
+        if (employeePlannerFilters.taskCategories.length === 1) {
+          filtered = filtered.filter(u => u.allocations.length === 0);
+        } else {
+          // If no_planning is selected along with other filters, show users with no allocations OR matching allocations
+          filtered = filtered.filter(u =>
+            u.allocations.length === 0 ||
+            u.allocations.some(alloc => {
+              // Check if it's a client task
+              if (employeePlannerFilters.taskCategories.includes('client') && alloc.clientCode !== null) {
+                return true;
+              }
+              // Check if it's a specific internal event type
+              if (alloc.isNonClientEvent && alloc.nonClientEventType && 
+                  employeePlannerFilters.taskCategories.includes(alloc.nonClientEventType)) {
+                return true;
+              }
+              return false;
+            })
+          );
+        }
+      } else {
+        // Filter users to only show those with matching task categories
+        filtered = filtered.filter(u =>
+          u.allocations.some(alloc => {
+            // Check if it's a client task
+            if (employeePlannerFilters.taskCategories.includes('client') && alloc.clientCode !== null) {
+              return true;
+            }
+            // Check if it's a specific internal event type
+            if (alloc.isNonClientEvent && alloc.nonClientEventType && 
+                employeePlannerFilters.taskCategories.includes(alloc.nonClientEventType)) {
+              return true;
+            }
+            return false;
+          })
+        );
+      }
+    }
+    // If empty, show all
+
+    // NOW filter allocations within each user based on client filter AND task category filter
+    filtered = filtered.map(u => ({
+      ...u,
+      allocations: u.allocations.filter(alloc => {
+        // Client filter
+        if (employeePlannerFilters.clients.length > 0) {
+          if (alloc.clientCode && !employeePlannerFilters.clients.includes(alloc.clientCode)) {
+            return false;
+          }
+        }
+        
+        // Task category filter - empty array means show all
+        if (employeePlannerFilters.taskCategories.length > 0 && !employeePlannerFilters.taskCategories.includes('no_planning')) {
+          // Check if it's a client task
+          if (employeePlannerFilters.taskCategories.includes('client') && alloc.clientCode !== null) {
+            return true;
+          }
+          // Check if it's a specific internal event type
+          if (alloc.isNonClientEvent && alloc.nonClientEventType && 
+              employeePlannerFilters.taskCategories.includes(alloc.nonClientEventType)) {
+            return true;
+          }
+          // If task category filter is active and this doesn't match, exclude it
+          return false;
+        }
+        
+        return true;
+      })
+    }))
+    // Remove users who have no allocations left after filtering
+    // UNLESS: taskCategories is empty (unfiltered) OR "no_planning" is selected
+    .filter(u => 
+      u.allocations.length > 0 || 
+      employeePlannerFilters.taskCategories.length === 0 || 
+      employeePlannerFilters.taskCategories.includes('no_planning')
+    );
+
+    return filtered;
+  }, [plannerUsers, employeePlannerFilters]);
+
+  // Extract filter options from plannerUsers and tasks
+  const employeeFilterOptions = useMemo(() => {
+    // Employees (user ID and name)
+    const employeeOptions = plannerUsers
+      .map(u => ({
+        id: u.user.id,
+        label: u.user.name ? `${u.user.name} (${u.user.email})` : u.user.email
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    // Job grades (unique job titles)
+    const jobGradeSet = new Set(
       plannerUsers
         .map(u => u.user.jobTitle)
         .filter((jt): jt is string => !!jt)
     );
-    return Array.from(jobGradings).sort();
-  }, [plannerUsers]);
+    const jobGradeOptions = Array.from(jobGradeSet)
+      .map(jg => ({ id: jg, label: jg }))
+      .sort((a, b) => a.label.localeCompare(b.label));
 
-  // Get unique offices for filter dropdown
-  const uniqueOffices = useMemo(() => {
-    const offices = new Set(
+    // Offices (unique office locations)
+    const officeSet = new Set(
       plannerUsers
         .map(u => u.user.officeLocation?.trim())
         .filter((office): office is string => !!office)
     );
-    return Array.from(offices).sort();
-  }, [plannerUsers]);
+    const officeOptions = Array.from(officeSet)
+      .map(office => ({ id: office, label: office }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    // Clients (ALL clients from ALL tasks, not just those with allocations)
+    const clientMap = new Map<string, string>();
+    tasks.forEach(task => {
+      if (task.client?.clientCode) {
+        const clientName = task.client.clientNameFull || task.client.clientCode;
+        clientMap.set(task.client.clientCode, `${task.client.clientCode} - ${clientName}`);
+      }
+    });
+    const clientOptions = Array.from(clientMap.entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return {
+      employees: employeeOptions,
+      jobGrades: jobGradeOptions,
+      offices: officeOptions,
+      clients: clientOptions
+    };
+  }, [plannerUsers, tasks]);
 
   // Transform users to match GanttTimeline's expected format
   const transformedPlannerUsers = useMemo(() => {
@@ -327,11 +483,11 @@ export default function SubServiceLineWorkspacePage() {
     const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
     const members = new Map<string, string>();
     allTasks.forEach(task => {
-      if (task.TaskPartner && task.TaskPartnerName) {
-        members.set(task.TaskPartner, task.TaskPartnerName);
+      if (task.taskPartner && task.taskPartnerName) {
+        members.set(task.taskPartner, task.taskPartnerName);
       }
-      if (task.TaskManager && task.TaskManagerName) {
-        members.set(task.TaskManager, task.TaskManagerName);
+      if (task.taskManager && task.taskManagerName) {
+        members.set(task.taskManager, task.taskManagerName);
       }
     });
     return Array.from(members.entries()).map(([id, name]) => ({ id, name }));
@@ -341,7 +497,7 @@ export default function SubServiceLineWorkspacePage() {
     const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
     const partners = new Set<string>();
     allTasks.forEach(task => {
-      if (task.TaskPartnerName) partners.add(task.TaskPartnerName);
+      if (task.taskPartnerName) partners.add(task.taskPartnerName);
     });
     return Array.from(partners).sort();
   }, [tasks, myTasks, activeTab]);
@@ -350,7 +506,7 @@ export default function SubServiceLineWorkspacePage() {
     const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
     const managers = new Set<string>();
     allTasks.forEach(task => {
-      if (task.TaskManagerName) managers.add(task.TaskManagerName);
+      if (task.taskManagerName) managers.add(task.taskManagerName);
     });
     return Array.from(managers).sort();
   }, [tasks, myTasks, activeTab]);
@@ -359,11 +515,11 @@ export default function SubServiceLineWorkspacePage() {
     const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
     const clientsMap = new Map<number, { id: number; name: string; code: string }>();
     allTasks.forEach(task => {
-      if (task.Client) {
-        clientsMap.set(task.Client.id, {
-          id: task.Client.id,
-          name: task.Client.clientNameFull || task.Client.clientCode,
-          code: task.Client.clientCode,
+      if (task.client) {
+        clientsMap.set(task.client.id, {
+          id: task.client.id,
+          name: task.client.clientNameFull || task.client.clientCode || 'Unknown',
+          code: task.client.clientCode || '',
         });
       }
     });
@@ -383,45 +539,45 @@ export default function SubServiceLineWorkspacePage() {
     if (taskFilters.search) {
       const searchLower = taskFilters.search.toLowerCase();
       filtered = filtered.filter(task => 
-        task.TaskDesc?.toLowerCase().includes(searchLower) ||
-        task.TaskCode?.toLowerCase().includes(searchLower) ||
-        task.Client?.clientNameFull?.toLowerCase().includes(searchLower) ||
-        task.Client?.clientCode?.toLowerCase().includes(searchLower)
+        task.name?.toLowerCase().includes(searchLower) ||
+        task.taskCode?.toLowerCase().includes(searchLower) ||
+        task.client?.clientNameFull?.toLowerCase().includes(searchLower) ||
+        task.client?.clientCode?.toLowerCase().includes(searchLower)
       );
     }
 
     // Team members filter (partners + managers)
     if (taskFilters.teamMembers.length > 0) {
       filtered = filtered.filter(task =>
-        (task.TaskPartner && taskFilters.teamMembers.includes(task.TaskPartner)) ||
-        (task.TaskManager && taskFilters.teamMembers.includes(task.TaskManager))
+        (task.taskPartner && taskFilters.teamMembers.includes(task.taskPartner)) ||
+        (task.taskManager && taskFilters.teamMembers.includes(task.taskManager))
       );
     }
 
     // Partners filter
     if (taskFilters.partners.length > 0) {
       filtered = filtered.filter(task =>
-        task.TaskPartnerName && taskFilters.partners.includes(task.TaskPartnerName)
+        task.taskPartnerName && taskFilters.partners.includes(task.taskPartnerName)
       );
     }
 
     // Managers filter
     if (taskFilters.managers.length > 0) {
       filtered = filtered.filter(task =>
-        task.TaskManagerName && taskFilters.managers.includes(task.TaskManagerName)
+        task.taskManagerName && taskFilters.managers.includes(task.taskManagerName)
       );
     }
 
     // Clients filter
     if (taskFilters.clients.length > 0) {
       filtered = filtered.filter(task =>
-        task.Client && taskFilters.clients.includes(task.Client.id)
+        task.client && taskFilters.clients.includes(task.client.id)
       );
     }
 
     // Archived filter
     if (!taskFilters.includeArchived) {
-      filtered = filtered.filter(task => task.Active !== 'N');
+      filtered = filtered.filter(task => !task.archived);
     }
 
     return filtered;
@@ -439,45 +595,45 @@ export default function SubServiceLineWorkspacePage() {
     if (taskFilters.search) {
       const searchLower = taskFilters.search.toLowerCase();
       filtered = filtered.filter(task => 
-        task.TaskDesc?.toLowerCase().includes(searchLower) ||
-        task.TaskCode?.toLowerCase().includes(searchLower) ||
-        task.Client?.clientNameFull?.toLowerCase().includes(searchLower) ||
-        task.Client?.clientCode?.toLowerCase().includes(searchLower)
+        task.name?.toLowerCase().includes(searchLower) ||
+        task.taskCode?.toLowerCase().includes(searchLower) ||
+        task.client?.clientNameFull?.toLowerCase().includes(searchLower) ||
+        task.client?.clientCode?.toLowerCase().includes(searchLower)
       );
     }
 
     // Team members filter (partners + managers)
     if (taskFilters.teamMembers.length > 0) {
       filtered = filtered.filter(task =>
-        (task.TaskPartner && taskFilters.teamMembers.includes(task.TaskPartner)) ||
-        (task.TaskManager && taskFilters.teamMembers.includes(task.TaskManager))
+        (task.taskPartner && taskFilters.teamMembers.includes(task.taskPartner)) ||
+        (task.taskManager && taskFilters.teamMembers.includes(task.taskManager))
       );
     }
 
     // Partners filter
     if (taskFilters.partners.length > 0) {
       filtered = filtered.filter(task =>
-        task.TaskPartnerName && taskFilters.partners.includes(task.TaskPartnerName)
+        task.taskPartnerName && taskFilters.partners.includes(task.taskPartnerName)
       );
     }
 
     // Managers filter
     if (taskFilters.managers.length > 0) {
       filtered = filtered.filter(task =>
-        task.TaskManagerName && taskFilters.managers.includes(task.TaskManagerName)
+        task.taskManagerName && taskFilters.managers.includes(task.taskManagerName)
       );
     }
 
     // Clients filter
     if (taskFilters.clients.length > 0) {
       filtered = filtered.filter(task =>
-        task.Client && taskFilters.clients.includes(task.Client.id)
+        task.client && taskFilters.clients.includes(task.client.id)
       );
     }
 
     // Archived filter
     if (!taskFilters.includeArchived) {
-      filtered = filtered.filter(task => task.Active !== 'N');
+      filtered = filtered.filter(task => !task.archived);
     }
 
     return filtered;
@@ -875,128 +1031,234 @@ export default function SubServiceLineWorkspacePage() {
                 </div>
               </div>
 
-              {/* Filters Bar */}
-              {plannerView === 'employees' ? (
-                /* Employee Filters */
-                <div className="flex gap-4 items-center flex-wrap">
-                <div className="relative flex-1 min-w-[300px]">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={plannerSearchTerm}
-                    onChange={(e) => setPlannerSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-                  />
-                </div>
-                
-                <select
-                  value={jobGradingFilter}
-                  onChange={(e) => setJobGradingFilter(e.target.value)}
-                  className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-                >
-                  <option value="">All Job Grades</option>
-                  {uniqueJobGradings.map(jg => (
-                    <option key={jg} value={jg}>{jg}</option>
-                  ))}
-                </select>
-                
-                {uniqueOffices.length > 0 && (
-                  <select
-                    value={officeFilter}
-                    onChange={(e) => setOfficeFilter(e.target.value)}
-                    className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
-                  >
-                    <option value="">All Offices</option>
-                    {uniqueOffices.map(office => (
-                      <option key={office} value={office}>{office}</option>
-                    ))}
-                  </select>
-                )}
-                
-                {(plannerSearchTerm || jobGradingFilter || officeFilter) && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
+              {/* Timeline/List View Toggle */}
+              <div className="flex justify-center">
+                <div className="inline-flex gap-2 p-1 bg-forvis-gray-200 rounded-lg">
+                  <button
                     onClick={() => {
-                      setPlannerSearchTerm('');
-                      setJobGradingFilter('');
-                      setOfficeFilter('');
+                      if (plannerView === 'employees') {
+                        setEmployeePlannerViewMode('timeline');
+                      } else {
+                        setClientPlannerViewMode('timeline');
+                      }
                     }}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      (plannerView === 'employees' ? employeePlannerViewMode === 'timeline' : clientPlannerViewMode === 'timeline')
+                        ? 'text-white shadow-corporate'
+                        : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
+                    }`}
+                    style={(plannerView === 'employees' ? employeePlannerViewMode === 'timeline' : clientPlannerViewMode === 'timeline') ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
                   >
-                    Clear Filters
-                  </Button>
-                )}
-
-                {/* Team Count */}
-                <div className="ml-auto text-right">
-                  <div className="text-2xl font-bold text-forvis-blue-600">
-                    {filteredPlannerUsers.length}
-                  </div>
-                  <div className="text-sm text-forvis-gray-600">
-                    Team {filteredPlannerUsers.length === 1 ? 'Member' : 'Members'}
-                  </div>
+                    <Calendar className="w-4 h-4" />
+                    <span>Timeline View</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (plannerView === 'employees') {
+                        setEmployeePlannerViewMode('list');
+                      } else {
+                        setClientPlannerViewMode('list');
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      (plannerView === 'employees' ? employeePlannerViewMode === 'list' : clientPlannerViewMode === 'list')
+                        ? 'text-white shadow-corporate'
+                        : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
+                    }`}
+                    style={(plannerView === 'employees' ? employeePlannerViewMode === 'list' : clientPlannerViewMode === 'list') ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
+                  >
+                    <List className="w-4 h-4" />
+                    <span>List View</span>
+                  </button>
                 </div>
               </div>
-              ) : (
-                /* Client Planner Filters with MultiSelect */
-                <div className="space-y-4">
-                  {/* Filter instruction text */}
-                  <div className="text-sm text-forvis-gray-600">
-                    Use filters below to narrow down tasks by project, client, group, partner, or manager
+
+              {/* Filters Bar */}
+              {plannerView === 'employees' ? (
+                /* Employee Planner Filters - Single Row */
+                <div className="space-y-3">
+                  {/* Filters - All on one line */}
+                  <div className="flex gap-3 items-end flex-wrap">
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={employeeFilterOptions.employees}
+                        value={employeePlannerFilters.employees}
+                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, employees: values as string[] }))}
+                        placeholder="All Employees"
+                        searchPlaceholder="Search employees..."
+                        label="Employee"
+                      />
+                    </div>
+                    
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={employeeFilterOptions.jobGrades}
+                        value={employeePlannerFilters.jobGrades}
+                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, jobGrades: values as string[] }))}
+                        placeholder="All Job Grades"
+                        searchPlaceholder="Search job grades..."
+                        label="Job Grade"
+                      />
+                    </div>
+                    
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={employeeFilterOptions.offices}
+                        value={employeePlannerFilters.offices}
+                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, offices: values as string[] }))}
+                        placeholder="All Offices"
+                        searchPlaceholder="Search offices..."
+                        label="Office"
+                      />
+                    </div>
+                    
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={employeeFilterOptions.clients}
+                        value={employeePlannerFilters.clients}
+                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, clients: values as string[] }))}
+                        placeholder="All Clients"
+                        searchPlaceholder="Search clients..."
+                        label="Client"
+                      />
+                    </div>
+
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={[
+                          { id: 'client', label: 'Client Tasks' },
+                          { id: NonClientEventType.TRAINING, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.TRAINING].label },
+                          { id: NonClientEventType.ANNUAL_LEAVE, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.ANNUAL_LEAVE].label },
+                          { id: NonClientEventType.SICK_LEAVE, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.SICK_LEAVE].label },
+                          { id: NonClientEventType.PUBLIC_HOLIDAY, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.PUBLIC_HOLIDAY].label },
+                          { id: NonClientEventType.PERSONAL, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.PERSONAL].label },
+                          { id: NonClientEventType.ADMINISTRATIVE, label: NON_CLIENT_EVENT_CONFIG[NonClientEventType.ADMINISTRATIVE].label },
+                          { id: 'no_planning', label: 'No Planning' }
+                        ]}
+                        value={employeePlannerFilters.taskCategories}
+                        onChange={(values) => setEmployeePlannerFilters(prev => ({ ...prev, taskCategories: values as string[] }))}
+                        placeholder="All Task Types"
+                        searchPlaceholder="Search task types..."
+                        label="Task Type"
+                      />
+                    </div>
                   </div>
                   
-                  {/* Filter Grid - 3 columns on desktop, 2 on tablet, 1 on mobile */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <MultiSelect
-                      options={clientPlannerFilterOptions?.tasks || []}
-                      value={clientPlannerFilters.tasks}
-                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, tasks: values as string[] }))}
-                      placeholder="All Projects"
-                      searchPlaceholder="Search projects..."
-                      label="Project / Task"
-                      disabled={isLoadingFilterOptions}
-                    />
+                  {/* Active Filters Summary + Clear All + Team Count */}
+                  <div className="flex items-center justify-between">
+                    {(employeePlannerFilters.employees.length > 0 || 
+                      employeePlannerFilters.jobGrades.length > 0 || 
+                      employeePlannerFilters.offices.length > 0 || 
+                      employeePlannerFilters.clients.length > 0 ||
+                      employeePlannerFilters.taskCategories.length > 0) ? (
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 text-sm text-forvis-gray-700">
+                          <Filter className="h-4 w-4 text-forvis-blue-600" />
+                          <span className="font-medium">
+                            {employeePlannerFilters.employees.length + 
+                             employeePlannerFilters.jobGrades.length + 
+                             employeePlannerFilters.offices.length + 
+                             employeePlannerFilters.clients.length +
+                             (employeePlannerFilters.taskCategories.length > 0 ? 1 : 0)} filter{(employeePlannerFilters.employees.length + 
+                               employeePlannerFilters.jobGrades.length + 
+                               employeePlannerFilters.offices.length + 
+                               employeePlannerFilters.clients.length +
+                               (employeePlannerFilters.taskCategories.length > 0 ? 1 : 0)) !== 1 ? 's' : ''} active
+                          </span>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setEmployeePlannerFilters({ 
+                            employees: [], 
+                            jobGrades: [], 
+                            offices: [], 
+                            clients: [],
+                            taskCategories: []
+                          })}
+                        >
+                          Clear All Filters
+                        </Button>
+                      </div>
+                    ) : (
+                      <div></div>
+                    )}
+
+                    {/* Team Count */}
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-forvis-blue-600">
+                        {filteredPlannerUsers.length}
+                      </div>
+                      <div className="text-sm text-forvis-gray-600">
+                        Team {filteredPlannerUsers.length === 1 ? 'Member' : 'Members'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Client Planner Filters - Single Row */
+                <div className="space-y-3">
+                  {/* Filters - All on one line */}
+                  <div className="flex gap-3 items-end flex-wrap">
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={clientPlannerFilterOptions?.tasks || []}
+                        value={clientPlannerFilters.tasks}
+                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, tasks: values as string[] }))}
+                        placeholder="All Projects"
+                        searchPlaceholder="Search projects..."
+                        label="Project / Task"
+                        disabled={isLoadingFilterOptions}
+                      />
+                    </div>
                     
-                    <MultiSelect
-                      options={clientPlannerFilterOptions?.clients || []}
-                      value={clientPlannerFilters.clients}
-                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, clients: values as string[] }))}
-                      placeholder="All Clients"
-                      searchPlaceholder="Search clients..."
-                      label="Client"
-                      disabled={isLoadingFilterOptions}
-                    />
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={clientPlannerFilterOptions?.clients || []}
+                        value={clientPlannerFilters.clients}
+                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, clients: values as string[] }))}
+                        placeholder="All Clients"
+                        searchPlaceholder="Search clients..."
+                        label="Client"
+                        disabled={isLoadingFilterOptions}
+                      />
+                    </div>
                     
-                    <MultiSelect
-                      options={clientPlannerFilterOptions?.groups || []}
-                      value={clientPlannerFilters.groups}
-                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, groups: values as string[] }))}
-                      placeholder="All Groups"
-                      searchPlaceholder="Search groups..."
-                      label="Client Group"
-                      disabled={isLoadingFilterOptions}
-                    />
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={clientPlannerFilterOptions?.groups || []}
+                        value={clientPlannerFilters.groups}
+                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, groups: values as string[] }))}
+                        placeholder="All Groups"
+                        searchPlaceholder="Search groups..."
+                        label="Client Group"
+                        disabled={isLoadingFilterOptions}
+                      />
+                    </div>
                     
-                    <MultiSelect
-                      options={clientPlannerFilterOptions?.partners || []}
-                      value={clientPlannerFilters.partners}
-                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, partners: values as string[] }))}
-                      placeholder="All Partners"
-                      searchPlaceholder="Search partners..."
-                      label="Task Partner"
-                      disabled={isLoadingFilterOptions}
-                    />
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={clientPlannerFilterOptions?.partners || []}
+                        value={clientPlannerFilters.partners}
+                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, partners: values as string[] }))}
+                        placeholder="All Partners"
+                        searchPlaceholder="Search partners..."
+                        label="Task Partner"
+                        disabled={isLoadingFilterOptions}
+                      />
+                    </div>
                     
-                    <MultiSelect
-                      options={clientPlannerFilterOptions?.managers || []}
-                      value={clientPlannerFilters.managers}
-                      onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, managers: values as string[] }))}
-                      placeholder="All Managers"
-                      searchPlaceholder="Search managers..."
-                      label="Task Manager"
-                      disabled={isLoadingFilterOptions}
-                    />
+                    <div className="flex-1 min-w-[180px]">
+                      <MultiSelect
+                        options={clientPlannerFilterOptions?.managers || []}
+                        value={clientPlannerFilters.managers}
+                        onChange={(values) => setClientPlannerFilters(prev => ({ ...prev, managers: values as string[] }))}
+                        placeholder="All Managers"
+                        searchPlaceholder="Search managers..."
+                        label="Task Manager"
+                        disabled={isLoadingFilterOptions}
+                      />
+                    </div>
                   </div>
                   
                   {/* Active Filters Summary + Clear All */}
@@ -1005,7 +1267,7 @@ export default function SubServiceLineWorkspacePage() {
                     clientPlannerFilters.partners.length > 0 || 
                     clientPlannerFilters.tasks.length > 0 || 
                     clientPlannerFilters.managers.length > 0) && (
-                    <div className="flex items-center justify-between px-4 py-3 bg-forvis-blue-50 rounded-lg border border-forvis-blue-100">
+                    <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2 text-sm text-forvis-gray-700">
                         <Filter className="h-4 w-4 text-forvis-blue-600" />
                         <span className="font-medium">
@@ -1038,8 +1300,9 @@ export default function SubServiceLineWorkspacePage() {
                 </div>
               )}
 
-              {/* Timeline */}
+              {/* Timeline or List View */}
               {plannerView === 'employees' ? (
+                /* Employee Planner - Timeline or List */
                 isLoadingPlannerUsers ? (
                 <div className="animate-pulse space-y-4">
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
@@ -1050,15 +1313,24 @@ export default function SubServiceLineWorkspacePage() {
                 <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
                   <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
-                    {plannerSearchTerm || jobGradingFilter || officeFilter ? 'No matching team members' : 'No team members'}
+                    {(employeePlannerFilters.employees.length > 0 || 
+                      employeePlannerFilters.jobGrades.length > 0 || 
+                      employeePlannerFilters.offices.length > 0 || 
+                      employeePlannerFilters.clients.length > 0 ||
+                      employeePlannerFilters.taskCategories.length > 0) ? 'No matching team members' : 'No team members'}
                   </h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {plannerSearchTerm || jobGradingFilter || officeFilter
-                      ? 'Try adjusting your search or filters.'
+                    {(employeePlannerFilters.employees.length > 0 || 
+                      employeePlannerFilters.jobGrades.length > 0 || 
+                      employeePlannerFilters.offices.length > 0 || 
+                      employeePlannerFilters.clients.length > 0 ||
+                      employeePlannerFilters.taskCategories.length > 0)
+                      ? 'Try adjusting your filters.'
                       : 'No users are currently assigned to this sub-service line group.'}
                   </p>
                 </div>
-              ) : (
+              ) : employeePlannerViewMode === 'timeline' ? (
+                /* Employee Timeline View */
                 <GanttTimeline
                   taskId={0}
                   teamMembers={transformedPlannerUsers}
@@ -1067,15 +1339,38 @@ export default function SubServiceLineWorkspacePage() {
                   serviceLine={serviceLine}
                   subServiceLineGroup={subServiceLineGroup}
                 />
-              )
               ) : (
-                /* Client Planner Timeline */
-                <ClientPlannerTimeline
+                /* Employee List View */
+                <EmployeePlannerList
+                  teamMembers={transformedPlannerUsers}
                   serviceLine={serviceLine}
                   subServiceLineGroup={subServiceLineGroup}
-                  currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
-                  filters={clientPlannerFilters}
                 />
+              )
+              ) : (
+                /* Client Planner - Timeline or List */
+                clientPlannerViewMode === 'timeline' ? (
+                  /* Client Timeline View */
+                  <ClientPlannerTimeline
+                    serviceLine={serviceLine}
+                    subServiceLineGroup={subServiceLineGroup}
+                    currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
+                    filters={clientPlannerFilters}
+                  />
+                ) : isLoadingClientPlanner ? (
+                  /* Loading State */
+                  <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
+                    <LoadingSpinner size="lg" />
+                    <p className="mt-4 text-forvis-gray-600">Loading client planner data...</p>
+                  </div>
+                ) : (
+                  /* Client List View */
+                  <ClientPlannerList
+                    tasks={clientPlannerData?.tasks || []}
+                    serviceLine={serviceLine}
+                    subServiceLineGroup={subServiceLineGroup}
+                  />
+                )
               )}
             </div>
           ) : activeTab === 'my-planning' ? (

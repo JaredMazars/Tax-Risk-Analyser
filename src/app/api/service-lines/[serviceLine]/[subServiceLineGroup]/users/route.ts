@@ -5,6 +5,8 @@ import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineSer
 import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError, AppError } from '@/lib/utils/errorHandler';
 import { mapEmployeeCategoryToRole } from '@/lib/utils/serviceLineUtils';
+import { NON_CLIENT_EVENT_LABELS, NonClientEventType } from '@/types';
+import { mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
 
 /**
  * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/users
@@ -59,6 +61,7 @@ export async function GET(
     }
 
     // 5. Get all employees whose ServLineCode matches any of the external codes
+    // Optimization: Only fetch what we need
     const employees = await prisma.employee.findMany({
       where: {
         ServLineCode: { in: externalServLineCodes },
@@ -86,160 +89,98 @@ export async function GET(
         EmpNameFull: 'asc'
       }
     });
+    
     if (employees.length === 0) {
       return NextResponse.json(successResponse({ users: [] }));
     }
 
-    // 6. Build email/username lookup arrays for User matching
-    const winLogons = employees
-      .map(emp => emp.WinLogon)
-      .filter((logon): logon is string => !!logon);
-    
-    // Try both full email and username prefix
-    const emailVariants = winLogons.flatMap(logon => {
-      const lower = logon.toLowerCase();
-      const prefix = lower.split('@')[0];
-      return [lower, prefix].filter((v): v is string => !!v);
-    });
+    // 6. Map Employees to Users efficiently
+    const employeeUserMap = await mapEmployeesToUsers(employees);
 
-    // 7. LEFT JOIN with User table to find registered users
-    const users = await prisma.user.findMany({
-      where: {
-        OR: [
-          { email: { in: emailVariants } },
-          { id: { in: winLogons } }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true
-      }
-    });
+    // 7. Get user IDs for employees that have User accounts
+    const userIds = Array.from(employeeUserMap.values()).map(u => u.id);
+    const employeeIds = employees.map(emp => emp.id);
 
-    // Create user lookup map (by email and email prefix)
-    const userMap = new Map<string, typeof users[0]>();
-    users.forEach(u => {
-      const lowerEmail = u.email.toLowerCase();
-      const emailPrefix = lowerEmail.split('@')[0];
-      userMap.set(lowerEmail, u);
-      if (emailPrefix) {
-        userMap.set(emailPrefix, u);
-      }
-      userMap.set(u.id, u);
-    });
-
-    // 8. Get all tasks in this sub-service line group (using ServLineCode)
-    const tasksInSubGroup = await prisma.task.findMany({
-      where: {
-        ServLineCode: { in: externalServLineCodes }
-      },
-      select: {
-        id: true
-      }
-    });
-
-    const taskIds = tasksInSubGroup.map(t => t.id);
-
-    // 9. Get user IDs for employees that have User accounts
-    const employeesWithUsers = employees
-      .map(emp => {
-        const winLogon = emp.WinLogon?.toLowerCase();
-        if (!winLogon) return null;
-        
-        const winLogonPrefix = winLogon.split('@')[0];
-        const matchedUser = userMap.get(winLogon) || 
-                           (winLogonPrefix ? userMap.get(winLogonPrefix) : undefined);
-        
-        return matchedUser ? { employeeId: emp.id, userId: matchedUser.id } : null;
-      })
-      .filter((item): item is { employeeId: number; userId: string } => item !== null);
-
-    const userIds = employeesWithUsers.map(item => item.userId);
-
-    // 10. Get all allocations for users who have accounts
-    // Note: We only filter by userId to avoid SQL Server parameter limit (2100)
-    // Users in this service line may have allocations to tasks in other service lines
-    const taskAllocations = userIds.length > 0 ? await prisma.taskTeam.findMany({
-      where: {
-        userId: { in: userIds },
-        OR: [
-          {
-            startDate: { not: null },
-            endDate: { not: null }
-          }
-        ]
-      },
-      select: {
-        id: true,
-        userId: true,
-        taskId: true,
-        role: true,
-        startDate: true,
-        endDate: true,
-        allocatedHours: true,
-        allocatedPercentage: true,
-        actualHours: true,
-        Task: {
-          select: {
-            TaskDesc: true,
-            TaskCode: true,
-            Client: {
-              select: {
-                clientCode: true,
-                clientNameFull: true
+    // 8. Fetch allocations in PARALLEL
+    // Only fetch allocations for users in this list
+    const [taskAllocations, nonClientAllocations] = await Promise.all([
+      userIds.length > 0 ? prisma.taskTeam.findMany({
+        where: {
+          userId: { in: userIds },
+          OR: [
+            { startDate: { not: null }, endDate: { not: null } }
+          ]
+        },
+        select: {
+          id: true,
+          userId: true,
+          taskId: true,
+          role: true,
+          startDate: true,
+          endDate: true,
+          allocatedHours: true,
+          allocatedPercentage: true,
+          actualHours: true,
+          Task: {
+            select: {
+              TaskDesc: true,
+              TaskCode: true,
+              Client: {
+                select: {
+                  clientCode: true,
+                  clientNameFull: true
+                }
               }
             }
           }
-        }
-      },
-      orderBy: {
-        startDate: 'asc'
+        },
+        orderBy: { startDate: 'asc' }
+      }) : [],
+      
+      employeeIds.length > 0 ? prisma.nonClientAllocation.findMany({
+        where: {
+          employeeId: { in: employeeIds }
+        },
+        select: {
+          id: true,
+          employeeId: true,
+          eventType: true,
+          startDate: true,
+          endDate: true,
+          allocatedHours: true,
+          allocatedPercentage: true,
+          notes: true
+        },
+        orderBy: { startDate: 'asc' }
+      }) : []
+    ]);
+
+    // 9. Create maps for allocations to avoid N^2 complexity during mapping
+    const taskAllocMap = new Map<string, typeof taskAllocations>();
+    taskAllocations.forEach(alloc => {
+      if (!taskAllocMap.has(alloc.userId)) {
+        taskAllocMap.set(alloc.userId, []);
       }
-    }) : [];
+      taskAllocMap.get(alloc.userId)!.push(alloc);
+    });
 
-    // 10b. Get non-client allocations for employees
-    const employeeIds = employees.map(emp => emp.id);
-    const nonClientAllocations = employeeIds.length > 0 ? await prisma.nonClientAllocation.findMany({
-      where: {
-        employeeId: { in: employeeIds }
-      },
-      select: {
-        id: true,
-        employeeId: true,
-        eventType: true,
-        startDate: true,
-        endDate: true,
-        allocatedHours: true,
-        allocatedPercentage: true,
-        notes: true
-      },
-      orderBy: {
-        startDate: 'asc'
+    const nonClientAllocMap = new Map<number, typeof nonClientAllocations>();
+    nonClientAllocations.forEach(alloc => {
+      if (!nonClientAllocMap.has(alloc.employeeId)) {
+        nonClientAllocMap.set(alloc.employeeId, []);
       }
-    }) : [];
+      nonClientAllocMap.get(alloc.employeeId)!.push(alloc);
+    });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route.ts:228',message:'Fetched non-client allocations',data:{nonClientAllocationsCount:nonClientAllocations.length,employeeIds:employeeIds.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-
-    // 11. Transform to response format
+    // 10. Transform to response format
     const employeesWithAllocations = employees.map(employee => {
-      const winLogon = employee.WinLogon?.toLowerCase();
-      const winLogonPrefix = winLogon?.split('@')[0];
-      const matchedUser = winLogon 
-        ? (userMap.get(winLogon) || (winLogonPrefix ? userMap.get(winLogonPrefix) : undefined))
-        : null;
-
+      const matchedUser = employeeUserMap.get(employee.id);
       const hasUserAccount = !!matchedUser;
       const userId = matchedUser?.id || null;
 
       // Get task allocations for this employee (if they have a user account)
-      // In planner view, all allocations are editable (isCurrentTask: true)
       const userTaskAllocations = userId
-        ? taskAllocations
-            .filter(alloc => alloc.userId === userId)
-            .filter(alloc => alloc.startDate && alloc.endDate)
+        ? (taskAllocMap.get(userId) || [])
             .map(alloc => ({
               id: alloc.id,
               taskId: alloc.taskId,
@@ -253,17 +194,16 @@ export async function GET(
               allocatedHours: alloc.allocatedHours ? parseFloat(alloc.allocatedHours.toString()) : null,
               allocatedPercentage: alloc.allocatedPercentage,
               actualHours: alloc.actualHours ? parseFloat(alloc.actualHours.toString()) : null,
-              isCurrentTask: true  // All allocations are editable in planner view
+              isCurrentTask: true
             }))
         : [];
 
       // Get non-client allocations for this employee
-      const userNonClientAllocations = nonClientAllocations
-        .filter(alloc => alloc.employeeId === employee.id)
+      const userNonClientAllocations = (nonClientAllocMap.get(employee.id) || [])
         .map(alloc => ({
           id: alloc.id,
           taskId: null,
-          taskName: alloc.eventType,
+          taskName: NON_CLIENT_EVENT_LABELS[alloc.eventType as NonClientEventType] || alloc.eventType,
           taskCode: '',
           clientName: null,
           clientCode: null,

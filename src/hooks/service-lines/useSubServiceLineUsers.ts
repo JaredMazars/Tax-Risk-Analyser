@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 export interface SubServiceLineUserAllocation {
   id: number;
-  taskId: number;
+  taskId: number | null;
   taskName: string;
   taskCode: string;
   clientName: string | null;
@@ -14,6 +14,9 @@ export interface SubServiceLineUserAllocation {
   allocatedPercentage: number | null;
   actualHours: number | null;
   isCurrentTask: boolean;
+  isNonClientEvent?: boolean;
+  nonClientEventType?: string;
+  notes?: string | null;
 }
 
 export interface SubServiceLineUser {

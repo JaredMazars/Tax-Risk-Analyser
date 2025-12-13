@@ -23,6 +23,11 @@ export interface TaskListItem {
   taxYear: number | null;
   createdAt: string;
   updatedAt: string;
+  taskCode: string | null;
+  taskPartner: string | null;
+  taskPartnerName: string | null;
+  taskManager: string | null;
+  taskManagerName: string | null;
   client?: {
     id: number;
     GSClientID: string;  // External ID
