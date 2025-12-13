@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q') || '';
     const limit = Number.parseInt(searchParams.get('limit') || '20');
     const taskId = searchParams.get('taskId');
-    const serviceLine = searchParams.get('serviceLine');
     const subServiceLineGroup = searchParams.get('subServiceLineGroup');
     const jobGrade = searchParams.get('jobGrade');
     const office = searchParams.get('office');

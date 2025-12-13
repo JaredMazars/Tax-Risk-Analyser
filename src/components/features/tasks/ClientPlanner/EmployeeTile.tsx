@@ -296,7 +296,7 @@ export function EmployeeTile({
     }
     
     const businessDays = calculateBusinessDays(displayDates.start, displayDates.end);
-    const availableHours = calculateAvailableHours(businessDays);
+    const availableHours = calculateAvailableHours(displayDates.start, displayDates.end);
     
     if (availableHours === 0) return 0;
     

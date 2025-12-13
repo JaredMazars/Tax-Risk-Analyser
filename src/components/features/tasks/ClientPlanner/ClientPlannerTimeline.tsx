@@ -20,6 +20,8 @@ import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
 
 // Re-export TimelineHeader from TeamPlanner since it's identical
 import { TimelineHeader } from '../TeamPlanner/TimelineHeader';
+// Import memoized calculation utilities for performance optimization
+import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from '../TeamPlanner/optimizations';
 
 interface ClientPlannerTimelineProps {
   serviceLine: string;
@@ -335,7 +337,7 @@ export function ClientPlannerTimeline({
         return newMap;
       });
       
-      refetch();
+      refetch(); // Non-blocking refetch
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
@@ -378,15 +380,15 @@ export function ClientPlannerTimeline({
         throw new Error(errorMessage);
       }
 
-      refetch();
+      refetch(); // Non-blocking refetch
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to clear allocation';
-      setErrorModal({ 
-        isOpen: true, 
-        message, 
-        title: 'Clear Failed' 
+      setErrorModal({
+        isOpen: true,
+        message,
+        title: 'Clear Failed'
       });
       throw error;
     } finally {
@@ -408,7 +410,7 @@ export function ClientPlannerTimeline({
 
     if (!taskId) return;
 
-    // Apply optimistic update
+    // Apply optimistic update immediately for instant UI feedback
     const optimisticKey = getAllocationKeyById(allocationId);
     setOptimisticUpdates(prev => {
       const newMap = new Map(prev);
@@ -437,6 +439,12 @@ export function ClientPlannerTimeline({
         const errorMessage = errorData.error || 'Failed to update dates';
         throw new Error(errorMessage);
       }
+
+      // DON'T refetch - the optimistic update already shows correct data
+      // The drag operation saved to DB, so we can trust the optimistic update
+      // Next natural refetch (modal save, page refresh, etc) will sync with server
+      // Keep optimistic update indefinitely - it will be replaced by server data
+      // on next refetch or when component unmounts
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticUpdates(prev => {
@@ -450,8 +458,8 @@ export function ClientPlannerTimeline({
     }
   }, [rows]);
 
-  const handleAddEmployeeSave = useCallback(async () => {
-    await refetch();
+  const handleAddEmployeeSave = useCallback(() => {
+    refetch(); // Non-blocking refetch
     setIsAddEmployeeModalOpen(false);
     setSelectedTaskForAdd(null);
     setAddEmployeeDates(null);

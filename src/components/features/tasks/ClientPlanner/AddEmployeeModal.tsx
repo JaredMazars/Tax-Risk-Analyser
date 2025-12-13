@@ -19,7 +19,7 @@ interface Employee {
 interface AddEmployeeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: () => Promise<void>;
+  onSave: () => void;
   taskId: number;
   clientName: string;
   clientCode: string;
@@ -72,6 +72,7 @@ export function AddEmployeeModal({
       setSearchQuery('');
       setDebouncedSearch('');
       setSelectedEmployee(null);
+      setShowClearConfirm(false);
       
       setFormData({
         startDate: format(initialStartDate, 'yyyy-MM-dd'),
@@ -95,12 +96,11 @@ export function AddEmployeeModal({
 
   // Search employees
   const { data: employeeResults = [], isLoading: isSearching } = useQuery({
-    queryKey: ['employee-search', debouncedSearch, taskId, serviceLine, subServiceLineGroup],
+    queryKey: ['employee-search', debouncedSearch, taskId, subServiceLineGroup],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set('q', debouncedSearch);
       params.set('taskId', taskId.toString());
-      params.set('serviceLine', serviceLine);
       params.set('subServiceLineGroup', subServiceLineGroup);
       params.set('limit', '10');
 
@@ -271,8 +271,8 @@ export function AddEmployeeModal({
         throw new Error(errorData.error || 'Failed to set allocation');
       }
 
-      // Success - trigger refetch
-      await onSave();
+      // Success - trigger non-blocking refetch and close immediately
+      onSave();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add employee');
@@ -284,8 +284,9 @@ export function AddEmployeeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-lg shadow-corporate-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto border-2 border-forvis-gray-200">
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="bg-white rounded-lg shadow-corporate-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto border-2 border-forvis-gray-200">
         {/* Header */}
         <div 
           className="px-6 py-4 border-b-2 border-forvis-gray-200 flex items-center justify-between"
@@ -632,11 +633,12 @@ export function AddEmployeeModal({
             Add Planning
           </Button>
         </div>
+        </div>
       </div>
 
       {/* Clear Confirmation Modal */}
       {showClearConfirm && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center p-4 bg-black/50">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
           <div 
             className="bg-white rounded-lg shadow-corporate-lg max-w-md w-full border-2"
             style={{ borderColor: '#2E5AAC' }}
@@ -688,6 +690,6 @@ export function AddEmployeeModal({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

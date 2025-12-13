@@ -45,6 +45,7 @@ export function EmployeeAllocationModal({
   const [role, setRole] = useState<TaskRole>(TaskRole.VIEWER);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Initialize form when allocation changes
   useEffect(() => {
@@ -55,6 +56,7 @@ export function EmployeeAllocationModal({
       setActualHours(allocation.actualHours?.toString() || '');
       setRole(allocation.role);
       setError(null);
+      setShowClearConfirm(false);
     }
   }, [allocation]);
 
@@ -63,10 +65,12 @@ export function EmployeeAllocationModal({
     ? calculateBusinessDays(new Date(startDate), new Date(endDate))
     : 0;
   
-  const availableHours = calculateAvailableHours(businessDays);
+  const availableHours = startDate && endDate
+    ? calculateAvailableHours(new Date(startDate), new Date(endDate))
+    : 0;
   
   const calculatedPercentage = allocatedHours && availableHours > 0
-    ? calculateAllocationPercentage(parseFloat(allocatedHours), businessDays)
+    ? calculateAllocationPercentage(parseFloat(allocatedHours), availableHours)
     : null;
 
   const handleSave = async () => {
@@ -119,15 +123,16 @@ export function EmployeeAllocationModal({
     }
   };
 
-  const handleClear = async () => {
+  const handleClearClick = () => {
+    setShowClearConfirm(true);
+  };
+
+  const handleClearConfirm = async () => {
     if (!allocation) return;
-    
-    if (!confirm('Are you sure you want to clear this allocation? This will remove all dates and hours.')) {
-      return;
-    }
 
     setIsSaving(true);
     setError(null);
+    setShowClearConfirm(false);
 
     try {
       await onClear(allocation.id);
@@ -142,8 +147,9 @@ export function EmployeeAllocationModal({
   if (!isOpen || !allocation) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-lg shadow-corporate-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="bg-white rounded-lg shadow-corporate-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div 
           className="px-6 py-4 border-b-2 border-forvis-gray-200 flex items-center justify-between sticky top-0 bg-white z-10"
@@ -308,7 +314,7 @@ export function EmployeeAllocationModal({
         <div className="px-6 py-4 border-t border-forvis-gray-200 flex items-center justify-between gap-3">
           <Button
             variant="danger"
-            onClick={handleClear}
+            onClick={handleClearClick}
             disabled={isSaving}
             className="mr-auto"
           >
@@ -332,8 +338,64 @@ export function EmployeeAllocationModal({
             </Button>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+
+      {/* Clear Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div 
+            className="bg-white rounded-lg shadow-corporate-lg max-w-md w-full border-2"
+            style={{ borderColor: '#2E5AAC' }}
+          >
+            {/* Header */}
+            <div 
+              className="px-6 py-4 border-b-2 border-forvis-gray-200"
+              style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+            >
+              <h3 className="text-lg font-semibold text-forvis-blue-900">Clear Allocation?</h3>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <p className="text-sm text-forvis-gray-800 mb-4">
+                Are you sure you want to clear this allocation? This will remove all dates and hours for <strong>{allocation.employeeName}</strong> from this task.
+              </p>
+              
+              <div 
+                className="p-3 rounded-lg border-2 mb-4"
+                style={{ 
+                  background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
+                  borderColor: '#FCA5A5'
+                }}
+              >
+                <div className="text-sm font-medium text-red-900">⚠️ This action cannot be undone</div>
+                <div className="text-xs text-red-700 mt-1">The employee will remain on the task team but with no allocated hours.</div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleClearConfirm}
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Clearing...' : 'Clear Allocation'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

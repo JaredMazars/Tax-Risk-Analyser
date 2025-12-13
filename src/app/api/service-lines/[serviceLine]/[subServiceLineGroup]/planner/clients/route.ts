@@ -84,17 +84,12 @@ export async function GET(
       clientWhereConditions.clientPartner = { contains: partnerFilter };
     }
 
-    // 7. Get all tasks with allocations in this service line group
+    // 7. Get all tasks in this service line group (fetch in stages to avoid parameter limit)
+    // Step 1: Fetch tasks with clients only
     const tasks = await prisma.task.findMany({
       where: {
         ServLineCode: { in: externalServLineCodes },
-        GSClientID: { not: null }, // Only client tasks
-        TaskTeam: {
-          some: {
-            startDate: { not: null },
-            endDate: { not: null }
-          }
-        }
+        GSClientID: { not: null } // Only client tasks
       },
       select: {
         id: true,
@@ -110,30 +105,6 @@ export async function GET(
             groupDesc: true,
             clientPartner: true
           }
-        },
-        TaskTeam: {
-          where: {
-            startDate: { not: null },
-            endDate: { not: null }
-          },
-          select: {
-            id: true,
-            userId: true,
-            role: true,
-            startDate: true,
-            endDate: true,
-            allocatedHours: true,
-            allocatedPercentage: true,
-            actualHours: true,
-            User: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true
-              }
-            }
-          }
         }
       },
       orderBy: [
@@ -142,8 +113,52 @@ export async function GET(
       ]
     });
 
+    // Step 2: Fetch TaskTeam data separately for all tasks
+    const taskIds = tasks.map(t => t.id);
+    const taskTeamMembers = taskIds.length > 0 ? await prisma.taskTeam.findMany({
+      where: {
+        taskId: { in: taskIds },
+        startDate: { not: null },
+        endDate: { not: null }
+      },
+      select: {
+        id: true,
+        taskId: true,
+        userId: true,
+        role: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        actualHours: true,
+        User: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true
+          }
+        }
+      }
+    }) : [];
+
+    // Step 3: Group TaskTeam by taskId for easy lookup
+    const taskTeamMap = new Map<number, typeof taskTeamMembers>();
+    taskTeamMembers.forEach(member => {
+      if (!taskTeamMap.has(member.taskId)) {
+        taskTeamMap.set(member.taskId, []);
+      }
+      taskTeamMap.get(member.taskId)!.push(member);
+    });
+
+    // Step 4: Combine tasks with their team members
+    const tasksWithTeam = tasks.map(task => ({
+      ...task,
+      TaskTeam: taskTeamMap.get(task.id) || []
+    }));
+
     // 8. Filter tasks by client conditions if needed
-    const filteredTasks = tasks.filter(task => {
+    const filteredTasks = tasksWithTeam.filter(task => {
       if (!task.Client) return false;
       
       if (clientSearch) {
@@ -236,9 +251,7 @@ export async function GET(
             };
           });
 
-        // Only include tasks with allocations
-        if (allocations.length === 0) return null;
-
+        // Include all tasks, even those without allocations (users need to see them to plan)
         return {
           taskId: task.id,
           taskCode: task.TaskCode,

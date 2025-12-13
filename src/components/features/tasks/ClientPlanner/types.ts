@@ -102,13 +102,14 @@ export interface RowMetadata {
 /**
  * Generate composite key for optimistic updates
  * Uses TaskTeam.id which is unique across all allocations
+ * Includes isNonClientEvent flag to prevent key collisions between client and non-client allocations
  */
 export function getAllocationKey(allocation: AllocationData): string {
-  return `allocation-${allocation.id}`;
+  return `allocation-${allocation.id}-client`;
 }
 
-export function getAllocationKeyById(id: number): string {
-  return `allocation-${id}`;
+export function getAllocationKeyById(id: number, isNonClientEvent: boolean = false): string {
+  return `allocation-${id}-${isNonClientEvent ? 'non-client' : 'client'}`;
 }
 
 // Legacy aliases for backwards compatibility
