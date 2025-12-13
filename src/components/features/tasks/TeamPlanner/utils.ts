@@ -35,7 +35,7 @@ export function getDateRange(scale: TimeScale, referenceDate: Date = new Date())
       return {
         // CRITICAL: Use weekStartsOn: 1 (Monday) to match generateTimelineColumns
         start: startOfWeek(addWeeks(referenceDate, -2), { weekStartsOn: 1 }),
-        end: endOfWeek(addWeeks(referenceDate, 12), { weekStartsOn: 1 })
+        end: endOfWeek(addWeeks(referenceDate, 20), { weekStartsOn: 1 })
       };
     case 'month':
       return {

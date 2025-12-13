@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get('limit') || '20');
     const taskId = searchParams.get('taskId');
     const serviceLine = searchParams.get('serviceLine');
+    const subServiceLineGroup = searchParams.get('subServiceLineGroup');
     const jobGrade = searchParams.get('jobGrade');
     const office = searchParams.get('office');
 
@@ -32,20 +33,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get list of user IDs already on the task (if taskId provided)
+    // Note: We don't exclude users already on the task because they can have multiple planning allocations
     let excludeUserIds: string[] = [];
-    if (taskId) {
-      const taskUsers = await prisma.taskTeam.findMany({
-        where: { taskId: Number.parseInt(taskId) },
-        select: { userId: true },
+
+    // If subServiceLineGroup is provided, map it to ServLineCode values via ServiceLineExternal
+    let serviceLineCodes: string[] = [];
+    if (subServiceLineGroup) {
+      const mappings = await prisma.serviceLineExternal.findMany({
+        where: { 
+          SubServlineGroupCode: subServiceLineGroup
+        },
+        select: { ServLineCode: true }
       });
-      excludeUserIds = taskUsers.map(tu => tu.userId);
+      serviceLineCodes = mappings
+        .map(m => m.ServLineCode)
+        .filter((code): code is string => code !== null);
     }
 
-    // Build filters
+    // Build filters - use ServLineCode instead of ServLineDesc
     const filters: EmployeeSearchFilters = {};
-    if (serviceLine) {
-      filters.serviceLine = serviceLine;
+    if (serviceLineCodes.length > 0) {
+      filters.serviceLineCodes = serviceLineCodes;
     }
     if (jobGrade) {
       filters.jobGrade = jobGrade;
@@ -55,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Search active employees with User matching
-    const employees = await searchActiveEmployees(query, limit, excludeUserIds, filters);
+    let employees = await searchActiveEmployees(query, limit, excludeUserIds, filters);
 
     // Transform to format expected by frontend (ADUser-compatible)
     const formattedUsers = employees.map(emp => ({

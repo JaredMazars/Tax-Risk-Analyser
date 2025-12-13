@@ -23,6 +23,7 @@ export interface EmployeeSearchResult {
 
 export interface EmployeeSearchFilters {
   serviceLine?: string;
+  serviceLineCodes?: string[];
   jobGrade?: string;
   office?: string;
 }
@@ -48,8 +49,10 @@ export async function searchActiveEmployees(
         Active: 'Yes',
       };
 
-      // Add service line filter
-      if (filters?.serviceLine) {
+      // Add service line filter - use ServLineCode for exact matching
+      if (filters?.serviceLineCodes && filters.serviceLineCodes.length > 0) {
+        whereClause.ServLineCode = { in: filters.serviceLineCodes };
+      } else if (filters?.serviceLine) {
         whereClause.ServLineDesc = filters.serviceLine;
       }
 
@@ -72,6 +75,7 @@ export async function searchActiveEmployees(
               { EmpName: { contains: query.trim() } },
               { EmpNameFull: { contains: query.trim() } },
               { EmpCode: { contains: query.trim() } },
+              { WinLogon: { contains: query.trim() } },
             ],
           },
         ];
@@ -253,6 +257,8 @@ export async function getEmployeeFilterOptions(): Promise<{
     'Get employee filter options'
   );
 }
+
+
 
 
 

@@ -95,7 +95,7 @@ export function ResourceRow({
 
             return (
               <div
-                key={index}
+                key={`${resource.userId}-col-${index}`}
                 className={`relative flex-shrink-0 border-r border-forvis-gray-200 select-none ${
                   isInSelection
                     ? 'bg-forvis-blue-200 border-forvis-blue-400'

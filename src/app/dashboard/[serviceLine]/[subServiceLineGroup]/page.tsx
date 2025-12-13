@@ -33,6 +33,7 @@ import { Button, LoadingSpinner, Card } from '@/components/ui';
 import { MyPlanningView } from '@/components/features/planning';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
+import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner';
 import { TaskRole, ServiceLineRole } from '@/types';
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
 import { KanbanFilters } from '@/components/features/tasks/Kanban/KanbanFilters';
@@ -70,10 +71,20 @@ export default function SubServiceLineWorkspacePage() {
     includeArchived: false,
   });
   
-  // Planner filters
+  // Planner view mode (employees vs clients)
+  const [plannerView, setPlannerView] = useState<'employees' | 'clients'>('employees');
+  
+  // Employee planner filters
   const [plannerSearchTerm, setPlannerSearchTerm] = useState('');
   const [jobGradingFilter, setJobGradingFilter] = useState<string>('');
   const [officeFilter, setOfficeFilter] = useState<string>('');
+  
+  // Client planner filters
+  const [clientPlannerFilters, setClientPlannerFilters] = useState({
+    search: '',
+    group: '',
+    partner: ''
+  });
 
   // Fetch sub-service line groups to get the description
   const { data: subGroups } = useSubServiceLineGroups({
@@ -820,8 +831,40 @@ export default function SubServiceLineWorkspacePage() {
           {activeTab === 'planner' ? (
             /* Team Planner */
             <div className="space-y-4">
+              {/* View Toggle */}
+              <div className="flex justify-center">
+                <div className="inline-flex gap-2 p-1 bg-forvis-gray-200 rounded-lg">
+                  <button
+                    onClick={() => setPlannerView('employees')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      plannerView === 'employees'
+                        ? 'text-white shadow-corporate'
+                        : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
+                    }`}
+                    style={plannerView === 'employees' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>By Employees</span>
+                  </button>
+                  <button
+                    onClick={() => setPlannerView('clients')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      plannerView === 'clients'
+                        ? 'text-white shadow-corporate'
+                        : 'text-forvis-gray-700 hover:bg-forvis-gray-300'
+                    }`}
+                    style={plannerView === 'clients' ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : {}}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>By Clients</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Filters Bar */}
-              <div className="flex gap-4 items-center flex-wrap">
+              {plannerView === 'employees' ? (
+                /* Employee Filters */
+                <div className="flex gap-4 items-center flex-wrap">
                 <div className="relative flex-1 min-w-[300px]">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                   <input
@@ -881,9 +924,51 @@ export default function SubServiceLineWorkspacePage() {
                   </div>
                 </div>
               </div>
+              ) : (
+                /* Client Filters */
+                <div className="flex gap-4 items-center flex-wrap">
+                  <div className="relative flex-1 min-w-[300px]">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by client name or code..."
+                      value={clientPlannerFilters.search}
+                      onChange={(e) => setClientPlannerFilters(prev => ({ ...prev, search: e.target.value }))}
+                      className="pl-10 pr-4 py-2 w-full border border-forvis-gray-300 rounded-lg bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <input
+                    type="text"
+                    placeholder="Filter by group..."
+                    value={clientPlannerFilters.group}
+                    onChange={(e) => setClientPlannerFilters(prev => ({ ...prev, group: e.target.value }))}
+                    className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent min-w-[200px]"
+                  />
+                  
+                  <input
+                    type="text"
+                    placeholder="Filter by partner..."
+                    value={clientPlannerFilters.partner}
+                    onChange={(e) => setClientPlannerFilters(prev => ({ ...prev, partner: e.target.value }))}
+                    className="border border-forvis-gray-300 rounded-md px-3 py-2 text-sm bg-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 focus:border-transparent min-w-[200px]"
+                  />
+                  
+                  {(clientPlannerFilters.search || clientPlannerFilters.group || clientPlannerFilters.partner) && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setClientPlannerFilters({ search: '', group: '', partner: '' })}
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Timeline */}
-              {isLoadingPlannerUsers ? (
+              {plannerView === 'employees' ? (
+                isLoadingPlannerUsers ? (
                 <div className="animate-pulse space-y-4">
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
@@ -909,6 +994,15 @@ export default function SubServiceLineWorkspacePage() {
                   onAllocationUpdate={refetchPlannerUsers}
                   serviceLine={serviceLine}
                   subServiceLineGroup={subServiceLineGroup}
+                />
+              )
+              ) : (
+                /* Client Planner Timeline */
+                <ClientPlannerTimeline
+                  serviceLine={serviceLine}
+                  subServiceLineGroup={subServiceLineGroup}
+                  currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
+                  filters={clientPlannerFilters}
                 />
               )}
             </div>
