@@ -57,6 +57,8 @@ export interface KanbanBoardProps {
   subServiceLineGroup: string;
   myTasksOnly?: boolean;
   onTaskClick?: (taskId: number) => void;
+  displayMode?: CardDisplayMode;
+  onDisplayModeChange?: (mode: CardDisplayMode) => void;
 }
 
 export interface KanbanColumnProps {

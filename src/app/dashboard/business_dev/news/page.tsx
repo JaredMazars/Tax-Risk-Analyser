@@ -145,7 +145,7 @@ export default function NewsPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 pb-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 py-4 mb-2">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">

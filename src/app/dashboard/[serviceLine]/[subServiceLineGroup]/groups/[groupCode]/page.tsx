@@ -147,7 +147,7 @@ export default function GroupDetailPage() {
   if (isLoadingClients && !clientsData) {
     return (
       <div className="min-h-screen bg-forvis-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           {/* Breadcrumb skeleton */}
           <div className="flex items-center space-x-2 mb-6">
             <div className="h-4 w-20 bg-forvis-gray-200 rounded animate-pulse"></div>
@@ -219,7 +219,7 @@ export default function GroupDetailPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">

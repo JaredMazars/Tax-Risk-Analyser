@@ -209,7 +209,7 @@ export default function TemplateEditorPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-4">
             <div className="h-12 bg-forvis-gray-200 rounded w-1/3"></div>
             <div className="h-64 bg-forvis-gray-200 rounded"></div>
@@ -221,7 +221,7 @@ export default function TemplateEditorPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <button

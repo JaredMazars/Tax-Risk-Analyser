@@ -122,7 +122,7 @@ export default function ClientProjectPage() {
   if (taskLoading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb skeleton */}
           <nav className="flex items-center space-x-2 text-sm mb-6 py-4">
             <div className="h-4 w-20 bg-forvis-gray-200 rounded animate-pulse"></div>
@@ -158,7 +158,7 @@ export default function ClientProjectPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6 py-4">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">

@@ -16,6 +16,8 @@ import {
   LayoutGrid,
   List,
   Kanban,
+  Minimize2,
+  Maximize2,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -33,6 +35,7 @@ import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineU
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { TaskRole, ServiceLineRole } from '@/types';
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
+import { KanbanFilters } from '@/components/features/tasks/Kanban/KanbanFilters';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -53,6 +56,19 @@ export default function SubServiceLineWorkspacePage() {
   
   // Task view mode state (list vs kanban)
   const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban'>('list');
+  
+  // Kanban display mode state (compact vs detailed)
+  const [displayMode, setDisplayMode] = useState<'compact' | 'detailed'>('detailed');
+  
+  // Task list view filters (matching Kanban filters structure)
+  const [taskFilters, setTaskFilters] = useState({
+    search: '',
+    teamMembers: [] as string[],
+    partners: [] as string[],
+    managers: [] as string[],
+    clients: [] as number[],
+    includeArchived: false,
+  });
   
   // Planner filters
   const [plannerSearchTerm, setPlannerSearchTerm] = useState('');
@@ -281,6 +297,167 @@ export default function SubServiceLineWorkspacePage() {
     return transformed;
   }, [filteredPlannerUsers]);
 
+  // Extract unique filter options from tasks for list view (similar to KanbanBoard)
+  const taskTeamMembers = useMemo(() => {
+    const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
+    const members = new Map<string, string>();
+    allTasks.forEach(task => {
+      if (task.TaskPartner && task.TaskPartnerName) {
+        members.set(task.TaskPartner, task.TaskPartnerName);
+      }
+      if (task.TaskManager && task.TaskManagerName) {
+        members.set(task.TaskManager, task.TaskManagerName);
+      }
+    });
+    return Array.from(members.entries()).map(([id, name]) => ({ id, name }));
+  }, [tasks, myTasks, activeTab]);
+
+  const taskPartners = useMemo(() => {
+    const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
+    const partners = new Set<string>();
+    allTasks.forEach(task => {
+      if (task.TaskPartnerName) partners.add(task.TaskPartnerName);
+    });
+    return Array.from(partners).sort();
+  }, [tasks, myTasks, activeTab]);
+
+  const taskManagers = useMemo(() => {
+    const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
+    const managers = new Set<string>();
+    allTasks.forEach(task => {
+      if (task.TaskManagerName) managers.add(task.TaskManagerName);
+    });
+    return Array.from(managers).sort();
+  }, [tasks, myTasks, activeTab]);
+
+  const taskClients = useMemo(() => {
+    const allTasks = activeTab === 'my-tasks' ? myTasks : tasks;
+    const clientsMap = new Map<number, { id: number; name: string; code: string }>();
+    allTasks.forEach(task => {
+      if (task.Client) {
+        clientsMap.set(task.Client.id, {
+          id: task.Client.id,
+          name: task.Client.clientNameFull || task.Client.clientCode,
+          code: task.Client.clientCode,
+        });
+      }
+    });
+    return Array.from(clientsMap.values());
+  }, [tasks, myTasks, activeTab]);
+
+  // Apply filters to tasks (for list view)
+  const filteredTasks = useMemo(() => {
+    if (taskViewMode === 'kanban') {
+      // In kanban mode, KanbanBoard handles its own filtering
+      return tasks;
+    }
+
+    let filtered = tasks;
+
+    // Search filter
+    if (taskFilters.search) {
+      const searchLower = taskFilters.search.toLowerCase();
+      filtered = filtered.filter(task => 
+        task.TaskDesc?.toLowerCase().includes(searchLower) ||
+        task.TaskCode?.toLowerCase().includes(searchLower) ||
+        task.Client?.clientNameFull?.toLowerCase().includes(searchLower) ||
+        task.Client?.clientCode?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Team members filter (partners + managers)
+    if (taskFilters.teamMembers.length > 0) {
+      filtered = filtered.filter(task =>
+        (task.TaskPartner && taskFilters.teamMembers.includes(task.TaskPartner)) ||
+        (task.TaskManager && taskFilters.teamMembers.includes(task.TaskManager))
+      );
+    }
+
+    // Partners filter
+    if (taskFilters.partners.length > 0) {
+      filtered = filtered.filter(task =>
+        task.TaskPartnerName && taskFilters.partners.includes(task.TaskPartnerName)
+      );
+    }
+
+    // Managers filter
+    if (taskFilters.managers.length > 0) {
+      filtered = filtered.filter(task =>
+        task.TaskManagerName && taskFilters.managers.includes(task.TaskManagerName)
+      );
+    }
+
+    // Clients filter
+    if (taskFilters.clients.length > 0) {
+      filtered = filtered.filter(task =>
+        task.Client && taskFilters.clients.includes(task.Client.id)
+      );
+    }
+
+    // Archived filter
+    if (!taskFilters.includeArchived) {
+      filtered = filtered.filter(task => task.Active !== 'N');
+    }
+
+    return filtered;
+  }, [tasks, taskFilters, taskViewMode]);
+
+  const filteredMyTasks = useMemo(() => {
+    if (taskViewMode === 'kanban') {
+      // In kanban mode, KanbanBoard handles its own filtering
+      return myTasks;
+    }
+
+    let filtered = myTasks;
+
+    // Search filter
+    if (taskFilters.search) {
+      const searchLower = taskFilters.search.toLowerCase();
+      filtered = filtered.filter(task => 
+        task.TaskDesc?.toLowerCase().includes(searchLower) ||
+        task.TaskCode?.toLowerCase().includes(searchLower) ||
+        task.Client?.clientNameFull?.toLowerCase().includes(searchLower) ||
+        task.Client?.clientCode?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Team members filter (partners + managers)
+    if (taskFilters.teamMembers.length > 0) {
+      filtered = filtered.filter(task =>
+        (task.TaskPartner && taskFilters.teamMembers.includes(task.TaskPartner)) ||
+        (task.TaskManager && taskFilters.teamMembers.includes(task.TaskManager))
+      );
+    }
+
+    // Partners filter
+    if (taskFilters.partners.length > 0) {
+      filtered = filtered.filter(task =>
+        task.TaskPartnerName && taskFilters.partners.includes(task.TaskPartnerName)
+      );
+    }
+
+    // Managers filter
+    if (taskFilters.managers.length > 0) {
+      filtered = filtered.filter(task =>
+        task.TaskManagerName && taskFilters.managers.includes(task.TaskManagerName)
+      );
+    }
+
+    // Clients filter
+    if (taskFilters.clients.length > 0) {
+      filtered = filtered.filter(task =>
+        task.Client && taskFilters.clients.includes(task.Client.id)
+      );
+    }
+
+    // Archived filter
+    if (!taskFilters.includeArchived) {
+      filtered = filtered.filter(task => task.Active !== 'N');
+    }
+
+    return filtered;
+  }, [myTasks, taskFilters, taskViewMode]);
+
   // Validate service line
   useEffect(() => {
     if (!isValidServiceLine(serviceLine)) {
@@ -422,7 +599,7 @@ export default function SubServiceLineWorkspacePage() {
         </div>
       )}
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 mb-6">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1">
@@ -591,8 +768,8 @@ export default function SubServiceLineWorkspacePage() {
             </nav>
           </div>
 
-          {/* Search and Filter Bar - Only show for searchable tabs, hide in Kanban mode */}
-          {activeTab !== 'planner' && activeTab !== 'my-planning' && !((activeTab === 'tasks' || activeTab === 'my-tasks') && taskViewMode === 'kanban') && (
+          {/* Search and Filter Bar - Only show for groups and clients tabs */}
+          {(activeTab === 'groups' || activeTab === 'clients') && (
             <div className="mb-4 flex gap-4 items-center">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
@@ -632,7 +809,7 @@ export default function SubServiceLineWorkspacePage() {
           )}
 
           {/* Results count */}
-          {debouncedSearch && pagination && (activeTab === 'groups' || activeTab === 'clients' || activeTab === 'tasks' || activeTab === 'my-tasks') && (
+          {debouncedSearch && pagination && (activeTab === 'groups' || activeTab === 'clients') && (
             <div className="mb-4 text-sm font-normal text-forvis-gray-800">
               Found <span className="font-medium">{pagination.total}</span>{' '}
               {activeTab === 'groups' ? 'group' : activeTab === 'clients' ? 'client' : 'task'}{pagination.total !== 1 ? 's' : ''} matching "{debouncedSearch}"
@@ -1051,34 +1228,78 @@ export default function SubServiceLineWorkspacePage() {
           ) : (activeTab === 'tasks' || activeTab === 'my-tasks') ? (
             /* Tasks List or Kanban View */
             <div className="space-y-4">
-              {/* View Mode Toggle */}
-              <div className="flex items-center justify-end gap-2 bg-white rounded-lg border border-forvis-gray-200 shadow-sm p-3">
-                <span className="text-sm font-medium text-forvis-gray-700 mr-2">View:</span>
-                <div className="inline-flex rounded-lg border border-forvis-gray-300 bg-white">
-                  <button
-                    onClick={() => handleViewModeChange('list')}
-                    className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
-                      taskViewMode === 'list'
-                        ? 'bg-forvis-blue-600 text-white'
-                        : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
-                    }`}
-                  >
-                    <List className="h-4 w-4" />
-                    <span>List</span>
-                  </button>
-                  <button
-                    onClick={() => handleViewModeChange('kanban')}
-                    className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-r-lg border-l border-forvis-gray-300 transition-colors ${
-                      taskViewMode === 'kanban'
-                        ? 'bg-forvis-blue-600 text-white'
-                        : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
-                    }`}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                    <span>Kanban</span>
-                  </button>
+              {/* View Mode Toggle with Display Mode */}
+              <div className="flex items-center justify-between gap-4 bg-white rounded-lg border border-forvis-gray-200 shadow-sm p-3">
+                {/* Display Mode (Compact/Detailed) - Left Side - Only for Kanban */}
+                {taskViewMode === 'kanban' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-forvis-gray-700">Display:</span>
+                    <div className="inline-flex rounded-lg border border-forvis-gray-300 bg-white">
+                      <button
+                        onClick={() => setDisplayMode('compact')}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-l-lg transition-colors ${
+                          displayMode === 'compact'
+                            ? 'bg-forvis-blue-600 text-white'
+                            : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
+                        }`}
+                      >
+                        <Minimize2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDisplayMode('detailed')}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-r-lg border-l border-forvis-gray-300 transition-colors ${
+                          displayMode === 'detailed'
+                            ? 'bg-forvis-blue-600 text-white'
+                            : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
+                        }`}
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* View Toggle (List/Kanban) - Right Side */}
+                <div className="flex items-center gap-2 ml-auto">
+                  <span className="text-sm font-medium text-forvis-gray-700">View:</span>
+                  <div className="inline-flex rounded-lg border border-forvis-gray-300 bg-white">
+                    <button
+                      onClick={() => handleViewModeChange('list')}
+                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
+                        taskViewMode === 'list'
+                          ? 'bg-forvis-blue-600 text-white'
+                          : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
+                      }`}
+                    >
+                      <List className="h-4 w-4" />
+                      <span>List</span>
+                    </button>
+                    <button
+                      onClick={() => handleViewModeChange('kanban')}
+                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-r-lg border-l border-forvis-gray-300 transition-colors ${
+                        taskViewMode === 'kanban'
+                          ? 'bg-forvis-blue-600 text-white'
+                          : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
+                      }`}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                      <span>Kanban</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* Filters - Show for list view */}
+              {taskViewMode === 'list' && (
+                <KanbanFilters
+                  filters={taskFilters}
+                  onFiltersChange={setTaskFilters}
+                  teamMembers={taskTeamMembers}
+                  partners={taskPartners}
+                  managers={taskManagers}
+                  clients={taskClients}
+                />
+              )}
 
               {taskViewMode === 'kanban' ? (
                 /* Kanban View */
@@ -1086,17 +1307,19 @@ export default function SubServiceLineWorkspacePage() {
                   serviceLine={serviceLine}
                   subServiceLineGroup={subServiceLineGroup}
                   myTasksOnly={activeTab === 'my-tasks'}
+                  displayMode={displayMode}
+                  onDisplayModeChange={setDisplayMode}
                 />
               ) : (
                 /* List View */
                 <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
-                  {(activeTab === 'tasks' ? tasks : myTasks).length === 0 ? (
+                  {(activeTab === 'tasks' ? filteredTasks : filteredMyTasks).length === 0 ? (
                 <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate text-center py-12">
                   <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {searchTerm 
-                      ? 'No tasks match your search.' 
+                    {taskFilters.search || taskFilters.teamMembers.length > 0 || taskFilters.partners.length > 0 || taskFilters.managers.length > 0 || taskFilters.clients.length > 0
+                      ? 'No tasks match your filters.' 
                       : activeTab === 'my-tasks'
                       ? `You are not a team member on any tasks in ${subServiceLineGroupDescription}.`
                       : `No tasks available in ${subServiceLineGroupDescription}.`}
@@ -1138,7 +1361,7 @@ export default function SubServiceLineWorkspacePage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-forvis-gray-200">
-                      {(activeTab === 'tasks' ? tasks : myTasks).map((task, index) => {
+                      {(activeTab === 'tasks' ? filteredTasks : filteredMyTasks).map((task, index) => {
                         return (
                           <tr key={task.id} className={`hover:bg-forvis-blue-50 transition-all duration-200 ease-in-out ${index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'}`}>
                             <td className="px-6 py-4">

@@ -129,7 +129,7 @@ export default function OpportunityDetailPage() {
   if (!opportunity) {
     return (
       <div className="min-h-screen bg-forvis-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold text-forvis-gray-900 mb-1">
               Opportunity not found
@@ -148,7 +148,7 @@ export default function OpportunityDetailPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 py-4 mb-2">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">

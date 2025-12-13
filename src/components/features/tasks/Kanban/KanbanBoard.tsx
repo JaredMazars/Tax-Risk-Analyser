@@ -31,6 +31,8 @@ export function KanbanBoard({
   subServiceLineGroup,
   myTasksOnly = false,
   onTaskClick,
+  displayMode: externalDisplayMode,
+  onDisplayModeChange,
 }: KanbanBoardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -45,9 +47,13 @@ export function KanbanBoard({
     clients: [],
     includeArchived: false,
   });
-  const [displayMode, setDisplayMode] = useState<CardDisplayMode>('detailed');
+  const [internalDisplayMode, setInternalDisplayMode] = useState<CardDisplayMode>('detailed');
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [activeTask, setActiveTask] = useState<KanbanTask | null>(null);
+  
+  // Use external display mode if provided, otherwise use internal state
+  const displayMode = externalDisplayMode ?? internalDisplayMode;
+  const setDisplayMode = onDisplayModeChange ?? setInternalDisplayMode;
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -357,41 +363,6 @@ export function KanbanBoard({
   return (
     <>
       <div className="space-y-4">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-forvis-gray-700">
-              Display Mode:
-            </span>
-            <div className="inline-flex rounded-lg border border-forvis-gray-300 bg-white">
-              <button
-                onClick={() => setDisplayMode('compact')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-l-lg transition-colors ${
-                  displayMode === 'compact'
-                    ? 'bg-forvis-blue-600 text-white'
-                    : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
-                }`}
-              >
-                <Minimize2 className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setDisplayMode('detailed')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-r-lg border-l border-forvis-gray-300 transition-colors ${
-                  displayMode === 'detailed'
-                    ? 'bg-forvis-blue-600 text-white'
-                    : 'text-forvis-gray-700 hover:bg-forvis-gray-50'
-                }`}
-              >
-                <Maximize2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="text-sm text-forvis-gray-600">
-            <span className="font-semibold text-forvis-gray-900">{data.totalTasks}</span> total tasks
-          </div>
-        </div>
-
         {/* Filters */}
         <KanbanFiltersComponent
           filters={filters}
