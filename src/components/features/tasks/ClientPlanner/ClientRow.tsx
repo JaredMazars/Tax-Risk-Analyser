@@ -57,7 +57,7 @@ export function ClientRow({
   }, [isSelecting, onSelectionMove]);
 
   // Check if this row has active date selection
-  const hasSelection = dateSelection && dateSelection.clientId === row.clientId && dateSelection.taskId === row.taskId;
+  const hasSelection = dateSelection && dateSelection.taskId === row.taskId;
   const selectionStart = hasSelection ? Math.min(dateSelection.startColumnIndex, dateSelection.endColumnIndex || dateSelection.startColumnIndex) : -1;
   const selectionEnd = hasSelection ? Math.max(dateSelection.startColumnIndex, dateSelection.endColumnIndex || dateSelection.startColumnIndex) : -1;
 
@@ -99,7 +99,7 @@ export function ClientRow({
 
         {/* Employee allocation tiles */}
         <div className="relative h-full z-1" style={{ pointerEvents: 'none' }}>
-          {row.employeeAllocations.map((allocation) => {
+          {row.allocations.map((allocation) => {
             const position = calculateTilePosition(allocation, dateRange, scale, columnWidth);
             if (!position) return null;
 

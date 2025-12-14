@@ -94,6 +94,7 @@ export interface KanbanFiltersProps {
 export interface KanbanMetricsProps {
   metrics: {
     count: number;
+    loaded?: number;
   };
 }
 

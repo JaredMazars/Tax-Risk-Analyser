@@ -194,3 +194,5 @@ export async function GET(
     return handleApiError(error, 'Get client planner filters');
   }
 }
+
+

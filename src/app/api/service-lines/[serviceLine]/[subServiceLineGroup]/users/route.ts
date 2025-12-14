@@ -156,7 +156,7 @@ export async function GET(
     ]);
 
     // 9. Create maps for allocations to avoid N^2 complexity during mapping
-    const taskAllocMap = new Map<string, typeof taskAllocations>();
+    const taskAllocMap = new Map<string, Array<typeof taskAllocations[number]>>();
     taskAllocations.forEach(alloc => {
       if (!taskAllocMap.has(alloc.userId)) {
         taskAllocMap.set(alloc.userId, []);
@@ -164,7 +164,7 @@ export async function GET(
       taskAllocMap.get(alloc.userId)!.push(alloc);
     });
 
-    const nonClientAllocMap = new Map<number, typeof nonClientAllocations>();
+    const nonClientAllocMap = new Map<number, Array<typeof nonClientAllocations[number]>>();
     nonClientAllocations.forEach(alloc => {
       if (!nonClientAllocMap.has(alloc.employeeId)) {
         nonClientAllocMap.set(alloc.employeeId, []);

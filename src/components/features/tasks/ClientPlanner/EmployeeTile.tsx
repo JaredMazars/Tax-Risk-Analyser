@@ -233,6 +233,7 @@ export function EmployeeTile({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
+    return undefined;
   }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
   // Calculate live position with delta applied
@@ -427,5 +428,7 @@ export function EmployeeTile({
     </div>
   );
 }
+
+
 
 

@@ -231,6 +231,7 @@ export function AllocationTile({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
+    return undefined;
   }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
   // Calculate live position with delta applied
@@ -435,4 +436,6 @@ export function AllocationTile({
     </div>
   );
 }
+
+
 

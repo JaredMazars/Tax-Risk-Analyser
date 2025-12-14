@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -205,21 +205,50 @@ export function KanbanBoard({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
+    // Validation 1: Ensure we have a valid drop target
+    // If user drops outside any droppable area, keep task in original position
     if (!over) {
       setActiveTask(null);
       return;
     }
 
     const taskId = Number(active.id);
-    const newStage = over.id as TaskStage;
     
-    // Prevent dragging to ARCHIVED column
+    // Validation 2: Resolve the drop target
+    // The drop target can be either a column droppable area (TaskStage ID)
+    // or a task card (task ID). We need to determine which and extract the stage.
+    let newStage: TaskStage;
+    
+    // Check if over.id is a valid TaskStage enum value
+    const validStages = Object.values(TaskStage);
+    if (validStages.includes(over.id as TaskStage)) {
+      // Case A: Dropped directly on a column droppable area
+      newStage = over.id as TaskStage;
+    } else {
+      // Case B: Dropped on a task card - find which column that task belongs to
+      // This allows users to drop tasks on other tasks to move them to the same column
+      const targetTaskId = Number(over.id);
+      const targetTask = data?.columns
+        .flatMap(col => col.tasks)
+        .find(t => t.id === targetTaskId);
+      
+      if (!targetTask) {
+        // Edge case: Invalid or stale task ID - keep task in original position
+        setActiveTask(null);
+        return;
+      }
+      
+      newStage = targetTask.stage;
+    }
+    
+    // Validation 3: Prevent moves to ARCHIVED column
+    // Tasks can only be archived through explicit actions, not drag-and-drop
     if (newStage === TaskStage.ARCHIVED) {
       setActiveTask(null);
       return;
     }
 
-    // Find the task
+    // Validation 4: Verify the task being dragged exists in current data
     const task = data?.columns
       .flatMap(col => col.tasks)
       .find(t => t.id === taskId);
@@ -229,14 +258,15 @@ export function KanbanBoard({
       return;
     }
 
-    // Check if stage actually changed
+    // Validation 5: Skip update if stage hasn't changed
+    // Prevents unnecessary API calls and cache updates
     if (task.stage === newStage) {
       setActiveTask(null);
       return;
     }
 
-    // Check if user has permission to move this task
-    // ADMIN, REVIEWER, and EDITOR can all move tasks
+    // Validation 6: Check user permissions
+    // Only users with ADMIN, REVIEWER, or EDITOR roles can move tasks
     if (!task.userRole || !['ADMIN', 'REVIEWER', 'EDITOR'].includes(task.userRole)) {
       setActiveTask(null);
       return;
@@ -399,7 +429,7 @@ export function KanbanBoard({
         {/* Kanban Board */}
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >

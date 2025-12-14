@@ -635,7 +635,17 @@ export function ClientPlannerTimeline({
                   resources={rows.map(row => ({ 
                     userId: `task-${row.taskId}`,
                     userName: `${row.clientName} - ${row.taskName}`,
-                    allocations: row.allocations
+                    userEmail: '',
+                    role: '',
+                    allocations: row.allocations.map(alloc => ({
+                      ...alloc,
+                      taskName: row.taskName,
+                      clientName: row.clientName,
+                      clientCode: row.clientCode
+                    })),
+                    totalAllocatedHours: 0,
+                    totalAllocatedPercentage: 0,
+                    maxLanes: 1
                   }))} 
                 />
               </div>

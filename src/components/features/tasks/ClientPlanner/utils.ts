@@ -174,7 +174,7 @@ export function calculateMaxLanes(allocations: AllocationData[]): number {
  * Process task data from API response
  * Assigns lanes to allocations within each task row
  */
-export function processTaskData(tasks: Omit<TaskPlannerRow, 'maxLanes' | 'allocations'>[] & { allocations: AllocationData[] }[]): TaskPlannerRow[] {
+export function processTaskData(tasks: Array<Omit<TaskPlannerRow, 'maxLanes'>>): TaskPlannerRow[] {
   return tasks.map(task => {
     // Assign lanes within THIS task only
     const allocationsWithLanes = assignLanes(task.allocations);
@@ -242,11 +242,13 @@ export function getEmployeeDisplayName(allocation: AllocationData): string {
     return allocation.employeeName;
   }
   // Fallback to userId without domain
-  return allocation.userId.split('@')[0];
+  return allocation.userId.split('@')[0] || allocation.userId;
 }
 
 // Export getDayPixelWidth function type for TypeScript
 import type { getDayPixelWidth as GetDayPixelWidthType } from '../TeamPlanner/utils';
 export type GetDayPixelWidth = typeof GetDayPixelWidthType;
+
+
 
 

@@ -69,7 +69,7 @@ export async function GET(
     }
     
     // Try cache first
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get(cacheKey) as any;
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'planner/clients/route.ts:65',message:'Cache check',data:{cacheHit:!!cached,cacheKey:cacheKey.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
     // #endregion
@@ -277,7 +277,7 @@ export async function GET(
           .filter(member => member.startDate && member.endDate)
           .map(member => {
             const employee = employeeMap.get(member.userId.toLowerCase()) || 
-                            employeeMap.get(member.userId.split('@')[0].toLowerCase());
+                            employeeMap.get(member.userId.split('@')[0]?.toLowerCase() || '');
 
             return {
               id: member.id,

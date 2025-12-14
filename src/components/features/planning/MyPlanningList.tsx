@@ -66,7 +66,7 @@ export function MyPlanningList({ allocations }: MyPlanningListProps) {
   const uniqueClients = useMemo(() => {
     const clients = new Set(currentAndFutureData.map(i => `${i.clientName}|${i.clientCode}`));
     return Array.from(clients).map(c => {
-      const [name, code] = c.split('|');
+      const [name = '', code = ''] = c.split('|');
       return { name, code };
     }).sort((a, b) => a.name.localeCompare(b.name));
   }, [currentAndFutureData]);

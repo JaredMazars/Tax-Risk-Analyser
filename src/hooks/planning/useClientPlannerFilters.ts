@@ -47,3 +47,5 @@ export function useClientPlannerFilters({
     gcTime: 60 * 60 * 1000, // Keep in cache for 1 hour
   });
 }
+
+
