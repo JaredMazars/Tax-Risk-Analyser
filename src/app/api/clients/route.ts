@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
         GSClientID: true,
         clientCode: true,
         clientNameFull: true,
+        groupCode: true,
         groupDesc: true,
         clientPartner: true,
         clientManager: true,

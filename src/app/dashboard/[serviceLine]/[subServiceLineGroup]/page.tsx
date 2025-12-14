@@ -70,17 +70,14 @@ export default function SubServiceLineWorkspacePage() {
 
   // Groups filters
   const [groupsFilters, setGroupsFilters] = useState<GroupsFiltersType>({
-    search: '',
-    industries: [],
-    offices: [],
+    groups: [],
   });
 
   // Clients filters
   const [clientsFilters, setClientsFilters] = useState<ClientsFiltersType>({
-    search: '',
+    clients: [],
     industries: [],
     groups: [],
-    offices: [],
   });
 
   // Task list view filters (matching Kanban filters structure)
@@ -517,27 +514,37 @@ export default function SubServiceLineWorkspacePage() {
   }, [tasks, myTasks, activeTab]);
 
   // Extract unique filter options for Groups
-  const groupIndustries = useMemo(() => {
-    const industries = new Set<string>();
+  const groupOptions = useMemo(() => {
+    const groupsMap = new Map<string, { code: string; name: string }>();
     groups.forEach(group => {
-      if (group.industryDescription) industries.add(group.industryDescription);
+      if (group.groupCode) {
+        groupsMap.set(group.groupCode, {
+          code: group.groupCode,
+          name: group.groupDesc || group.groupCode,
+        });
+      }
     });
-    return Array.from(industries).sort();
-  }, [groups]);
-
-  const groupOffices = useMemo(() => {
-    const offices = new Set<string>();
-    groups.forEach(group => {
-      if (group.officeLocation) offices.add(group.officeLocation);
-    });
-    return Array.from(offices).sort();
+    return Array.from(groupsMap.values()).sort((a, b) => a.code.localeCompare(b.code));
   }, [groups]);
 
   // Extract unique filter options for Clients
+  const clientOptions = useMemo(() => {
+    const clientsMap = new Map<string, { code: string; name: string }>();
+    clients.forEach(client => {
+      if (client.clientCode) {
+        clientsMap.set(client.clientCode, {
+          code: client.clientCode,
+          name: client.clientNameFull || client.clientCode,
+        });
+      }
+    });
+    return Array.from(clientsMap.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [clients]);
+
   const clientIndustries = useMemo(() => {
     const industries = new Set<string>();
     clients.forEach(client => {
-      if (client.industryDescription) industries.add(client.industryDescription);
+      if (client.industry) industries.add(client.industry);
     });
     return Array.from(industries).sort();
   }, [clients]);
@@ -555,35 +562,13 @@ export default function SubServiceLineWorkspacePage() {
     return Array.from(groupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [clients]);
 
-  const clientOffices = useMemo(() => {
-    const offices = new Set<string>();
-    clients.forEach(client => {
-      if (client.officeLocation) offices.add(client.officeLocation);
-    });
-    return Array.from(offices).sort();
-  }, [clients]);
-
   // Apply filters to groups
   const filteredGroups = useMemo(() => {
     let result = groups;
     
-    if (groupsFilters.search) {
-      const lower = groupsFilters.search.toLowerCase();
+    if (groupsFilters.groups.length > 0) {
       result = result.filter(g =>
-        g.groupDesc?.toLowerCase().includes(lower) ||
-        g.groupCode?.toLowerCase().includes(lower)
-      );
-    }
-    
-    if (groupsFilters.industries.length > 0) {
-      result = result.filter(g =>
-        g.industryDescription && groupsFilters.industries.includes(g.industryDescription)
-      );
-    }
-    
-    if (groupsFilters.offices.length > 0) {
-      result = result.filter(g =>
-        g.officeLocation && groupsFilters.offices.includes(g.officeLocation)
+        g.groupCode && groupsFilters.groups.includes(g.groupCode)
       );
     }
     
@@ -594,30 +579,21 @@ export default function SubServiceLineWorkspacePage() {
   const filteredClients = useMemo(() => {
     let result = clients;
     
-    if (clientsFilters.search) {
-      const lower = clientsFilters.search.toLowerCase();
+    if (clientsFilters.clients.length > 0) {
       result = result.filter(c =>
-        c.clientNameFull?.toLowerCase().includes(lower) ||
-        c.clientCode?.toLowerCase().includes(lower) ||
-        c.groupDesc?.toLowerCase().includes(lower)
+        c.clientCode && clientsFilters.clients.includes(c.clientCode)
       );
     }
     
     if (clientsFilters.industries.length > 0) {
       result = result.filter(c =>
-        c.industryDescription && clientsFilters.industries.includes(c.industryDescription)
+        c.industry && clientsFilters.industries.includes(c.industry)
       );
     }
     
     if (clientsFilters.groups.length > 0) {
       result = result.filter(c =>
         c.groupCode && clientsFilters.groups.includes(c.groupCode)
-      );
-    }
-    
-    if (clientsFilters.offices.length > 0) {
-      result = result.filter(c =>
-        c.officeLocation && clientsFilters.offices.includes(c.officeLocation)
       );
     }
     
@@ -1084,8 +1060,7 @@ export default function SubServiceLineWorkspacePage() {
             <GroupsFilters
               filters={groupsFilters}
               onFiltersChange={setGroupsFilters}
-              industries={groupIndustries}
-              offices={groupOffices}
+              groups={groupOptions}
             />
           )}
 
@@ -1093,9 +1068,9 @@ export default function SubServiceLineWorkspacePage() {
             <ClientsFilters
               filters={clientsFilters}
               onFiltersChange={setClientsFilters}
+              clients={clientOptions}
               industries={clientIndustries}
               groups={clientGroups}
-              offices={clientOffices}
             />
           )}
 
@@ -1204,7 +1179,7 @@ export default function SubServiceLineWorkspacePage() {
                   <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No groups</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {(groupsFilters.search || groupsFilters.industries.length > 0 || groupsFilters.offices.length > 0) 
+                    {groupsFilters.groups.length > 0 
                       ? 'No groups match your filters.' 
                       : 'No client groups available in the system.'}
                   </p>
@@ -1350,7 +1325,7 @@ export default function SubServiceLineWorkspacePage() {
                   <Building2 className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {(clientsFilters.search || clientsFilters.industries.length > 0 || clientsFilters.groups.length > 0 || clientsFilters.offices.length > 0) 
+                    {(clientsFilters.clients.length > 0 || clientsFilters.industries.length > 0 || clientsFilters.groups.length > 0) 
                       ? 'No clients match your filters.' 
                       : 'No clients available in the system.'}
                   </p>
