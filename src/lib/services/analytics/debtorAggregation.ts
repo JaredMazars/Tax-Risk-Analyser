@@ -32,6 +32,34 @@ export interface DebtorMetrics {
   invoiceCount: number;
 }
 
+export interface PaymentTransaction {
+  date: Date;
+  amount: number;
+  reference: string | null;
+  entryType: string | null;
+}
+
+export interface InvoiceDetail {
+  invoiceNumber: string;
+  invoiceDate: Date;
+  originalAmount: number;
+  paymentsReceived: number;
+  netBalance: number;
+  daysOutstanding: number;
+  servLineCode: string;
+  servLineName?: string;
+  agingBucket: 'current' | 'days31_60' | 'days61_90' | 'days91_120' | 'days120Plus';
+  paymentHistory: PaymentTransaction[];
+}
+
+export interface InvoicesByBucket {
+  current: InvoiceDetail[];
+  days31_60: InvoiceDetail[];
+  days61_90: InvoiceDetail[];
+  days91_120: InvoiceDetail[];
+  days120Plus: InvoiceDetail[];
+}
+
 interface InvoiceBalance {
   invoiceNumber: string;
   invoiceDate: Date;
@@ -363,5 +391,104 @@ export function aggregateOverallDebtorData(
     transactionCount: transactions.length,
     invoiceCount: invoices.size,
   };
+}
+
+/**
+ * Get detailed invoice information grouped by aging bucket
+ * 
+ * @param transactions - Array of debtor transaction records
+ * @param serviceLineMap - Optional map of ServLineCode to Master Service Line names
+ * @returns Invoices grouped by aging bucket with detailed payment history
+ */
+export function getInvoiceDetailsByBucket(
+  transactions: DebtorTransactionRecord[],
+  serviceLineMap?: Map<string, string>
+): InvoicesByBucket {
+  // Match payments to invoices to get net balances
+  const invoices = matchPaymentsToInvoices(transactions);
+  
+  // Group transactions by invoice number for payment history
+  const transactionsByInvoice = new Map<string, DebtorTransactionRecord[]>();
+  transactions.forEach((txn) => {
+    if (txn.InvNumber) {
+      if (!transactionsByInvoice.has(txn.InvNumber)) {
+        transactionsByInvoice.set(txn.InvNumber, []);
+      }
+      transactionsByInvoice.get(txn.InvNumber)!.push(txn);
+    }
+  });
+  
+  // Sort transactions by date for each invoice
+  transactionsByInvoice.forEach((txns) => {
+    txns.sort((a, b) => a.TranDate.getTime() - b.TranDate.getTime());
+  });
+  
+  const today = new Date();
+  const result: InvoicesByBucket = {
+    current: [],
+    days31_60: [],
+    days61_90: [],
+    days91_120: [],
+    days120Plus: [],
+  };
+  
+  // Process each invoice
+  invoices.forEach((invoice) => {
+    // Only include invoices with outstanding balance
+    if (invoice.netBalance <= 0) {
+      return;
+    }
+    
+    // Calculate days outstanding
+    const daysDiff = Math.floor((today.getTime() - invoice.invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysOutstanding = Math.max(0, daysDiff); // Never negative
+    
+    // Determine aging bucket
+    let agingBucket: InvoiceDetail['agingBucket'];
+    if (daysDiff < 0 || daysDiff <= 30) {
+      agingBucket = 'current';
+    } else if (daysDiff <= 60) {
+      agingBucket = 'days31_60';
+    } else if (daysDiff <= 90) {
+      agingBucket = 'days61_90';
+    } else if (daysDiff <= 120) {
+      agingBucket = 'days91_120';
+    } else {
+      agingBucket = 'days120Plus';
+    }
+    
+    // Build payment history
+    const txns = transactionsByInvoice.get(invoice.invoiceNumber) || [];
+    const paymentHistory: PaymentTransaction[] = txns.map((txn) => ({
+      date: txn.TranDate,
+      amount: txn.Total || 0,
+      reference: txn.Reference,
+      entryType: txn.EntryType,
+    }));
+    
+    // Create invoice detail
+    const invoiceDetail: InvoiceDetail = {
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceDate: invoice.invoiceDate,
+      originalAmount: invoice.invoiceAmount,
+      paymentsReceived: invoice.paymentsTotal,
+      netBalance: invoice.netBalance,
+      daysOutstanding,
+      servLineCode: invoice.servLineCode,
+      servLineName: serviceLineMap?.get(invoice.servLineCode),
+      agingBucket,
+      paymentHistory,
+    };
+    
+    // Add to appropriate bucket
+    result[agingBucket].push(invoiceDetail);
+  });
+  
+  // Sort each bucket by invoice date (newest first)
+  Object.values(result).forEach((bucket) => {
+    bucket.sort((a, b) => b.invoiceDate.getTime() - a.invoiceDate.getTime());
+  });
+  
+  return result;
 }
 
