@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, X, Loader2 } from 'lucide-react';
 import { Button, Card, LoadingSpinner, Banner } from '@/components/ui';
 import { getToolComponent } from '@/components/tools/ToolRegistry';
@@ -37,6 +37,8 @@ interface WorkSpaceTabProps {
 
 export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [activeToolId, setActiveToolId] = useState<number | null>(null);
+  const [toolToRemove, setToolToRemove] = useState<{ id: number; name: string } | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch tools assigned to this task
@@ -52,6 +54,13 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
       return result.data || [];
     },
   });
+
+  // Initialize active tool to first tool when taskTools loads
+  useEffect(() => {
+    if (taskTools.length > 0 && activeToolId === null) {
+      setActiveToolId(taskTools[0].toolId);
+    }
+  }, [taskTools, activeToolId]);
 
   // Fetch available tools for this sub-service line group
   const {
@@ -79,9 +88,13 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
       if (!response.ok) throw new Error('Failed to add tool');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['task-tools', taskId] });
       setShowAddModal(false);
+      // Auto-select newly added tool
+      if (data?.data?.toolId) {
+        setActiveToolId(data.data.toolId);
+      }
     },
   });
 
@@ -94,8 +107,13 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
       if (!response.ok) throw new Error('Failed to remove tool');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, removedToolId) => {
       queryClient.invalidateQueries({ queryKey: ['task-tools', taskId] });
+      // If removed tool was active, switch to first remaining tool
+      if (activeToolId === removedToolId) {
+        const remainingTools = taskTools.filter(tt => tt.toolId !== removedToolId);
+        setActiveToolId(remainingTools.length > 0 ? remainingTools[0].toolId : null);
+      }
     },
   });
 
@@ -103,10 +121,19 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
     addToolMutation.mutate(toolId);
   };
 
-  const handleRemoveTool = (toolId: number) => {
-    if (confirm('Are you sure you want to remove this tool from the task?')) {
-      removeToolMutation.mutate(toolId);
+  const handleRemoveTool = (toolId: number, toolName: string) => {
+    setToolToRemove({ id: toolId, name: toolName });
+  };
+
+  const confirmRemoveTool = () => {
+    if (toolToRemove) {
+      removeToolMutation.mutate(toolToRemove.id);
+      setToolToRemove(null);
     }
+  };
+
+  const cancelRemoveTool = () => {
+    setToolToRemove(null);
   };
 
   // Filter out already assigned tools
@@ -159,58 +186,83 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
           </div>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {taskTools.map((taskTool) => {
-            const ToolComponent = getToolComponent(taskTool.tool.code);
-
-            return (
-              <Card key={taskTool.id} variant="standard" className="overflow-hidden">
-                <div className="px-6 py-4 bg-gradient-to-r from-forvis-blue-50 to-forvis-blue-100 border-b border-forvis-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-forvis-gray-900">
-                        {taskTool.tool.name}
-                      </h3>
-                      {taskTool.tool.description && (
-                        <p className="text-sm text-forvis-gray-600 mt-1">
-                          {taskTool.tool.description}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleRemoveTool(taskTool.toolId)}
-                      className="p-2 text-forvis-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove tool"
-                      disabled={removeToolMutation.isPending}
-                    >
-                      {removeToolMutation.isPending ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <X className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  {ToolComponent ? (
-                    <ToolComponent 
-                      taskId={taskId}
-                      toolId={taskTool.toolId}
-                      subTabs={taskTool.tool.subTabs}
-                    />
-                  ) : (
-                    <Banner
-                      variant="warning"
-                      title="Tool Not Available"
-                      message={`The tool "${taskTool.tool.code}" is not registered in the system. Please ensure the tool component is properly registered.`}
-                    />
+        <Card variant="standard" className="overflow-hidden">
+          {/* Tab Bar */}
+          <div className="flex items-center gap-1 px-4 pt-4 border-b border-forvis-gray-200 overflow-x-auto scrollbar-thin">
+            {taskTools.map((taskTool) => {
+              const isActive = activeToolId === taskTool.toolId;
+              return (
+                <button
+                  key={taskTool.id}
+                  onClick={() => setActiveToolId(taskTool.toolId)}
+                  className={`
+                    group relative flex items-center gap-2 px-4 py-3 rounded-t-lg transition-all duration-200 min-w-fit whitespace-nowrap
+                    ${isActive
+                      ? 'bg-gradient-to-r from-forvis-blue-500 to-forvis-blue-600 text-white shadow-md'
+                      : 'bg-forvis-gray-50 text-forvis-gray-700 hover:bg-forvis-blue-50 hover:text-forvis-blue-700'
+                    }
+                  `}
+                >
+                  <span className="text-sm font-medium">{taskTool.tool.name}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveTool(taskTool.toolId, taskTool.tool.name);
+                    }}
+                    className={`
+                      p-1 rounded transition-colors
+                      ${isActive
+                        ? 'hover:bg-white/20 text-white'
+                        : 'hover:bg-red-100 text-forvis-gray-500 hover:text-red-600'
+                      }
+                    `}
+                    title="Remove tool"
+                    disabled={removeToolMutation.isPending}
+                  >
+                    {removeToolMutation.isPending && activeToolId === taskTool.toolId ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
+                  </button>
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white"></div>
                   )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Tool Content */}
+          <div className="p-6">
+            {(() => {
+              const activeTool = taskTools.find(tt => tt.toolId === activeToolId);
+              if (!activeTool) {
+                return (
+                  <div className="text-center py-12">
+                    <p className="text-sm text-forvis-gray-600">No tool selected</p>
+                  </div>
+                );
+              }
+
+              const ToolComponent = getToolComponent(activeTool.tool.code);
+              
+              return ToolComponent ? (
+                <ToolComponent 
+                  taskId={taskId}
+                  toolId={activeTool.toolId}
+                  subTabs={activeTool.tool.subTabs}
+                />
+              ) : (
+                <Banner
+                  variant="warning"
+                  title="Tool Not Available"
+                  message={`The tool "${activeTool.tool.code}" is not registered in the system. Please ensure the tool component is properly registered.`}
+                />
+              );
+            })()}
+          </div>
+        </Card>
       )}
 
       {/* Add Tool Modal */}
@@ -265,6 +317,45 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
             <div className="flex justify-end pt-4 border-t">
               <Button variant="secondary" size="md" onClick={() => setShowAddModal(false)}>
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Tool Confirmation Modal */}
+      {toolToRemove && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-corporate-lg space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <X className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-forvis-gray-900">Remove Tool</h2>
+                <p className="text-sm text-forvis-gray-600 mt-1">
+                  Are you sure you want to remove <span className="font-semibold">{toolToRemove.name}</span> from this task? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button 
+                variant="secondary" 
+                size="md" 
+                onClick={cancelRemoveTool}
+                disabled={removeToolMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="danger" 
+                size="md" 
+                onClick={confirmRemoveTool}
+                disabled={removeToolMutation.isPending}
+                icon={removeToolMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
+              >
+                {removeToolMutation.isPending ? 'Removing...' : 'Remove Tool'}
               </Button>
             </div>
           </div>

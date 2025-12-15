@@ -246,6 +246,13 @@ Features are mapped to roles in `@/lib/permissions/featurePermissions.ts` (in-me
 - Server Components default, `'use client'` only when needed
 - Never browser popups (use custom modals)
 
+### UI Confirmations
+
+- NEVER use `confirm()`, `alert()`, or `prompt()` browser dialogs
+- ALWAYS use custom modal components for confirmations/alerts
+- Destructive actions (delete, remove, etc.) require modal confirmation
+- Modal should show action context (e.g., item name being deleted)
+
 ### Authorization Utilities
 
 **Feature Checks** (`@/lib/permissions/checkFeature`):
