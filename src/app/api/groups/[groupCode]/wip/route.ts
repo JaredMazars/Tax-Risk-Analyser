@@ -3,6 +3,11 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
+import { 
+  aggregateWipTransactionsByServiceLine, 
+  aggregateOverallWipData,
+  countUniqueTasks 
+} from '@/lib/services/analytics/wipAggregation';
 
 interface ProfitabilityMetrics {
   grossProduction: number;
@@ -186,34 +191,27 @@ export async function GET(
     const accessibleServiceLines = await getUserServiceLines(user.id);
     const accessibleServLineCodes = accessibleServiceLines.map(sl => String(sl.serviceLine));
 
-    // Fetch WIP data for all clients in the group
-    const wipRecords = await prisma.wip.findMany({
+    // Fetch WIP transactions for all clients in the group
+    const wipTransactions = await prisma.wIPTransactions.findMany({
       where: {
         GSClientID: {
           in: GSClientIDs,
         },
       },
       select: {
-        ServLineCode: true,
-        BalWIP: true,
-        BalTime: true,
-        BalDisb: true,
-        WipProvision: true,
-        LTDTime: true,
-        LTDDisb: true,
-        LTDAdjTime: true,
-        LTDAdjDisb: true,
-        LTDCostExcludeCP: true,
-        LTDFeeTime: true,
-        LTDFeeDisb: true,
-        LTDHours: true,
+        GSTaskID: true,
+        TaskServLine: true,
+        Amount: true,
+        Cost: true,
+        Hour: true,
+        TType: true,
         updatedAt: true,
       },
     });
 
-    // Filter WIP records by accessible service lines
-    const filteredWipRecords = wipRecords.filter(record => 
-      record.ServLineCode && accessibleServLineCodes.includes(record.ServLineCode)
+    // Filter WIP transactions by accessible service lines
+    const filteredWipTransactions = wipTransactions.filter(transaction => 
+      transaction.TaskServLine && accessibleServLineCodes.includes(transaction.TaskServLine)
     );
 
     // Get Service Line External mappings to Master Service Lines
@@ -237,92 +235,18 @@ export async function GET(
       }
     });
 
-    // Group WIP data by Master Service Line
-    const groupedData = new Map<string, {
-      ltdTime: number;
-      ltdAdjTime: number;
-      ltdAdjDisb: number;
-      ltdCost: number;
-      balWIP: number;
-      balTime: number;
-      balDisb: number;
-      wipProvision: number;
-      ltdDisb: number;
-      ltdFeeTime: number;
-      ltdFeeDisb: number;
-      ltdHours: number;
-      taskCount: number;
-    }>();
+    // Aggregate WIP transactions by Master Service Line
+    const groupedData = aggregateWipTransactionsByServiceLine(
+      filteredWipTransactions,
+      servLineToMasterMap
+    );
 
-    // Initialize overall totals
-    const overallTotals = {
-      ltdTime: 0,
-      ltdAdjTime: 0,
-      ltdAdjDisb: 0,
-      ltdCost: 0,
-      balWIP: 0,
-      balTime: 0,
-      balDisb: 0,
-      wipProvision: 0,
-      ltdDisb: 0,
-      ltdFeeTime: 0,
-      ltdFeeDisb: 0,
-      ltdHours: 0,
-      taskCount: 0,
-    };
-
-    // Aggregate by Master Service Line
-    filteredWipRecords.forEach((record) => {
-      const masterCode = servLineToMasterMap.get(record.ServLineCode || '') || 'UNKNOWN';
-      
-      if (!groupedData.has(masterCode)) {
-        groupedData.set(masterCode, {
-          ltdTime: 0,
-          ltdAdjTime: 0,
-          ltdAdjDisb: 0,
-          ltdCost: 0,
-          balWIP: 0,
-          balTime: 0,
-          balDisb: 0,
-          wipProvision: 0,
-          ltdDisb: 0,
-          ltdFeeTime: 0,
-          ltdFeeDisb: 0,
-          ltdHours: 0,
-          taskCount: 0,
-        });
-      }
-
-      const group = groupedData.get(masterCode)!;
-      group.ltdTime += record.LTDTime || 0;
-      group.ltdAdjTime += record.LTDAdjTime || 0;
-      group.ltdAdjDisb += record.LTDAdjDisb || 0;
-      group.ltdCost += record.LTDCostExcludeCP || 0;
-      group.balWIP += record.BalWIP || 0;
-      group.balTime += record.BalTime || 0;
-      group.balDisb += record.BalDisb || 0;
-      group.wipProvision += record.WipProvision || 0;
-      group.ltdDisb += record.LTDDisb || 0;
-      group.ltdFeeTime += record.LTDFeeTime || 0;
-      group.ltdFeeDisb += record.LTDFeeDisb || 0;
-      group.ltdHours += record.LTDHours || 0;
-      group.taskCount += 1;
-
-      // Aggregate to overall
-      overallTotals.ltdTime += record.LTDTime || 0;
-      overallTotals.ltdAdjTime += record.LTDAdjTime || 0;
-      overallTotals.ltdAdjDisb += record.LTDAdjDisb || 0;
-      overallTotals.ltdCost += record.LTDCostExcludeCP || 0;
-      overallTotals.balWIP += record.BalWIP || 0;
-      overallTotals.balTime += record.BalTime || 0;
-      overallTotals.balDisb += record.BalDisb || 0;
-      overallTotals.wipProvision += record.WipProvision || 0;
-      overallTotals.ltdDisb += record.LTDDisb || 0;
-      overallTotals.ltdFeeTime += record.LTDFeeTime || 0;
-      overallTotals.ltdFeeDisb += record.LTDFeeDisb || 0;
-      overallTotals.ltdHours += record.LTDHours || 0;
-      overallTotals.taskCount += 1;
-    });
+    // Calculate overall totals
+    const overallTotals = aggregateOverallWipData(filteredWipTransactions);
+    
+    // Count unique tasks
+    const taskCount = countUniqueTasks(filteredWipTransactions);
+    overallTotals.taskCount = taskCount;
 
     // Fetch Master Service Line names
     const masterServiceLines = await prisma.serviceLineMaster.findMany({
@@ -346,9 +270,9 @@ export async function GET(
     // Calculate overall profitability metrics
     const overall = calculateProfitabilityMetrics(overallTotals);
 
-    // Get the latest update timestamp
-    const latestWip = filteredWipRecords.length > 0
-      ? filteredWipRecords.reduce((latest, current) => 
+    // Get the latest update timestamp from transactions
+    const latestWipTransaction = filteredWipTransactions.length > 0
+      ? filteredWipTransactions.reduce((latest, current) => 
           (current.updatedAt > latest.updatedAt) ? current : latest
         )
       : null;
@@ -363,8 +287,8 @@ export async function GET(
         code: msl.code,
         name: msl.name,
       })),
-      taskCount: overallTotals.taskCount,
-      lastUpdated: latestWip?.updatedAt || null,
+      taskCount: taskCount,
+      lastUpdated: latestWipTransaction?.updatedAt || null,
     };
 
     return NextResponse.json(successResponse(responseData));

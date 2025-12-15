@@ -4,6 +4,11 @@ import { handleApiError } from '@/lib/utils/errorHandler';
 import { GSClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
+import { 
+  aggregateWipTransactionsByServiceLine, 
+  aggregateOverallWipData,
+  countUniqueTasks 
+} from '@/lib/services/analytics/wipAggregation';
 
 interface ProfitabilityMetrics {
   grossProduction: number;
@@ -139,25 +144,19 @@ export async function GET(
       );
     }
 
-    // 4-5. Execute - Fetch WIP data with Service Line information
-    const wipRecords = await prisma.wip.findMany({
+    // 4-5. Execute - Fetch WIP transactions for this client
+    const wipTransactions = await prisma.wIPTransactions.findMany({
       where: {
         GSClientID: GSClientID,
       },
       select: {
-        ServLineCode: true,
-        BalWIP: true,
-        BalTime: true,
-        BalDisb: true,
-        WipProvision: true,
-        LTDTime: true,
-        LTDDisb: true,
-        LTDAdjTime: true,
-        LTDAdjDisb: true,
-        LTDCostExcludeCP: true,
-        LTDFeeTime: true,
-        LTDFeeDisb: true,
-        LTDHours: true,
+        GSTaskID: true,
+        TaskServLine: true,
+        Amount: true,
+        Cost: true,
+        Hour: true,
+        TType: true,
+        updatedAt: true,
       },
     });
 
@@ -177,92 +176,18 @@ export async function GET(
       }
     });
 
-    // Group WIP data by Master Service Line
-    const groupedData = new Map<string, {
-      ltdTime: number;
-      ltdAdjTime: number;
-      ltdAdjDisb: number;
-      ltdCost: number;
-      balWIP: number;
-      balTime: number;
-      balDisb: number;
-      wipProvision: number;
-      ltdDisb: number;
-      ltdFeeTime: number;
-      ltdFeeDisb: number;
-      ltdHours: number;
-      taskCount: number;
-    }>();
+    // Aggregate WIP transactions by Master Service Line
+    const groupedData = aggregateWipTransactionsByServiceLine(
+      wipTransactions,
+      servLineToMasterMap
+    );
 
-    // Initialize overall totals
-    const overallTotals = {
-      ltdTime: 0,
-      ltdAdjTime: 0,
-      ltdAdjDisb: 0,
-      ltdCost: 0,
-      balWIP: 0,
-      balTime: 0,
-      balDisb: 0,
-      wipProvision: 0,
-      ltdDisb: 0,
-      ltdFeeTime: 0,
-      ltdFeeDisb: 0,
-      ltdHours: 0,
-      taskCount: 0,
-    };
-
-    // Aggregate by Master Service Line
-    wipRecords.forEach((record) => {
-      const masterCode = servLineToMasterMap.get(record.ServLineCode || '') || 'UNKNOWN';
-      
-      if (!groupedData.has(masterCode)) {
-        groupedData.set(masterCode, {
-          ltdTime: 0,
-          ltdAdjTime: 0,
-          ltdAdjDisb: 0,
-          ltdCost: 0,
-          balWIP: 0,
-          balTime: 0,
-          balDisb: 0,
-          wipProvision: 0,
-          ltdDisb: 0,
-          ltdFeeTime: 0,
-          ltdFeeDisb: 0,
-          ltdHours: 0,
-          taskCount: 0,
-        });
-      }
-
-      const group = groupedData.get(masterCode)!;
-      group.ltdTime += record.LTDTime || 0;
-      group.ltdAdjTime += record.LTDAdjTime || 0;
-      group.ltdAdjDisb += record.LTDAdjDisb || 0;
-      group.ltdCost += record.LTDCostExcludeCP || 0;
-      group.balWIP += record.BalWIP || 0;
-      group.balTime += record.BalTime || 0;
-      group.balDisb += record.BalDisb || 0;
-      group.wipProvision += record.WipProvision || 0;
-      group.ltdDisb += record.LTDDisb || 0;
-      group.ltdFeeTime += record.LTDFeeTime || 0;
-      group.ltdFeeDisb += record.LTDFeeDisb || 0;
-      group.ltdHours += record.LTDHours || 0;
-      group.taskCount += 1;
-
-      // Aggregate to overall
-      overallTotals.ltdTime += record.LTDTime || 0;
-      overallTotals.ltdAdjTime += record.LTDAdjTime || 0;
-      overallTotals.ltdAdjDisb += record.LTDAdjDisb || 0;
-      overallTotals.ltdCost += record.LTDCostExcludeCP || 0;
-      overallTotals.balWIP += record.BalWIP || 0;
-      overallTotals.balTime += record.BalTime || 0;
-      overallTotals.balDisb += record.BalDisb || 0;
-      overallTotals.wipProvision += record.WipProvision || 0;
-      overallTotals.ltdDisb += record.LTDDisb || 0;
-      overallTotals.ltdFeeTime += record.LTDFeeTime || 0;
-      overallTotals.ltdFeeDisb += record.LTDFeeDisb || 0;
-      overallTotals.ltdHours += record.LTDHours || 0;
-      overallTotals.taskCount += 1;
-    });
+    // Calculate overall totals
+    const overallTotals = aggregateOverallWipData(wipTransactions);
+    
+    // Count unique tasks
+    const taskCount = countUniqueTasks(wipTransactions);
+    overallTotals.taskCount = taskCount;
 
     // Fetch Master Service Line names
     const masterServiceLines = await prisma.serviceLineMaster.findMany({
@@ -286,18 +211,12 @@ export async function GET(
     // Calculate overall profitability metrics
     const overall = calculateProfitabilityMetrics(overallTotals);
 
-    // Get the latest update timestamp
-    const latestWip = await prisma.wip.findFirst({
-      where: {
-        GSClientID: GSClientID,
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      select: {
-        updatedAt: true,
-      },
-    });
+    // Get the latest update timestamp from transactions
+    const latestWipTransaction = wipTransactions.length > 0
+      ? wipTransactions.reduce((latest, current) =>
+          current.updatedAt > latest.updatedAt ? current : latest
+        )
+      : null;
 
     // 6. Respond
     const responseData = {
@@ -310,8 +229,8 @@ export async function GET(
         code: msl.code,
         name: msl.name,
       })),
-      taskCount: overallTotals.taskCount,
-      lastUpdated: latestWip?.updatedAt || null,
+      taskCount: taskCount,
+      lastUpdated: latestWipTransaction?.updatedAt || null,
     };
 
     return NextResponse.json(successResponse(responseData));

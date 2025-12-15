@@ -92,14 +92,10 @@ Font Family: **Inter**
 ## 4. Implementation Patterns
 
 ### Layout & Spacing
-- **Container:** `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8`
+- **Page Container:** `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8` (full-width, never constrain)
 - **Vertical Spacing:** `space-y-6`
-- **Grids:**  
-  - Standard: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`  
-  - Dense: `grid grid-cols-1 md:grid-cols-4 gap-3`
-
-### Modals
-`max-w-lg w-full p-6 bg-white rounded-lg shadow-corporate-lg`
+- **Grids:** Standard: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6` | Dense: `grid grid-cols-1 md:grid-cols-4 gap-3`
+- **Modals:** `max-w-lg w-full p-6 bg-white rounded-lg shadow-corporate-lg`
 
 ---
 
@@ -198,17 +194,20 @@ Font Family: **Inter**
 ## 5. Professional Polish & Accessibility
 
 - **Transitions:** `transition-all duration-200 ease-in-out`
-- **Focus states:**  
-  `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
+- **Focus:** `focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2`
 - **Contrast:** White text on gradients only
 - **Shadows:** `shadow-corporate`, `shadow-corporate-md`
 - **Mobile First:** `flex-col`, `grid-cols-1`
 
-### Common Mistakes to Avoid
-❌ Black text on gradients  
-❌ Mixing Gold + Blue without context  
-❌ Hardcoded paddings  
-❌ Custom button styles  
-❌ Using dark icon gradient (`#2E5AAC → #1C3667`) - use lighter gradient instead
-❌ Inconsistent icon sizes across dashboard cards
+### User Interactions
+
+**Confirmations:**
+- NEVER use `confirm()`, `alert()`, or `prompt()` browser dialogs
+- ALWAYS use custom modal components with context (e.g., item name)
+- Destructive actions require modal confirmation
+
+### Common Mistakes
+❌ Black text on gradients | ❌ Custom button styles | ❌ Hardcoded paddings  
+❌ Mixing Gold + Blue without context | ❌ Dark icon gradient (`#2E5AAC → #1C3667`)  
+❌ Inconsistent icon sizes | ❌ Browser popups (`confirm()`, `alert()`)
 

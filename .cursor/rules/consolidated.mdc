@@ -8,11 +8,11 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 
 ## Styling
 
-See `.cursor/rules/styling.mdc`
+See `.cursor/rules/forvis-design-rules.mdc`
 
 ## AI
 
-See `.cursor/rules/stylingai-patterns.mdc`
+See `.cursor/rules/ai-patterns.mdc`
 
 ## TypeScript
 
