@@ -197,28 +197,28 @@ export function TaskListItem({
             <div className="flex items-center text-xs">
               <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Time:</span>
               <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                {formatCurrency(balancesData.time)}
+                {formatCurrency(balancesData.time ?? 0)}
               </span>
               {balancesData.timeAdjustments !== 0 && (
                 <>
                   <span className={`mx-1 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
                   <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Adj:</span>
                   <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                    {formatCurrency(balancesData.timeAdjustments)}
+                    {formatCurrency(balancesData.timeAdjustments ?? 0)}
                   </span>
                 </>
               )}
               <span className={`mx-2 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
               <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Disb:</span>
               <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                {formatCurrency(balancesData.disbursements)}
+                {formatCurrency(balancesData.disbursements ?? 0)}
               </span>
               {balancesData.disbursementAdjustments !== 0 && (
                 <>
                   <span className={`mx-1 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
                   <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Adj:</span>
                   <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                    {formatCurrency(balancesData.disbursementAdjustments)}
+                    {formatCurrency(balancesData.disbursementAdjustments ?? 0)}
                   </span>
                 </>
               )}
@@ -227,14 +227,14 @@ export function TaskListItem({
             <div className="flex items-center text-xs">
               <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Fees:</span>
               <span className={`ml-1 font-medium ${isAccessible ? 'text-red-600' : 'text-forvis-gray-500'}`}>
-                ({formatCurrency(balancesData.fees)})
+                ({formatCurrency(balancesData.fees ?? 0)})
               </span>
               {balancesData.provision !== 0 && (
                 <>
                   <span className={`mx-2 ${isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-400'}`}>+</span>
                   <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Provision:</span>
                   <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                    {formatCurrency(balancesData.provision)}
+                    {formatCurrency(balancesData.provision ?? 0)}
                   </span>
                 </>
               )}
@@ -246,13 +246,13 @@ export function TaskListItem({
             <div>
               <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Gross WIP</p>
               <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-                {formatCurrency(balancesData.grossWip)}
+                {formatCurrency(balancesData.grossWip ?? 0)}
               </p>
             </div>
             <div className="text-right">
               <p className={`text-xs font-medium ${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Net WIP</p>
               <p className={`text-sm font-semibold ${isAccessible ? 'text-forvis-blue-600' : 'text-forvis-gray-500'}`}>
-                {formatCurrency(balancesData.netWip)}
+                {formatCurrency(balancesData.netWip ?? 0)}
               </p>
             </div>
           </div>
