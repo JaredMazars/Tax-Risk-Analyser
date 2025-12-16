@@ -15,7 +15,7 @@ export interface ClientsFiltersProps {
   onFiltersChange: (filters: ClientsFiltersType) => void;
   clients: { code: string; name: string }[];
   industries: string[];
-  groups: { name: string; code: string }[];
+  groups: { name: string; code: string; clientCount?: number }[];
   onClientSearchChange?: (search: string) => void;
   onIndustrySearchChange?: (search: string) => void;
   onGroupSearchChange?: (search: string) => void;
@@ -103,7 +103,7 @@ export function ClientsFilters({
 
   const groupOptions: MultiSelectOption[] = groups.map(group => ({
     id: group.code,
-    label: `${group.name} (${group.code})`,
+    label: `${group.code} - ${group.name}${group.clientCount !== undefined ? ` (${group.clientCount})` : ''}`,
   }));
 
   // #region agent log

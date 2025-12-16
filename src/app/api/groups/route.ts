@@ -98,6 +98,19 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
     
+    // If no groups found, return empty result early
+    if (paginatedGroups.length === 0) {
+      return NextResponse.json(successResponse({
+        groups: [],
+        pagination: {
+          page,
+          limit,
+          total: totalGroups,
+          totalPages: Math.ceil(totalGroups / limit),
+        },
+      }));
+    }
+    
     // Step 3: Get counts for only the paginated groups (much more efficient)
     const paginatedGroupCodes = paginatedGroups.map(g => g.groupCode);
     const counts = await prisma.client.groupBy({
@@ -122,11 +135,11 @@ export async function GET(request: NextRequest) {
       },
     }));
 
-    // Format the response
+    // Format the response with proper null handling
     const groups = groupsData.map((group) => ({
       groupCode: group.groupCode,
       groupDesc: group.groupDesc,
-      clientCount: group._count.id,
+      clientCount: group._count?.id ?? 0, // Ensure we always have a number
     }));
 
     const responseData = {

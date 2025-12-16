@@ -11,7 +11,7 @@ export interface GroupsFiltersType {
 export interface GroupsFiltersProps {
   filters: GroupsFiltersType;
   onFiltersChange: (filters: GroupsFiltersType) => void;
-  groups: { code: string; name: string }[];
+  groups: { code: string; name: string; clientCount?: number }[];
   onGroupSearchChange?: (search: string) => void;
 }
 
@@ -45,10 +45,10 @@ export function GroupsFilters({
 
   const hasActiveFilters = filters.groups.length > 0;
 
-  // Convert data to MultiSelect options - show "Code - Name" format
+  // Convert data to MultiSelect options - show "Code - Name (Count)" format
   const groupOptions: MultiSelectOption[] = groups.map(group => ({
     id: group.code,
-    label: `${group.code} - ${group.name}`,
+    label: `${group.code} - ${group.name}${group.clientCount !== undefined ? ` (${group.clientCount})` : ''}`,
   }));
 
   // Generate active filters summary

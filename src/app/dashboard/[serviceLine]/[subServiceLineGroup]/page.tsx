@@ -606,6 +606,7 @@ export default function SubServiceLineWorkspacePage() {
     return groupsFromFilter.map(group => ({
       code: group.groupCode,
       name: group.groupDesc || group.groupCode,
+      clientCount: group.clientCount ?? 0,
     }));
   }, [groupFilterData]);
 
@@ -634,6 +635,7 @@ export default function SubServiceLineWorkspacePage() {
     const groupsData = groupsFromFilter.map(group => ({
       code: group.groupCode,
       name: group.groupDesc || group.groupCode,
+      clientCount: group.clientCount ?? 0,
     }));
     
     return groupsData;
@@ -1280,7 +1282,7 @@ export default function SubServiceLineWorkspacePage() {
                           </td>
                           <td className="px-3 py-3 text-center">
                             <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
-                              {group.clientCount}
+                              {group.clientCount ?? 0}
                             </span>
                           </td>
                           <td className="px-3 py-3 text-center">

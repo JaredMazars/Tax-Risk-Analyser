@@ -2,9 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-// Query Keys
+// Query Keys - v2 includes clientCount in response
 export const clientGroupKeys = {
-  all: ['client-groups'] as const,
+  all: ['client-groups', 'v2'] as const,
   list: (params?: Record<string, string | number | null | undefined>) => 
     [...clientGroupKeys.all, 'list', params] as const,
 };
@@ -70,7 +70,9 @@ export function useClientGroups(params: UseClientGroupsParams = {}) {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    placeholderData: (previousData) => previousData,
+    // Don't use placeholderData for search queries - show fresh results or loading state
+    // placeholderData can cause stale empty results to persist when clearing search
+    placeholderData: search ? undefined : (previousData) => previousData,
   });
 }
 

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { AlertModal } from '@/components/shared/AlertModal';
-import { useTaskBalances } from '@/hooks/tasks/useTaskBalances';
 
 interface TaskListItemProps {
   task: {
@@ -34,6 +33,14 @@ interface TaskListItemProps {
       balWIP: number;
       balTime: number;
       balDisb: number;
+      netWip?: number;
+      grossWip?: number;
+      time?: number;
+      timeAdjustments?: number;
+      disbursements?: number;
+      disbursementAdjustments?: number;
+      fees?: number;
+      provision?: number;
     };
   };
   currentSubServiceLineGroup: string;
@@ -59,8 +66,8 @@ export function TaskListItem({
 }: TaskListItemProps) {
   const [showAccessModal, setShowAccessModal] = useState(false);
   
-  // Fetch task balances broken down by TTYPE
-  const { data: balancesData } = useTaskBalances(task.id);
+  // Use WIP balances from task prop (loaded with client API)
+  const balancesData = task.wip;
   
   // Check if task belongs to the current sub-service line group
   // Use subServiceLineGroupCode if available, otherwise fall back to SLGroup

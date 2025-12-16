@@ -2,15 +2,27 @@
 
 import { Building2, HandCoins, FileClock } from 'lucide-react';
 import { Client } from '@/types';
-import { useClientBalances } from '@/hooks/clients/useClientBalances';
 
 interface ClientHeaderProps {
-  client: Client;
+  client: Client & { 
+    balances?: {
+      netWip: number;
+      grossWip: number;
+      debtorBalance: number;
+      time: number;
+      timeAdjustments: number;
+      disbursements: number;
+      disbursementAdjustments: number;
+      fees: number;
+      provision: number;
+    };
+  };
   tasks?: any[];
 }
 
 export function ClientHeader({ client, tasks }: ClientHeaderProps) {
-  const { data: balancesData } = useClientBalances(client.GSClientID);
+  // Use balances from client prop (loaded with client API)
+  const balancesData = client.balances;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ZA', {

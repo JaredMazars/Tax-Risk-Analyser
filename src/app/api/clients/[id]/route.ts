@@ -205,38 +205,31 @@ export async function GET(
       });
     }
 
-    // Fetch WIP data for the tasks by GSTaskID
+    // Fetch WIP data from WIPTransactions table (NOT from Wip table)
     const taskGSTaskIDs = tasks.map(t => t.GSTaskID);
-    const tasksWipData = taskGSTaskIDs.length > 0 ? await prisma.wip.findMany({
+    const wipTransactions = taskGSTaskIDs.length > 0 ? await prisma.wIPTransactions.findMany({
       where: {
-        GSTaskID: {
-          in: taskGSTaskIDs,
-        },
+        OR: [
+          { GSClientID: client.GSClientID },
+          { GSTaskID: { in: taskGSTaskIDs } },
+        ],
       },
       select: {
         GSTaskID: true,
-        BalWIP: true,
-        BalTime: true,
-        BalDisb: true,
+        Amount: true,
+        TType: true,
       },
     }) : [];
 
-    // Create a map of WIP data by GSTaskID
-    const wipByGSTaskID = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
-    tasksWipData.forEach(wip => {
-      if (!wipByGSTaskID.has(wip.GSTaskID)) {
-        wipByGSTaskID.set(wip.GSTaskID, { balWIP: 0, balTime: 0, balDisb: 0 });
-      }
-      
-      const taskWip = wipByGSTaskID.get(wip.GSTaskID)!;
-      taskWip.balWIP += wip.BalWIP || 0;
-      taskWip.balTime += wip.BalTime || 0;
-      taskWip.balDisb += wip.BalDisb || 0;
-    });
+    // Calculate WIP balances by task using transaction data
+    const { calculateWIPByTask } = await import('@/lib/services/clients/clientBalanceCalculation');
+    const wipByTask = calculateWIPByTask(wipTransactions);
 
     // Add masterServiceLine, subServiceLineGroupCode, descriptions, and WIP data to each task
     const tasksWithMasterServiceLine = tasks.map(task => {
       const masterCode = serviceLineMapping[task.ServLineCode] || null;
+      const taskWip = wipByTask.get(task.GSTaskID);
+      
       return {
         ...task,
         masterServiceLine: masterCode,
@@ -244,7 +237,19 @@ export async function GET(
         subServiceLineGroupCode: servLineToSubGroupMapping[task.ServLineCode] || task.SLGroup,
         subServiceLineGroupDesc: subGroupDescMapping[task.ServLineCode] || null,
         ServLineDesc: servLineDescMapping[task.ServLineCode] || null,
-        wip: wipByGSTaskID.get(task.GSTaskID) || { balWIP: 0, balTime: 0, balDisb: 0 },
+        wip: taskWip || { 
+          balWIP: 0, 
+          balTime: 0, 
+          balDisb: 0,
+          netWip: 0,
+          grossWip: 0,
+          time: 0,
+          timeAdjustments: 0,
+          disbursements: 0,
+          disbursementAdjustments: 0,
+          fees: 0,
+          provision: 0,
+        },
       };
     });
 
@@ -255,9 +260,23 @@ export async function GET(
       { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
     ]);
 
+    // Calculate client-level balances from transaction tables
+    const { calculateWIPBalances } = await import('@/lib/services/clients/clientBalanceCalculation');
+    const clientWipBalances = calculateWIPBalances(wipTransactions);
+
+    // Fetch debtor balance from DrsTransactions
+    const debtorAggregation = await prisma.drsTransactions.aggregate({
+      where: { GSClientID: client.GSClientID },
+      _sum: { Total: true },
+    });
+
     const responseData = {
       ...enrichedClient,
       tasks: tasksWithMasterServiceLine,
+      balances: {
+        ...clientWipBalances,
+        debtorBalance: debtorAggregation._sum.Total || 0,
+      },
       _count: {
         Task: totalAcrossAllServiceLines, // Total across all service lines (not filtered by active tab)
       },
