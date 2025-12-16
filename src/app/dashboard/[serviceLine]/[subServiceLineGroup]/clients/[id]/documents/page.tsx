@@ -101,13 +101,6 @@ function ClientDocumentsContent() {
           </Link>
           <ChevronRight className="h-4 w-4" />
           <Link 
-            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients`} 
-            className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
-          >
-            Clients
-          </Link>
-          <ChevronRight className="h-4 w-4" />
-          <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${GSClientID}`}
             className="hover:text-forvis-gray-900 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 rounded px-1"
           >

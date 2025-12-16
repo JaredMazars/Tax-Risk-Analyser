@@ -27,6 +27,8 @@ import { useClients, type Client } from '@/hooks/clients/useClients';
 import { useTasks, type TaskListItem } from '@/hooks/tasks/useTasks'; // Updated with GSClientID
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { useClientGroups } from '@/hooks/clients/useClientGroups';
+import { useClientFilters } from '@/hooks/clients/useClientFilters';
+import { useGroupFilters } from '@/hooks/groups/useGroupFilters';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
@@ -139,6 +141,11 @@ export default function SubServiceLineWorkspacePage() {
     setCurrentPage(1);
   }, [clientsFilters]);
 
+  // Reset to page 1 when group filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [groupsFilters]);
+
   // Load view mode preference from localStorage
   useEffect(() => {
     if (serviceLine && subServiceLineGroup) {
@@ -185,55 +192,87 @@ export default function SubServiceLineWorkspacePage() {
   const clients = clientsData?.clients || [];
   const clientsPagination = clientsData?.pagination;
 
-  // For 28,000+ clients, we CANNOT pre-fetch all clients
-  // Solution: Use server-side search - fetch clients dynamically based on filter search term
-  const [filterSearchTerm, setFilterSearchTerm] = useState('');
-  const [debouncedFilterSearch, setDebouncedFilterSearch] = useState('');
-  const [allClientsForFilters, setAllClientsForFilters] = useState<typeof clients>([]);
+  // Separate search states for each filter dropdown
+  const [clientFilterSearch, setClientFilterSearch] = useState('');
+  const [industryFilterSearch, setIndustryFilterSearch] = useState('');
+  const [groupFilterSearchClients, setGroupFilterSearchClients] = useState(''); // For group filter on clients tab
+  const [groupFilterSearchGroups, setGroupFilterSearchGroups] = useState(''); // For group filter on groups tab
   
-  // Debounce filter search
+  const [debouncedClientFilterSearch, setDebouncedClientFilterSearch] = useState('');
+  const [debouncedIndustryFilterSearch, setDebouncedIndustryFilterSearch] = useState('');
+  const [debouncedGroupFilterSearchClients, setDebouncedGroupFilterSearchClients] = useState('');
+  const [debouncedGroupFilterSearchGroups, setDebouncedGroupFilterSearchGroups] = useState('');
+  
+  // Debounce client filter search
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedFilterSearch(filterSearchTerm);
+      setDebouncedClientFilterSearch(clientFilterSearch);
     }, 300);
     return () => clearTimeout(timer);
-  }, [filterSearchTerm]);
+  }, [clientFilterSearch]);
   
-  // Fetch clients for filter dropdown based on search term
+  // Debounce industry filter search
   useEffect(() => {
-    if (!shouldFetchClients || (activeTab !== 'clients' && activeTab !== 'groups')) {
-      setAllClientsForFilters([]);
-      return;
-    }
-    
-    const fetchFilterClients = async () => {
-      try {
-        const params = new URLSearchParams({
-          page: '1',
-          limit: '100', // Show top 100 matches
-          sortBy: 'clientNameFull',
-          sortOrder: 'asc',
-        });
-        
-        // Add search term if user is searching
-        if (debouncedFilterSearch) {
-          params.set('search', debouncedFilterSearch);
-        }
-        
-        const response = await fetch(`/api/clients?${params}`);
-        const result = await response.json();
-        
-        if (result.success) {
-          setAllClientsForFilters(result.data.clients);
-        }
-      } catch (error) {
-        console.error('Error fetching filter clients:', error);
-        setAllClientsForFilters([]);
-      }
-    };
-    
-    fetchFilterClients();
-  }, [shouldFetchClients, activeTab, debouncedFilterSearch]);
+    const timer = setTimeout(() => {
+      setDebouncedIndustryFilterSearch(industryFilterSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [industryFilterSearch]);
+  
+  // Debounce group filter search (clients tab)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedGroupFilterSearchClients(groupFilterSearchClients);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [groupFilterSearchClients]);
+  
+  // Debounce group filter search (groups tab)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedGroupFilterSearchGroups(groupFilterSearchGroups);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [groupFilterSearchGroups]);
+  
+  // Fetch clients for client filter dropdown (with server-side search)
+  const { data: clientFilterClients } = useClients({
+    search: debouncedClientFilterSearch,
+    page: 1,
+    limit: 100, // Show top 100 matches
+    enabled: shouldFetchClients && activeTab === 'clients',
+  });
+  
+  // Fetch groups for clients tab filter dropdown (same pattern as client filter)
+  const { data: clientFilterGroupsData } = useClientGroups({
+    search: debouncedGroupFilterSearchClients,
+    page: 1,
+    limit: 100, // Show top 100 matches
+    enabled: shouldFetchClients && activeTab === 'clients',
+  });
+
+  // Fetch filter options for industries on clients tab
+  // Note: Groups now use useClientGroups (same pattern as client filter)
+  const { data: clientFilterOptions, isLoading: isLoadingFilters, isFetching: isFetchingFilters } = useClientFilters({
+    industrySearch: debouncedIndustryFilterSearch,
+    groupSearch: '', // Not used anymore - groups fetched via useClientGroups
+    enabled: shouldFetchClients, // Eager load - removed activeTab condition
+  });
+
+  // #region agent log
+  React.useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:254',message:'useClientFilters hook state',data:{enabled:shouldFetchClients,isLoading:isLoadingFilters,isFetching:isFetchingFilters,hasData:!!clientFilterOptions,industrySearch:debouncedIndustryFilterSearch,groupSearch:debouncedGroupFilterSearchClients},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'D'})}).catch(()=>{});
+  }, [shouldFetchClients, isLoadingFilters, isFetchingFilters, clientFilterOptions, debouncedIndustryFilterSearch, debouncedGroupFilterSearchClients]);
+  // #endregion
+  
+  // Fetch groups for Groups tab filter dropdown (with server-side search)
+  // Use the same pattern as clients - fetch top 100 matches based on search
+  const { data: groupFilterData } = useClientGroups({
+    search: debouncedGroupFilterSearchGroups,
+    page: 1,
+    limit: 100, // Show top 100 matches
+    enabled: activeTab === 'groups',
+  });
 
   // Fetch all tasks for the Tasks tab
   const { 
@@ -297,7 +336,7 @@ export default function SubServiceLineWorkspacePage() {
   });
 
  
-  // Fetch groups for the Groups tab
+  // Fetch groups for the Groups tab with server-side filtering
   const {
     data: groupsData,
     isLoading: isLoadingGroups,
@@ -306,6 +345,7 @@ export default function SubServiceLineWorkspacePage() {
     search: '', // No search for groups tab - use filters only
     page: currentPage,
     limit: itemsPerPage,
+    groupCodes: groupsFilters.groups, // Server-side filtering
     enabled: true, // Always fetch for faster tab switching
   });
   const groups = groupsData?.groups || [];
@@ -565,25 +605,20 @@ export default function SubServiceLineWorkspacePage() {
     return Array.from(clientsMap.values());
   }, [tasks, myTasks, activeTab]);
 
-  // Extract unique filter options for Groups
+  // Extract group filter options from the paginated query (same pattern as clients)
   const groupOptions = useMemo(() => {
-    const groupsMap = new Map<string, { code: string; name: string }>();
-    groups.forEach(group => {
-      if (group.groupCode) {
-        groupsMap.set(group.groupCode, {
-          code: group.groupCode,
-          name: group.groupDesc || group.groupCode,
-        });
-      }
-    });
-    return Array.from(groupsMap.values()).sort((a, b) => a.code.localeCompare(b.code));
-  }, [groups]);
+    const groupsFromFilter = groupFilterData?.groups || [];
+    return groupsFromFilter.map(group => ({
+      code: group.groupCode,
+      name: group.groupDesc || group.groupCode,
+    }));
+  }, [groupFilterData]);
 
-  // Extract unique filter options for Clients
-  // Use allClientsForFilters to ensure filter dropdown shows ALL clients, not just current page
+  // Extract client filter options from the separate filter queries
   const clientOptions = useMemo(() => {
+    const clientsFromFilter = clientFilterClients?.clients || [];
     const clientsMap = new Map<string, { code: string; name: string }>();
-    allClientsForFilters.forEach(client => {
+    clientsFromFilter.forEach(client => {
       if (client.clientCode) {
         clientsMap.set(client.clientCode, {
           code: client.clientCode,
@@ -591,47 +626,31 @@ export default function SubServiceLineWorkspacePage() {
         });
       }
     });
-    const result = Array.from(clientsMap.values()).sort((a, b) => a.code.localeCompare(b.code));
-    
-    return result;
-  }, [allClientsForFilters]);
+    return Array.from(clientsMap.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [clientFilterClients]);
 
   const clientIndustries = useMemo(() => {
-    const industries = new Set<string>();
-    allClientsForFilters.forEach(client => {
-      if (client.industry) industries.add(client.industry);
-    });
-    return Array.from(industries).sort();
-  }, [allClientsForFilters]);
+    return clientFilterOptions?.industries || [];
+  }, [clientFilterOptions]);
 
+  // Groups for clients tab filter - use same pattern as client filter (paginated query)
   const clientGroups = useMemo(() => {
-    const groupsMap = new Map<string, { name: string; code: string }>();
-    allClientsForFilters.forEach(client => {
-      if (client.groupCode && client.groupDesc) {
-        groupsMap.set(client.groupCode, {
-          name: client.groupDesc,
-          code: client.groupCode,
-        });
-      }
-    });
-    return Array.from(groupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allClientsForFilters]);
-
-  // Apply filters to groups
-  const filteredGroups = useMemo(() => {
-    let result = groups;
+    const groupsFromFilter = clientFilterGroupsData?.groups || [];
+    const groupsData = groupsFromFilter.map(group => ({
+      code: group.groupCode,
+      name: group.groupDesc || group.groupCode,
+    }));
     
-    if (groupsFilters.groups.length > 0) {
-      result = result.filter(g =>
-        g.groupCode && groupsFilters.groups.includes(g.groupCode)
-      );
-    }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:622',message:'clientGroups computed from useClientGroups',data:{hasFilterData:!!clientFilterGroupsData,groupsCount:groupsData.length,firstThree:groupsData.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C,D'})}).catch(()=>{});
+    // #endregion
     
-    return result;
-  }, [groups, groupsFilters]);
+    return groupsData;
+  }, [clientFilterGroupsData]);
 
-  // Filtering is now done on the backend, so filteredClients = clients
+  // Filtering is now done on the backend for both clients and groups
   const filteredClients = clients;
+  const filteredGroups = groups;
 
   // Apply filters to tasks (for list view)
   const filteredTasks = useMemo(() => {
@@ -1094,6 +1113,7 @@ export default function SubServiceLineWorkspacePage() {
               filters={groupsFilters}
               onFiltersChange={setGroupsFilters}
               groups={groupOptions}
+              onGroupSearchChange={setGroupFilterSearchGroups}
             />
           )}
 
@@ -1104,7 +1124,9 @@ export default function SubServiceLineWorkspacePage() {
               clients={clientOptions}
               industries={clientIndustries}
               groups={clientGroups}
-              onClientSearchChange={setFilterSearchTerm}
+              onClientSearchChange={setClientFilterSearch}
+              onIndustrySearchChange={setIndustryFilterSearch}
+              onGroupSearchChange={setGroupFilterSearchClients}
             />
           )}
 

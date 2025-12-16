@@ -186,12 +186,7 @@ export async function GET(
       );
     }
 
-    // 4. Filter Service Lines - Get user's accessible service lines
-    const { getUserServiceLines } = await import('@/lib/services/service-lines/serviceLineService');
-    const accessibleServiceLines = await getUserServiceLines(user.id);
-    const accessibleServLineCodes = accessibleServiceLines.map(sl => String(sl.serviceLine));
-
-    // Get CARL partner employee codes
+    // 4-5. Execute - First, get CARL partner employee codes
     const carlPartners = await prisma.employee.findMany({
       where: {
         EmpCatCode: 'CARL',
@@ -222,24 +217,14 @@ export async function GET(
       },
     });
 
-    // Filter WIP transactions by accessible service lines
-    const filteredWipTransactions = wipTransactions.filter(transaction => 
-      transaction.TaskServLine && accessibleServLineCodes.includes(transaction.TaskServLine)
-    );
-
     // Set cost to 0 for Carl Partner transactions
-    const processedTransactions = filteredWipTransactions.map(txn => ({
+    const processedTransactions = wipTransactions.map(txn => ({
       ...txn,
       Cost: txn.EmpCode && carlPartnerCodes.has(txn.EmpCode) ? 0 : txn.Cost,
     }));
 
     // Get Service Line External mappings to Master Service Lines
     const serviceLineExternals = await prisma.serviceLineExternal.findMany({
-      where: {
-        ServLineCode: {
-          in: accessibleServLineCodes,
-        },
-      },
       select: {
         ServLineCode: true,
         masterCode: true,
@@ -290,9 +275,9 @@ export async function GET(
     const overall = calculateProfitabilityMetrics(overallTotals);
 
     // Get the latest update timestamp from transactions
-    const latestWipTransaction = filteredWipTransactions.length > 0
-      ? filteredWipTransactions.reduce((latest, current) => 
-          (current.updatedAt > latest.updatedAt) ? current : latest
+    const latestWipTransaction = wipTransactions.length > 0
+      ? wipTransactions.reduce((latest, current) =>
+          current.updatedAt > latest.updatedAt ? current : latest
         )
       : null;
 

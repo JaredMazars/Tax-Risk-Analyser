@@ -97,6 +97,35 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const duration = Date.now() - startTime;
     
+    // Extract detailed error information for diagnostics
+    const errorDetails: any = {
+      duration,
+      hasCode: !!request.nextUrl.searchParams.get('code'),
+      nextAuthUrl: process.env.NEXTAUTH_URL,
+      message: error instanceof Error ? error.message : String(error),
+    };
+    
+    // Check for Azure AD specific errors (MSAL errors)
+    if (error && typeof error === 'object') {
+      const msalError = error as any;
+      if (msalError.errorCode) {
+        errorDetails.azureErrorCode = msalError.errorCode;
+      }
+      if (msalError.errorMessage) {
+        errorDetails.azureErrorMessage = msalError.errorMessage;
+      }
+      if (msalError.name) {
+        errorDetails.errorName = msalError.name;
+      }
+      // Check for Azure AD error codes in the error message
+      if (errorDetails.message && errorDetails.message.includes('AADSTS')) {
+        const aadMatch = errorDetails.message.match(/AADSTS\d+/);
+        if (aadMatch) {
+          errorDetails.azureErrorCode = aadMatch[0];
+        }
+      }
+    }
+    
     // Check if this is a database connection/timeout error
     const isDatabaseError = 
       error instanceof Error && (
@@ -109,7 +138,7 @@ export async function GET(request: NextRequest) {
     
     if (isDatabaseError) {
       logError('Database connection error during auth callback', error, {
-        duration,
+        ...errorDetails,
         possibleCause: 'Azure SQL cold-start or network timeout',
         recommendation: 'User should retry login'
       });
@@ -118,7 +147,43 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    logError('Auth callback error', error, { duration });
+    // Check for Azure AD redirect URI mismatch
+    const isRedirectUriError = 
+      errorDetails.message?.includes('redirect_uri') ||
+      errorDetails.azureErrorCode === 'AADSTS50011' ||
+      errorDetails.message?.includes('AADSTS50011');
+    
+    if (isRedirectUriError) {
+      logError('Azure AD redirect URI mismatch error', error, {
+        ...errorDetails,
+        possibleCause: 'Redirect URI not registered in Azure AD or NEXTAUTH_URL incorrect',
+        recommendation: 'Verify Azure AD App Registration redirect URIs match NEXTAUTH_URL/api/auth/callback',
+        expectedRedirectUri: `${process.env.NEXTAUTH_URL}/api/auth/callback`
+      });
+      return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', request.url));
+    }
+    
+    // Check for missing admin consent
+    const isConsentError = 
+      errorDetails.azureErrorCode === 'AADSTS65001' ||
+      errorDetails.message?.includes('AADSTS65001') ||
+      errorDetails.message?.includes('consent');
+    
+    if (isConsentError) {
+      logError('Azure AD admin consent required', error, {
+        ...errorDetails,
+        possibleCause: 'Application requires admin consent',
+        recommendation: 'Admin must grant consent in Azure Portal'
+      });
+      return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', request.url));
+    }
+    
+    // Generic auth callback error with full diagnostics
+    logError('Auth callback error', error, {
+      ...errorDetails,
+      recommendation: 'Check Azure AD configuration and environment variables'
+    });
+    
     return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', request.url));
   }
 }

@@ -104,13 +104,6 @@ function GroupAnalyticsContent() {
           </Link>
           <ChevronRight className="h-4 w-4" />
           <Link
-            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`}
-            className="hover:text-forvis-gray-900 transition-colors"
-          >
-            Groups
-          </Link>
-          <ChevronRight className="h-4 w-4" />
-          <Link
             href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/groups/${encodeURIComponent(groupCode)}`}
             className="hover:text-forvis-gray-900 transition-colors"
           >

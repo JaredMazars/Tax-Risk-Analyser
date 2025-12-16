@@ -105,15 +105,44 @@ export function getLogoutUrl(postLogoutRedirectUri: string): string {
 export async function handleCallback(code: string, redirectUri: string) {
   const tokenRequest = {
     code,
-    scopes: ['user.read', 'openid', 'profile', 'email', 'Files.ReadWrite.All', 'Sites.ReadWrite.All'],
+    scopes: ['user.read', 'openid', 'profile', 'email'],
     redirectUri,
   };
 
-  const response = await pca.acquireTokenByCode(tokenRequest);
+  log.info('Attempting token exchange with Azure AD', { 
+    redirectUri, 
+    hasCode: !!code,
+    codeLength: code?.length 
+  });
+
+  let response;
+  try {
+    response = await pca.acquireTokenByCode(tokenRequest);
+  } catch (error) {
+    log.error('Azure AD token exchange failed', error);
+    // Re-throw with additional context
+    const enhancedError = new Error(
+      `Azure AD token exchange failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+    // Preserve original error properties for MSAL errors
+    if (error && typeof error === 'object') {
+      Object.assign(enhancedError, error);
+    }
+    throw enhancedError;
+  }
   
   if (!response || !response.account) {
-    throw new Error('Failed to acquire token');
+    log.error('Token response missing account information', { 
+      hasResponse: !!response,
+      hasAccount: !!response?.account 
+    });
+    throw new Error('Failed to acquire token - no account information in response');
   }
+  
+  log.info('Token exchange successful', { 
+    accountId: response.account.homeAccountId,
+    username: response.account.username 
+  });
 
   const email = response.account.username;
   const name = response.account.name || response.account.username;

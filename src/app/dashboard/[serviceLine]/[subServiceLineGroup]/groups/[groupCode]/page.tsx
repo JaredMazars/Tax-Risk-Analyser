@@ -240,13 +240,6 @@ export default function GroupDetailPage() {
             {subServiceLineGroupDescription}
           </Link>
           <ChevronRight className="h-4 w-4" />
-          <Link 
-            href={`/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}`} 
-            className="hover:text-forvis-gray-900 transition-colors"
-          >
-            Groups
-          </Link>
-          <ChevronRight className="h-4 w-4" />
           <span className="text-forvis-gray-900 font-medium">{clientsData?.groupDesc || tasksData?.groupDesc || ''}</span>
         </nav>
 

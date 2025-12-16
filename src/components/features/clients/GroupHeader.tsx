@@ -1,7 +1,7 @@
 'use client';
 
 import { Users } from 'lucide-react';
-import { useGroupWip } from '@/hooks/clients/useGroupWip';
+import { useGroupWip } from '@/hooks/groups/useGroupWip';
 
 interface GroupHeaderProps {
   groupCode: string;

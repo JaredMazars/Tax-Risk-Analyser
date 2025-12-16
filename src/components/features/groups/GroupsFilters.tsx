@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { X, Filter } from 'lucide-react';
 import { MultiSelect, MultiSelectOption } from '@/components/ui';
 
@@ -11,13 +12,27 @@ export interface GroupsFiltersProps {
   filters: GroupsFiltersType;
   onFiltersChange: (filters: GroupsFiltersType) => void;
   groups: { code: string; name: string }[];
+  onGroupSearchChange?: (search: string) => void;
 }
 
 export function GroupsFilters({
   filters,
   onFiltersChange,
   groups,
+  onGroupSearchChange,
 }: GroupsFiltersProps) {
+  const [groupSearch, setGroupSearch] = React.useState('');
+  
+  // Debounce and notify parent of search changes
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (onGroupSearchChange) {
+        onGroupSearchChange(groupSearch);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [groupSearch, onGroupSearchChange]);
+  
   const handleGroupsChange = (values: (string | number)[]) => {
     onFiltersChange({ ...filters, groups: values as string[] });
   };
@@ -56,6 +71,7 @@ export function GroupsFilters({
               onChange={handleGroupsChange}
               placeholder="Filter by Group"
               searchPlaceholder="Search by code or name..."
+              onSearchChange={setGroupSearch}
             />
           </div>
 

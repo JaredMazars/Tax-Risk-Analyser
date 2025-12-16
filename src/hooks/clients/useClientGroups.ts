@@ -30,6 +30,7 @@ export interface UseClientGroupsParams {
   search?: string;
   page?: number;
   limit?: number;
+  groupCodes?: string[]; // Filter by specific group codes
   enabled?: boolean;
 }
 
@@ -41,16 +42,20 @@ export function useClientGroups(params: UseClientGroupsParams = {}) {
     search = '',
     page = 1,
     limit = 50,
+    groupCodes = [],
     enabled = true,
   } = params;
 
   return useQuery<ClientGroupsResponse>({
-    queryKey: clientGroupKeys.list({ search, page, limit }),
+    queryKey: clientGroupKeys.list({ search, page, limit, groupCodes: groupCodes.join(',') }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (search) searchParams.set('search', search);
       searchParams.set('page', page.toString());
       searchParams.set('limit', limit.toString());
+      
+      // Add array filters
+      groupCodes.forEach(code => searchParams.append('groupCodes[]', code));
       
       const url = `/api/groups?${searchParams.toString()}`;
       const response = await fetch(url);

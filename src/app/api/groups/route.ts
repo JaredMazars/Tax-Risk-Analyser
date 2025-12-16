@@ -33,8 +33,12 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const page = Number.parseInt(searchParams.get('page') || '1');
     const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
+    const groupCodes = searchParams.getAll('groupCodes[]'); // Array of group codes to filter by
     const skip = (page - 1) * limit;
 
+    // Skip cache when filters are applied (too many filter combinations to cache)
+    const hasFilters = groupCodes.length > 0;
+    
     // Try to get cached data
     const cacheParams = {
       endpoint: 'groups' as const,
@@ -43,17 +47,25 @@ export async function GET(request: NextRequest) {
       search,
     };
     
-    const cached = await getCachedList(cacheParams);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
+    if (!hasFilters) {
+      const cached = await getCachedList(cacheParams);
+      if (cached) {
+        return NextResponse.json(successResponse(cached));
+      }
     }
 
     // Build where clause for search - show ALL groups organization-wide
     interface WhereClause {
       OR?: Array<Record<string, { contains: string }>>;
+      groupCode?: { in: string[] };
     }
     
     const where: WhereClause = {};
+
+    // Apply groupCodes filter
+    if (groupCodes.length > 0) {
+      where.groupCode = { in: groupCodes };
+    }
 
     if (search) {
       where.OR = [
@@ -104,8 +116,10 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Cache the response
-    await setCachedList(cacheParams, responseData);
+    // Cache the response (only if no filters applied)
+    if (!hasFilters) {
+      await setCachedList(cacheParams, responseData);
+    }
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {

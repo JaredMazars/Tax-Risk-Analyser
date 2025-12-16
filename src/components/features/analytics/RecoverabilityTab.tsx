@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Banknote, Clock, TrendingUp, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
 import { useClientDebtors, DebtorMetrics } from '@/hooks/clients/useClientDebtors';
+import { useGroupDebtors } from '@/hooks/groups/useGroupDebtors';
 import { InvoiceDetailsModal } from './InvoiceDetailsModal';
 
 interface RecoverabilityTabProps {
@@ -170,8 +171,13 @@ function AgingBar({ segments, totalBalance, transactionCount, onSegmentClick }: 
 
 export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProps) {
   // Use the appropriate hook based on props
-  const { data: debtorData, isLoading, error } = useClientDebtors(clientId || '', { enabled: !!clientId });
+  const { data: clientDebtorData, isLoading: isLoadingClient, error: clientError } = useClientDebtors(clientId || '', { enabled: !!clientId });
+  const { data: groupDebtorData, isLoading: isLoadingGroup, error: groupError } = useGroupDebtors(groupCode || '', { enabled: !!groupCode });
   
+  // Select the appropriate data based on which is available
+  const debtorData = clientId ? clientDebtorData : groupDebtorData;
+  const isLoading = clientId ? isLoadingClient : isLoadingGroup;
+  const error = clientId ? clientError : groupError;
   const entityType = clientId ? 'client' : 'group';
   
   const [activeTab, setActiveTab] = useState<string>('overall');
@@ -385,13 +391,13 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
       </div>
 
       {/* Invoice Details Modal */}
-      {clientId && (
+      {clientId && clientDebtorData && (
         <InvoiceDetailsModal
           isOpen={modalOpen}
           onClose={() => setModalOpen(false)}
           clientId={clientId}
           initialBucket={selectedBucket}
-          clientName={debtorData?.clientName || undefined}
+          clientName={clientDebtorData.clientName || undefined}
         />
       )}
     </div>

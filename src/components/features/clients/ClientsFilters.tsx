@@ -17,6 +17,8 @@ export interface ClientsFiltersProps {
   industries: string[];
   groups: { name: string; code: string }[];
   onClientSearchChange?: (search: string) => void;
+  onIndustrySearchChange?: (search: string) => void;
+  onGroupSearchChange?: (search: string) => void;
 }
 
 export function ClientsFilters({
@@ -26,18 +28,42 @@ export function ClientsFilters({
   industries,
   groups,
   onClientSearchChange,
+  onIndustrySearchChange,
+  onGroupSearchChange,
 }: ClientsFiltersProps) {
-  const [internalSearch, setInternalSearch] = React.useState('');
+  const [clientSearch, setClientSearch] = React.useState('');
+  const [industrySearch, setIndustrySearch] = React.useState('');
+  const [groupSearch, setGroupSearch] = React.useState('');
   
-  // Debounce and notify parent of search changes
+  // Debounce and notify parent of client search changes
   React.useEffect(() => {
     const timer = setTimeout(() => {
       if (onClientSearchChange) {
-        onClientSearchChange(internalSearch);
+        onClientSearchChange(clientSearch);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [internalSearch, onClientSearchChange]);
+  }, [clientSearch, onClientSearchChange]);
+  
+  // Debounce and notify parent of industry search changes
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (onIndustrySearchChange) {
+        onIndustrySearchChange(industrySearch);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [industrySearch, onIndustrySearchChange]);
+  
+  // Debounce and notify parent of group search changes
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (onGroupSearchChange) {
+        onGroupSearchChange(groupSearch);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [groupSearch, onGroupSearchChange]);
   
   const handleClientsChange = (values: (string | number)[]) => {
     onFiltersChange({ ...filters, clients: values as string[] });
@@ -80,6 +106,12 @@ export function ClientsFilters({
     label: `${group.name} (${group.code})`,
   }));
 
+  // #region agent log
+  React.useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientsFilters.tsx:109',message:'Groups prop received',data:{groupsCount:groups.length,groupOptionsCount:groupOptions.length,firstThree:groups.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
+  }, [groups, groupOptions]);
+  // #endregion
+
   // Generate active filters summary
   const getActiveFiltersSummary = () => {
     const parts: string[] = [];
@@ -101,27 +133,27 @@ export function ClientsFilters({
             onChange={handleClientsChange}
             placeholder="Filter by Client"
             searchPlaceholder="Search by code or name..."
-            onSearchChange={(search) => {
-              setInternalSearch(search);
-            }}
+            onSearchChange={setClientSearch}
           />
 
-          {/* Industry Filter */}
+          {/* Industry Filter with server-side search */}
           <MultiSelect
             options={industryOptions}
             value={filters.industries}
             onChange={handleIndustriesChange}
             placeholder="All Industries"
             searchPlaceholder="Search industries..."
+            onSearchChange={setIndustrySearch}
           />
 
-          {/* Group Filter */}
+          {/* Group Filter with server-side search */}
           <MultiSelect
             options={groupOptions}
             value={filters.groups}
             onChange={handleGroupsChange}
             placeholder="All Groups"
             searchPlaceholder="Search groups..."
+            onSearchChange={setGroupSearch}
           />
         </div>
 

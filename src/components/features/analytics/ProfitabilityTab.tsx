@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Briefcase, Clock, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
 import { useClientWip, ProfitabilityMetrics } from '@/hooks/clients/useClientWip';
-import { useGroupWip } from '@/hooks/clients/useGroupWip';
+import { useGroupWip } from '@/hooks/groups/useGroupWip';
 
 interface ProfitabilityTabProps {
   clientId?: string;  // Can be internal ID or GSClientID depending on context
