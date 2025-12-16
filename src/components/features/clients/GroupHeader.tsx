@@ -1,7 +1,8 @@
 'use client';
 
-import { Users } from 'lucide-react';
+import { Users, HandCoins, FileClock } from 'lucide-react';
 import { useGroupWip } from '@/hooks/groups/useGroupWip';
+import { useGroupDebtors } from '@/hooks/groups/useGroupDebtors';
 
 interface GroupHeaderProps {
   groupCode: string;
@@ -11,6 +12,7 @@ interface GroupHeaderProps {
 
 export function GroupHeader({ groupCode, groupDesc, clientCount }: GroupHeaderProps) {
   const { data: wipData } = useGroupWip(groupCode);
+  const { data: debtorData } = useGroupDebtors(groupCode);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -40,31 +42,43 @@ export function GroupHeader({ groupCode, groupDesc, clientCount }: GroupHeaderPr
             </div>
           </div>
 
-          {/* WIP Balances */}
-          {wipData && wipData.overall && (
+          {/* Group Balances */}
+          {wipData && wipData.overall && debtorData && debtorData.overall && (
             <div className="ml-8 flex gap-4">
               <div
-                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
-                style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
-                <p className="text-xs font-medium opacity-90">WIP Balance</p>
-                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balWIP)}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">WIP Balance</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(wipData.overall.balWIP)}</p>
+                  </div>
+                  <div
+                    className="rounded-full p-2.5 ml-3"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
+                  >
+                    <FileClock className="w-5 h-5 text-white" />
+                  </div>
+                </div>
               </div>
 
               <div
-                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
-                style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
               >
-                <p className="text-xs font-medium opacity-90">Time Balance</p>
-                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balTime)}</p>
-              </div>
-
-              <div
-                className="rounded-lg px-4 py-3 shadow-corporate text-white min-w-[140px]"
-                style={{ background: 'linear-gradient(to bottom right, #25488A, #1C3667)' }}
-              >
-                <p className="text-xs font-medium opacity-90">Disb Balance</p>
-                <p className="text-lg font-bold mt-1">{formatCurrency(wipData.overall.balDisb)}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Debtor Balance</p>
+                    <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{formatCurrency(debtorData.overall.totalBalance)}</p>
+                  </div>
+                  <div
+                    className="rounded-full p-2.5 ml-3"
+                    style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
+                  >
+                    <HandCoins className="w-5 h-5 text-white" />
+                  </div>
+                </div>
               </div>
             </div>
           )}
