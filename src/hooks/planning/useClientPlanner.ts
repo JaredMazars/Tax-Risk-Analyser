@@ -95,9 +95,6 @@ export function useClientPlanner({
       
       params.set('page', page.toString());
       params.set('limit', limit.toString());
-      
-      // TEMPORARY: Force cache clear during debugging
-      params.set('clearCache', 'true');
 
       const response = await fetch(
         `/api/service-lines/${serviceLine}/${subServiceLineGroup}/planner/clients?${params.toString()}`

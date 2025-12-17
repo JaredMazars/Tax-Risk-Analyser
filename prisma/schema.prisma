@@ -1038,6 +1038,8 @@ model TaskTeam {
   @@index([userId, startDate, endDate])
   @@index([userId, taskId])
   @@index([userId, taskId, role])
+  @@index([taskId, startDate, endDate], name: "TaskTeam_taskId_startDate_endDate_idx")
+  @@index([userId, startDate], name: "TaskTeam_userId_startDate_idx")
 }
 
 model TaxAdjustment {

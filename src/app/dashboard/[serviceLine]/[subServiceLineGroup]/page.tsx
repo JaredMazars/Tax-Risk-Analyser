@@ -34,11 +34,11 @@ import { EmployeePlannerList } from '@/components/features/planning/EmployeePlan
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
 import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
+import { useEmployeePlanner } from '@/hooks/planning/useEmployeePlanner';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner';
 import { TaskRole, ServiceLineRole, NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
-import { useClientPlannerFilters } from '@/hooks/planning/useClientPlannerFilters';
 import { GroupsFilters, GroupsFiltersType } from '@/components/features/groups/GroupsFilters';
 import { ClientsFilters, ClientsFiltersType } from '@/components/features/clients/ClientsFilters';
 import { TasksFilters, TasksFiltersType } from '@/components/features/tasks/TasksFilters';
@@ -94,6 +94,9 @@ export default function SubServiceLineWorkspacePage() {
   // Planner view type (timeline vs list)
   const [employeePlannerViewMode, setEmployeePlannerViewMode] = useState<'timeline' | 'list'>('timeline');
   const [clientPlannerViewMode, setClientPlannerViewMode] = useState<'timeline' | 'list'>('timeline');
+  
+  // Timeline pagination state
+  const [timelinePage, setTimelinePage] = useState(1);
   
   // Employee planner filters (array-based for multiselect)
   const [employeePlannerFilters, setEmployeePlannerFilters] = useState<EmployeePlannerFiltersType>({
@@ -255,15 +258,38 @@ export default function SubServiceLineWorkspacePage() {
     enabled: activeTab === 'planner' && !!subServiceLineGroup && !!serviceLine
   });
 
-  // Fetch client planner filter options
+  // Fetch employee planner data for timeline view (with pagination)
   const { 
-    data: clientPlannerFilterOptions,
-    isLoading: isLoadingFilterOptions
-  } = useClientPlannerFilters({
+    data: timelinePlannerData,
+    isLoading: isLoadingTimelinePlanner
+  } = useEmployeePlanner({
     serviceLine,
     subServiceLineGroup,
-    enabled: activeTab === 'planner' && plannerView === 'clients' && !!subServiceLineGroup && !!serviceLine
+    employees: employeePlannerFilters.employees,
+    jobGrades: employeePlannerFilters.jobGrades,
+    offices: employeePlannerFilters.offices,
+    clients: employeePlannerFilters.clients,
+    taskCategories: employeePlannerFilters.taskCategories,
+    includeUnallocated: true, // Timeline view shows all employees
+    page: timelinePage,
+    limit: 50, // Limit to 50 employees per page
+    enabled: activeTab === 'planner' && 
+             plannerView === 'employees' && 
+             employeePlannerViewMode === 'timeline'
   });
+
+  // Reset timeline page when filters change
+  React.useEffect(() => {
+    setTimelinePage(1);
+  }, [
+    employeePlannerFilters.employees,
+    employeePlannerFilters.jobGrades,
+    employeePlannerFilters.offices,
+    employeePlannerFilters.clients,
+    employeePlannerFilters.taskCategories
+  ]);
+
+  // Filter options are now fetched inside PlannerFilters component
 
  
   // Fetch groups for the Groups tab with server-side filtering
@@ -314,204 +340,63 @@ export default function SubServiceLineWorkspacePage() {
   // Use the current user's role from state (default to VIEWER)
   const currentUserServiceLineRole = currentUserSubGroupRole;
 
-  // Filter planner users based on array-based filters with OR logic
-  // Optimized with Sets for O(1) lookup and early returns
-  const filteredPlannerUsers = useMemo(() => {
-    // Early return if no users
-    if (!plannerUsers || plannerUsers.length === 0) return [];
+  // Transform employee planner data to GanttTimeline format (for timeline view with server-side filtering)
+  const transformedTimelineUsers = useMemo(() => {
+    if (!timelinePlannerData?.allocations) {
+      return [];
+    }
     
-    // Convert filter arrays to Sets for O(1) lookup performance
-    const employeeSet = new Set(employeePlannerFilters.employees);
-    const jobGradeSet = new Set(employeePlannerFilters.jobGrades);
-    const officeSet = new Set(employeePlannerFilters.offices);
-    const clientSet = new Set(employeePlannerFilters.clients);
-    const taskCategorySet = new Set(employeePlannerFilters.taskCategories);
+    // Group allocations by employee
+    const employeeMap = new Map<string, any>();
     
-    let filtered = plannerUsers;
-
-    // Employee filter (by user ID or email)
-    if (employeeSet.size > 0) {
-      filtered = filtered.filter(u => 
-        employeeSet.has(u.user.id) || employeeSet.has(u.user.email)
-      );
-    }
-
-    // Job Grade filter
-    if (jobGradeSet.size > 0) {
-      filtered = filtered.filter(u => 
-        u.user.jobTitle && jobGradeSet.has(u.user.jobTitle)
-      );
-    }
-
-    // Office filter
-    if (officeSet.size > 0) {
-      filtered = filtered.filter(u => 
-        u.user.officeLocation && officeSet.has(u.user.officeLocation.trim())
-      );
-    }
-
-    // Task category filter (client tasks vs specific internal event types)
-    if (taskCategorySet.size > 0) {
-      const hasNoPlanningFilter = taskCategorySet.has('no_planning');
-      const hasClientFilter = taskCategorySet.has('client');
-      
-      // Special case: if "no_planning" is selected, show users with no allocations
-      if (hasNoPlanningFilter) {
-        // If ONLY no_planning is selected, show only users with no allocations
-        if (taskCategorySet.size === 1) {
-          filtered = filtered.filter(u => u.allocations.length === 0);
-        } else {
-          // If no_planning is selected along with other filters, show users with no allocations OR matching allocations
-          filtered = filtered.filter(u =>
-            u.allocations.length === 0 ||
-            u.allocations.some(alloc => {
-              // Check if it's a client task
-              if (hasClientFilter && alloc.clientCode !== null) {
-                return true;
-              }
-              // Check if it's a specific internal event type
-              if (alloc.isNonClientEvent && alloc.nonClientEventType && 
-                  taskCategorySet.has(alloc.nonClientEventType)) {
-                return true;
-              }
-              return false;
-            })
-          );
-        }
-      } else {
-        // Filter users to only show those with matching task categories
-        filtered = filtered.filter(u =>
-          u.allocations.some(alloc => {
-            // Check if it's a client task
-            if (hasClientFilter && alloc.clientCode !== null) {
-              return true;
-            }
-            // Check if it's a specific internal event type
-            if (alloc.isNonClientEvent && alloc.nonClientEventType && 
-                taskCategorySet.has(alloc.nonClientEventType)) {
-              return true;
-            }
-            return false;
-          })
-        );
+    timelinePlannerData.allocations.forEach(alloc => {
+      if (!employeeMap.has(alloc.userId)) {
+        employeeMap.set(alloc.userId, {
+          userId: alloc.userId,
+          employeeId: alloc.employeeId,
+          User: {
+            id: alloc.userId,
+            name: alloc.userName,
+            email: alloc.userEmail,
+            jobTitle: alloc.jobGradeCode,
+            officeLocation: alloc.officeLocation,
+            jobGradeCode: alloc.jobGradeCode
+          },
+          allocations: []
+        });
       }
-    }
-
-    // NOW filter allocations within each user based on client filter AND task category filter
-    // Only map if we have filters that affect allocations
-    if (clientSet.size > 0 || taskCategorySet.size > 0) {
-      const hasNoPlanningFilter = taskCategorySet.has('no_planning');
-      const hasClientFilter = taskCategorySet.has('client');
       
-      filtered = filtered.map(u => ({
-        ...u,
-        allocations: u.allocations.filter(alloc => {
-          // Client filter
-          if (clientSet.size > 0) {
-            if (alloc.clientCode && !clientSet.has(alloc.clientCode)) {
-              return false;
-            }
-          }
-          
-          // Task category filter - empty array means show all
-          if (taskCategorySet.size > 0 && !hasNoPlanningFilter) {
-            // Check if it's a client task
-            if (hasClientFilter && alloc.clientCode !== null) {
-              return true;
-            }
-            // Check if it's a specific internal event type
-            if (alloc.isNonClientEvent && alloc.nonClientEventType && 
-                taskCategorySet.has(alloc.nonClientEventType)) {
-              return true;
-            }
-            // If task category filter is active and this doesn't match, exclude it
-            return false;
-          }
-          
-          return true;
-        })
-      }))
-      // Remove users who have no allocations left after filtering
-      // UNLESS: taskCategories is empty (unfiltered) OR "no_planning" is selected
-      .filter(u => 
-        u.allocations.length > 0 || 
-        taskCategorySet.size === 0 || 
-        hasNoPlanningFilter
-      );
-    }
-
-    return filtered;
-  }, [plannerUsers, employeePlannerFilters]);
-
-  // Extract filter options from plannerUsers and tasks
-  const employeeFilterOptions = useMemo(() => {
-    // Employees (user ID and name)
-    const employeeOptions = plannerUsers
-      .map(u => ({
-        id: u.user.id,
-        label: u.user.name ? `${u.user.name} (${u.user.email})` : u.user.email
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-
-    // Job grades (unique job titles)
-    const jobGradeSet = new Set(
-      plannerUsers
-        .map(u => u.user.jobTitle)
-        .filter((jt): jt is string => !!jt)
-    );
-    const jobGradeOptions = Array.from(jobGradeSet)
-      .map(jg => ({ id: jg, label: jg }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-
-    // Offices (unique office locations)
-    const officeSet = new Set(
-      plannerUsers
-        .map(u => u.user.officeLocation?.trim())
-        .filter((office): office is string => !!office)
-    );
-    const officeOptions = Array.from(officeSet)
-      .map(office => ({ id: office, label: office }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-
-    // Clients (ALL clients from ALL tasks, not just those with allocations)
-    const clientMap = new Map<string, string>();
-    tasks.forEach(task => {
-      if (task.client?.clientCode) {
-        const clientName = task.client.clientNameFull || task.client.clientCode;
-        clientMap.set(task.client.clientCode, `${task.client.clientCode} - ${clientName}`);
+      // Only add allocation if it has valid data (taskId > 0 means it's a real allocation)
+      if (alloc.taskId > 0) {
+        employeeMap.get(alloc.userId).allocations.push({
+          id: alloc.allocationId,
+          taskId: alloc.taskId,
+          taskName: alloc.taskName,
+          taskCode: alloc.taskCode,
+          clientId: alloc.clientId,
+          clientName: alloc.clientName,
+          clientCode: alloc.clientCode,
+          startDate: alloc.startDate,
+          endDate: alloc.endDate,
+          role: alloc.role,
+          allocatedHours: alloc.allocatedHours,
+          allocatedPercentage: alloc.allocatedPercentage,
+          actualHours: alloc.actualHours,
+          isNonClientEvent: alloc.isNonClientEvent,
+          nonClientEventType: alloc.nonClientEventType,
+          notes: alloc.notes
+        });
       }
     });
-    const clientOptions = Array.from(clientMap.entries())
-      .map(([id, label]) => ({ id, label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-
-    return {
-      employees: employeeOptions,
-      jobGrades: jobGradeOptions,
-      offices: officeOptions,
-      clients: clientOptions
-    };
-  }, [plannerUsers, tasks]);
-
-  // Transform users to match GanttTimeline's expected format
-  const transformedPlannerUsers = useMemo(() => {
-    const transformed = filteredPlannerUsers.map(user => ({
-      userId: user.user.id, // Use user.user.id which is never null (fallback for employees without accounts)
-      employeeId: user.employeeId, // Actual Employee table ID
-      User: {
-        ...user.user,
-        jobGradeCode: user.user.jobGradeCode
-      },
-      role: mapServiceLineRoleToTaskRole(user.serviceLineRole),
-      allocations: user.allocations.map(alloc => ({
-        ...alloc,
-        startDate: new Date(alloc.startDate),
-        endDate: new Date(alloc.endDate)
-      }))
+    
+    return Array.from(employeeMap.values()).map(employee => ({
+      userId: employee.userId,
+      employeeId: employee.employeeId,
+      User: employee.User,
+      role: mapServiceLineRoleToTaskRole(currentUserServiceLineRole),
+      allocations: employee.allocations
     }));
-
-    return transformed;
-  }, [filteredPlannerUsers]);
+  }, [timelinePlannerData, currentUserServiceLineRole, mapServiceLineRoleToTaskRole]);
 
   // Filtering is now done on the backend for clients, groups, and tasks
   const filteredClients = clients;
@@ -896,14 +781,13 @@ export default function SubServiceLineWorkspacePage() {
                     setClientPlannerViewMode(mode);
                   }
                 }}
+                serviceLine={serviceLine}
+                subServiceLineGroup={subServiceLineGroup}
                 employeeFilters={employeePlannerFilters}
                 onEmployeeFiltersChange={setEmployeePlannerFilters}
-                employeeFilterOptions={employeeFilterOptions}
                 clientFilters={clientPlannerFilters}
                 onClientFiltersChange={setClientPlannerFilters}
-                clientFilterOptions={clientPlannerFilterOptions}
-                isLoadingClientOptions={isLoadingFilterOptions}
-                teamCount={filteredPlannerUsers.length}
+                teamCount={plannerUsers.length}
               />
 
               {/* Timeline or List View */}
@@ -915,42 +799,69 @@ export default function SubServiceLineWorkspacePage() {
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
                   <div className="h-20 bg-forvis-gray-200 rounded-lg"></div>
                 </div>
-              ) : filteredPlannerUsers.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
-                  <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
-                    {(employeePlannerFilters.employees.length > 0 || 
-                      employeePlannerFilters.jobGrades.length > 0 || 
-                      employeePlannerFilters.offices.length > 0 || 
-                      employeePlannerFilters.clients.length > 0 ||
-                      employeePlannerFilters.taskCategories.length > 0) ? 'No matching team members' : 'No team members'}
-                  </h3>
-                  <p className="mt-1 text-sm text-forvis-gray-600">
-                    {(employeePlannerFilters.employees.length > 0 || 
-                      employeePlannerFilters.jobGrades.length > 0 || 
-                      employeePlannerFilters.offices.length > 0 || 
-                      employeePlannerFilters.clients.length > 0 ||
-                      employeePlannerFilters.taskCategories.length > 0)
-                      ? 'Try adjusting your filters.'
-                      : 'No users are currently assigned to this sub-service line group.'}
-                  </p>
-                </div>
               ) : employeePlannerViewMode === 'timeline' ? (
                 /* Employee Timeline View */
-                <GanttTimeline
-                  taskId={0}
-                  teamMembers={transformedPlannerUsers}
-                  currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
-                  onAllocationUpdate={refetchPlannerUsers}
-                  serviceLine={serviceLine}
-                  subServiceLineGroup={subServiceLineGroup}
-                />
+                isLoadingTimelinePlanner ? (
+                  <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
+                    <LoadingSpinner size="lg" />
+                    <p className="mt-4 text-forvis-gray-600">Loading timeline data...</p>
+                  </div>
+                ) : transformedTimelineUsers.length === 0 ? (
+                  <div className="bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 p-12 text-center">
+                    <Users className="mx-auto h-12 w-12 text-forvis-gray-400" />
+                    <p className="mt-2 text-lg font-medium text-forvis-gray-900">No Allocations Found</p>
+                    <p className="mt-1 text-sm text-forvis-gray-600">
+                      Try adjusting your filters to see employee allocations.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <GanttTimeline
+                      taskId={0}
+                      teamMembers={transformedTimelineUsers}
+                      currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
+                      onAllocationUpdate={() => {
+                        // Refetch timeline data after update
+                        queryClient.invalidateQueries({ queryKey: ['planner', 'employees'] });
+                      }}
+                      serviceLine={serviceLine}
+                      subServiceLineGroup={subServiceLineGroup}
+                    />
+                    
+                    {/* Timeline Pagination Controls */}
+                    {timelinePlannerData?.pagination && timelinePlannerData.pagination.totalPages > 1 && (
+                      <div className="mt-4 px-6 py-4 bg-white rounded-lg shadow-corporate border-2 border-forvis-gray-200 flex items-center justify-between">
+                        <div className="text-sm text-forvis-gray-600">
+                          Showing {transformedTimelineUsers.length} of {timelinePlannerData.pagination.total} employees
+                          {' '}&middot;{' '}
+                          Page {timelinePlannerData.pagination.page} of {timelinePlannerData.pagination.totalPages}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setTimelinePage(Math.max(1, timelinePage - 1))}
+                            disabled={timelinePage === 1}
+                            className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Previous
+                          </button>
+                          <button
+                            onClick={() => setTimelinePage(Math.min(timelinePlannerData.pagination.totalPages, timelinePage + 1))}
+                            disabled={timelinePage === timelinePlannerData.pagination.totalPages}
+                            className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-md hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
               ) : (
                 /* Employee List View */
                 <EmployeePlannerList
-                  teamMembers={transformedPlannerUsers}
                   serviceLine={serviceLine}
                   subServiceLineGroup={subServiceLineGroup}
+                  filters={employeePlannerFilters}
                 />
               )
               ) : (

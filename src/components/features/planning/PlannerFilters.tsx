@@ -1,9 +1,11 @@
 'use client';
 
 import { Users, Building2, Calendar, List, Filter, X } from 'lucide-react';
-import { MultiSelect, Button } from '@/components/ui';
+import { MultiSelect, Button, LoadingSpinner } from '@/components/ui';
 import type { MultiSelectOption } from '@/components/ui/MultiSelect';
 import { NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
+import { useEmployeePlannerFilters } from '@/hooks/planning/useEmployeePlannerFilters';
+import { useClientPlannerFilters } from '@/hooks/planning/useClientPlannerFilters';
 
 export interface EmployeePlannerFilters {
   employees: string[];
@@ -22,6 +24,10 @@ export interface ClientPlannerFilters {
 }
 
 interface PlannerFiltersProps {
+  // Service line context (needed for fetching filters)
+  serviceLine: string;
+  subServiceLineGroup: string;
+  
   // View controls
   plannerView: 'employees' | 'clients';
   onPlannerViewChange: (view: 'employees' | 'clients') => void;
@@ -31,43 +37,47 @@ interface PlannerFiltersProps {
   // Employee planner
   employeeFilters?: EmployeePlannerFilters;
   onEmployeeFiltersChange?: (filters: EmployeePlannerFilters) => void;
-  employeeFilterOptions?: {
-    employees: MultiSelectOption[];
-    jobGrades: MultiSelectOption[];
-    offices: MultiSelectOption[];
-    clients: MultiSelectOption[];
-  };
   
   // Client planner
   clientFilters?: ClientPlannerFilters;
   onClientFiltersChange?: (filters: ClientPlannerFilters) => void;
-  clientFilterOptions?: {
-    tasks: MultiSelectOption[];
-    clients: MultiSelectOption[];
-    groups: MultiSelectOption[];
-    partners: MultiSelectOption[];
-    managers: MultiSelectOption[];
-  };
-  isLoadingClientOptions?: boolean;
   
   // Stats
   teamCount?: number;
 }
 
 export function PlannerFilters({
+  serviceLine,
+  subServiceLineGroup,
   plannerView,
   onPlannerViewChange,
   viewMode,
   onViewModeChange,
   employeeFilters,
   onEmployeeFiltersChange,
-  employeeFilterOptions,
   clientFilters,
   onClientFiltersChange,
-  clientFilterOptions,
-  isLoadingClientOptions = false,
   teamCount,
 }: PlannerFiltersProps) {
+  // Fetch employee filter options from server
+  const { 
+    data: employeeFilterOptions,
+    isLoading: isLoadingEmployeeOptions 
+  } = useEmployeePlannerFilters({
+    serviceLine,
+    subServiceLineGroup,
+    enabled: plannerView === 'employees'
+  });
+
+  // Fetch client filter options from server
+  const { 
+    data: clientFilterOptions,
+    isLoading: isLoadingClientOptions 
+  } = useClientPlannerFilters({
+    serviceLine,
+    subServiceLineGroup,
+    enabled: plannerView === 'clients'
+  });
   const hasEmployeeFilters = employeeFilters && (
     employeeFilters.employees.length > 0 ||
     employeeFilters.jobGrades.length > 0 ||

@@ -15,7 +15,7 @@ import { mapUsersToEmployees } from '@/lib/services/employees/employeeService';
  * 
  * Performance optimizations:
  * - Redis caching (5min TTL)
- * - Pagination (50 limit default)
+ * - Pagination (25 limit default)
  * - Optimized queries with Promise.all batching
  */
 export async function GET(
@@ -57,16 +57,10 @@ export async function GET(
     const taskCodes = searchParams.getAll('taskCodes[]');
     const managerCodes = searchParams.getAll('managerCodes[]');
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get('limit') || '25');
 
     // 5. Build comprehensive cache key with array filters
-    const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${params.serviceLine}:${subServiceLineGroup}:clients:${clientCodes.join(',') || 'all'}:groups:${groupDescs.join(',') || 'all'}:partners:${partnerCodes.join(',') || 'all'}:tasks:${taskCodes.join(',') || 'all'}:managers:${managerCodes.join(',') || 'all'}:${page}:${limit}:user:${user.id}`;
-    
-    // TEMPORARY: Clear stale cache during debugging
-    const clearCache = searchParams.get('clearCache');
-    if (clearCache === 'true') {
-      await cache.delete(cacheKey);
-    }
+    const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${params.serviceLine}:${subServiceLineGroup}:clients:${clientCodes.join(',') || 'all'}:groups:${groupDescs.join(',') || 'all'}:partners:${partnerCodes.join(',') || 'all'}:tasks:${taskCodes.join(',') || 'all'}:managers:${managerCodes.join(',') || 'all'}:${page}:${limit}`;
     
     // Try cache first
     const cached = await cache.get(cacheKey) as any;

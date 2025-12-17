@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation';
 import { TaskRole } from '@/types';
 import { LoadingSpinner } from '@/components/ui';
 import { 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown, 
   Calendar,
   Building2,
   Briefcase,
@@ -60,13 +57,8 @@ interface ClientPlannerListProps {
   };
 }
 
-type SortField = 'client' | 'task' | 'employee' | 'startDate' | 'endDate' | 'duration' | 'role' | 'allocatedHours' | 'allocatedPercentage' | 'actualHours';
-type SortDirection = 'asc' | 'desc';
-
 export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }: ClientPlannerListProps) {
   const router = useRouter();
-  const [sortField, setSortField] = useState<SortField>('client');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [isNavigating, setIsNavigating] = useState(false);
   const [navigatingToTaskId, setNavigatingToTaskId] = useState<number | null>(null);
@@ -85,12 +77,13 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
     partnerCodes: filters.partners,
     taskCodes: filters.tasks,
     managerCodes: filters.managers,
-    page: 1,
-    limit: 1000, // Fetch all for list view (no pagination in UI)
+    page: currentPage,
+    limit: itemsPerPage, // Server-side pagination
     enabled: true
   });
 
   const tasks = clientPlannerData?.tasks || [];
+  const pagination = clientPlannerData?.pagination;
 
   // Debug logging
   console.log('[ClientPlannerList] Data received:', {
@@ -100,6 +93,7 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
     subServiceLineGroup,
     isLoading: isLoadingClientPlanner,
     hasError: !!fetchError,
+    pagination,
     firstTaskSample: tasks[0] ? {
       taskId: tasks[0].taskId,
       clientName: tasks[0].clientName,
@@ -108,7 +102,7 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
     } : null
   });
 
-  // Flatten tasks into allocation items
+  // Flatten tasks into allocation items (server already filtered and paginated)
   const allAllocations = useMemo(() => {
     const items: ClientTaskAllocationItem[] = [];
     
@@ -163,88 +157,19 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
     return items;
   }, [tasks, serviceLine, subServiceLineGroup]);
 
-  // Filter to show only client tasks (no internal tasks)
-  const clientAllocations = useMemo(() => {
-    const filtered = allAllocations.filter(a => 
+  // Filter to show only client tasks (no internal tasks) - already done by server
+  const paginatedAllocations = useMemo(() => {
+    return allAllocations.filter(a => 
       a.clientId !== null && 
       a.clientId !== 0
     );
-    return filtered;
   }, [allAllocations]);
 
-  // Sort allocations
-  const sortedAllocations = useMemo(() => {
-    const sorted = [...clientAllocations];
+  // Pagination metadata from server
+  const totalPages = pagination?.totalPages || 1;
 
-    sorted.sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortField) {
-        case 'client':
-          comparison = (a.clientName || '').localeCompare(b.clientName || '');
-          break;
-        case 'task':
-          comparison = (a.taskName || '').localeCompare(b.taskName || '');
-          break;
-        case 'employee':
-          comparison = (a.employeeName || '').localeCompare(b.employeeName || '');
-          break;
-        case 'startDate':
-          comparison = a.startDate.getTime() - b.startDate.getTime();
-          break;
-        case 'endDate':
-          comparison = a.endDate.getTime() - b.endDate.getTime();
-          break;
-        case 'duration':
-          const durationA = differenceInDays(a.endDate, a.startDate) + 1;
-          const durationB = differenceInDays(b.endDate, b.startDate) + 1;
-          comparison = durationA - durationB;
-          break;
-        case 'role':
-          comparison = (a.role || '').localeCompare(b.role || '');
-          break;
-        case 'allocatedHours':
-          comparison = (a.allocatedHours || 0) - (b.allocatedHours || 0);
-          break;
-        case 'allocatedPercentage':
-          comparison = (a.allocatedPercentage || 0) - (b.allocatedPercentage || 0);
-          break;
-        case 'actualHours':
-          comparison = (a.actualHours || 0) - (b.actualHours || 0);
-          break;
-      }
-
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return sorted;
-  }, [clientAllocations, sortField, sortDirection]);
-
-  // Paginate
-  const totalPages = Math.ceil(sortedAllocations.length / itemsPerPage);
-  const paginatedAllocations = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    const paginated = sortedAllocations.slice(start, start + itemsPerPage);
-    return paginated;
-  }, [sortedAllocations, currentPage]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="w-4 h-4 text-forvis-gray-400" />;
-    }
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="w-4 h-4 text-forvis-blue-600" />
-      : <ArrowDown className="w-4 h-4 text-forvis-blue-600" />;
-  };
+  // Server-side sorting (default: client name, then task name)
+  // Sort icons removed - sorting is handled by server
 
   const getRoleBadgeColor = (role: TaskRole) => {
     switch (role) {
@@ -337,88 +262,52 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
         <table className="min-w-full divide-y divide-forvis-gray-200">
           <thead className="bg-forvis-gray-50 sticky top-0">
             <tr>
-              <th
-                onClick={() => handleSort('client')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4" />
                   <span>Client</span>
-                  {getSortIcon('client')}
                 </div>
               </th>
-              <th
-                onClick={() => handleSort('task')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <Briefcase className="w-4 h-4" />
                   <span>Task</span>
-                  {getSortIcon('task')}
                 </div>
               </th>
-              <th
-                onClick={() => handleSort('employee')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4" />
                   <span>Employee</span>
-                  {getSortIcon('employee')}
                 </div>
               </th>
-              <th
-                onClick={() => handleSort('startDate')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <span>Start Date</span>
-                  {getSortIcon('startDate')}
                 </div>
               </th>
-              <th
-                onClick={() => handleSort('endDate')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <span>End Date</span>
-                  {getSortIcon('endDate')}
                 </div>
               </th>
-              <th
-                onClick={() => handleSort('duration')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <span>Duration</span>
-                  {getSortIcon('duration')}
                 </div>
               </th>
-              <th
-                onClick={() => handleSort('role')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <span>Role</span>
-                  {getSortIcon('role')}
                 </div>
               </th>
-              <th
-                onClick={() => handleSort('allocatedHours')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <span>Allocated Hours</span>
-                  {getSortIcon('allocatedHours')}
                 </div>
               </th>
-              <th
-                onClick={() => handleSort('allocatedPercentage')}
-                className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider cursor-pointer hover:bg-forvis-gray-100 transition-colors"
-              >
+              <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
                 <div className="flex items-center gap-2">
                   <span>Allocated %</span>
-                  {getSortIcon('allocatedPercentage')}
                 </div>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
