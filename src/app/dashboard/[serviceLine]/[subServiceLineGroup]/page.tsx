@@ -84,6 +84,7 @@ export default function SubServiceLineWorkspacePage() {
     taskNames: [],
     partners: [],
     managers: [],
+    serviceLines: [],
     includeArchived: false,
   });
   
@@ -213,7 +214,6 @@ export default function SubServiceLineWorkspacePage() {
     taskNames: taskFilters.taskNames,
     partnerCodes: taskFilters.partners,
     managerCodes: taskFilters.managers,
-    serviceLineCodes: taskFilters.serviceLines,
     enabled: !!serviceLine && !!subServiceLineGroup,
   });
   const tasks = tasksData?.tasks || [];
@@ -239,7 +239,6 @@ export default function SubServiceLineWorkspacePage() {
     taskNames: taskFilters.taskNames,
     partnerCodes: taskFilters.partners,
     managerCodes: taskFilters.managers,
-    serviceLineCodes: taskFilters.serviceLines,
     enabled: !!serviceLine && !!subServiceLineGroup,
   });
   const myTasks = myTasksData?.tasks || [];
@@ -1319,7 +1318,7 @@ export default function SubServiceLineWorkspacePage() {
                   <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No tasks</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {taskFilters.search || taskFilters.clients.length > 0 || taskFilters.tasks.length > 0 || taskFilters.partners.length > 0 || taskFilters.managers.length > 0
+                    {debouncedSearch || taskFilters.clients.length > 0 || taskFilters.taskNames.length > 0 || taskFilters.partners.length > 0 || taskFilters.managers.length > 0 || taskFilters.serviceLines.length > 0
                       ? 'No tasks match your filters.'
                       : activeTab === 'my-tasks'
                       ? `You are not a team member on any tasks in ${subServiceLineGroupDescription}.`

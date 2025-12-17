@@ -83,11 +83,13 @@ export async function GET(request: NextRequest) {
         taskNames: taskNameTooShort ? [] : undefined,
         partners: partnerTooShort ? [] : undefined,
         managers: managerTooShort ? [] : undefined,
+        serviceLines: [],
         metadata: {
           clients: clientTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
           taskNames: taskNameTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
           partners: partnerTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
           managers: managerTooShort ? { hasMore: false, total: 0, returned: 0 } : undefined,
+          serviceLines: { hasMore: false, total: 0, returned: 0 },
         },
         message: 'Please enter at least 2 characters to search',
       }));
@@ -363,6 +365,7 @@ export async function GET(request: NextRequest) {
       taskNames,
       partners,
       managers,
+      serviceLines: [],
       metadata: {
         clients: {
           hasMore: clientsTotal.length > FILTER_LIMIT,
@@ -383,6 +386,11 @@ export async function GET(request: NextRequest) {
           hasMore: managersTotal.length > FILTER_LIMIT,
           total: managersTotal.length,
           returned: managers.length,
+        },
+        serviceLines: {
+          hasMore: false,
+          total: 0,
+          returned: 0,
         },
       },
     };

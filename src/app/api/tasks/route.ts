@@ -156,11 +156,16 @@ export async function GET(request: NextRequest) {
     // If neither serviceLine nor subServiceLineGroup is provided, show no tasks
     // (this prevents showing all tasks in the system)
     
-    // Filter by specific client code
+    // Build Client filter
+    const clientFilter: Record<string, unknown> = {};
     if (clientCode) {
-      where.Client = {
-        clientCode: clientCode
-      };
+      clientFilter.clientCode = clientCode;
+    }
+    if (clientIds.length > 0) {
+      clientFilter.id = { in: clientIds };
+    }
+    if (Object.keys(clientFilter).length > 0) {
+      where.Client = clientFilter;
     }
 
     // Filter by status (Active/Inactive)
@@ -180,14 +185,6 @@ export async function GET(request: NextRequest) {
         { Client: { clientNameFull: { contains: search } } },
         { Client: { clientCode: { contains: search } } },
       ];
-    }
-
-    // Add array filter parameters
-    if (clientIds.length > 0) {
-      where.Client = {
-        ...where.Client,
-        id: { in: clientIds },
-      };
     }
 
     if (taskNames.length > 0) {

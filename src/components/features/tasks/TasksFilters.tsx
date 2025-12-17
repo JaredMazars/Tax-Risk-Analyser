@@ -10,6 +10,7 @@ export interface TasksFiltersType {
   taskNames: string[];      // Task names
   partners: string[];       // Partner codes
   managers: string[];       // Manager codes
+  serviceLines: string[];   // Service line codes
   includeArchived: boolean;
 }
 
@@ -78,6 +79,7 @@ export function TasksFilters({
       taskNames: [],
       partners: [],
       managers: [],
+      serviceLines: [],
       includeArchived: false,
     });
   };

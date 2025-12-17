@@ -21,11 +21,13 @@ export interface TaskFilterOptions {
   taskNames: string[];
   partners: Array<{ id: string; name: string }>;
   managers: Array<{ id: string; name: string }>;
+  serviceLines: string[];
   metadata?: {
     clients?: FilterMetadata;
     taskNames?: FilterMetadata;
     partners?: FilterMetadata;
     managers?: FilterMetadata;
+    serviceLines?: FilterMetadata;
   };
 }
 
