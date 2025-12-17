@@ -96,9 +96,7 @@ export async function GET(
         TaskCode: true,
         TaskDesc: true,
         TaskManager: true,
-        TaskManagerName: true,
         TaskPartner: true,
-        TaskPartnerName: true,
         Client: {
           select: {
             clientCode: true,
@@ -108,6 +106,34 @@ export async function GET(
           }
         }
       }
+    });
+    
+    // Get unique partner and manager codes
+    const partnerCodes = new Set<string>();
+    const managerCodes = new Set<string>();
+    
+    tasksWithClients.forEach(task => {
+      if (task.TaskPartner) partnerCodes.add(task.TaskPartner);
+      if (task.TaskManager) managerCodes.add(task.TaskManager);
+    });
+    
+    // Look up employee names for partners and managers
+    const employeeCodes = [...new Set([...Array.from(partnerCodes), ...Array.from(managerCodes)])];
+    const employees = await prisma.employee.findMany({
+      where: {
+        EmpCode: { in: employeeCodes },
+        Active: 'Yes'
+      },
+      select: {
+        EmpCode: true,
+        EmpNameFull: true
+      }
+    });
+    
+    // Create a map of employee code to name
+    const employeeNameMap = new Map<string, string>();
+    employees.forEach(emp => {
+      employeeNameMap.set(emp.EmpCode, emp.EmpNameFull);
     });
 
     // 7. Extract unique values
@@ -131,11 +157,12 @@ export async function GET(
         groupsSet.add(task.Client.groupDesc);
       }
 
-      // Partners (use code as ID, show "Code - Name")
-      if (task.Client?.clientPartner) {
-        const partnerCode = task.Client.clientPartner;
+      // Partners (use partner code as ID, look up name from Employee table)
+      if (task.TaskPartner) {
+        const partnerCode = task.TaskPartner;
+        const partnerName = employeeNameMap.get(partnerCode) || partnerCode;
         if (!partnersSet.has(partnerCode)) {
-          partnersSet.set(partnerCode, partnerCode);
+          partnersSet.set(partnerCode, partnerName);
         }
       }
 
@@ -147,12 +174,13 @@ export async function GET(
         tasksSet.set(task.TaskCode, label);
       }
 
-      // Managers (use code as ID, show "Code - Name")
+      // Managers (use code as ID, look up name from Employee table)
       if (task.TaskManager) {
-        const label = task.TaskManagerName 
-          ? `${task.TaskManager} - ${task.TaskManagerName}`
-          : task.TaskManager;
-        managersSet.set(task.TaskManager, label);
+        const managerCode = task.TaskManager;
+        const managerName = employeeNameMap.get(managerCode) || managerCode;
+        if (!managersSet.has(managerCode)) {
+          managersSet.set(managerCode, managerName);
+        }
       }
     });
 
