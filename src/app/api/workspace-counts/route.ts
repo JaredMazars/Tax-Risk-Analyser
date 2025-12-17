@@ -67,12 +67,8 @@ export async function GET(request: NextRequest) {
         by: ['groupCode'],
       }).then(r => r.length),
       
-      // Clients count - all active clients
-      prisma.client.count({
-        where: {
-          active: 'Yes',
-        },
-      }),
+      // Clients count - all clients (no active filter to match list view)
+      prisma.client.count(),
       
       // Tasks count - active tasks in this subServiceLineGroup
       prisma.task.count({

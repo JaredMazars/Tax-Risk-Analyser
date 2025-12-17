@@ -127,17 +127,13 @@ export default function ServiceLineClientDetailPage() {
   };
 
   const handleTaskCreated = async (task: any) => {
-    // Invalidate and refetch client query to show the new task
+    // Invalidate ALL client detail queries for this client (matches any params)
     await queryClient.invalidateQueries({ 
-      queryKey: clientKeys.detail(GSClientID),
+      queryKey: ['clients', 'v2', GSClientID],
       refetchType: 'active',
     });
-    // Also invalidate task list so it shows up there too
-    await queryClient.invalidateQueries({ 
-      queryKey: taskListKeys.all,
-      refetchType: 'active',
-    });
-    // Close modal after cache is refreshed
+    
+    // Close modal - let the useCreateTask hook handle other invalidations
     setShowCreateModal(false);
   };
 
