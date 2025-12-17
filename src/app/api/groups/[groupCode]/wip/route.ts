@@ -9,6 +9,7 @@ import {
   countUniqueTasks 
 } from '@/lib/services/analytics/wipAggregation';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { getCarlPartnerCodes, getServiceLineMappings } from '@/lib/cache/staticDataCache';
 
 interface ProfitabilityMetrics {
   grossProduction: number;
@@ -57,7 +58,7 @@ function calculateProfitabilityMetrics(data: {
   ltdHours: number;
   taskCount: number;
 }): ProfitabilityMetrics {
-  const grossProduction = data.ltdTime;
+  const grossProduction = data.ltdTime + data.ltdDisb;
   const ltdAdjustment = data.ltdAdjTime + data.ltdAdjDisb;
   const netRevenue = grossProduction + ltdAdjustment;
   const adjustmentPercentage = grossProduction !== 0 ? (ltdAdjustment / grossProduction) * 100 : 0;
@@ -196,17 +197,8 @@ export async function GET(
       );
     }
 
-    // 4-5. Execute - First, get CARL partner employee codes
-    const carlPartners = await prisma.employee.findMany({
-      where: {
-        EmpCatCode: 'CARL',
-      },
-      select: {
-        EmpCode: true,
-      },
-    });
-
-    const carlPartnerCodes = new Set(carlPartners.map(emp => emp.EmpCode));
+    // 4-5. Execute - Get CARL partner employee codes from cache
+    const carlPartnerCodes = await getCarlPartnerCodes();
 
     // Fetch ALL WIP transactions for all clients in the group (including Carl Partners)
     const wipTransactions = await prisma.wIPTransactions.findMany({
@@ -222,6 +214,7 @@ export async function GET(
         Cost: true,
         Hour: true,
         TType: true,
+        TranType: true,
         EmpCode: true,
         updatedAt: true,
       },
@@ -233,21 +226,8 @@ export async function GET(
       Cost: txn.EmpCode && carlPartnerCodes.has(txn.EmpCode) ? 0 : txn.Cost,
     }));
 
-    // Get Service Line External mappings to Master Service Lines
-    const serviceLineExternals = await prisma.serviceLineExternal.findMany({
-      select: {
-        ServLineCode: true,
-        masterCode: true,
-      },
-    });
-
-    // Create a map of ServLineCode to masterCode
-    const servLineToMasterMap = new Map<string, string>();
-    serviceLineExternals.forEach((sl) => {
-      if (sl.ServLineCode && sl.masterCode) {
-        servLineToMasterMap.set(sl.ServLineCode, sl.masterCode);
-      }
-    });
+    // Get Service Line External mappings from cache
+    const servLineToMasterMap = await getServiceLineMappings();
 
     // Aggregate WIP transactions by Master Service Line using processed transactions
     const groupedData = aggregateWipTransactionsByServiceLine(

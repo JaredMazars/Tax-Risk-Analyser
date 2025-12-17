@@ -204,9 +204,8 @@ export async function GET(
     
     const taskTeamMembers = await prisma.taskTeam.findMany({
       where: {
-        taskId: { in: taskIds },
-        startDate: { not: null },
-        endDate: { not: null }
+        taskId: { in: taskIds }
+        // Removed startDate/endDate filters to show all team members (including unallocated)
       },
       select: {
         id: true,

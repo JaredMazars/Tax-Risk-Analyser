@@ -42,6 +42,7 @@ import { EngagementLetterTab } from '@/components/features/tasks/EngagementLette
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { WorkSpaceTab } from '@/components/features/tasks/WorkSpaceTab';
 import { TaskWorkspaceTab } from '@/components/features/tasks/TaskWorkspaceTab';
+import { TaskFinanceTab } from '@/components/features/tasks/TaskFinanceTab';
 import { canAccessWorkTabs, isClientTask, getBlockedTabMessage } from '@/lib/utils/taskWorkflow';
 import { DollarSign, Briefcase, FolderOpen } from 'lucide-react';
 
@@ -456,7 +457,7 @@ export function TaskDetailContent({
         ) : null;
       
       case 'finance':
-        return <div className="p-6">Finance Tab (Coming Soon)</div>;
+        return <TaskFinanceTab taskId={parseInt(taskId)} />;
       
       case 'workspace':
         return task ? (

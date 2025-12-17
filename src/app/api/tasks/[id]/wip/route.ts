@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/utils/errorHandler';
-import { GSClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { 
-  aggregateWipTransactionsByServiceLine, 
-  aggregateOverallWipData,
-  countUniqueTasks 
-} from '@/lib/services/analytics/wipAggregation';
-import { getCarlPartnerCodes, getServiceLineMappings } from '@/lib/cache/staticDataCache';
+import { aggregateOverallWipData } from '@/lib/services/analytics/wipAggregation';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
+import { getCarlPartnerCodes } from '@/lib/cache/staticDataCache';
 
 interface ProfitabilityMetrics {
   grossProduction: number;
@@ -32,12 +29,6 @@ interface ProfitabilityMetrics {
   ltdFeeTime: number;
   ltdFeeDisb: number;
   ltdHours: number;
-  taskCount: number;
-}
-
-interface MasterServiceLineInfo {
-  code: string;
-  name: string;
 }
 
 /**
@@ -56,7 +47,6 @@ function calculateProfitabilityMetrics(data: {
   ltdFeeTime: number;
   ltdFeeDisb: number;
   ltdHours: number;
-  taskCount: number;
 }): ProfitabilityMetrics {
   const grossProduction = data.ltdTime + data.ltdDisb;
   const ltdAdjustment = data.ltdAdjTime + data.ltdAdjDisb;
@@ -88,19 +78,16 @@ function calculateProfitabilityMetrics(data: {
     ltdFeeTime: data.ltdFeeTime,
     ltdFeeDisb: data.ltdFeeDisb,
     ltdHours: data.ltdHours,
-    taskCount: data.taskCount,
   };
 }
 
 /**
- * GET /api/clients/[id]/wip
- * Get aggregated Work in Progress and Profitability data for a client
+ * GET /api/tasks/[id]/wip
+ * Get Work in Progress and Profitability data for a task
  * 
  * Returns:
- * - Overall profitability metrics
- * - Profitability metrics grouped by Master Service Line
- * - Master Service Line information
- * - Task count contributing to WIP
+ * - Profitability metrics for the task
+ * - Task information (code, description)
  * - Latest update timestamp
  */
 export async function GET(
@@ -116,45 +103,51 @@ export async function GET(
     
     // 2. Parse IDs
     const params = await context.params;
-    const GSClientID = params.id;
+    const taskId = parseInt(params.id, 10);
 
-    // Validate GSClientID is a valid GUID
-    const validationResult = GSClientIDSchema.safeParse(GSClientID);
-    if (!validationResult.success) {
+    if (isNaN(taskId)) {
       return NextResponse.json(
-        { error: 'Invalid client ID format. Expected GUID.' },
+        { error: 'Invalid task ID format' },
         { status: 400 }
       );
     }
 
-    // 3. Check Permission - verify client exists and user has access
-    const client = await prisma.client.findUnique({
-      where: { GSClientID: GSClientID },
+    // 3. Check Feature - verify user has access to tasks and WIP data
+    const hasAccess = await checkFeature(user.id, Feature.ACCESS_TASKS);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Forbidden - Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    // 4. Execute - verify task exists and get task details
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
       select: {
         id: true,
-        GSClientID: true,
-        clientCode: true,
-        clientNameFull: true,
+        GSTaskID: true,
+        TaskCode: true,
+        TaskDesc: true,
       },
     });
 
-    if (!client) {
+    if (!task) {
       return NextResponse.json(
-        { error: 'Client not found' },
+        { error: 'Task not found' },
         { status: 404 }
       );
     }
 
-    // 4-5. Execute - Get CARL partner employee codes from cache
+    // 5. Execute - Get CARL partner employee codes from cache to exclude their costs
     const carlPartnerCodes = await getCarlPartnerCodes();
 
-    // Fetch ALL WIP transactions for this client (including Carl Partners)
+    // Fetch ALL WIP transactions for this task
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: {
-        GSClientID: GSClientID,
+        GSTaskID: task.GSTaskID,
       },
       select: {
-        GSTaskID: true,
         TaskServLine: true,
         Amount: true,
         Cost: true,
@@ -172,43 +165,11 @@ export async function GET(
       Cost: txn.EmpCode && carlPartnerCodes.has(txn.EmpCode) ? 0 : txn.Cost,
     }));
 
-    // Get Service Line External mappings from cache
-    const servLineToMasterMap = await getServiceLineMappings();
-
-    // Aggregate WIP transactions by Master Service Line using processed transactions
-    const groupedData = aggregateWipTransactionsByServiceLine(
-      processedTransactions,
-      servLineToMasterMap
-    );
-
     // Calculate overall totals using processed transactions
-    const overallTotals = aggregateOverallWipData(processedTransactions);
-    
-    // Count unique tasks
-    const taskCount = countUniqueTasks(processedTransactions);
-    overallTotals.taskCount = taskCount;
+    const aggregatedData = aggregateOverallWipData(processedTransactions);
 
-    // Fetch Master Service Line names
-    const masterServiceLines = await prisma.serviceLineMaster.findMany({
-      where: {
-        code: {
-          in: Array.from(groupedData.keys()).filter(code => code !== 'UNKNOWN'),
-        },
-      },
-      select: {
-        code: true,
-        name: true,
-      },
-    });
-
-    // Calculate profitability metrics for each Master Service Line
-    const byMasterServiceLine: Record<string, ProfitabilityMetrics> = {};
-    groupedData.forEach((data, masterCode) => {
-      byMasterServiceLine[masterCode] = calculateProfitabilityMetrics(data);
-    });
-
-    // Calculate overall profitability metrics
-    const overall = calculateProfitabilityMetrics(overallTotals);
+    // Calculate profitability metrics
+    const metrics = calculateProfitabilityMetrics(aggregatedData);
 
     // Get the latest update timestamp from transactions
     const latestWipTransaction = wipTransactions.length > 0
@@ -219,23 +180,17 @@ export async function GET(
 
     // 6. Respond
     const responseData = {
-      GSClientID: client.GSClientID,
-      clientCode: client.clientCode,
-      clientName: client.clientNameFull,
-      overall,
-      byMasterServiceLine,
-      masterServiceLines: masterServiceLines.map(msl => ({
-        code: msl.code,
-        name: msl.name,
-      })),
-      taskCount: taskCount,
+      taskId: task.id,
+      GSTaskID: task.GSTaskID,
+      taskCode: task.TaskCode,
+      taskDesc: task.TaskDesc,
+      metrics,
       lastUpdated: latestWipTransaction?.updatedAt || null,
     };
 
     return NextResponse.json(successResponse(responseData));
   } catch (error) {
-    return handleApiError(error, 'Get Client WIP');
+    return handleApiError(error, 'Get Task WIP');
   }
 }
-
 

@@ -31,30 +31,27 @@ const TTYPE_CATEGORIES = {
   TIME: ['T', 'TI', 'TIM'], // Time transactions
   DISBURSEMENT: ['D', 'DI', 'DIS'], // Disbursement transactions
   FEE: ['F', 'FEE'], // Fee transactions (reversed)
-  ADJUSTMENT_TIME: ['AT', 'ADT'], // Time adjustments
-  ADJUSTMENT_DISB: ['AD', 'ADD'], // Disbursement adjustments
+  ADJUSTMENT: ['ADJ'], // Adjustment transactions (differentiated by TranType)
   PROVISION: ['P', 'PRO'], // Provision transactions
 };
 
 /**
  * Categorize a transaction type
  */
-function categorizeTransaction(tType: string): {
+function categorizeTransaction(tType: string, tranType?: string): {
   isTime: boolean;
   isDisbursement: boolean;
   isFee: boolean;
-  isAdjustmentTime: boolean;
-  isAdjustmentDisb: boolean;
+  isAdjustment: boolean;
   isProvision: boolean;
 } {
   const tTypeUpper = tType.toUpperCase();
   
   return {
-    isTime: TTYPE_CATEGORIES.TIME.includes(tTypeUpper) || (tTypeUpper.startsWith('T') && !tTypeUpper.startsWith('AT')),
-    isDisbursement: TTYPE_CATEGORIES.DISBURSEMENT.includes(tTypeUpper) || (tTypeUpper.startsWith('D') && !tTypeUpper.startsWith('AD')),
+    isTime: TTYPE_CATEGORIES.TIME.includes(tTypeUpper) || (tTypeUpper.startsWith('T') && tTypeUpper !== 'ADJ'),
+    isDisbursement: TTYPE_CATEGORIES.DISBURSEMENT.includes(tTypeUpper) || (tTypeUpper.startsWith('D') && tTypeUpper !== 'ADJ'),
     isFee: TTYPE_CATEGORIES.FEE.includes(tTypeUpper) || tTypeUpper === 'F',
-    isAdjustmentTime: TTYPE_CATEGORIES.ADJUSTMENT_TIME.includes(tTypeUpper) || tTypeUpper === 'AT',
-    isAdjustmentDisb: TTYPE_CATEGORIES.ADJUSTMENT_DISB.includes(tTypeUpper) || tTypeUpper === 'AD',
+    isAdjustment: TTYPE_CATEGORIES.ADJUSTMENT.includes(tTypeUpper) || tTypeUpper === 'ADJ',
     isProvision: TTYPE_CATEGORIES.PROVISION.includes(tTypeUpper) || tTypeUpper === 'P',
   };
 }
@@ -161,6 +158,7 @@ export async function GET(
       select: {
         Amount: true,
         TType: true,
+        TranType: true,
       },
     });
 
@@ -174,7 +172,8 @@ export async function GET(
 
     wipTransactions.forEach((transaction) => {
       const amount = transaction.Amount || 0;
-      const category = categorizeTransaction(transaction.TType);
+      const category = categorizeTransaction(transaction.TType, transaction.TranType);
+      const tranTypeUpper = transaction.TranType.toUpperCase();
 
       if (category.isProvision) {
         // Provision tracked separately
@@ -182,12 +181,13 @@ export async function GET(
       } else if (category.isFee) {
         // Fees are reversed (subtracted)
         fees += amount;
-      } else if (category.isAdjustmentTime) {
-        // Time adjustments
-        timeAdjustments += amount;
-      } else if (category.isAdjustmentDisb) {
-        // Disbursement adjustments
-        disbursementAdjustments += amount;
+      } else if (category.isAdjustment) {
+        // Adjustment transactions - differentiate by TranType
+        if (tranTypeUpper.includes('TIME')) {
+          timeAdjustments += amount;
+        } else if (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB')) {
+          disbursementAdjustments += amount;
+        }
       } else if (category.isTime) {
         // Time transactions
         time += amount;

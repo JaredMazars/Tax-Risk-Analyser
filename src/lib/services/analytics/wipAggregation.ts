@@ -11,6 +11,7 @@ export interface WipTransactionRecord {
   Cost: number;
   Hour: number;
   TType: string;
+  TranType: string;
   updatedAt: Date;
 }
 
@@ -32,26 +33,24 @@ export interface AggregatedWipData {
 
 /**
  * Transaction Type Classification
- * Based on patterns observed in the existing balance calculation logic
+ * Based on actual database TType codes
  */
 const TTYPE_CATEGORIES = {
   TIME: ['T', 'TI', 'TIM'], // Time transactions
   DISBURSEMENT: ['D', 'DI', 'DIS'], // Disbursement transactions
   FEE: ['F', 'FEE'], // Fee transactions (reversed)
-  ADJUSTMENT_TIME: ['AT', 'ADT'], // Time adjustments
-  ADJUSTMENT_DISB: ['AD', 'ADD'], // Disbursement adjustments
+  ADJUSTMENT: ['ADJ'], // Adjustment transactions (differentiated by TranType)
   PROVISION: ['P', 'PRO'], // Provision transactions
 };
 
 /**
  * Categorize a transaction type
  */
-function categorizeTransaction(tType: string): {
+function categorizeTransaction(tType: string, tranType?: string): {
   isTime: boolean;
   isDisbursement: boolean;
   isFee: boolean;
-  isAdjustmentTime: boolean;
-  isAdjustmentDisb: boolean;
+  isAdjustment: boolean;
   isProvision: boolean;
 } {
   const tTypeUpper = tType.toUpperCase();
@@ -60,8 +59,7 @@ function categorizeTransaction(tType: string): {
     isTime: TTYPE_CATEGORIES.TIME.includes(tTypeUpper) || tTypeUpper.startsWith('T'),
     isDisbursement: TTYPE_CATEGORIES.DISBURSEMENT.includes(tTypeUpper) || tTypeUpper.startsWith('D'),
     isFee: TTYPE_CATEGORIES.FEE.includes(tTypeUpper) || tTypeUpper === 'F',
-    isAdjustmentTime: TTYPE_CATEGORIES.ADJUSTMENT_TIME.includes(tTypeUpper) || tTypeUpper === 'AT',
-    isAdjustmentDisb: TTYPE_CATEGORIES.ADJUSTMENT_DISB.includes(tTypeUpper) || tTypeUpper === 'AD',
+    isAdjustment: TTYPE_CATEGORIES.ADJUSTMENT.includes(tTypeUpper) || tTypeUpper === 'ADJ',
     isProvision: TTYPE_CATEGORIES.PROVISION.includes(tTypeUpper) || tTypeUpper === 'P',
   };
 }
@@ -105,10 +103,8 @@ export function aggregateWipTransactionsByServiceLine(
     const cost = transaction.Cost || 0;
     const hours = transaction.Hour || 0;
     
-    const category = categorizeTransaction(transaction.TType);
-
-    // Accumulate hours (all transactions)
-    group.ltdHours += hours;
+    const category = categorizeTransaction(transaction.TType, transaction.TranType);
+    const tranTypeUpper = transaction.TranType.toUpperCase();
 
     // Accumulate cost (all transactions except provisions)
     if (!category.isProvision) {
@@ -120,30 +116,33 @@ export function aggregateWipTransactionsByServiceLine(
       // Provision transactions
       group.wipProvision += amount;
     } else if (category.isFee) {
-      // Fee transactions (reversed)
-      if (category.isTime || transaction.TType.includes('T')) {
+      // Fee transactions (reversed) - differentiate by TranType
+      if (tranTypeUpper.includes('TIME') || tranTypeUpper.includes('REVT')) {
         group.ltdFeeTime += amount;
         group.balTime -= amount;
-      } else {
+      } else if (tranTypeUpper.includes('DISB') || tranTypeUpper.includes('REVD')) {
         group.ltdFeeDisb += amount;
         group.balDisb -= amount;
       }
       group.balWIP -= amount;
-    } else if (category.isAdjustmentTime) {
-      // Time adjustments
-      group.ltdAdjTime += amount;
-      group.balTime += amount;
-      group.balWIP += amount;
-    } else if (category.isAdjustmentDisb) {
-      // Disbursement adjustments
-      group.ltdAdjDisb += amount;
-      group.balDisb += amount;
+    } else if (category.isAdjustment) {
+      // Adjustment transactions - differentiate by TranType
+      if (tranTypeUpper.includes('TIME')) {
+        // Time adjustments
+        group.ltdAdjTime += amount;
+        group.balTime += amount;
+      } else if (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB')) {
+        // Disbursement adjustments
+        group.ltdAdjDisb += amount;
+        group.balDisb += amount;
+      }
       group.balWIP += amount;
     } else if (category.isTime) {
-      // Time transactions
+      // Time transactions - only accumulate hours for time transactions
       group.ltdTime += amount;
       group.balTime += amount;
       group.balWIP += amount;
+      group.ltdHours += hours;
     } else if (category.isDisbursement) {
       // Disbursement transactions
       group.ltdDisb += amount;
@@ -190,10 +189,8 @@ export function aggregateOverallWipData(
     const cost = transaction.Cost || 0;
     const hours = transaction.Hour || 0;
     
-    const category = categorizeTransaction(transaction.TType);
-
-    // Accumulate hours (all transactions)
-    overall.ltdHours += hours;
+    const category = categorizeTransaction(transaction.TType, transaction.TranType);
+    const tranTypeUpper = transaction.TranType.toUpperCase();
 
     // Accumulate cost (all transactions except provisions)
     if (!category.isProvision) {
@@ -205,30 +202,33 @@ export function aggregateOverallWipData(
       // Provision transactions
       overall.wipProvision += amount;
     } else if (category.isFee) {
-      // Fee transactions (reversed)
-      if (category.isTime || transaction.TType.includes('T')) {
+      // Fee transactions (reversed) - differentiate by TranType
+      if (tranTypeUpper.includes('TIME') || tranTypeUpper.includes('REVT')) {
         overall.ltdFeeTime += amount;
         overall.balTime -= amount;
-      } else {
+      } else if (tranTypeUpper.includes('DISB') || tranTypeUpper.includes('REVD')) {
         overall.ltdFeeDisb += amount;
         overall.balDisb -= amount;
       }
       overall.balWIP -= amount;
-    } else if (category.isAdjustmentTime) {
-      // Time adjustments
-      overall.ltdAdjTime += amount;
-      overall.balTime += amount;
-      overall.balWIP += amount;
-    } else if (category.isAdjustmentDisb) {
-      // Disbursement adjustments
-      overall.ltdAdjDisb += amount;
-      overall.balDisb += amount;
+    } else if (category.isAdjustment) {
+      // Adjustment transactions - differentiate by TranType
+      if (tranTypeUpper.includes('TIME')) {
+        // Time adjustments
+        overall.ltdAdjTime += amount;
+        overall.balTime += amount;
+      } else if (tranTypeUpper.includes('DISBURSEMENT') || tranTypeUpper.includes('DISB')) {
+        // Disbursement adjustments
+        overall.ltdAdjDisb += amount;
+        overall.balDisb += amount;
+      }
       overall.balWIP += amount;
     } else if (category.isTime) {
-      // Time transactions
+      // Time transactions - only accumulate hours for time transactions
       overall.ltdTime += amount;
       overall.balTime += amount;
       overall.balWIP += amount;
+      overall.ltdHours += hours;
     } else if (category.isDisbursement) {
       // Disbursement transactions
       overall.ltdDisb += amount;

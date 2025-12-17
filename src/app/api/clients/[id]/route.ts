@@ -218,6 +218,7 @@ export async function GET(
         GSTaskID: true,
         Amount: true,
         TType: true,
+        TranType: true,
       },
     }) : [];
 

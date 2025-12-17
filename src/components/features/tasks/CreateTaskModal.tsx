@@ -504,6 +504,11 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
       const createdTask = await createTaskMutation.mutateAsync(submitData);
 
+      // Check if some team members couldn't be added
+      if (createdTask.teamMemberSummary && createdTask.teamMemberSummary.failed && createdTask.teamMemberSummary.failed.length > 0) {
+        console.warn('[Task Creation] Some team members could not be added:', createdTask.teamMemberSummary.failed);
+      }
+
       // Reset form
       resetForm();
 

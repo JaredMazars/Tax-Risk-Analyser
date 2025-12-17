@@ -743,57 +743,6 @@ export interface AdjustmentDocument {
 export interface ClientWithEmployees extends Client {}
 
 /**
- * Debtors with enriched biller name
- * Extends Debtors with biller name from Employee table
- */
-export interface DebtorsWithEmployee {
-  id: number;
-  PeriodRef?: number | null;
-  PeriodStart?: Date | null;
-  PeriodEnd?: Date | null;
-  GSClientID: string;
-  Biller: string;
-  BillerName?: string;
-  BillerNameFull?: string;
-  OfficeCode: string;
-  ServLineCode: string;
-  LTDInv?: number | null;
-  LTDFee?: number | null;
-  LTDVat?: number | null;
-  LTDCn?: number | null;
-  LTDRec?: number | null;
-  LTDInt?: number | null;
-  LTDPLFC?: number | null;
-  YTDInv?: number | null;
-  YTDFee?: number | null;
-  YTDVat?: number | null;
-  YTDCn?: number | null;
-  YTDRec?: number | null;
-  YTDInt?: number | null;
-  YTDPLFC?: number | null;
-  PTDInv?: number | null;
-  PTDFee?: number | null;
-  PTDVat?: number | null;
-  PTDCn?: number | null;
-  PTDRec?: number | null;
-  PTDInt?: number | null;
-  PTDPLFC?: number | null;
-  CBal?: number | null;
-  BalCurr?: number | null;
-  Bal30?: number | null;
-  Bal60?: number | null;
-  Bal90?: number | null;
-  Bal120?: number | null;
-  Bal150?: number | null;
-  Bal180?: number | null;
-  DebtorProvision?: number | null;
-  PTDDebtorProvision?: number | null;
-  YTDDebtorProvision?: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
  * DrsTransactions already has employee names from external system
  * This type documents the structure for reference
  */
@@ -886,4 +835,48 @@ export const NON_CLIENT_EVENT_CONFIG: Record<NonClientEventType, {
     gradient: 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)',
     description: 'Administrative tasks and internal work'
   }
-}; 
+};
+
+/**
+ * Metric types for profitability tracking
+ * Used in transaction details modal
+ */
+export type MetricType = 
+  | 'grossProduction'
+  | 'ltdAdjustment'
+  | 'ltdAdjTime'
+  | 'ltdAdjDisb'
+  | 'ltdCost'
+  | 'ltdFeeTime'
+  | 'ltdFeeDisb'
+  | 'balWIP'
+  | 'balTime'
+  | 'balDisb'
+  | 'wipProvision'
+  | 'ltdHours'
+  | 'netRevenue'
+  | 'grossProfit'
+  | 'grossProfitPercentage'
+  | 'averageChargeoutRate'
+  | 'averageRecoveryRate';
+
+/**
+ * Task WIP Transaction
+ * Used for transaction details display
+ */
+export interface TaskTransaction {
+  id: number;
+  GSWIPTransID: string;
+  tranDate: Date;
+  tranType: string;
+  tType: string;
+  empCode: string | null;
+  empName: string | null;
+  amount: number | null;
+  cost: number;
+  hour: number;
+  ref: string | null;
+  narr: string | null;
+  officeCode: string;
+  taskServLine: string;
+} 

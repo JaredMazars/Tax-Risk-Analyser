@@ -68,9 +68,10 @@ function ProfitabilityCard({
 }
 
 export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps) {
-  // Use the appropriate hook based on props
+  // Use the appropriate hook based on props - only enable one at a time
+  // Priority: clientId takes precedence over groupCode
   const { data: clientWipData, isLoading: isLoadingClient, error: clientError } = useClientWip(clientId || '', { enabled: !!clientId });
-  const { data: groupWipData, isLoading: isLoadingGroup, error: groupError } = useGroupWip(groupCode || '', { enabled: !!groupCode });
+  const { data: groupWipData, isLoading: isLoadingGroup, error: groupError } = useGroupWip(groupCode || '', { enabled: !clientId && !!groupCode });
   
   // Select the appropriate data based on which is available
   const wipData = clientId ? clientWipData : groupWipData;
@@ -262,7 +263,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
                   label="Gross Production"
                   value={currentMetrics.grossProduction}
                 />
-                <p className="text-xs text-forvis-gray-500 mt-2 text-center">LTD Time</p>
+                <p className="text-xs text-forvis-gray-500 mt-2 text-center">LTD Time + LTD Disb</p>
               </div>
               <div>
                 <ProfitabilityCard

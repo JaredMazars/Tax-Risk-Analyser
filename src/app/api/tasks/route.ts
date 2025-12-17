@@ -402,9 +402,16 @@ export async function POST(request: NextRequest) {
       });
 
       // Create TaskTeam entries
+      let teamMembersCreated = 0;
+      const failedMembers: Array<{ empCode: string; reason: string }> = [];
+      
       if (validatedData.teamMembers && validatedData.teamMembers.length > 0) {
+        console.log(`[Task Creation] Processing ${validatedData.teamMembers.length} team members for task ${task.TaskCode}`);
+        
         // Create team member entries
         for (const member of validatedData.teamMembers) {
+          console.log(`[Task Creation] Looking up employee: ${member.empCode} (role: ${member.role})`);
+          
           // Find the user by employee code
           const employee = await tx.employee.findFirst({
             where: {
@@ -418,30 +425,60 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          if (employee && employee.WinLogon) {
-            // Find user by WinLogon (SQL Server string comparisons are case-insensitive by default)
-            const teamUser = await tx.user.findFirst({
-              where: {
-                email: {
-                  endsWith: employee.WinLogon,
-                },
-              },
-              select: { id: true },
-            });
-
-            if (teamUser) {
-              // Create TaskTeam entry
-              await tx.taskTeam.create({
-                data: {
-                  taskId: task.id,
-                  userId: teamUser.id,
-                  role: member.role,
-                },
-              });
-            }
+          if (!employee) {
+            console.warn(`[Task Creation] Employee not found or inactive: ${member.empCode}`);
+            failedMembers.push({ empCode: member.empCode, reason: 'Employee not found or inactive' });
+            continue;
           }
+
+          if (!employee.WinLogon) {
+            console.warn(`[Task Creation] Employee has no WinLogon: ${member.empCode}`);
+            failedMembers.push({ empCode: member.empCode, reason: 'No WinLogon value' });
+            continue;
+          }
+
+          console.log(`[Task Creation] Found employee ${employee.EmpCode}, looking up user with WinLogon: ${employee.WinLogon}`);
+
+          // Find user by WinLogon - try multiple matching strategies
+          // Note: SQL Server string comparisons are case-insensitive by default
+          const teamUser = await tx.user.findFirst({
+            where: {
+              OR: [
+                { email: { endsWith: employee.WinLogon } },
+                { email: { equals: employee.WinLogon } },
+                { email: { equals: `${employee.WinLogon}@mazarsinafrica.onmicrosoft.com` } },
+              ],
+            },
+            select: { id: true, email: true },
+          });
+
+          if (!teamUser) {
+            console.warn(`[Task Creation] User not found for WinLogon: ${employee.WinLogon}`);
+            failedMembers.push({ empCode: member.empCode, reason: `User not found for WinLogon: ${employee.WinLogon}` });
+            continue;
+          }
+
+          console.log(`[Task Creation] Creating TaskTeam entry for user: ${teamUser.email} (${teamUser.id})`);
+
+          // Create TaskTeam entry
+          await tx.taskTeam.create({
+            data: {
+              taskId: task.id,
+              userId: teamUser.id,
+              role: member.role,
+            },
+          });
+          
+          teamMembersCreated++;
+          console.log(`[Task Creation] Successfully created TaskTeam entry ${teamMembersCreated}/${validatedData.teamMembers.length}`);
+        }
+        
+        console.log(`[Task Creation] Team member creation summary: ${teamMembersCreated} created, ${failedMembers.length} failed`);
+        if (failedMembers.length > 0) {
+          console.warn(`[Task Creation] Failed members:`, failedMembers);
         }
       } else {
+        console.log(`[Task Creation] No team members provided, creating entry for task creator`);
         // Fallback: If no team members provided, create entry for task creator with ADMIN role
         await tx.taskTeam.create({
           data: {
@@ -450,6 +487,7 @@ export async function POST(request: NextRequest) {
             role: 'ADMIN',
           },
         });
+        teamMembersCreated = 1;
       }
 
       // Create TaskBudget record if budget data provided
@@ -478,22 +516,33 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return task;
+      return {
+        task,
+        teamMemberSummary: {
+          requested: validatedData.teamMembers?.length || 0,
+          created: teamMembersCreated,
+          failed: failedMembers,
+        },
+      };
     });
 
     // Invalidate task list cache
     await invalidateTaskListCache();
 
+    // Log final summary
+    console.log(`[Task Creation] Task ${result.task.TaskCode} created successfully with ${result.teamMemberSummary.created} team members`);
+
     // Return created task
     return NextResponse.json(
       successResponse({
-        id: result.id,
-        name: result.TaskDesc,
-        taskCode: result.TaskCode,
-        serviceLine: result.ServLineCode,
-        createdAt: result.createdAt.toISOString(),
-        updatedAt: result.updatedAt.toISOString(),
-        client: result.Client,
+        id: result.task.id,
+        name: result.task.TaskDesc,
+        taskCode: result.task.TaskCode,
+        serviceLine: result.task.ServLineCode,
+        createdAt: result.task.createdAt.toISOString(),
+        updatedAt: result.task.updatedAt.toISOString(),
+        client: result.task.Client,
+        teamMemberSummary: result.teamMemberSummary,
       })
     );
   } catch (error) {

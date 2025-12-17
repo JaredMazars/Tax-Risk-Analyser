@@ -154,9 +154,9 @@ export async function GET(
         serviceLineExternalData.map(sl => [sl.ServLineCode, sl.SubServlineGroupCode])
       );
 
-      // Fetch WIP data for all tasks by GSTaskID
+      // Fetch WIP data from WIPTransactions for all tasks by GSTaskID
       const taskGSTaskIDs = tasksRaw.map(t => t.GSTaskID);
-      const tasksWipData = taskGSTaskIDs.length > 0 ? await prisma.wip.findMany({
+      const wipTransactions = taskGSTaskIDs.length > 0 ? await prisma.wIPTransactions.findMany({
         where: {
           GSTaskID: {
             in: taskGSTaskIDs,
@@ -164,24 +164,15 @@ export async function GET(
         },
         select: {
           GSTaskID: true,
-          BalWIP: true,
-          BalTime: true,
-          BalDisb: true,
+          Amount: true,
+          TType: true,
+          TranType: true,
         },
       }) : [];
 
-      // Create a map of WIP data by GSTaskID
-      const wipByGSTaskID = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
-      tasksWipData.forEach(wip => {
-        if (!wipByGSTaskID.has(wip.GSTaskID)) {
-          wipByGSTaskID.set(wip.GSTaskID, { balWIP: 0, balTime: 0, balDisb: 0 });
-        }
-        
-        const taskWip = wipByGSTaskID.get(wip.GSTaskID)!;
-        taskWip.balWIP += wip.BalWIP || 0;
-        taskWip.balTime += wip.BalTime || 0;
-        taskWip.balDisb += wip.BalDisb || 0;
-      });
+      // Calculate WIP balances from transactions by GSTaskID
+      const { calculateWIPByTask } = await import('@/lib/services/clients/clientBalanceCalculation');
+      const wipByGSTaskID = calculateWIPByTask(wipTransactions);
 
       // Map tasks with master service line info, sub-service line group code, and WIP data
       const tasks = tasksRaw.map(task => {
@@ -318,8 +309,8 @@ export async function GET(
       { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
     ]);
 
-    // Fetch WIP data for all clients in this page
-    const wipData = clientGSIDs.length > 0 ? await prisma.wip.findMany({
+    // Fetch WIP data from WIPTransactions for all clients in this page
+    const wipTransactionsForClients = clientGSIDs.length > 0 ? await prisma.wIPTransactions.findMany({
       where: {
         GSClientID: {
           in: clientGSIDs,
@@ -327,25 +318,49 @@ export async function GET(
       },
       select: {
         GSClientID: true,
-        BalWIP: true,
-        BalTime: true,
-        BalDisb: true,
+        Amount: true,
+        TType: true,
       },
     }) : [];
 
-    // Aggregate WIP data by client
+    // Calculate WIP balances from transactions by client
     const wipByClient = new Map<string, { balWIP: number; balTime: number; balDisb: number }>();
-    wipData.forEach(wip => {
-      if (!wip.GSClientID) return;
+    wipTransactionsForClients.forEach(transaction => {
+      if (!transaction.GSClientID) return;
       
-      if (!wipByClient.has(wip.GSClientID)) {
-        wipByClient.set(wip.GSClientID, { balWIP: 0, balTime: 0, balDisb: 0 });
+      if (!wipByClient.has(transaction.GSClientID)) {
+        wipByClient.set(transaction.GSClientID, { balWIP: 0, balTime: 0, balDisb: 0 });
       }
       
-      const clientWip = wipByClient.get(wip.GSClientID)!;
-      clientWip.balWIP += wip.BalWIP || 0;
-      clientWip.balTime += wip.BalTime || 0;
-      clientWip.balDisb += wip.BalDisb || 0;
+      const clientWip = wipByClient.get(transaction.GSClientID)!;
+      const amount = transaction.Amount || 0;
+      const tType = transaction.TType.toUpperCase();
+      
+      // Calculate balances based on transaction type
+      if (tType === 'P' || tType === 'PRO') {
+        // Provision - adds to WIP but not to time/disb breakdown
+        clientWip.balWIP += amount;
+      } else if (tType === 'F' || tType === 'FEE') {
+        // Fee - reduces WIP and time/disb
+        clientWip.balWIP -= amount;
+        if (tType.includes('T') || tType === 'F') {
+          clientWip.balTime -= amount;
+        } else {
+          clientWip.balDisb -= amount;
+        }
+      } else if (tType.startsWith('T') || tType === 'TI' || tType === 'TIM' || tType === 'AT' || tType === 'ADT') {
+        // Time and time adjustments
+        clientWip.balWIP += amount;
+        clientWip.balTime += amount;
+      } else if (tType.startsWith('D') || tType === 'DI' || tType === 'DIS' || tType === 'AD' || tType === 'ADD') {
+        // Disbursement and disbursement adjustments
+        clientWip.balWIP += amount;
+        clientWip.balDisb += amount;
+      } else {
+        // Default to time-like behavior
+        clientWip.balWIP += amount;
+        clientWip.balTime += amount;
+      }
     });
 
     // Add WIP data to enriched clients

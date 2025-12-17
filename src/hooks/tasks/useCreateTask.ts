@@ -45,6 +45,15 @@ export interface CreateTaskResult {
   id: number;
   name: string;
   serviceLine: string;
+  teamMemberSummary?: {
+    requested: number;
+    created: number;
+    failed: Array<{
+      empCode: string;
+      role: string;
+      reason: string;
+    }>;
+  };
   [key: string]: unknown;
 }
 

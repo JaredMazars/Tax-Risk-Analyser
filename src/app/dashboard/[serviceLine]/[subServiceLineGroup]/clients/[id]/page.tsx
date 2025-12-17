@@ -57,16 +57,10 @@ export default function ServiceLineClientDetailPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Fetch client using React Query hook with task pagination
-  // Enable refetch on mount to ensure fresh data when navigating back from task page
-  const { data: clientData, isLoading, isFetching, error, refetch } = useClient(GSClientID, {
+  const { data: clientData, isLoading, isFetching, error } = useClient(GSClientID, {
     taskPage,
     taskLimit,
   });
-  
-  // Force refetch when component mounts to get fresh data
-  useEffect(() => {
-    refetch();
-  }, [GSClientID, refetch]);
 
   // Fetch latest credit rating
   const { data: latestRating, isLoading: isLoadingRating } = useLatestCreditRating(GSClientID);
