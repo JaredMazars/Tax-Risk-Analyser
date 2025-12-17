@@ -277,7 +277,9 @@ export async function GET(request: NextRequest) {
           TaskCode: true,
           ServLineCode: true,
           ServLineDesc: true,
+          TaskPartner: true,
           TaskPartnerName: true,
+          TaskManager: true,
           TaskManagerName: true,
           TaskDateOpen: true,
           TaskDateTerminate: true,
@@ -317,6 +319,28 @@ export async function GET(request: NextRequest) {
         orderBy: { updatedAt: 'desc' },
       });
 
+      // FIX: TaskPartnerName and TaskManagerName have wrong values in database
+      // Lookup correct names from Employee table
+      const partnerCodes = [...new Set(tasks.map(t => t.TaskPartner).filter(Boolean))];
+      const managerCodes = [...new Set(tasks.map(t => t.TaskManager).filter(Boolean))];
+      const allEmployeeCodes = [...new Set([...partnerCodes, ...managerCodes])];
+
+      const employees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
+        where: {
+          EmpCode: { in: allEmployeeCodes },
+          Active: 'Yes',
+        },
+        select: {
+          EmpCode: true,
+          EmpName: true,
+        },
+      }) : [];
+
+      // Create lookup map
+      const employeeNameMap = new Map(
+        employees.map(emp => [emp.EmpCode, emp.EmpName])
+      );
+
       const transformedTasks = tasks.map(task => {
         const currentStage = task.TaskStage.length > 0 
           ? task.TaskStage[0]?.stage ?? TaskStage.DRAFT
@@ -330,8 +354,8 @@ export async function GET(request: NextRequest) {
           serviceLine: task.ServLineCode,
           serviceLineDesc: task.ServLineDesc,
           stage: currentStage,
-          partner: task.TaskPartnerName,
-          manager: task.TaskManagerName,
+          partner: employeeNameMap.get(task.TaskPartner) || task.TaskPartnerName || task.TaskPartner,
+          manager: employeeNameMap.get(task.TaskManager) || task.TaskManagerName || task.TaskManager,
           dateOpen: task.TaskDateOpen,
           dateTerminate: task.TaskDateTerminate,
           client: task.Client ? {

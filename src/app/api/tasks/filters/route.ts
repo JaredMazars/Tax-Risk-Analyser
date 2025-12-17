@@ -292,10 +292,6 @@ export async function GET(request: NextRequest) {
         where: { ...baseWhere, TaskManager: { not: '' } },
       }),
     ]);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'filters/route.ts:post-query',message:'Query results summary',data:{clientsDataCount:clientsData.length,clientsTotalCount:clientsTotal.length,taskNamesCount:taskNamesData.length,partnersTotalCount:partnersTotal.length,managersTotalCount:managersTotal.length,clientWhere:JSON.stringify(clientWhere),baseWhere:JSON.stringify(baseWhere),searches:{client:clientSearch,taskName:taskNameSearch,partner:partnerSearch,manager:managerSearch}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
-    // #endregion
 
     // FIX: Both TaskPartnerName and TaskManagerName have wrong values in database
     // Lookup correct names from Employee table
@@ -332,19 +328,35 @@ export async function GET(request: NextRequest) {
       .map(item => item.TaskDesc)
       .filter((name): name is string => !!name);
 
-    const partners = partnersData
+    // Deduplicate partners by ID (in case DISTINCT didn't work properly)
+    const partnersMap = new Map<string, { id: string; name: string }>();
+    partnersData
       .filter(task => task.TaskPartner !== null)
-      .map(task => ({
-        id: task.TaskPartner!,
-        name: employeeNameMap.get(task.TaskPartner!) || task.TaskPartnerName || task.TaskPartner!,
-      }));
+      .forEach(task => {
+        const id = task.TaskPartner!;
+        if (!partnersMap.has(id)) {
+          partnersMap.set(id, {
+            id,
+            name: employeeNameMap.get(id) || task.TaskPartnerName || id,
+          });
+        }
+      });
+    const partners = Array.from(partnersMap.values());
 
-    const managers = managersData
+    // Deduplicate managers by ID (in case DISTINCT didn't work properly)
+    const managersMap = new Map<string, { id: string; name: string }>();
+    managersData
       .filter(task => task.TaskManager !== null)
-      .map(task => ({
-        id: task.TaskManager!,
-        name: employeeNameMap.get(task.TaskManager!) || task.TaskManagerName || task.TaskManager!,
-      }));
+      .forEach(task => {
+        const id = task.TaskManager!;
+        if (!managersMap.has(id)) {
+          managersMap.set(id, {
+            id,
+            name: employeeNameMap.get(id) || task.TaskManagerName || id,
+          });
+        }
+      });
+    const managers = Array.from(managersMap.values());
 
     const responseData = {
       clients,
