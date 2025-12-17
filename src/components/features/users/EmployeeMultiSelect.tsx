@@ -40,34 +40,28 @@ export function EmployeeMultiSelect({
   placeholder = 'Search to add team members...',
 }: EmployeeMultiSelectProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch all active employees on mount and when masterCode changes
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch employees when filters or search changes
   useEffect(() => {
     fetchEmployees();
-  }, [masterCode]);
+  }, [masterCode, debouncedSearch]);
 
-  // Filter employees based on search term and exclude already selected
-  useEffect(() => {
-    const selectedCodes = selectedMembers.map((m) => m.empCode);
-    let available = employees.filter((emp) => !selectedCodes.includes(emp.EmpCode));
-
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      available = available.filter(
-        (emp) =>
-          emp.EmpNameFull.toLowerCase().includes(term) ||
-          emp.EmpName.toLowerCase().includes(term) ||
-          emp.EmpCode.toLowerCase().includes(term)
-      );
-    }
-
-    setFilteredEmployees(available.slice(0, 50));
-  }, [searchTerm, employees, selectedMembers]);
+  // Filter out selected employees (server does the search filtering)
+  const selectedCodes = selectedMembers.map((m) => m.empCode);
+  const filteredEmployees = employees.filter((emp) => !selectedCodes.includes(emp.EmpCode));
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -86,6 +80,9 @@ export function EmployeeMultiSelect({
       setLoading(true);
       const params = new URLSearchParams();
       params.append('activeOnly', 'true');
+      if (debouncedSearch.trim()) {
+        params.append('search', debouncedSearch.trim());
+      }
       if (masterCode) {
         params.append('masterCode', masterCode);
       }

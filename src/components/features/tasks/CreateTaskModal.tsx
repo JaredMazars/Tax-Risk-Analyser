@@ -766,7 +766,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                 value={formData.TaskManager}
                 valueName={formData.TaskManagerName}
                 onChange={handleManagerChange}
-                masterCode={effectiveServiceLine}
                 excludeCodes={formData.TaskPartner ? [formData.TaskPartner] : []}
                 required
                 placeholder="Search by name or code..."
@@ -797,7 +796,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                 selectedMembers={teamMembers}
                 onChange={handleTeamMembersChange}
                 lockedMemberCodes={[formData.TaskPartner, formData.TaskManager].filter(Boolean)}
-                masterCode={effectiveServiceLine}
                 placeholder="Search to add team members..."
               />
             </div>

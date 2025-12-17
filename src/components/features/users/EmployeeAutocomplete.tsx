@@ -38,37 +38,29 @@ export function EmployeeAutocomplete({
   placeholder = 'Search by name or code...',
 }: EmployeeAutocompleteProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch employees on mount and when filters change
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch employees when filters or search changes
   useEffect(() => {
     fetchEmployees();
-  }, [empCatCodes, masterCode]);
+  }, [empCatCodes, masterCode, debouncedSearch]);
 
-  // Filter employees based on search term and excluded codes
-  useEffect(() => {
-    // First, filter out excluded employees
-    let available = employees.filter((emp) => !excludeCodes.includes(emp.EmpCode));
-    
-    if (!searchTerm.trim()) {
-      setFilteredEmployees(available.slice(0, 50)); // Show first 50
-    } else {
-      const term = searchTerm.toLowerCase();
-      const filtered = available.filter(
-        (emp) =>
-          emp.EmpNameFull.toLowerCase().includes(term) ||
-          emp.EmpName.toLowerCase().includes(term) ||
-          emp.EmpCode.toLowerCase().includes(term)
-      );
-      setFilteredEmployees(filtered.slice(0, 50));
-    }
-  }, [searchTerm, employees, excludeCodes]);
+  // Filter out excluded employees (server does the search filtering)
+  const filteredEmployees = employees.filter((emp) => !excludeCodes.includes(emp.EmpCode));
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -87,6 +79,9 @@ export function EmployeeAutocomplete({
       setLoading(true);
       const params = new URLSearchParams();
       params.append('activeOnly', 'true');
+      if (debouncedSearch.trim()) {
+        params.append('search', debouncedSearch.trim());
+      }
       if (empCatCodes && empCatCodes.length > 0) {
         params.append('empCatCodes', empCatCodes.join(','));
       }

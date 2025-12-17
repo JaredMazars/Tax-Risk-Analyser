@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch employees
+    // Use smaller limit for search results (50) vs initial load (100)
     const employees = await prisma.employee.findMany({
       where,
       select: {
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
       orderBy: [
         { EmpNameFull: 'asc' },
       ],
-      take: 200, // Limit results
+      take: search ? 50 : 100, // 50 for search, 100 for initial load
     });
 
     return NextResponse.json(successResponse(employees));
