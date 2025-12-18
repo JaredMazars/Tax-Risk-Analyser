@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isBefore, startOfDay } from 'date-fns';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 import { PlannerTable } from './PlannerTable';
 import { usePlannerTable, PlannerItem, PlannerFilters } from '@/hooks/planning/usePlannerTable';
 import { MyPlanningFiltersType } from './MyPlanningFilters';
@@ -18,7 +18,7 @@ interface PlanningListItem {
   taskCode?: string;
   startDate: Date;
   endDate: Date;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   allocatedHours: number | null;
   allocatedPercentage: number | null;
   actualHours: number | null;

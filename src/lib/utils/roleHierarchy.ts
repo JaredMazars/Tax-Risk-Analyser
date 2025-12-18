@@ -1,10 +1,9 @@
 /**
  * Role Hierarchy Utility
  * 
- * Centralized role hierarchy logic for the three-tier security model:
+ * Centralized role hierarchy logic for the two-tier security model:
  * 1. System Level (User.role) - SYSTEM_ADMIN, USER
- * 2. Service Line Level (ServiceLineUser.role) - ADMINISTRATOR, PARTNER, MANAGER, SUPERVISOR, USER, VIEWER
- * 3. Task Level (TaskTeam.role) - ADMIN, REVIEWER, EDITOR, VIEWER
+ * 2. Service Line Level (ServiceLineUser.role and TaskTeam.role) - ADMINISTRATOR, PARTNER, MANAGER, SUPERVISOR, USER, VIEWER
  */
 
 /**
@@ -17,8 +16,8 @@ export enum SystemRole {
 }
 
 /**
- * Service Line Roles - ServiceLineUser.role
- * Used to control access within a service line (TAX, AUDIT, etc.)
+ * Service Line Roles - ServiceLineUser.role and TaskTeam.role
+ * Used to control access within a service line and on task teams
  */
 export enum ServiceLineRole {
   ADMINISTRATOR = 'ADMINISTRATOR', // Service line administrator (highest)
@@ -30,19 +29,9 @@ export enum ServiceLineRole {
 }
 
 /**
- * Task Roles - TaskTeam.role
- * Used to control access within a specific task
- */
-export enum TaskRole {
-  ADMIN = 'ADMIN',       // Full task control
-  REVIEWER = 'REVIEWER', // Can review and approve work
-  EDITOR = 'EDITOR',     // Can edit task data
-  VIEWER = 'VIEWER',     // Read-only access
-}
-
-/**
  * Service Line Role Hierarchy
  * Higher numbers = more privileges
+ * Used for both service line access and task team permissions
  */
 const SERVICE_LINE_HIERARCHY: Record<string, number> = {
   [ServiceLineRole.VIEWER]: 1,
@@ -51,17 +40,6 @@ const SERVICE_LINE_HIERARCHY: Record<string, number> = {
   [ServiceLineRole.MANAGER]: 4,
   [ServiceLineRole.PARTNER]: 5,
   [ServiceLineRole.ADMINISTRATOR]: 6, // Administrator is highest
-};
-
-/**
- * Task Role Hierarchy
- * Higher numbers = more privileges
- */
-const TASK_ROLE_HIERARCHY: Record<string, number> = {
-  [TaskRole.VIEWER]: 1,
-  [TaskRole.EDITOR]: 2,
-  [TaskRole.REVIEWER]: 3,
-  [TaskRole.ADMIN]: 4,
 };
 
 /**
@@ -80,36 +58,12 @@ export function hasServiceLineRole(
 }
 
 /**
- * Check if a task role meets or exceeds the required role
- * @param userRole - The user's current role
- * @param requiredRole - The minimum required role
- * @returns true if user role is sufficient
- */
-export function hasTaskRole(
-  userRole: string,
-  requiredRole: string
-): boolean {
-  const userLevel = TASK_ROLE_HIERARCHY[userRole] || 0;
-  const requiredLevel = TASK_ROLE_HIERARCHY[requiredRole] || 0;
-  return userLevel >= requiredLevel;
-}
-
-/**
  * Get service line role hierarchy level
  * @param role - The role to check
  * @returns Numeric level (higher = more privileges)
  */
 export function getServiceLineRoleLevel(role: string): number {
   return SERVICE_LINE_HIERARCHY[role] || 0;
-}
-
-/**
- * Get task role hierarchy level
- * @param role - The role to check
- * @returns Numeric level (higher = more privileges)
- */
-export function getTaskRoleLevel(role: string): number {
-  return TASK_ROLE_HIERARCHY[role] || 0;
 }
 
 /**
@@ -131,15 +85,6 @@ export function isValidServiceLineRole(role: string): boolean {
 }
 
 /**
- * Check if role is a valid task role
- * @param role - The role to validate
- * @returns true if valid task role
- */
-export function isValidTaskRole(role: string): boolean {
-  return role in TASK_ROLE_HIERARCHY;
-}
-
-/**
  * Format service line role for display
  * @param role - The role to format
  * @returns Formatted role name
@@ -157,26 +102,6 @@ export function formatServiceLineRole(role: string): string {
     case ServiceLineRole.USER:
       return 'Staff';
     case ServiceLineRole.VIEWER:
-      return 'Viewer';
-    default:
-      return role;
-  }
-}
-
-/**
- * Format task role for display
- * @param role - The role to format
- * @returns Formatted role name
- */
-export function formatTaskRole(role: string): string {
-  switch (role) {
-    case TaskRole.ADMIN:
-      return 'Admin';
-    case TaskRole.REVIEWER:
-      return 'Reviewer';
-    case TaskRole.EDITOR:
-      return 'Editor';
-    case TaskRole.VIEWER:
       return 'Viewer';
     default:
       return role;
@@ -211,19 +136,6 @@ export function getServiceLineRolesOrdered(): ServiceLineRole[] {
     ServiceLineRole.MANAGER,
     ServiceLineRole.PARTNER,
     ServiceLineRole.ADMINISTRATOR,
-  ];
-}
-
-/**
- * Get all task roles in hierarchy order (lowest to highest)
- * @returns Array of task roles
- */
-export function getTaskRolesOrdered(): TaskRole[] {
-  return [
-    TaskRole.VIEWER,
-    TaskRole.EDITOR,
-    TaskRole.REVIEWER,
-    TaskRole.ADMIN,
   ];
 }
 

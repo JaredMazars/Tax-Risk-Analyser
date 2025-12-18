@@ -37,3 +37,4 @@ CREATE NONCLUSTERED INDEX [PagePermission_pathname_idx] ON [dbo].[PagePermission
 CREATE NONCLUSTERED INDEX [PagePermission_role_idx] ON [dbo].[PagePermission]([role]);
 CREATE NONCLUSTERED INDEX [PagePermission_active_idx] ON [dbo].[PagePermission]([active]);
 
+

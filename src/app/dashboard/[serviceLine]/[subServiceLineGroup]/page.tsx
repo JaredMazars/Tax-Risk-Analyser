@@ -19,7 +19,7 @@ import {
   Maximize2,
   Filter,
 } from 'lucide-react';
-import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor, mapServiceLineRoleToTaskRole } from '@/lib/utils/serviceLineUtils';
+import { isValidServiceLine, formatServiceLineName, isSharedService, formatTaskType, getTaskTypeColor } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client } from '@/hooks/clients/useClients';
@@ -37,7 +37,7 @@ import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineU
 import { useEmployeePlanner } from '@/hooks/planning/useEmployeePlanner';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner';
-import { TaskRole, ServiceLineRole, NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
+import { ServiceLineRole, NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
 import { KanbanBoard } from '@/components/features/tasks/Kanban';
 import { GroupsFilters, GroupsFiltersType } from '@/components/features/groups/GroupsFilters';
 import { ClientsFilters, ClientsFiltersType } from '@/components/features/clients/ClientsFilters';
@@ -407,6 +407,30 @@ export default function SubServiceLineWorkspacePage() {
       }
 
       try {
+        // STEP 1: Fetch user session to check if SYSTEM_ADMIN
+        const sessionResponse = await fetch('/api/auth/session');
+        
+        if (!sessionResponse.ok) {
+          setHasAccess(false);
+          return;
+        }
+        
+        const sessionData = await sessionResponse.json();
+        const userRole = sessionData.user?.role;
+        
+        // Set current user ID
+        if (sessionData.user?.id) {
+          setCurrentUserId(sessionData.user.id);
+        }
+        
+        // SYSTEM_ADMIN bypasses service line checks and gets ADMINISTRATOR role
+        if (userRole === 'SYSTEM_ADMIN') {
+          setHasAccess(true);
+          setCurrentUserSubGroupRole('ADMINISTRATOR');
+          return; // Exit early - no need to check service line assignments
+        }
+
+        // STEP 2: For regular users, check service line assignments
         const response = await fetch('/api/service-lines');
         if (!response.ok) {
           setHasAccess(false);
@@ -441,25 +465,6 @@ export default function SubServiceLineWorkspacePage() {
 
     checkAccess();
   }, [subServiceLineGroup, router]);
-
-  // Fetch current user ID
-  useEffect(() => {
-    async function fetchCurrentUser() {
-      try {
-        const response = await fetch('/api/auth/session');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.user?.id) {
-            setCurrentUserId(data.user.id);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-      }
-    }
-
-    fetchCurrentUser();
-  }, []);
 
   // Reset to first page when tab changes
   useEffect(() => {
@@ -803,7 +808,7 @@ export default function SubServiceLineWorkspacePage() {
                     <GanttTimeline
                       taskId={0}
                       teamMembers={transformedTimelineUsers}
-                      currentUserRole={currentUserServiceLineRole as any}
+                      currentUserRole={currentUserServiceLineRole}
                       onAllocationUpdate={() => {
                         // Refetch timeline data after update
                         queryClient.invalidateQueries({ queryKey: ['planner', 'employees'] });
@@ -855,7 +860,7 @@ export default function SubServiceLineWorkspacePage() {
                   <ClientPlannerTimeline
                     serviceLine={serviceLine}
                     subServiceLineGroup={subServiceLineGroup}
-                    currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
+                    currentUserRole={currentUserServiceLineRole}
                     filters={clientPlannerFilters}
                   />
                 ) : (

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { TaskType, Task, TaskTeam, TaskRole } from '@/types';
+import { TaskType, Task, TaskTeam, ServiceLineRole } from '@/types';
 import { 
   Table,
   FileText,
@@ -370,7 +370,7 @@ export function TaskDetailContent({
 
   const [activeTab, setActiveTab] = useState(getDefaultTab());
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState<TaskRole>('VIEWER' as TaskRole);
+  const [currentUserRole, setCurrentUserRole] = useState<ServiceLineRole | string>('USER');
   const [currentUserId, setCurrentUserId] = useState<string>('');
 
   const { 
@@ -414,12 +414,12 @@ export function TaskDetailContent({
         if (response.ok) {
           const result = await response.json();
           const data = result.data || result;
-          setCurrentUserRole((data.role as TaskRole) || 'VIEWER');
+          setCurrentUserRole(data.role || 'USER');
           setCurrentUserId(data.userId || '');
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
-        setCurrentUserRole('VIEWER' as TaskRole);
+        setCurrentUserRole('USER');
       }
     };
 

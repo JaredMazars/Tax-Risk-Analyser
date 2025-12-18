@@ -140,13 +140,17 @@ export async function PUT(
       );
     }
 
-    // Check if this is the last ADMIN on the project
-    // Count distinct users with ADMIN role
-    if ((existingTaskTeam.role as string) === 'ADMIN' && validatedData.role !== 'ADMIN') {
+    // Check if this is the last ADMINISTRATOR/PARTNER on the project
+    // Count distinct users with ADMINISTRATOR or PARTNER role
+    const currentRole = existingTaskTeam.role as string;
+    const isCurrentlyAdmin = currentRole === 'ADMINISTRATOR' || currentRole === 'PARTNER';
+    const isNewRoleAdmin = validatedData.role === 'ADMINISTRATOR' || validatedData.role === 'PARTNER';
+    
+    if (isCurrentlyAdmin && !isNewRoleAdmin) {
       const adminUsers = await prisma.taskTeam.findMany({
         where: {
           taskId,
-          role: 'ADMIN',
+          role: { in: ['ADMINISTRATOR', 'PARTNER'] },
         },
         select: { userId: true },
         distinct: ['userId'],
@@ -154,7 +158,7 @@ export async function PUT(
 
       if (adminUsers.length === 1) {
         return NextResponse.json(
-          { error: 'Cannot remove the last admin from the project' },
+          { error: 'Cannot remove the last administrator/partner from the project' },
           { status: 400 }
         );
       }
@@ -326,13 +330,16 @@ export async function DELETE(
       );
     }
 
-    // Check if this is the last ADMIN on the project
-    // Count distinct users with ADMIN role
-    if (existingTaskTeam.role === 'ADMIN') {
+    // Check if this is the last ADMINISTRATOR/PARTNER on the project
+    // Count distinct users with ADMINISTRATOR or PARTNER role
+    const currentRole = existingTaskTeam.role as string;
+    const isAdmin = currentRole === 'ADMINISTRATOR' || currentRole === 'PARTNER';
+    
+    if (isAdmin) {
       const adminUsers = await prisma.taskTeam.findMany({
         where: {
           taskId,
-          role: 'ADMIN',
+          role: { in: ['ADMINISTRATOR', 'PARTNER'] },
         },
         select: { userId: true },
         distinct: ['userId'],
@@ -340,7 +347,7 @@ export async function DELETE(
 
       if (adminUsers.length === 1) {
         return NextResponse.json(
-          { error: 'Cannot remove the last admin from the project' },
+          { error: 'Cannot remove the last administrator/partner from the project' },
           { status: 400 }
         );
       }

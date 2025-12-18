@@ -6,7 +6,7 @@ import { MyPlanningList } from './MyPlanningList';
 import { LoadingSpinner } from '@/components/ui';
 import { MyPlanningFilters, MyPlanningFiltersType } from './MyPlanningFilters';
 import { Calendar, List } from 'lucide-react';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 
 interface ClientAllocationData {
   clientId: number | null;
@@ -25,7 +25,7 @@ interface PlanningListItem {
   taskCode?: string;
   startDate: Date;
   endDate: Date;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   allocatedHours: number | null;
   allocatedPercentage: number | null;
   actualHours: number | null;

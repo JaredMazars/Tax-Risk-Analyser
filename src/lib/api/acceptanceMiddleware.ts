@@ -5,8 +5,8 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
-
-export type TaskRole = 'VIEWER' | 'USER' | 'MANAGER' | 'ADMIN';
+import { ServiceLineRole } from '@/types';
+import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
 
 /**
  * Validate that a user has access to a project
@@ -15,7 +15,7 @@ export type TaskRole = 'VIEWER' | 'USER' | 'MANAGER' | 'ADMIN';
 export async function validateAcceptanceAccess(
   taskId: number,
   userId: string,
-  requiredRole?: TaskRole
+  requiredRole?: ServiceLineRole | string
 ): Promise<boolean> {
   try {
     // Check if user has access to task
@@ -54,19 +54,9 @@ export async function validateAcceptanceAccess(
       return true;
     }
 
-    // Check role if specified
+    // Check role if specified using ServiceLineRole hierarchy
     if (requiredRole) {
-      const roleHierarchy: Record<TaskRole, number> = {
-        VIEWER: 0,
-        USER: 1,
-        MANAGER: 2,
-        ADMIN: 3,
-      };
-
-      const userRoleLevel = roleHierarchy[access.role as TaskRole] || 0;
-      const requiredRoleLevel = roleHierarchy[requiredRole];
-
-      if (userRoleLevel < requiredRoleLevel) {
+      if (!hasServiceLineRole(access.role, requiredRole)) {
         logger.warn('User role insufficient', {
           userId,
           taskId,

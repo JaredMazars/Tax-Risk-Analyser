@@ -1,4 +1,4 @@
-import { TaskRole, NonClientEventType } from '@/types';
+import { ServiceLineRole, NonClientEventType } from '@/types';
 
 export type TimeScale = 'day' | 'week' | 'month';
 
@@ -32,7 +32,7 @@ export interface AllocationData {
   taskCode?: string;
   clientName?: string | null;
   clientCode?: string | null;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   startDate: Date;
   endDate: Date;
   allocatedHours: number | null;

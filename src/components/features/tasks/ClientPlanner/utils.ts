@@ -6,7 +6,7 @@ import {
   addDays
 } from 'date-fns';
 import { TimeScale, DateRange, GanttPosition, AllocationData, TaskPlannerRow } from './types';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 import { 
   getDateRange as importedGetDateRange,
   generateTimelineColumns as importedGenerateTimelineColumns,

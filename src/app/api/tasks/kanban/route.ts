@@ -5,6 +5,8 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
+import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';
+import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { TaskStage } from '@/types/task-stages';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 
@@ -37,6 +39,16 @@ export async function GET(request: NextRequest) {
 
     // Check service line access
     const userServiceLines = await getUserServiceLines(user.id);
+    
+    // Get user's service line role for fallback permissions
+    // System admins get ADMINISTRATOR role automatically
+    let userServiceLineRole: string | null = null;
+    const userIsSystemAdmin = await isSystemAdmin(user.id);
+    if (userIsSystemAdmin) {
+      userServiceLineRole = 'ADMINISTRATOR';
+    } else if (subServiceLineGroup) {
+      userServiceLineRole = await getUserServiceLineRole(user.id, subServiceLineGroup);
+    }
     
     // Build cache key
     const cacheKey = `${CACHE_PREFIXES.TASK}kanban:${serviceLine}:${subServiceLineGroup}:${myTasksOnly}:${clientIds.join(',')}:${taskNames.join(',')}:${partnerCodes.join(',')}:${managerCodes.join(',')}:${serviceLineCodes.join(',')}:${includeArchived}:user:${user.id}`;
@@ -345,7 +357,9 @@ export async function GET(request: NextRequest) {
         const currentStage = task.TaskStage.length > 0 
           ? task.TaskStage[0]?.stage ?? TaskStage.DRAFT
           : TaskStage.DRAFT;
-        const userRole = task.TaskTeam.find(member => member.userId === user.id)?.role || null;
+        // Check task team membership first, then fall back to service line role
+        const taskTeamRole = task.TaskTeam.find(member => member.userId === user.id)?.role;
+        const userRole = taskTeamRole || userServiceLineRole;
 
         return {
           id: task.id,

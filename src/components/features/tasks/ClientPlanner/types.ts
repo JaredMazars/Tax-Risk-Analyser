@@ -1,4 +1,4 @@
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 
 export type TimeScale = 'day' | 'week' | 'month';
 
@@ -28,7 +28,7 @@ export interface AllocationData {
   employeeCode: string | null;
   jobGradeCode: string | null;
   officeLocation: string | null;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   startDate: Date;
   endDate: Date;
   allocatedHours: number | null;

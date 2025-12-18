@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, Search, Building2, Briefcase, ChevronRight } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole, NonClientEventType, ServiceLineRole } from '@/types';
+import { NonClientEventType, ServiceLineRole } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 import { NonClientEventModal } from './NonClientEventModal';
 import { useCreateNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
@@ -39,7 +39,7 @@ interface AdminPlanningModalProps {
     endDate: Date;
     allocatedHours: number;
     allocatedPercentage: number;
-    role: ServiceLineRole | TaskRole;
+    role: ServiceLineRole | string;
   }) => Promise<void>;
   serviceLine: string;
   subServiceLineGroup: string;
@@ -105,7 +105,7 @@ export function AdminPlanningModal({
     endDate: '',
     allocatedHours: '',
     allocatedPercentage: '',
-    role: 'VIEWER' as ServiceLineRole | TaskRole
+    role: 'USER' as ServiceLineRole | string
   });
   
   const [autoRole, setAutoRole] = useState<ServiceLineRole | null>(null);
@@ -138,7 +138,7 @@ export function AdminPlanningModal({
         endDate: endDateStr,
         allocatedHours: '',
         allocatedPercentage: '',
-        role: TaskRole.VIEWER
+        role: 'USER'
       });
       setAutoRole(null);
       setError('');

@@ -1,4 +1,4 @@
-import { TaskRole, TeamMemberWithAllocations } from '@/types';
+import { ServiceLineRole, TeamMemberWithAllocations } from '@/types';
 
 export interface CalendarTask {
   id: number;
@@ -11,7 +11,7 @@ export interface CalendarAllocation {
   id: number;
   taskId: number;
   userId: string;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   startDate: Date | null;
   endDate: Date | null;
   allocatedHours: number | null;

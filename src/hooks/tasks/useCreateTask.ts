@@ -37,7 +37,7 @@ export interface CreateTaskInput {
   // Team Members
   teamMembers?: Array<{
     empCode: string;
-    role: 'ADMIN' | 'REVIEWER' | 'EDITOR' | 'VIEWER';
+    role: 'ADMINISTRATOR' | 'PARTNER' | 'MANAGER' | 'SUPERVISOR' | 'USER' | 'VIEWER';
   }>;
 }
 

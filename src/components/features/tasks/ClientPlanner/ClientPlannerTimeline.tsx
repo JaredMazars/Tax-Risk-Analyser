@@ -14,7 +14,7 @@ import {
 } from './utils';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
-import { TaskRole, ServiceLineRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 import { startOfDay, format, addDays, addWeeks } from 'date-fns';
 import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
 
@@ -26,7 +26,7 @@ import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from '.
 interface ClientPlannerTimelineProps {
   serviceLine: string;
   subServiceLineGroup: string;
-  currentUserRole: TaskRole;
+  currentUserRole: ServiceLineRole | string;
   filters: {
     clients: string[];
     groups: string[];
@@ -77,8 +77,9 @@ export function ClientPlannerTimeline({
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
 
-  // Determine if user can edit
-  const canEdit = currentUserRole === TaskRole.ADMIN || currentUserRole === TaskRole.REVIEWER || currentUserRole === TaskRole.EDITOR;
+  // Determine if user can edit based on ServiceLineRole
+  const roleUpper = (currentUserRole || '').toUpperCase();
+  const canEdit = roleUpper === 'ADMINISTRATOR' || roleUpper === 'PARTNER' || roleUpper === 'MANAGER' || roleUpper === 'SUPERVISOR' || roleUpper === 'USER';
 
   // Fetch client planner data with pagination
   const { 
@@ -306,7 +307,7 @@ export function ClientPlannerTimeline({
     endDate?: Date;
     allocatedHours?: number | null;
     allocatedPercentage?: number | null;
-    role?: ServiceLineRole | TaskRole;
+    role?: ServiceLineRole | string;
     actualHours?: number | null;
   }) => {
     if (!selectedAllocation) return;
@@ -322,7 +323,7 @@ export function ClientPlannerTimeline({
         if (updates.endDate) optimisticData.endDate = startOfDay(updates.endDate);
         if (updates.allocatedHours !== undefined) optimisticData.allocatedHours = updates.allocatedHours;
         if (updates.allocatedPercentage !== undefined) optimisticData.allocatedPercentage = updates.allocatedPercentage;
-        if (updates.role) optimisticData.role = updates.role as TaskRole;
+        if (updates.role) optimisticData.role = updates.role;
         if (updates.actualHours !== undefined) optimisticData.actualHours = updates.actualHours;
         
         const optimisticKey = getAllocationKeyById(selectedAllocation.id);

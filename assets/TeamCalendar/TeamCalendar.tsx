@@ -4,26 +4,30 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { createCalendar, ResourceTimeline, Interaction } from '@event-calendar/core';
 import '@event-calendar/core/index.css';
 import './styles.css';
-import { TeamMemberWithAllocations, TaskRole } from '@/types';
+import { TeamMemberWithAllocations, ServiceLineRole } from '@/types';
 import { CalendarTask, CalendarResource, CalendarEvent, CalendarAllocation } from './types';
 import { addYears } from 'date-fns';
 
 interface TeamCalendarProps {
   task: CalendarTask;
   teamMembers: TeamMemberWithAllocations[];
-  currentUserRole: TaskRole;
+  currentUserRole: ServiceLineRole | string;
   onAllocationUpdate: () => void;
 }
 
 // Role color mapping following Forvis design system
-const getRoleColor = (role: TaskRole): string => {
+const getRoleColor = (role: string): string => {
   switch (role) {
-    case 'ADMIN':
+    case 'ADMINISTRATOR':
+      return '#DC2626'; // Red
+    case 'PARTNER':
+      return '#F97316'; // Orange
+    case 'MANAGER':
+      return '#A855F7'; // Purple
+    case 'SUPERVISOR':
+      return '#22C55E'; // Green
+    case 'USER':
       return '#2E5AAC'; // Forvis primary blue
-    case 'REVIEWER':
-      return '#5B93D7'; // Forvis light blue
-    case 'EDITOR':
-      return '#D9CBA8'; // Forvis gold
     case 'VIEWER':
       return '#6C757D'; // Forvis gray
     default:

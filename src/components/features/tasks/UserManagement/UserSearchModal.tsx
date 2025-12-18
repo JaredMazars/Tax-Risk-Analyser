@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 
 interface EmployeeUser {
   id: string;
@@ -32,7 +32,7 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
   const [searchResults, setSearchResults] = useState<EmployeeUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<EmployeeUser[]>([]);
-  const [selectedRole, setSelectedRole] = useState<TaskRole>('VIEWER' as TaskRole);
+  const [selectedRole, setSelectedRole] = useState<ServiceLineRole | string>('USER');
   const [error, setError] = useState('');
   const [filterServiceLine, setFilterServiceLine] = useState('');
   const [filterJobGrade, setFilterJobGrade] = useState('');
@@ -437,7 +437,7 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
                 </label>
                 <select
                   value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as TaskRole)}
+                  onChange={(e) => setSelectedRole(e.target.value)}
                   className="w-full px-4 py-2 border-2 border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 bg-white font-medium shadow-corporate text-sm h-[38px]"
                 >
                   <option value="VIEWER">👁️ Viewer - Read-only access</option>

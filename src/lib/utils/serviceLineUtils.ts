@@ -2,7 +2,7 @@
  * Service Line Utility Functions
  */
 
-import { ServiceLine, TaskType, ServiceLineRole, TaskRole } from '@/types';
+import { ServiceLine, TaskType, ServiceLineRole } from '@/types';
 import { SERVICE_LINE_CONFIGS, getServiceLineForTaskType } from '@/types/service-line';
 
 /**
@@ -258,31 +258,4 @@ export function mapEmployeeCategoryToRole(empCatDesc: string | null): string {
   // Default to viewer for unknown categories
   return 'VIEWER';
 }
-
-/**
- * Map ServiceLineRole to TaskRole
- * Maps service line roles to equivalent task roles
- */
-export function mapServiceLineRoleToTaskRole(role: ServiceLineRole | string): TaskRole {
-  const roleLower = role.toLowerCase();
-  
-  // Administrator and Partner map to Admin
-  if (roleLower === 'administrator' || roleLower === 'partner') {
-    return TaskRole.ADMIN;
-  }
-  
-  // Manager and Supervisor map to Reviewer
-  if (roleLower === 'manager' || roleLower === 'supervisor') {
-    return TaskRole.REVIEWER;
-  }
-  
-  // User maps to Editor
-  if (roleLower === 'user') {
-    return TaskRole.EDITOR;
-  }
-  
-  // Viewer maps to Viewer
-  return TaskRole.VIEWER;
-}
-
 

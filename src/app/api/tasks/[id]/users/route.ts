@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { toTaskId } from '@/types/branded';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';
 
 export async function GET(
   request: NextRequest,
@@ -319,8 +320,23 @@ export async function POST(
       );
     }
 
-    // Validate allocation (check for overlaps and role consistency)
-    const role = validatedData.role || 'VIEWER';
+    // Auto-assign role based on user's ServiceLineRole for the task's sub-service line group
+    let role = 'USER'; // Default role
+    
+    // Reuse task fetched earlier and get service line mapping
+    const taskServiceLineMapping = await prisma.serviceLineExternal.findFirst({
+      where: { ServLineCode: task.ServLineCode },
+      select: { SubServlineGroupCode: true },
+    });
+    
+    if (taskServiceLineMapping?.SubServlineGroupCode) {
+      // Get user's ServiceLineRole for this sub-service line group
+      const userRole = await getUserServiceLineRole(targetUserId, taskServiceLineMapping.SubServlineGroupCode);
+      if (userRole) {
+        role = userRole;
+      }
+    }
+    
     const startDate = validatedData.startDate ? new Date(validatedData.startDate) : null;
     const endDate = validatedData.endDate ? new Date(validatedData.endDate) : null;
     const allocatedHours = validatedData.allocatedHours || null;

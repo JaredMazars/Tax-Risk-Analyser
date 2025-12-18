@@ -1,7 +1,7 @@
 
 import { useState, useMemo } from 'react';
 import { differenceInDays, isBefore, startOfDay } from 'date-fns';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 
 export type SortField = 'client' | 'task' | 'employee' | 'startDate' | 'endDate' | 'duration' | 'role' | 'allocatedHours' | 'allocatedPercentage' | 'actualHours';
 export type SortDirection = 'asc' | 'desc';
@@ -23,7 +23,7 @@ export interface PlannerItem {
   jobGradeCode?: string | null;
   startDate: Date;
   endDate: Date;
-  role: TaskRole | string;
+  role: ServiceLineRole | string;
   allocatedHours: number | null;
   allocatedPercentage: number | null;
   actualHours: number | null;

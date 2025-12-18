@@ -1,4 +1,4 @@
-import { TaskType, TaskRole } from '@/types';
+import { TaskType, ServiceLineRole } from '@/types';
 
 /**
  * Get border color for task type

@@ -76,19 +76,11 @@ export enum SystemRole {
   USER = 'USER',
 }
 
-// Task-level roles (TaskTeam.role)
-export enum TaskRole {
-  ADMIN = 'ADMIN',
-  REVIEWER = 'REVIEWER',
-  EDITOR = 'EDITOR',
-  VIEWER = 'VIEWER',
-}
-
-// Service line roles (ServiceLineUser.role)
-// ADMIN = Partner, MANAGER = Manager, USER = Staff, VIEWER = Viewer
+// Service line roles (ServiceLineUser.role and TaskTeam.role)
+// Used for both service line access and task team assignments
 export enum ServiceLineRole {
   ADMINISTRATOR = 'ADMINISTRATOR', // Service line administrator (highest)
-  PARTNER = 'PARTNER',   // Partner level (same as ADMIN)
+  PARTNER = 'PARTNER',   // Partner level
   MANAGER = 'MANAGER',   // Manager level
   SUPERVISOR = 'SUPERVISOR', // Supervisor level  
   USER = 'USER',         // Staff level
@@ -275,7 +267,7 @@ export interface TaskTeam {
   id: number;
   taskId: number;
   userId: string;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   startDate?: Date | null;
   endDate?: Date | null;
   allocatedHours?: number | null;
@@ -318,7 +310,7 @@ export interface GroupedTaskTeam {
   userName: string | null;
   userEmail: string;
   userImage?: string | null;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   allocations: AllocationPeriod[];
   totalAllocatedHours: number;
   totalActualHours: number;
@@ -369,7 +361,7 @@ export interface TeamAllocation {
   id: number;
   taskId: number;
   taskName: string;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   startDate: Date | null;
   endDate: Date | null;
   allocatedHours: number | null;

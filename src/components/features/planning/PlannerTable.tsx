@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { format, differenceInDays, isBefore, startOfDay } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 import { PlannerItem, SortField, SortDirection, PlannerFilters } from '@/hooks/planning/usePlannerTable';
 
 interface PlannerTableProps<T extends PlannerItem> {

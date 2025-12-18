@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { TaskTeam, TaskRole } from '@/types';
+import { TaskTeam, ServiceLineRole } from '@/types';
 import { RoleSelector } from './RoleSelector';
 import { SendMessageModal } from '@/components/features/notifications/SendMessageModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -12,7 +12,7 @@ interface TaskUserListProps {
   taskId: number;
   users: TaskTeam[];
   currentUserId: string;
-  currentUserRole: TaskRole;
+  currentUserRole: ServiceLineRole | string;
   onUserRemoved: () => void;
   onRoleChanged: () => void;
 }
@@ -100,9 +100,9 @@ export function TaskUserList({
     });
   };
 
-  const canManageUsers = currentUserRole === 'ADMIN';
+  const canManageUsers = currentUserRole === 'ADMINISTRATOR' || currentUserRole === 'PARTNER' || currentUserRole === 'MANAGER';
 
-  const getRoleBadgeColor = (role: TaskRole | string) => {
+  const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'ADMINISTRATOR':
         return 'bg-red-100 text-red-800 border-red-300';
@@ -121,14 +121,18 @@ export function TaskUserList({
     }
   };
 
-  const getRoleDescription = (role: TaskRole) => {
+  const getRoleDescription = (role: string) => {
     switch (role) {
-      case 'ADMIN':
-        return 'Full task control, can manage team members';
-      case 'REVIEWER':
-        return 'Can review and approve/reject adjustments';
-      case 'EDITOR':
-        return 'Can create and edit task data';
+      case 'ADMINISTRATOR':
+        return 'Service line administrator with full access';
+      case 'PARTNER':
+        return 'Partner level access, can approve letters';
+      case 'MANAGER':
+        return 'Manager level access, can manage tasks';
+      case 'SUPERVISOR':
+        return 'Supervisor level access';
+      case 'USER':
+        return 'Standard user access';
       case 'VIEWER':
         return 'Read-only access to task data';
       default:

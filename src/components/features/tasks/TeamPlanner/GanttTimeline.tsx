@@ -10,7 +10,7 @@ import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTo
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
-import { TaskRole, ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
+import { ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { startOfDay, format, isSameDay, addDays, addWeeks } from 'date-fns';
 import { useDeleteNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -18,7 +18,7 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 interface GanttTimelineProps {
   taskId: number;
   teamMembers: any[];
-  currentUserRole: TaskRole;
+  currentUserRole: ServiceLineRole | string;
   onAllocationUpdate: () => void;
   serviceLine?: string;
   subServiceLineGroup?: string;
@@ -70,11 +70,13 @@ export function GanttTimeline({
   // Non-client allocation mutation
   const deleteNonClientAllocation = useDeleteNonClientAllocation();
 
-  // Determine if user can edit
-  // For planner view (taskId === 0), allow ADMIN, REVIEWER, and EDITOR roles to create allocations
+  // Determine if user can edit based on ServiceLineRole
+  // For planner view (taskId === 0), allow ADMINISTRATOR, PARTNER, MANAGER, SUPERVISOR, and USER to create allocations
+  // For task view (taskId > 0), only ADMINISTRATOR and PARTNER can edit
+  const roleUpper = (currentUserRole || '').toUpperCase();
   const canEdit = taskId === 0 
-    ? (currentUserRole === 'ADMIN' || currentUserRole === 'REVIEWER' || currentUserRole === 'EDITOR')
-    : currentUserRole === 'ADMIN';
+    ? (roleUpper === 'ADMINISTRATOR' || roleUpper === 'PARTNER' || roleUpper === 'MANAGER' || roleUpper === 'SUPERVISOR' || roleUpper === 'USER')
+    : (roleUpper === 'ADMINISTRATOR' || roleUpper === 'PARTNER');
 
   // Handler to go to today - memoized to prevent recreating on every render
   const handleGoToToday = useCallback(() => {
@@ -564,7 +566,7 @@ export function GanttTimeline({
     endDate: Date;
     allocatedHours: number;
     allocatedPercentage: number;
-    role: ServiceLineRole | TaskRole;
+    role: ServiceLineRole | string;
   }) => {
     if (!selectedUserId) return;
 

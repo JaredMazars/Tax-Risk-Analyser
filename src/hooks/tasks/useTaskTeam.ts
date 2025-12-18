@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 
 // Query Keys
 export const taskTeamKeys = {
@@ -14,7 +14,7 @@ export interface TaskTeamMember {
   id: number;
   userId: string;
   taskId?: number;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   createdAt?: string;
   startDate?: string | null;
   endDate?: string | null;
@@ -28,7 +28,7 @@ export interface TaskTeamMember {
     taskCode?: string;
     clientName?: string | null;
     clientCode?: string | null;
-    role: TaskRole;
+    role: ServiceLineRole | string;
     startDate: string | Date;
     endDate: string | Date;
     allocatedHours: number | null;

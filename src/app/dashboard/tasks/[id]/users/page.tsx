@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { TaskTeam, TaskRole } from '@/types';
+import { TaskTeam, ServiceLineRole } from '@/types';
 import { TaskUserList } from '@/components/features/tasks/UserManagement/TaskUserList';
 import { UserSearchModal } from '@/components/features/tasks/UserManagement/UserSearchModal';
 
@@ -13,7 +13,7 @@ export default function TaskTeamsPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
-  const [currentUserRole, setCurrentUserRole] = useState<TaskRole>('VIEWER' as TaskRole);
+  const [currentUserRole, setCurrentUserRole] = useState<ServiceLineRole | string>('USER');
 
   useEffect(() => {
     fetchUsers();

@@ -5,7 +5,7 @@ import { AllocationData } from './types';
 import { Button, Input } from '@/components/ui';
 import { X, Calendar, Clock, Percent, AlertCircle } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole, ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
+import { ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 
 interface AllocationModalProps {
@@ -24,7 +24,7 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear, 
     allocatedHours: '',
     allocatedPercentage: '',
     actualHours: '',
-    role: TaskRole.VIEWER as ServiceLineRole | TaskRole
+    role: 'USER' as ServiceLineRole | string
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -155,7 +155,7 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear, 
         allocatedHours: formData.allocatedHours ? parseFloat(formData.allocatedHours) : null,
         allocatedPercentage: formData.allocatedPercentage ? parseInt(formData.allocatedPercentage) : null,
         actualHours: formData.actualHours ? parseFloat(formData.actualHours) : null,
-        role: formData.role as TaskRole
+        role: formData.role
       });
       onClose();
     } catch (err) {

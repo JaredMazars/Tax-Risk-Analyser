@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 import { AlertModal } from '@/components/shared/AlertModal';
 
 interface RoleSelectorProps {
   taskId: number;
   userId: string;
-  currentRole: TaskRole;
+  currentRole: ServiceLineRole | string;
   onChange: () => void;
 }
 
@@ -27,7 +27,7 @@ export function RoleSelector({ taskId, userId, currentRole, onChange }: RoleSele
     variant: 'info',
   });
 
-  const handleRoleChange = async (newRole: TaskRole) => {
+  const handleRoleChange = async (newRole: string) => {
     if (newRole === currentRole) return;
 
     setUpdating(true);
@@ -67,14 +67,16 @@ export function RoleSelector({ taskId, userId, currentRole, onChange }: RoleSele
     <>
       <select
         value={currentRole}
-        onChange={(e) => handleRoleChange(e.target.value as TaskRole)}
+        onChange={(e) => handleRoleChange(e.target.value)}
         disabled={updating}
         className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
       >
         <option value="VIEWER">Viewer</option>
-        <option value="EDITOR">Editor</option>
-        <option value="REVIEWER">Reviewer</option>
-        <option value="ADMIN">Admin</option>
+        <option value="USER">User</option>
+        <option value="SUPERVISOR">Supervisor</option>
+        <option value="MANAGER">Manager</option>
+        <option value="PARTNER">Partner</option>
+        <option value="ADMINISTRATOR">Administrator</option>
       </select>
 
       <AlertModal

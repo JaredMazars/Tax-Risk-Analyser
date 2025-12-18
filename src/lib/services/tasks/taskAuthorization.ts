@@ -217,8 +217,8 @@ export async function getTaskRole(
  * Check if user can modify a task
  * User must be either:
  * 1. System Admin
- * 2. Service Line ADMIN/PARTNER/MANAGER
- * 3. Task team member with ADMIN or EDITOR role
+ * 2. Service Line ADMINISTRATOR/PARTNER/MANAGER
+ * 3. Task team member with SUPERVISOR or higher role
  */
 export async function canModifyTask(
   userId: string,
@@ -236,13 +236,13 @@ export async function canModifyTask(
       return true;
     }
     
-    // Service line ADMIN/PARTNER/MANAGER can modify tasks
+    // Service line ADMINISTRATOR/PARTNER/MANAGER can modify tasks
     if (access.serviceLineRole && hasServiceLineRole(access.serviceLineRole, 'MANAGER')) {
       return true;
     }
     
-    // Task ADMIN or EDITOR can modify
-    if (access.taskRole === 'ADMIN' || access.taskRole === 'EDITOR') {
+    // Task team members with SUPERVISOR or higher can modify
+    if (access.taskRole && hasServiceLineRole(access.taskRole, 'SUPERVISOR')) {
       return true;
     }
     
@@ -398,21 +398,11 @@ export function getAccessSummary(result: TaskAccessResult): string {
 }
 
 /**
- * Check if a user has a specific role or higher in the task hierarchy
- * Hierarchy: ADMIN > REVIEWER > EDITOR > VIEWER
+ * Check if a user has a specific role or higher using ServiceLineRole hierarchy
+ * Hierarchy: ADMINISTRATOR > PARTNER > MANAGER > SUPERVISOR > USER > VIEWER
  */
 function hasTaskRole(userRole: string, requiredRole: string): boolean {
-  const roleHierarchy: { [key: string]: number } = {
-    ADMIN: 4,
-    REVIEWER: 3,
-    EDITOR: 2,
-    VIEWER: 1,
-  };
-
-  const userLevel = roleHierarchy[userRole] || 0;
-  const requiredLevel = roleHierarchy[requiredRole] || 0;
-
-  return userLevel >= requiredLevel;
+  return hasServiceLineRole(userRole, requiredRole);
 }
 
 /**
@@ -420,8 +410,8 @@ function hasTaskRole(userRole: string, requiredRole: string): boolean {
  * 
  * Management access requires:
  * - SYSTEM_ADMIN, OR
- * - Service Line ADMIN/PARTNER/MANAGER, OR
- * - Task ADMIN role
+ * - Service Line ADMINISTRATOR/PARTNER/MANAGER, OR
+ * - Task MANAGER or higher role
  */
 export async function canManageTask(
   userId: string,
@@ -439,13 +429,13 @@ export async function canManageTask(
       return true;
     }
     
-    // Service line ADMIN/PARTNER/MANAGER can manage tasks
+    // Service line ADMINISTRATOR/PARTNER/MANAGER can manage tasks
     if (access.serviceLineRole && hasServiceLineRole(access.serviceLineRole, 'MANAGER')) {
       return true;
     }
     
-    // Task ADMIN can manage
-    if (access.taskRole === 'ADMIN') {
+    // Task team members with MANAGER or higher can manage
+    if (access.taskRole && hasServiceLineRole(access.taskRole, 'MANAGER')) {
       return true;
     }
     

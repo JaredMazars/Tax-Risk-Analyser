@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, X, Filter, Calendar, List } from 'lucide-react';
 import { MultiSelect, MultiSelectOption } from '@/components/ui';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 
 export interface MyPlanningFiltersType {
   search: string;
@@ -108,10 +108,12 @@ export function MyPlanningFilters({
   }));
 
   const roleOptions: MultiSelectOption[] = [
-    { id: TaskRole.ADMIN, label: 'Admin' },
-    { id: TaskRole.REVIEWER, label: 'Reviewer' },
-    { id: TaskRole.EDITOR, label: 'Editor' },
-    { id: TaskRole.VIEWER, label: 'Viewer' },
+    { id: 'ADMINISTRATOR', label: 'Administrator' },
+    { id: 'PARTNER', label: 'Partner' },
+    { id: 'MANAGER', label: 'Manager' },
+    { id: 'SUPERVISOR', label: 'Supervisor' },
+    { id: 'USER', label: 'User' },
+    { id: 'VIEWER', label: 'Viewer' },
   ];
 
   // Generate active filters summary

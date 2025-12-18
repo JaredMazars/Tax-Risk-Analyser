@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, User, Briefcase } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole, ServiceLineRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 import { EmployeeAllocationData } from './types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 
@@ -16,7 +16,7 @@ interface EmployeeAllocationModalProps {
     endDate: Date;
     allocatedHours: number | null;
     allocatedPercentage: number | null;
-    role: ServiceLineRole | TaskRole;
+    role: ServiceLineRole | string;
     actualHours: number | null;
   }) => Promise<void>;
   onClear: (allocationId: number) => Promise<void>;
@@ -42,7 +42,7 @@ export function EmployeeAllocationModal({
   const [endDate, setEndDate] = useState('');
   const [allocatedHours, setAllocatedHours] = useState('');
   const [actualHours, setActualHours] = useState('');
-  const [role, setRole] = useState<ServiceLineRole | TaskRole>(TaskRole.VIEWER);
+  const [role, setRole] = useState<ServiceLineRole | string>('USER');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);

@@ -25,6 +25,7 @@ import { KanbanBoardData } from './types';
 import { LoadingSpinner } from '@/components/ui';
 import { TaskStage } from '@/types/task-stages';
 import { TaskDetailModal } from '@/components/features/tasks/TaskDetail/TaskDetailModal';
+import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
 
 export function KanbanBoard({
   serviceLine,
@@ -77,13 +78,13 @@ export function KanbanBoard({
   // Update task stage mutation
   const updateStageMutation = useUpdateTaskStage();
 
-  // Check if user can drag (has EDITOR, REVIEWER role or higher on at least one task)
+  // Check if user can drag (has SUPERVISOR role or higher on at least one task)
   const canDrag = useMemo(() => {
     if (!data?.columns) return false;
     
     return data.columns.some(column =>
       column.tasks.some(task => 
-        task.userRole && ['ADMIN', 'REVIEWER', 'EDITOR'].includes(task.userRole)
+        task.userRole && hasServiceLineRole(task.userRole, 'SUPERVISOR')
       )
     );
   }, [data]);
@@ -181,8 +182,8 @@ export function KanbanBoard({
     }
 
     // Validation 6: Check user permissions
-    // Only users with ADMIN, REVIEWER, or EDITOR roles can move tasks
-    if (!task.userRole || !['ADMIN', 'REVIEWER', 'EDITOR'].includes(task.userRole)) {
+    // Only users with SUPERVISOR role or higher can move tasks
+    if (!task.userRole || !hasServiceLineRole(task.userRole, 'SUPERVISOR')) {
       setActiveTask(null);
       return;
     }

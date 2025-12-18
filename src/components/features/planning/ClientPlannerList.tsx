@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 import { LoadingSpinner } from '@/components/ui';
 import { 
   Calendar,
@@ -35,7 +35,7 @@ interface ClientTaskAllocationItem {
   jobGradeCode: string | null;
   officeLocation: string | null;
   userId: string;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   startDate: Date;
   endDate: Date;
   allocatedHours: number | null;
@@ -171,7 +171,7 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
   // Server-side sorting (default: client name, then task name)
   // Sort icons removed - sorting is handled by server
 
-  const getRoleBadgeColor = (role: TaskRole | string) => {
+  const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'ADMINISTRATOR':
         return 'bg-red-100 text-red-800 border-red-300';

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { TaskRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 
 interface UseEmployeePlannerOptions {
   serviceLine: string;
@@ -31,7 +31,7 @@ export interface EmployeeAllocationData {
   taskCode: string | null;
   startDate: Date;
   endDate: Date;
-  role: TaskRole;
+  role: ServiceLineRole | string;
   allocatedHours: number | null;
   allocatedPercentage: number | null;
   actualHours: number | null;

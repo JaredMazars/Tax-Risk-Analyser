@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, Search, Building2, Briefcase, User, UserPlus } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { TaskRole, ServiceLineRole } from '@/types';
+import { ServiceLineRole } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 
 interface Employee {
@@ -56,7 +56,7 @@ export function AddEmployeeModal({
     allocatedHours: '',
     allocatedPercentage: '',
     actualHours: '',
-    role: 'VIEWER' as ServiceLineRole | TaskRole
+    role: 'USER' as ServiceLineRole | string
   });
   
   const [autoRole, setAutoRole] = useState<ServiceLineRole | null>(null);
@@ -84,7 +84,7 @@ export function AddEmployeeModal({
         allocatedHours: '',
         allocatedPercentage: '',
         actualHours: '',
-        role: TaskRole.VIEWER
+        role: 'USER'
       });
       setError('');
     }
@@ -208,7 +208,7 @@ export function AddEmployeeModal({
       allocatedHours: '',
       allocatedPercentage: '',
       actualHours: '',
-      role: TaskRole.VIEWER
+      role: 'USER'
     }));
   };
 
