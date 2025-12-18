@@ -84,7 +84,7 @@ export function AddEmployeeModal({
         allocatedHours: '',
         allocatedPercentage: '',
         actualHours: '',
-        role: 'VIEWER'
+        role: TaskRole.VIEWER
       });
       setError('');
     }

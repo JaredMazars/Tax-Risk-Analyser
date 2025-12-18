@@ -12,6 +12,7 @@ import { useCreateTask } from '@/hooks/tasks/useCreateTask';
 import { useStandardTasks } from '@/hooks/tasks/useStandardTasks';
 import { useCheckDuplicateTaskCode, CheckDuplicateResult } from '@/hooks/tasks/useCheckDuplicateTaskCode';
 import { DuplicateTaskWarning } from './DuplicateTaskWarning';
+import { mapServiceLineRoleToTaskRole } from '@/lib/utils/serviceLineUtils';
 
 interface TaskCreatedResult {
   id: number;
@@ -529,10 +530,10 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
         // Task dates - auto-populate TaskDateOpen with current date
         TaskDateOpen: new Date(),
         TaskDateTerminate: undefined,
-        // Add team members
+        // Add team members - convert ServiceLine roles to Task roles
         teamMembers: teamMembers.map(tm => ({
           empCode: tm.empCode,
-          role: tm.role,
+          role: mapServiceLineRoleToTaskRole(tm.role),
         })),
       };
 

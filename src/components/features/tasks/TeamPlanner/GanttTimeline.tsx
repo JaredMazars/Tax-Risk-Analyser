@@ -10,7 +10,7 @@ import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTo
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
-import { TaskRole, NON_CLIENT_EVENT_LABELS } from '@/types';
+import { TaskRole, ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { startOfDay, format, isSameDay, addDays, addWeeks } from 'date-fns';
 import { useDeleteNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -564,7 +564,7 @@ export function GanttTimeline({
     endDate: Date;
     allocatedHours: number;
     allocatedPercentage: number;
-    role: TaskRole;
+    role: ServiceLineRole | TaskRole;
   }) => {
     if (!selectedUserId) return;
 

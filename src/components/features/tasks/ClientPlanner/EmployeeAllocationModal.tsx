@@ -42,7 +42,7 @@ export function EmployeeAllocationModal({
   const [endDate, setEndDate] = useState('');
   const [allocatedHours, setAllocatedHours] = useState('');
   const [actualHours, setActualHours] = useState('');
-  const [role, setRole] = useState<ServiceLineRole | TaskRole>('VIEWER');
+  const [role, setRole] = useState<ServiceLineRole | TaskRole>(TaskRole.VIEWER);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);

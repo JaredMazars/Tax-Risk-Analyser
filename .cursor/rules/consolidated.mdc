@@ -47,7 +47,7 @@ See `.cursor/rules/ai-patterns.mdc`
 - `Employee` table: `id` (internal) vs `GSEmployeeID` (external GUID) vs `EmpCode` (display/search)
 
 **Usage:**
-- Tables that sync with external systems (Client, Task, Employee, Wip, Debtors) use `GS*` GUIDs for relationships with each other
+- Tables that sync with external systems (Client, Task, Employee, WipTransactions, DrsTransactions) use `GS*` GUIDs for relationships with each other
 - Internal-only tables (TaskTeam, TaskDocument, BDOpportunity, etc.) use `id` integer fields for relationships
 - Use `*Code` fields ONLY for display and search operations, NEVER for relationships
 - Route parameters and API responses continue using internal `id` for application routing
@@ -87,6 +87,7 @@ model TaskTeam {
   id     Int    @id @default(autoincrement())
   taskId Int                                    // Internal FK - uses id
   userId String
+  role   String                                 // Stores ServiceLineRole (e.g., PARTNER, MANAGER, USER)
   Task   Task   @relation(fields: [taskId], references: [id])
   User   User   @relation(fields: [userId], references: [id])
 }
@@ -198,10 +199,11 @@ ServLineCode → SubServlineGroupCode → masterCode (ServiceLineMaster.code)
 
 ## Security (CRITICAL - NOT Optional)
 
-### Three-Tier Model
+### Two-Tier Role Model
 1. **System**: `SYSTEM_ADMIN` > `USER`
 2. **Service Line**: `ADMINISTRATOR` > `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
-3. **Task**: `ADMIN` > `REVIEWER` > `EDITOR` > `VIEWER`
+
+**Note**: Task team assignments use ServiceLineRole values. When users are added to tasks (TaskTeam table), their role is automatically assigned based on their ServiceLineRole for that sub-service line group. Roles are system-assigned and determine access to features and operations.
 
 ### Feature-Based Permissions (TypeScript, No Database)
 
@@ -232,13 +234,12 @@ Features are mapped to roles in `@/lib/permissions/featurePermissions.ts` (in-me
 - [ ] `getCurrentUser()` at start
 - [ ] `checkFeature(userId, Feature.X)` before business logic
 - [ ] Filter by `getUserServiceLines()` accessible service lines
-- [ ] For tasks: `checkTaskAccess(userId, taskId, role?)`
+- [ ] For tasks: Verify task team membership (TaskTeam table)
 - [ ] For approvals: `canApproveAcceptance()` or `canApproveEngagementLetter()`
 - [ ] Return 401/403/404 appropriately
 - [ ] `handleApiError()` in catch blocks
 - [ ] Explicit `select:` fields only
 - [ ] Transactions for multi-step operations
-- [ ] Verify task team membership (TaskTeam table)
 
 ### Frontend Security
 
@@ -263,10 +264,9 @@ Features are mapped to roles in `@/lib/permissions/featurePermissions.ts` (in-me
 - `getUserFeatures(userId, serviceLine?)`: Get all features user has access to
 
 **Task Access** (`@/lib/services/tasks/taskAuthorization`):
-- `checkTaskAccess(userId, taskId, role?)`: Check team membership + role
-- `getTaskRole(userId, taskId)`: Get user's task role
-- `canModifyTask(userId, taskId)`: Check ADMIN/EDITOR
-- `canApproveTask(userId, taskId)`: Check approval permission
+- `checkTaskAccess(userId, taskId)`: Check if user is on task team
+- Task permissions are derived from user's ServiceLineRole, not task-specific roles
+- Partners and Managers have elevated permissions across all tasks in their service line
 
 **Auth** (`@/lib/services/auth/authorization`):
 - `isSystemAdmin(userId)`, `getUserSystemRole()`, `getServiceLineRole()`
@@ -277,12 +277,13 @@ Features are mapped to roles in `@/lib/permissions/featurePermissions.ts` (in-me
 
 ### Security Principles
 
-1. Defense in Depth: Check at system, service line, AND task levels
+1. Defense in Depth: Check at system and service line levels
 2. Fail Secure: Default deny
 3. Explicit Checks: Never assume permission
 4. Service Line Isolation: Users see only their service lines (unless SYSTEM_ADMIN)
-5. Input Validation: Zod schemas + `sanitizeObject()`
-6. No Information Leakage: Generic error messages
+5. Role-Based Access: ServiceLineRole determines permissions automatically
+6. Input Validation: Zod schemas + `sanitizeObject()`
+7. No Information Leakage: Generic error messages
 
 ## Performance (REQUIRED)
 

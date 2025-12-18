@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';
-import { successResponse, errorResponse } from '@/lib/utils/apiUtils';
+import { successResponse } from '@/lib/utils/apiUtils';
+import { handleApiError } from '@/lib/utils/errorHandler';
 import { prisma } from '@/lib/db/prisma';
 
 /**
@@ -14,7 +15,10 @@ export async function GET(request: NextRequest) {
     // Authenticate
     const currentUser = await getCurrentUser();
     if (!currentUser?.id) {
-      return NextResponse.json(errorResponse('Unauthorized'), { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -23,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     if (!userId || !subServiceLineGroup) {
       return NextResponse.json(
-        errorResponse('userId and subServiceLineGroup are required'),
+        { success: false, error: 'userId and subServiceLineGroup are required' },
         { status: 400 }
       );
     }
@@ -93,10 +97,6 @@ export async function GET(request: NextRequest) {
       })
     );
   } catch (error) {
-    console.error('Error fetching user service line role:', error);
-    return NextResponse.json(
-      errorResponse('Failed to fetch user service line role'),
-      { status: 500 }
-    );
+    return handleApiError(error, 'Error fetching user service line role');
   }
 }

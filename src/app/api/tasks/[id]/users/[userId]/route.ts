@@ -117,6 +117,12 @@ export async function PUT(
         taskId,
         userId: targetUserId,
       },
+      select: {
+        id: true,
+        role: true,
+        taskId: true,
+        userId: true,
+      },
     });
 
     if (!existingTaskTeam) {
@@ -136,7 +142,7 @@ export async function PUT(
 
     // Check if this is the last ADMIN on the project
     // Count distinct users with ADMIN role
-    if (existingTaskTeam.role === 'ADMIN' && validatedData.role !== 'ADMIN') {
+    if ((existingTaskTeam.role as string) === 'ADMIN' && validatedData.role !== 'ADMIN') {
       const adminUsers = await prisma.taskTeam.findMany({
         where: {
           taskId,

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse, errorResponse } from '@/lib/utils/apiUtils';
+import { successResponse } from '@/lib/utils/apiUtils';
+import { handleApiError } from '@/lib/utils/errorHandler';
 
 /**
  * GET /api/employees/[empCode]
@@ -15,14 +16,17 @@ export async function GET(
     // Authenticate
     const currentUser = await getCurrentUser();
     if (!currentUser?.id) {
-      return NextResponse.json(errorResponse('Unauthorized'), { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const { empCode } = params;
 
     if (!empCode) {
       return NextResponse.json(
-        errorResponse('Employee code is required'),
+        { success: false, error: 'Employee code is required' },
         { status: 400 }
       );
     }
@@ -45,17 +49,13 @@ export async function GET(
 
     if (!employee) {
       return NextResponse.json(
-        errorResponse('Employee not found'),
+        { success: false, error: 'Employee not found' },
         { status: 404 }
       );
     }
 
     return NextResponse.json(successResponse(employee));
   } catch (error) {
-    console.error('Error fetching employee:', error);
-    return NextResponse.json(
-      errorResponse('Failed to fetch employee'),
-      { status: 500 }
-    );
+    return handleApiError(error, 'Error fetching employee');
   }
 }

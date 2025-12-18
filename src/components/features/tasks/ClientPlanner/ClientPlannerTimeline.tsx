@@ -14,7 +14,7 @@ import {
 } from './utils';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
-import { TaskRole } from '@/types';
+import { TaskRole, ServiceLineRole } from '@/types';
 import { startOfDay, format, addDays, addWeeks } from 'date-fns';
 import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
 
@@ -301,7 +301,14 @@ export function ClientPlannerTimeline({
     return () => container.removeEventListener('scroll', handleScroll);
   }, [isLoading, rows.length]); // Re-run when data loads
 
-  const handleSaveAllocation = useCallback(async (updates: Partial<AllocationData>) => {
+  const handleSaveAllocation = useCallback(async (updates: {
+    startDate?: Date;
+    endDate?: Date;
+    allocatedHours?: number | null;
+    allocatedPercentage?: number | null;
+    role?: ServiceLineRole | TaskRole;
+    actualHours?: number | null;
+  }) => {
     if (!selectedAllocation) return;
 
     // Apply optimistic update immediately
@@ -315,7 +322,7 @@ export function ClientPlannerTimeline({
         if (updates.endDate) optimisticData.endDate = startOfDay(updates.endDate);
         if (updates.allocatedHours !== undefined) optimisticData.allocatedHours = updates.allocatedHours;
         if (updates.allocatedPercentage !== undefined) optimisticData.allocatedPercentage = updates.allocatedPercentage;
-        if (updates.role) optimisticData.role = updates.role;
+        if (updates.role) optimisticData.role = updates.role as TaskRole;
         if (updates.actualHours !== undefined) optimisticData.actualHours = updates.actualHours;
         
         const optimisticKey = getAllocationKeyById(selectedAllocation.id);

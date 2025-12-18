@@ -138,7 +138,7 @@ export function AdminPlanningModal({
         endDate: endDateStr,
         allocatedHours: '',
         allocatedPercentage: '',
-        role: 'VIEWER'
+        role: TaskRole.VIEWER
       });
       setAutoRole(null);
       setError('');

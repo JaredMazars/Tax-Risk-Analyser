@@ -24,7 +24,7 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear, 
     allocatedHours: '',
     allocatedPercentage: '',
     actualHours: '',
-    role: 'VIEWER' as ServiceLineRole | TaskRole
+    role: TaskRole.VIEWER as ServiceLineRole | TaskRole
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -155,7 +155,7 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear, 
         allocatedHours: formData.allocatedHours ? parseFloat(formData.allocatedHours) : null,
         allocatedPercentage: formData.allocatedPercentage ? parseInt(formData.allocatedPercentage) : null,
         actualHours: formData.actualHours ? parseFloat(formData.actualHours) : null,
-        role: formData.role
+        role: formData.role as TaskRole
       });
       onClose();
     } catch (err) {
