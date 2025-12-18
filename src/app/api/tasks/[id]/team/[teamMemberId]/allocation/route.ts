@@ -17,7 +17,7 @@ const allocationUpdateSchema = z.object({
   allocatedHours: z.number().min(0).nullable().optional(),
   allocatedPercentage: z.number().min(0).max(100).nullable().optional(),
   actualHours: z.number().min(0).nullable().optional(),
-  role: z.enum(['ADMIN', 'REVIEWER', 'EDITOR', 'VIEWER']).optional()
+  role: z.enum(['ADMINISTRATOR', 'PARTNER', 'MANAGER', 'SUPERVISOR', 'USER', 'VIEWER']).optional()
 });
 
 /**

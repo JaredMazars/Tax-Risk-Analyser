@@ -642,13 +642,9 @@ export async function updateServiceLineRole(
   isSubGroup: boolean = false
 ): Promise<void> {
   try {
-    // #region agent log
-    await fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'serviceLineService.ts:644',message:'updateServiceLineRole called',data:{userId,serviceLineOrSubGroup,role,isSubGroup},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
-    
     if (isSubGroup) {
       // Upsert role for specific sub-group
-      const result = await prisma.serviceLineUser.upsert({
+      await prisma.serviceLineUser.upsert({
         where: {
           userId_subServiceLineGroup: {
             userId,
@@ -664,10 +660,6 @@ export async function updateServiceLineRole(
           role: role as string,
         },
       });
-
-      // #region agent log
-      await fetch('http://127.0.0.1:7242/ingest/fefc3511-fdd0-43c4-a837-f5a8973894e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'serviceLineService.ts:670',message:'Upsert completed',data:{resultRole:result.role,resultId:result.id,userId:result.userId,subServiceLineGroup:result.subServiceLineGroup},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
 
       logger.info('Updated sub-group role', { userId, subGroup: serviceLineOrSubGroup, role });
     } else {

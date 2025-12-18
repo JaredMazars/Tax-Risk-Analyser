@@ -6,7 +6,7 @@ import { TimelineHeader } from './TimelineHeader';
 import { ResourceRow } from './ResourceRow';
 import { AllocationModal } from './AllocationModal';
 import { AdminPlanningModal } from './AdminPlanningModal';
-import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth, assignLanes, calculateMaxLanes, calculateBusinessDays } from './utils';
+import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTotalPercentage, getColumnWidth, assignLanes, calculateMaxLanes, calculateBusinessDays, getRoleGradient } from './utils';
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
@@ -991,18 +991,18 @@ export function GanttTimeline({
                   <div className="flex items-center w-full gap-2">
                     <div 
                       className="rounded-full flex items-center justify-center text-white font-bold shadow-corporate flex-shrink-0 w-6 h-6 text-[10px]"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                      style={{ background: getRoleGradient(resource.role) }}
                     >
                       {resource.userName ? resource.userName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : resource.userEmail.slice(0, 2).toUpperCase()}
                     </div>
-                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
                       <div className="font-semibold text-forvis-gray-900 text-xs truncate">
                         {resource.userName || resource.userEmail}
                       </div>
-                      <span className="px-1.5 py-0.5 rounded border font-medium bg-blue-100 text-blue-800 border-blue-300 text-[10px] flex-shrink-0">
-                        {resource.jobGradeCode || resource.jobTitle || resource.role}
-                      </span>
                     </div>
+                    <span className="px-1.5 py-0.5 rounded border font-medium bg-blue-100 text-blue-800 border-blue-300 text-[10px] flex-shrink-0">
+                      {resource.jobGradeCode || resource.jobTitle || resource.role}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -1016,22 +1016,30 @@ export function GanttTimeline({
         className="px-6 py-3 border-t-2 border-forvis-gray-200 flex items-center justify-between text-xs"
         style={{ background: 'linear-gradient(to right, #F8F9FA, #F0F7FD)' }}
       >
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)' }} />
+            <span className="text-forvis-gray-700 text-[11px]">Administrator</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)' }} />
+            <span className="text-forvis-gray-700 text-[11px]">Partner</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #C084FC 0%, #9333EA 100%)' }} />
-            <span className="text-forvis-gray-700">Admin</span>
+            <span className="text-forvis-gray-700 text-[11px]">Manager</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }} />
-            <span className="text-forvis-gray-700">Reviewer</span>
-          </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #4ADE80 0%, #16A34A 100%)' }} />
-            <span className="text-forvis-gray-700">Editor</span>
+            <span className="text-forvis-gray-700 text-[11px]">Supervisor</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }} />
+            <span className="text-forvis-gray-700 text-[11px]">User</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)' }} />
-            <span className="text-forvis-gray-700">Viewer</span>
+            <span className="text-forvis-gray-700 text-[11px]">Viewer</span>
           </div>
         </div>
         <div className="text-forvis-gray-600">

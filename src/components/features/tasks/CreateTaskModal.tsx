@@ -228,7 +228,35 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     }
   };
 
-  const handlePartnerChange = (code: string, name: string, nameFull: string, officeCode: string) => {
+  // Function to lookup ServiceLineRole for an employee
+  const fetchEmployeeRole = async (empCode: string): Promise<string> => {
+    try {
+      // If no SLGroup, default to USER
+      if (!formData.SLGroup) return 'USER';
+
+      // Look up employee's User account
+      const empResponse = await fetch(`/api/employees/${empCode}`);
+      if (!empResponse.ok) return 'USER';
+      const empData = await empResponse.json();
+      const email = empData.data?.WinLogon;
+      
+      if (!email) return 'USER';
+      
+      // Look up ServiceLineRole
+      const roleResponse = await fetch(
+        `/api/service-lines/user-role?userId=${encodeURIComponent(email)}&subServiceLineGroup=${encodeURIComponent(formData.SLGroup)}`
+      );
+      if (!roleResponse.ok) return 'USER';
+      const roleData = await roleResponse.json();
+      
+      return roleData.data?.role || 'USER';
+    } catch (error) {
+      console.error('Error fetching employee role:', error);
+      return 'USER';
+    }
+  };
+
+  const handlePartnerChange = async (code: string, name: string, nameFull: string, officeCode: string) => {
     // Get the previous partner code to remove from team
     const previousPartnerCode = formData.TaskPartner;
 
@@ -248,44 +276,47 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       setOfficeAutoPopulated(false);
     }
     
-    // Update team members
-    setTeamMembers(prev => {
-      // Remove previous partner if exists
-      let filtered = prev;
-      if (previousPartnerCode) {
-        filtered = prev.filter(m => m.empCode !== previousPartnerCode);
-      }
+    // Update team members - fetch role first - fetch role first
+    if (code) {
+      const role = await fetchEmployeeRole(code);
       
-      // If a new partner is selected
-      if (code) {
+      setTeamMembers(prev => {
+        // Remove previous partner if exists
+        let filtered = prev;
+        if (previousPartnerCode) {
+          filtered = prev.filter(m => m.empCode !== previousPartnerCode);
+        }
+        
         // Check if this person already exists in the team (not as previous partner)
         const existingMember = filtered.find(m => m.empCode === code);
         
         if (existingMember) {
-          // Update existing member to ADMIN role and lock them
+          // Update existing member with fetched role and lock them
           return filtered.map(m => 
             m.empCode === code 
-              ? { ...m, role: 'ADMIN' as const, locked: true }
+              ? { ...m, role: role as TeamMember['role'], locked: true }
               : m
           );
         } else {
-          // Add new member
+          // Add new member with fetched role
           return [...filtered, {
             empCode: code,
             empName: name,
             empNameFull: nameFull,
-            role: 'ADMIN' as const,
+            role: role as TeamMember['role'],
             locked: true,
           }];
         }
-      }
-      
-      // If cleared, just return filtered list (without previous partner)
-      return filtered;
-    });
+      });
+    } else {
+      // If cleared, remove partner from team
+      setTeamMembers(prev => 
+        previousPartnerCode ? prev.filter(m => m.empCode !== previousPartnerCode) : prev
+      );
+    }
   };
 
-  const handleManagerChange = (code: string, name: string, nameFull: string, officeCode: string) => {
+  const handleManagerChange = async (code: string, name: string, nameFull: string, officeCode: string) => {
     // Get the previous manager code to remove from team
     const previousManagerCode = formData.TaskManager;
 
@@ -296,41 +327,44 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       TaskManagerName: name,
     }));
     
-    // Update team members
-    setTeamMembers(prev => {
-      // Remove previous manager if exists
-      let filtered = prev;
-      if (previousManagerCode) {
-        filtered = prev.filter(m => m.empCode !== previousManagerCode);
-      }
+    // Update team members - fetch role first
+    if (code) {
+      const role = await fetchEmployeeRole(code);
       
-      // If a new manager is selected
-      if (code) {
+      setTeamMembers(prev => {
+        // Remove previous manager if exists
+        let filtered = prev;
+        if (previousManagerCode) {
+          filtered = prev.filter(m => m.empCode !== previousManagerCode);
+        }
+        
         // Check if this person already exists in the team (not as previous manager)
         const existingMember = filtered.find(m => m.empCode === code);
         
         if (existingMember) {
-          // Update existing member to ADMIN role and lock them
+          // Update existing member with fetched role and lock them
           return filtered.map(m => 
             m.empCode === code 
-              ? { ...m, role: 'ADMIN' as const, locked: true }
+              ? { ...m, role: role as TeamMember['role'], locked: true }
               : m
           );
         } else {
-          // Add new member
+          // Add new member with fetched role
           return [...filtered, {
             empCode: code,
             empName: name,
             empNameFull: nameFull,
-            role: 'ADMIN' as const,
+            role: role as TeamMember['role'],
             locked: true,
           }];
         }
-      }
-      
-      // If cleared, just return filtered list (without previous manager)
-      return filtered;
-    });
+      });
+    } else {
+      // If cleared, remove manager from team
+      setTeamMembers(prev => 
+        previousManagerCode ? prev.filter(m => m.empCode !== previousManagerCode) : prev
+      );
+    }
   };
 
   const handleTeamMembersChange = (members: TeamMember[]) => {
@@ -796,6 +830,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                 selectedMembers={teamMembers}
                 onChange={handleTeamMembersChange}
                 lockedMemberCodes={[formData.TaskPartner, formData.TaskManager].filter(Boolean)}
+                subServiceLineGroup={formData.SLGroup}
                 placeholder="Search to add team members..."
               />
             </div>

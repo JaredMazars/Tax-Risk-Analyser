@@ -6,7 +6,6 @@ import { RoleSelector } from './RoleSelector';
 import { SendMessageModal } from '@/components/features/notifications/SendMessageModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';
-import { getRoleBadgeColor } from '@/lib/utils/permissionUtils';
 import { UserCircle, Mail, Briefcase, Building2, Calendar, X, MessageCircle } from 'lucide-react';
 
 interface TaskUserListProps {
@@ -103,14 +102,18 @@ export function TaskUserList({
 
   const canManageUsers = currentUserRole === 'ADMIN';
 
-  const getRoleBadgeColor = (role: TaskRole) => {
+  const getRoleBadgeColor = (role: TaskRole | string) => {
     switch (role) {
-      case 'ADMIN':
+      case 'ADMINISTRATOR':
+        return 'bg-red-100 text-red-800 border-red-300';
+      case 'PARTNER':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'MANAGER':
         return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'REVIEWER':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'EDITOR':
+      case 'SUPERVISOR':
         return 'bg-green-100 text-green-800 border-green-300';
+      case 'USER':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'VIEWER':
         return 'bg-gray-100 text-gray-800 border-gray-300';
       default:

@@ -320,23 +320,6 @@ export default function SubServiceLineWorkspacePage() {
   const isLoading = activeTab === 'clients' ? isLoadingClients : activeTab === 'tasks' ? isLoadingTasks : activeTab === 'my-tasks' ? isLoadingMyTasks : activeTab === 'groups' ? isLoadingGroups : activeTab === 'planner' ? isLoadingPlannerUsers : false;
   const isFetching = activeTab === 'clients' ? false : activeTab === 'tasks' ? isFetchingTasks : activeTab === 'my-tasks' ? isFetchingMyTasks : activeTab === 'groups' ? isFetchingGroups : false;
   
-  // Map ServiceLineRole to TaskRole for GanttTimeline display
-  const mapServiceLineRoleToTaskRole = (serviceLineRole: string): TaskRole => {
-    switch (serviceLineRole) {
-      case 'ADMINISTRATOR':
-        return TaskRole.ADMIN;
-      case 'PARTNER':
-        return TaskRole.REVIEWER;
-      case 'MANAGER':
-      case 'SUPERVISOR':
-        return TaskRole.EDITOR;
-      case 'USER':
-      case 'VIEWER':
-      default:
-        return TaskRole.VIEWER;
-    }
-  };
-
   // Use the current user's role from state (default to VIEWER)
   const currentUserServiceLineRole = currentUserSubGroupRole;
 
@@ -362,6 +345,7 @@ export default function SubServiceLineWorkspacePage() {
             officeLocation: alloc.officeLocation,
             jobGradeCode: alloc.jobGradeCode
           },
+          role: (alloc as any).serviceLineRole || 'USER',
           allocations: []
         });
       }
@@ -393,10 +377,10 @@ export default function SubServiceLineWorkspacePage() {
       userId: employee.userId,
       employeeId: employee.employeeId,
       User: employee.User,
-      role: mapServiceLineRoleToTaskRole(currentUserServiceLineRole),
+      role: employee.role,
       allocations: employee.allocations
     }));
-  }, [timelinePlannerData, currentUserServiceLineRole, mapServiceLineRoleToTaskRole]);
+  }, [timelinePlannerData]);
 
   // Filtering is now done on the backend for clients, groups, and tasks
   const filteredClients = clients;
@@ -819,7 +803,7 @@ export default function SubServiceLineWorkspacePage() {
                     <GanttTimeline
                       taskId={0}
                       teamMembers={transformedTimelineUsers}
-                      currentUserRole={mapServiceLineRoleToTaskRole(currentUserServiceLineRole)}
+                      currentUserRole={currentUserServiceLineRole as any}
                       onAllocationUpdate={() => {
                         // Refetch timeline data after update
                         queryClient.invalidateQueries({ queryKey: ['planner', 'employees'] });

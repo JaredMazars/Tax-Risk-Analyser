@@ -18,7 +18,7 @@ export interface TeamMember {
   empCode: string;
   empName: string;
   empNameFull: string;
-  role: 'ADMIN' | 'REVIEWER' | 'EDITOR' | 'VIEWER';
+  role: 'ADMINISTRATOR' | 'PARTNER' | 'MANAGER' | 'SUPERVISOR' | 'USER' | 'VIEWER';
   locked?: boolean;
 }
 
@@ -28,6 +28,7 @@ interface EmployeeMultiSelectProps {
   onChange: (members: TeamMember[]) => void;
   lockedMemberCodes?: string[];
   masterCode?: string | null;
+  subServiceLineGroup?: string;
   placeholder?: string;
 }
 
@@ -37,6 +38,7 @@ export function EmployeeMultiSelect({
   onChange,
   lockedMemberCodes = [],
   masterCode,
+  subServiceLineGroup,
   placeholder = 'Search to add team members...',
 }: EmployeeMultiSelectProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,6 +47,34 @@ export function EmployeeMultiSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Function to lookup ServiceLineRole for an employee
+  const fetchEmployeeRole = async (empCode: string): Promise<string> => {
+    try {
+      // If no subServiceLineGroup provided, default to USER
+      if (!subServiceLineGroup) return 'USER';
+
+      // Look up employee's User account
+      const empResponse = await fetch(`/api/employees/${empCode}`);
+      if (!empResponse.ok) return 'USER';
+      const empData = await empResponse.json();
+      const email = empData.data?.WinLogon;
+      
+      if (!email) return 'USER';
+      
+      // Look up ServiceLineRole
+      const roleResponse = await fetch(
+        `/api/service-lines/user-role?userId=${encodeURIComponent(email)}&subServiceLineGroup=${encodeURIComponent(subServiceLineGroup)}`
+      );
+      if (!roleResponse.ok) return 'USER';
+      const roleData = await roleResponse.json();
+      
+      return roleData.data?.role || 'USER';
+    } catch (error) {
+      console.error('Error fetching employee role:', error);
+      return 'USER';
+    }
+  };
 
   // Debounce search term
   useEffect(() => {
@@ -100,12 +130,14 @@ export function EmployeeMultiSelect({
     }
   };
 
-  const handleAddMember = (employee: Employee) => {
+  const handleAddMember = async (employee: Employee) => {
+    const role = await fetchEmployeeRole(employee.EmpCode);
+    
     const newMember: TeamMember = {
       empCode: employee.EmpCode,
       empName: employee.EmpName,
       empNameFull: employee.EmpNameFull,
-      role: 'EDITOR',
+      role: role as TeamMember['role'],
       locked: false,
     };
 
@@ -124,11 +156,15 @@ export function EmployeeMultiSelect({
 
   const getRoleBadgeColor = (role: string): string => {
     switch (role) {
-      case 'ADMIN':
+      case 'ADMINISTRATOR':
         return 'bg-red-100 text-red-700 border-red-200';
-      case 'REVIEWER':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'EDITOR':
+      case 'PARTNER':
+        return 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'MANAGER':
+        return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'SUPERVISOR':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'USER':
         return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'VIEWER':
         return 'bg-gray-100 text-gray-700 border-gray-200';

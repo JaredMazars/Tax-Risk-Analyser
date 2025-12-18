@@ -105,14 +105,32 @@ export async function mapUsersToEmployees(userIds: string[]) {
     return new Map<string, any>();
   }
 
+  // First, check if any userIds look like User.id (not emails)
+  // User IDs typically have format like "emp_SOOA002_1765469537556"
+  const potentialUserIds = userIds.filter(id => !id.includes('@'));
+  const potentialEmails = userIds.filter(id => id.includes('@'));
+
+  // Fetch User records to get their emails
+  let emailsFromUsers: string[] = [];
+  if (potentialUserIds.length > 0) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: potentialUserIds } },
+      select: { id: true, email: true }
+    });
+    emailsFromUsers = users.map(u => u.email).filter(Boolean) as string[];
+  }
+
+  // Combine all emails to query
+  const allEmailsToQuery = [...potentialEmails, ...emailsFromUsers];
+
   // Fetch employees
   const employees = await prisma.employee.findMany({
     where: {
       OR: [
-        { WinLogon: { in: userIds } },
+        { WinLogon: { in: allEmailsToQuery } },
         // Also try email prefixes
-        ...userIds.map(userId => ({
-          WinLogon: { startsWith: `${userId}@` }
+        ...allEmailsToQuery.map(email => ({
+          WinLogon: { startsWith: `${email.split('@')[0]}@` }
         }))
       ]
     },
@@ -127,18 +145,60 @@ export async function mapUsersToEmployees(userIds: string[]) {
     }
   });
 
-  // Build map
+  // Build map - key by both original userIds and emails
   const employeeMap = new Map<string, typeof employees[0]>();
+  
+  // First, create email -> employee mapping
+  const emailToEmployee = new Map<string, typeof employees[0]>();
   employees.forEach(emp => {
     if (emp.WinLogon) {
       const lowerLogon = emp.WinLogon.toLowerCase();
-      const prefix = lowerLogon.split('@')[0];
-      employeeMap.set(lowerLogon, emp);
-      if (prefix) {
-        employeeMap.set(prefix, emp);
-      }
+      emailToEmployee.set(lowerLogon, emp);
     }
   });
+
+  // Fetch all users at once to get email mappings
+  const users = potentialUserIds.length > 0 
+    ? await prisma.user.findMany({
+        where: { id: { in: potentialUserIds } },
+        select: { id: true, email: true }
+      })
+    : [];
+  
+  const userIdToEmail = new Map(users.map(u => [u.id.toLowerCase(), u.email?.toLowerCase()]));
+
+  // Now map all original userIds (including User.id format) to employees
+  for (const userId of userIds) {
+    const lowerUserId = userId.toLowerCase();
+    
+    // If it's an email, directly map it
+    if (userId.includes('@')) {
+      const employee = emailToEmployee.get(lowerUserId);
+      if (employee) {
+        employeeMap.set(lowerUserId, employee);
+        const prefix = lowerUserId.split('@')[0];
+        if (prefix) {
+          employeeMap.set(prefix, employee);
+        }
+      }
+    } else {
+      // It's a User ID - look up the email from our batch query
+      const userEmail = userIdToEmail.get(lowerUserId);
+      
+      if (userEmail) {
+        const employee = emailToEmployee.get(userEmail);
+        if (employee) {
+          // Map both the User ID and the email to the employee
+          employeeMap.set(lowerUserId, employee);
+          employeeMap.set(userEmail, employee);
+          const prefix = userEmail.split('@')[0];
+          if (prefix) {
+            employeeMap.set(prefix, employee);
+          }
+        }
+      }
+    }
+  }
 
   return employeeMap;
 }

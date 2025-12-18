@@ -217,16 +217,20 @@ export function calculateTilePosition(
  */
 export function getRoleGradient(role: string): string {
   switch (role) {
-    case 'ADMIN':
+    case 'ADMINISTRATOR':
+      return 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)'; // Red
+    case 'PARTNER':
+      return 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)'; // Orange
+    case 'MANAGER':
       return 'linear-gradient(135deg, #C084FC 0%, #9333EA 100%)'; // Purple
-    case 'REVIEWER':
-      return 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)'; // Blue
-    case 'EDITOR':
+    case 'SUPERVISOR':
       return 'linear-gradient(135deg, #4ADE80 0%, #16A34A 100%)'; // Green
+    case 'USER':
+      return 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)'; // Blue
     case 'VIEWER':
       return 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)'; // Gray
     default:
-      return 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)';
+      return 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)'; // Gray
   }
 }
 

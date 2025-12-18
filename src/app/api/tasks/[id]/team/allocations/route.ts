@@ -129,12 +129,14 @@ export async function GET(
       },
       select: {
         id: true,
-        WinLogon: true
+        WinLogon: true,
+        EmpCatCode: true
       }
     });
 
-    // Create mapping: userId -> employeeId
+    // Create mapping: userId -> employeeId and userId -> jobGradeCode
     const userToEmployeeMap = new Map<string, number>();
+    const userToJobGradeMap = new Map<string, string>();
     task.TaskTeam.forEach(member => {
       const userEmail = member.User.email?.toLowerCase();
       if (userEmail) {
@@ -146,6 +148,9 @@ export async function GET(
         });
         if (matchedEmployee) {
           userToEmployeeMap.set(member.userId, matchedEmployee.id);
+          if (matchedEmployee.EmpCatCode) {
+            userToJobGradeMap.set(member.userId, matchedEmployee.EmpCatCode);
+          }
         }
       }
     });
@@ -243,7 +248,8 @@ export async function GET(
           id: member.User.id,
           name: member.User.name,
           email: member.User.email || '',
-          image: member.User.image
+          image: member.User.image,
+          jobGradeCode: userToJobGradeMap.get(member.userId) || null
         },
         allocations: [...currentAllocation, ...otherUserAllocations, ...userNonClientAllocations]
       };

@@ -228,7 +228,7 @@ export async function GET(
       
       // Build map of employee ID -> user ID
       allServiceLineEmployees.forEach(emp => {
-        const user = employeeUserMap.get(emp.WinLogon?.toLowerCase() || '');
+        const user = employeeUserMap.get(emp.id);  // Use employee ID, not WinLogon
         if (user) {
           employeeUserIdMap.set(emp.id, user.id);
         }
@@ -299,6 +299,25 @@ export async function GET(
     
     const employeeMap = await mapUsersToEmployees(userIdsForEmployeeMap);
 
+    // 10a. Fetch ServiceLineRole for ALL users (both allocated and unallocated)
+    let userServiceLineRoleMap = new Map<string, string>();
+    if (userIdsForEmployeeMap.length > 0) {
+      const serviceLineRoles = await prisma.serviceLineUser.findMany({
+        where: {
+          userId: { in: userIdsForEmployeeMap },
+          subServiceLineGroup: subServiceLineGroup
+        },
+        select: {
+          userId: true,
+          role: true
+        }
+      });
+      
+      userServiceLineRoleMap = new Map(
+        serviceLineRoles.map(sr => [sr.userId, sr.role])
+      );
+    }
+
     // 11. Apply job grade and office filters (post-query filtering for list view only)
     // For timeline view, filters were already applied to allServiceLineEmployees
     let filteredAllocations = taskTeamAllocations;
@@ -335,6 +354,8 @@ export async function GET(
                       employeeMap.get(allocation.userId.split('@')[0]?.toLowerCase() || '');
 
       const isClientTask = !!allocation.Task.Client?.clientCode;
+      
+      const serviceLineRole = userServiceLineRoleMap.get(allocation.userId) || 'USER';
 
       return {
         allocationId: allocation.id,
@@ -343,6 +364,7 @@ export async function GET(
         userName: allocation.User?.name || employee?.EmpNameFull || allocation.userId,
         userEmail: allocation.User?.email || allocation.userId,
         jobGradeCode: employee?.EmpCatCode || null,
+        serviceLineRole: serviceLineRole,
         officeLocation: employee?.OfficeCode?.trim() || null,
         clientId: allocation.Task.Client?.id || null,
         clientName: isClientTask ? (allocation.Task.Client?.clientNameFull || allocation.Task.Client?.clientCode || 'Unknown') : 'Internal',
@@ -365,20 +387,16 @@ export async function GET(
     // 13. For timeline view with includeUnallocated, add employees with no allocations
     let finalAllocationRows = allocationRows;
     if (includeUnallocated && allServiceLineEmployees.length > 0) {
-      // Find employees with no allocations (check both userId and employeeId)
-      const userIdsWithAllocations = new Set(allocationRows.map(row => row.userId));
-      const employeeIdsWithAllocations = new Set(allocationRows.filter(row => row.employeeId).map(row => row.employeeId!));
+      // Find employees with no allocations - check by employeeId which is more reliable
+      const employeeIdsWithAllocations = new Set(
+        allocationRows
+          .filter(row => row.employeeId)
+          .map(row => row.employeeId!)
+      );
       
       const employeesWithoutAllocations = allServiceLineEmployees.filter(emp => {
-        const userId = employeeUserIdMap.get(emp.id);
-        // Include employee if:
-        // 1. They have a userId and it's not in allocations, OR
-        // 2. They don't have a userId (no account yet) and employee ID not in allocations
-        if (userId) {
-          return !userIdsWithAllocations.has(userId);
-        } else {
-          return !employeeIdsWithAllocations.has(emp.id);
-        }
+        // Only include if this employee ID doesn't already have allocations
+        return !employeeIdsWithAllocations.has(emp.id);
       });
       
       // Filters were already applied to allServiceLineEmployees, so no need to filter again
@@ -397,6 +415,7 @@ export async function GET(
           userName: emp.EmpNameFull || emp.EmpName || `Employee ${emp.id}`,
           userEmail: userEmail,
           jobGradeCode: emp.EmpCatCode || null,
+          serviceLineRole: userId ? (userServiceLineRoleMap.get(userId) || 'USER') : 'USER',
           officeLocation: emp.OfficeCode?.trim() || null,
           clientId: null,
           clientName: '',
