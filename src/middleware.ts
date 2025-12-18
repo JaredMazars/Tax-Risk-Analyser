@@ -58,7 +58,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  return NextResponse.next();
+  // Add pathname to headers for PageAccessGuard
+  const response = NextResponse.next();
+  response.headers.set('x-pathname', pathname);
+  
+  return response;
 }
 
 export const config = {

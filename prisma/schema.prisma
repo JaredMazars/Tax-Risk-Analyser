@@ -1356,6 +1356,38 @@ model TaskTool {
   @@index([taskId, sortOrder])
 }
 
+model PageRegistry {
+  id         Int      @id @default(autoincrement())
+  pathname   String   @unique
+  pageTitle  String?
+  category   String?
+  discovered Boolean  @default(true)
+  active     Boolean  @default(true)
+  lastSeen   DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([category])
+  @@index([active])
+}
+
+model PagePermission {
+  id          Int      @id @default(autoincrement())
+  pathname    String
+  role        String
+  accessLevel String
+  description String?  @db.NVarChar(Max)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+
+  @@unique([pathname, role])
+  @@index([pathname])
+  @@index([role])
+  @@index([active])
+}
+
 model WorkspaceFolder {
   id                  Int               @id @default(autoincrement())
   name                String            @db.NVarChar(255)

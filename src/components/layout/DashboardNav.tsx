@@ -156,6 +156,13 @@ export default function DashboardNav() {
       description: 'Manage external software links',
     });
   }
+  if (hasAdminAccess) {
+    adminMenuItems.push({
+      label: 'Page Permissions',
+      href: '/dashboard/admin/page-permissions',
+      description: 'Manage page-level access control',
+    });
+  }
 
   const adminNavItems: NavItem[] = hasAdminAccess && adminMenuItems.length > 0
     ? [

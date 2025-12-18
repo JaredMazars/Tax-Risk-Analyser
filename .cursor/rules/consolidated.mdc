@@ -248,6 +248,129 @@ Features are mapped to roles in `@/lib/permissions/featurePermissions.ts` (in-me
 - Server Components default, `'use client'` only when needed
 - Never browser popups (use custom modals)
 
+### Page-Level Access Control
+
+**Database-Driven Page Permissions** with 4-tier lookup system:
+
+**Architecture:**
+1. **Auto-Discovery**: Pages automatically registered by scanning file system
+2. **Convention Defaults**: Smart defaults based on URL patterns and role hierarchy
+3. **Code Overrides**: Optional hardcoded exceptions in `@/lib/permissions/pagePermissions.ts`
+4. **Database Overrides**: Highest priority, managed via admin UI
+
+**Access Levels:**
+- `PageAccessLevel.NONE` - Cannot access page, redirects to dashboard with error
+- `PageAccessLevel.VIEW` - Can view page but no edit/create/delete actions
+- `PageAccessLevel.FULL` - Complete access to all features
+
+**Role Support:**
+- System roles: `SYSTEM_ADMIN`
+- Service Line roles: `ADMINISTRATOR`, `PARTNER`, `MANAGER`, `SUPERVISOR`, `USER`, `VIEWER`
+- Permissions check user's highest role for the relevant service line
+- SYSTEM_ADMIN bypasses all checks
+
+**Convention-Based Defaults:**
+```
+Admin pages (/dashboard/admin/*):      SYSTEM_ADMIN only
+Analytics pages (**/analytics):         PARTNER+ (Managers get VIEW)
+BD pages (**/bd):                       PARTNER+ (Managers get VIEW)
+Templates pages (**/templates):         MANAGER+ can edit, others VIEW
+Regular pages:                          All roles FULL, VIEWER gets VIEW
+```
+
+**4-Tier Lookup (in order):**
+1. **Redis Cache** (10 min TTL) - Performance optimization
+2. **Database Override** (`PagePermission` table) - Admin-configured exceptions
+3. **Code Override** (`PAGE_PERMISSIONS` constant) - Hardcoded edge cases
+4. **Convention Default** (URL pattern matching) - Automatic fallback
+
+**Database Tables:**
+```prisma
+model PageRegistry {
+  id        Int      @id @default(autoincrement())
+  pathname  String   @unique
+  pageTitle String?
+  category  String?
+  discovered Boolean @default(true)  // Auto-discovered vs manual
+  active    Boolean  @default(true)
+  lastSeen  DateTime @default(now())
+}
+
+model PagePermission {
+  id          Int      @id @default(autoincrement())
+  pathname    String
+  role        String   // SYSTEM_ADMIN or ServiceLineRole
+  accessLevel String   // NONE, VIEW, FULL
+  description String?
+  active      Boolean  @default(true)
+  createdBy   String?
+  
+  @@unique([pathname, role])
+}
+```
+
+**Admin UI** (`/dashboard/admin/page-permissions`):
+- **Auto-Discovery**: Scan file system to find all dashboard pages
+- **Permission Matrix**: View/edit access levels for all roles
+- **Quick Presets**: Admin Only, Partners+, Managers+, All Access
+- **Bulk Operations**: Set all roles for a page at once
+- **Source Indicators**: AUTO (convention), CODE (hardcoded), DB (override)
+- **Search/Filter**: Find pages by pathname, category, or source
+
+**Pattern Matching:**
+- Exact: `/dashboard/admin/users`
+- Wildcards: `/dashboard/admin/*` matches all admin pages
+- Dynamic params: `/dashboard/tasks/:id` matches task detail pages
+- Service line context: `/dashboard/:serviceLine/...` → checks user's role in that service line
+
+**Implementation:**
+
+1. **Wrap pages with PageAccessGuard** (server component):
+```typescript
+import { PageAccessGuard } from '@/components/guards/PageAccessGuard';
+
+export default async function AdminLayout({ children }) {
+  const pathname = headersList.get('x-pathname') || '/dashboard/admin';
+  return <PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>;
+}
+```
+
+2. **Use access level in components**:
+```typescript
+import { usePageAccess } from '@/hooks/permissions/usePageAccess';
+import { ViewOnlyBadge } from '@/components/shared/ViewOnlyBadge';
+import { EditActionWrapper } from '@/components/shared/EditActionWrapper';
+
+const { isViewOnly, canEdit } = usePageAccess();
+
+// Show badge
+{isViewOnly && <ViewOnlyBadge />}
+
+// Hide edit buttons
+<EditActionWrapper>
+  <button onClick={handleEdit}>Edit</button>
+</EditActionWrapper>
+```
+
+3. **Override permissions via Admin UI or code** (optional):
+```typescript
+// Code override in @/lib/permissions/pagePermissions.ts (rarely needed)
+export const PAGE_PERMISSIONS: PagePermissionMap = {
+  '/dashboard/special-page': {
+    PARTNER: PageAccessLevel.FULL,
+    MANAGER: PageAccessLevel.NONE,  // Exception to normal pattern
+  },
+};
+```
+
+**Benefits:**
+- Zero configuration for new pages (auto-discovery + conventions)
+- No deployments needed for permission changes (database overrides)
+- Context-aware (user's role in relevant service line)
+- Fast (Redis caching)
+- Resilient (graceful fallback to conventions if DB fails)
+- Visual management via admin UI
+
 ### UI Confirmations
 
 - NEVER use `confirm()`, `alert()`, or `prompt()` browser dialogs

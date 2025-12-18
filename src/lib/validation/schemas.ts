@@ -972,4 +972,58 @@ export type ReorderServiceLineMasterInput = z.infer<typeof ReorderServiceLineMas
 export type CreateTaskAllocationInput = z.infer<typeof CreateTaskAllocationSchema>;
 export type UpdateTaskAllocationInput = z.infer<typeof UpdateTaskAllocationSchema>;
 
+/**
+ * Page Permission validation schemas
+ */
+
+// Role enum for page permissions
+const PagePermissionRoleSchema = z.enum([
+  'SYSTEM_ADMIN',
+  'ADMINISTRATOR',
+  'PARTNER',
+  'MANAGER',
+  'SUPERVISOR',
+  'USER',
+  'VIEWER',
+]);
+
+// Access level enum
+const PageAccessLevelSchema = z.enum(['NONE', 'VIEW', 'FULL']);
+
+// Single page permission schema
+export const PagePermissionSchema = z.object({
+  pathname: z.string().min(1, 'Pathname is required').regex(/^\/dashboard.*/, 'Pathname must start with /dashboard'),
+  role: PagePermissionRoleSchema,
+  accessLevel: PageAccessLevelSchema,
+  description: z.string().max(1000).nullable().optional(),
+  active: z.boolean().default(true),
+}).strict();
+
+// Bulk update schema for setting all roles at once
+export const PagePermissionBulkSchema = z.object({
+  pathname: z.string().min(1, 'Pathname is required').regex(/^\/dashboard.*/, 'Pathname must start with /dashboard'),
+  description: z.string().max(1000).nullable().optional(),
+  permissions: z.record(PagePermissionRoleSchema, PageAccessLevelSchema),
+}).strict();
+
+// Update page permission schema
+export const UpdatePagePermissionSchema = z.object({
+  accessLevel: PageAccessLevelSchema.optional(),
+  description: z.string().max(1000).nullable().optional(),
+  active: z.boolean().optional(),
+}).strict();
+
+// Page registry entry schema
+export const PageRegistryEntrySchema = z.object({
+  pathname: z.string().min(1),
+  pageTitle: z.string().max(255).nullable().optional(),
+  category: z.string().max(100).nullable().optional(),
+});
+
+// Inferred types
+export type PagePermissionInput = z.infer<typeof PagePermissionSchema>;
+export type PagePermissionBulkInput = z.infer<typeof PagePermissionBulkSchema>;
+export type UpdatePagePermissionInput = z.infer<typeof UpdatePagePermissionSchema>;
+export type PageRegistryEntryInput = z.infer<typeof PageRegistryEntrySchema>;
+
 

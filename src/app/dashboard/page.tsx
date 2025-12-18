@@ -51,10 +51,13 @@ export default function DashboardHomePage() {
     .sort((a, b) => a.serviceLine.localeCompare(b.serviceLine));
 
   // Generate error message based on error type
+  const page = searchParams.get('page');
   const errorMessage = error === 'no_service_line_access' && serviceLine
     ? `You don't have access to ${formatServiceLineName(serviceLine)}. Please contact your administrator to request access.`
     : error === 'invalid_service_line'
     ? 'Invalid service line requested.'
+    : error === 'access_denied'
+    ? `You don't have permission to access ${page || 'this page'}. This page is restricted to administrators only.`
     : null;
 
   return (

@@ -13,3 +13,4 @@ CREATE NONCLUSTERED INDEX [Task_TaskManager_Active_idx] ON [dbo].[Task]([TaskMan
 CREATE NONCLUSTERED INDEX [Task_GSClientID_Active_updatedAt_idx] ON [dbo].[Task]([GSClientID], [Active], [updatedAt] DESC);
 
 
+

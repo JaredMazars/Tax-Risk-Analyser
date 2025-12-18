@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus } from 'lucide-react';
 import { TemplateList } from '@/components/features/templates/TemplateList';
+import { ViewOnlyBadge } from '@/components/shared/ViewOnlyBadge';
+import { EditActionWrapper } from '@/components/shared/EditActionWrapper';
+import { usePageAccess } from '@/hooks/permissions/usePageAccess';
 
 interface TemplateSection {
   id: number;
@@ -46,6 +49,7 @@ interface Template {
 
 export default function TemplatesPage() {
   const router = useRouter();
+  const { isViewOnly, canEdit } = usePageAccess();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -155,20 +159,27 @@ export default function TemplatesPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold text-forvis-gray-900 flex items-center">
-                <FileText className="h-8 w-8 mr-3 text-forvis-blue-600" />
-                Template Management
-              </h1>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-semibold text-forvis-gray-900 flex items-center">
+                  <FileText className="h-8 w-8 mr-3 text-forvis-blue-600" />
+                  Template Management
+                </h1>
+                {isViewOnly && <ViewOnlyBadge />}
+              </div>
               <p className="mt-2 text-sm font-normal text-forvis-gray-600">
-                Create and manage engagement letter templates for your organization
+                {isViewOnly 
+                  ? 'Browse engagement letter templates (read-only access)'
+                  : 'Create and manage engagement letter templates for your organization'}
               </p>
             </div>
             
-            <button onClick={handleCreateNew} className="btn-primary flex items-center">
-              <Plus className="h-5 w-5 mr-2" />
-              Create Template
-            </button>
+            <EditActionWrapper>
+              <button onClick={handleCreateNew} className="btn-primary flex items-center">
+                <Plus className="h-5 w-5 mr-2" />
+                Create Template
+              </button>
+            </EditActionWrapper>
           </div>
         </div>
 
@@ -187,9 +198,9 @@ export default function TemplatesPage() {
         ) : (
           <TemplateList
             templates={templates}
-            onDelete={handleDelete}
-            onToggleActive={handleToggleActive}
-            onCopy={handleCopy}
+            onDelete={canEdit ? handleDelete : undefined}
+            onToggleActive={canEdit ? handleToggleActive : undefined}
+            onCopy={canEdit ? handleCopy : undefined}
           />
         )}
       </div>

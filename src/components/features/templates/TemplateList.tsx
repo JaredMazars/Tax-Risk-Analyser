@@ -32,9 +32,9 @@ interface Template {
 
 interface TemplateListProps {
   templates: Template[];
-  onDelete: (id: number) => void;
-  onToggleActive: (id: number, active: boolean) => void;
-  onCopy: (id: number) => void;
+  onDelete?: (id: number) => void;
+  onToggleActive?: (id: number, active: boolean) => void;
+  onCopy?: (id: number) => void;
 }
 
 export function TemplateList({ templates, onDelete, onToggleActive, onCopy }: TemplateListProps) {
@@ -174,36 +174,42 @@ export function TemplateList({ templates, onDelete, onToggleActive, onCopy }: Te
                 Edit
               </Link>
               
-              <button
-                onClick={async () => {
-                  setCopyingId(template.id);
-                  await onCopy(template.id);
-                  setCopyingId(null);
-                }}
-                disabled={copyingId === template.id}
-                className="p-2 text-forvis-blue-600 hover:bg-forvis-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Copy template"
-              >
-                <Copy className="h-5 w-5" />
-              </button>
+              {onCopy && (
+                <button
+                  onClick={async () => {
+                    setCopyingId(template.id);
+                    await onCopy(template.id);
+                    setCopyingId(null);
+                  }}
+                  disabled={copyingId === template.id}
+                  className="p-2 text-forvis-blue-600 hover:bg-forvis-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Copy template"
+                >
+                  <Copy className="h-5 w-5" />
+                </button>
+              )}
 
-              <button
-                onClick={() => onToggleActive(template.id, !template.active)}
-                className="px-3 py-2 text-sm font-medium border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50"
-              >
-                {template.active ? 'Deactivate' : 'Activate'}
-              </button>
+              {onToggleActive && (
+                <button
+                  onClick={() => onToggleActive(template.id, !template.active)}
+                  className="px-3 py-2 text-sm font-medium border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50"
+                >
+                  {template.active ? 'Deactivate' : 'Activate'}
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  setTemplateToDelete(template.id);
-                  setShowDeleteModal(true);
-                }}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                title="Delete template"
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
+              {onDelete && (
+                <button
+                  onClick={() => {
+                    setTemplateToDelete(template.id);
+                    setShowDeleteModal(true);
+                  }}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                  title="Delete template"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -231,7 +237,7 @@ export function TemplateList({ templates, onDelete, onToggleActive, onCopy }: Te
           setTemplateToDelete(null);
         }}
         onConfirm={() => {
-          if (templateToDelete !== null) {
+          if (templateToDelete !== null && onDelete) {
             onDelete(templateToDelete);
             setShowDeleteModal(false);
             setTemplateToDelete(null);
