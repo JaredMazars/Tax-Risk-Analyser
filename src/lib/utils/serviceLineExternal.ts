@@ -235,6 +235,8 @@ export async function bulkMapByPattern(pattern: {
  * Get unique SubServLineGroups for a master service line with task counts
  * @param masterCode - Master service line code (e.g., 'TAX', 'ACCOUNTING')
  * @returns Array of SubServiceLineGroups with counts
+ * 
+ * OPTIMIZED: Uses batched queries instead of N+1 pattern
  */
 export async function getSubServiceLineGroupsByMaster(
   masterCode: string
@@ -246,8 +248,8 @@ export async function getSubServiceLineGroupsByMaster(
   masterCode: string;
 }>> {
   try {
-    // Get unique SubServLineGroups for this master code
-    const subGroups = await prisma.serviceLineExternal.findMany({
+    // Step 1: Get all SubServLineGroups with their ServLineCodes in a single query
+    const allMappings = await prisma.serviceLineExternal.findMany({
       where: {
         masterCode,
         SubServlineGroupCode: { not: null },
@@ -255,67 +257,96 @@ export async function getSubServiceLineGroupsByMaster(
       select: {
         SubServlineGroupCode: true,
         SubServlineGroupDesc: true,
+        ServLineCode: true,
       },
-      distinct: ['SubServlineGroupCode'],
       orderBy: { SubServlineGroupCode: 'asc' },
     });
 
-    // For each SubServLineGroup, count tasks
-    const groupsWithCounts = await Promise.all(
-      subGroups.map(async (group) => {
-        if (!group.SubServlineGroupCode) {
-          return null;
+    if (allMappings.length === 0) {
+      return [];
+    }
+
+    // Step 2: Build maps for SubServLineGroup -> description and SubServLineGroup -> ServLineCodes
+    const subGroupDescriptions = new Map<string, string>();
+    const subGroupToServLineCodes = new Map<string, string[]>();
+    const allServLineCodes: string[] = [];
+
+    for (const mapping of allMappings) {
+      if (!mapping.SubServlineGroupCode) continue;
+
+      // Store description (first one wins)
+      if (!subGroupDescriptions.has(mapping.SubServlineGroupCode)) {
+        subGroupDescriptions.set(mapping.SubServlineGroupCode, mapping.SubServlineGroupDesc || '');
+      }
+
+      // Collect ServLineCodes per SubServLineGroup
+      if (mapping.ServLineCode) {
+        const existing = subGroupToServLineCodes.get(mapping.SubServlineGroupCode) || [];
+        existing.push(mapping.ServLineCode);
+        subGroupToServLineCodes.set(mapping.SubServlineGroupCode, existing);
+        allServLineCodes.push(mapping.ServLineCode);
+      }
+    }
+
+    // Get unique SubServLineGroup codes (preserving order)
+    const uniqueSubGroupCodes = Array.from(subGroupDescriptions.keys());
+
+    if (allServLineCodes.length === 0) {
+      // No ServLineCodes means no tasks to count
+      return uniqueSubGroupCodes.map(code => ({
+        code,
+        description: subGroupDescriptions.get(code) || '',
+        activeTasks: 0,
+        totalTasks: 0,
+        masterCode,
+      }));
+    }
+
+    // Step 3: Get task counts for ALL ServLineCodes in a single aggregated query
+    const taskCounts = await prisma.task.groupBy({
+      by: ['ServLineCode', 'Active'],
+      where: {
+        ServLineCode: { in: allServLineCodes },
+      },
+      _count: true,
+    });
+
+    // Step 4: Build a map of ServLineCode -> { total, active }
+    const servLineCodeCounts = new Map<string, { total: number; active: number }>();
+    for (const item of taskCounts) {
+      if (!item.ServLineCode) continue;
+      const existing = servLineCodeCounts.get(item.ServLineCode) || { total: 0, active: 0 };
+      existing.total += item._count;
+      if (item.Active === 'Yes') {
+        existing.active += item._count;
+      }
+      servLineCodeCounts.set(item.ServLineCode, existing);
+    }
+
+    // Step 5: Aggregate counts by SubServLineGroup
+    const result = uniqueSubGroupCodes.map(subGroupCode => {
+      const servLineCodes = subGroupToServLineCodes.get(subGroupCode) || [];
+      let totalTasks = 0;
+      let activeTasks = 0;
+
+      for (const code of servLineCodes) {
+        const counts = servLineCodeCounts.get(code);
+        if (counts) {
+          totalTasks += counts.total;
+          activeTasks += counts.active;
         }
+      }
 
-        // Get all ServLineCodes for this SubServLineGroup
-        const servLineCodes = await prisma.serviceLineExternal.findMany({
-          where: {
-            SubServlineGroupCode: group.SubServlineGroupCode,
-            masterCode,
-          },
-          select: { ServLineCode: true },
-        });
+      return {
+        code: subGroupCode,
+        description: subGroupDescriptions.get(subGroupCode) || '',
+        activeTasks,
+        totalTasks,
+        masterCode,
+      };
+    });
 
-        const codes = servLineCodes
-          .map(s => s.ServLineCode)
-          .filter((code): code is string => code !== null);
-
-        if (codes.length === 0) {
-          return {
-            code: group.SubServlineGroupCode,
-            description: group.SubServlineGroupDesc || '',
-            activeTasks: 0,
-            totalTasks: 0,
-            masterCode,
-          };
-        }
-
-        // Count tasks with matching ServLineCodes
-        const [activeCount, totalCount] = await Promise.all([
-          prisma.task.count({
-            where: {
-              Active: 'Yes',
-              ServLineCode: { in: codes },
-            },
-          }),
-          prisma.task.count({
-            where: {
-              ServLineCode: { in: codes },
-            },
-          }),
-        ]);
-
-        return {
-          code: group.SubServlineGroupCode,
-          description: group.SubServlineGroupDesc || '',
-          activeTasks: activeCount,
-          totalTasks: totalCount,
-          masterCode,
-        };
-      })
-    );
-
-    return groupsWithCounts.filter((g): g is NonNullable<typeof g> => g !== null);
+    return result;
   } catch (error) {
     logger.error('Error fetching SubServLineGroups by master', { masterCode, error });
     return [];

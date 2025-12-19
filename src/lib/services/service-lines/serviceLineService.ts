@@ -203,13 +203,51 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       activeTaskCounts.map(item => [item.ServLineCode, item._count])
     );
 
-    // Build result: one entry per master code
+    // Batch fetch: Get all sub-groups for all master codes in parallel
+    const masterCodes = Array.from(masterCodeAssignments.keys());
+    const allSubGroupsArrays = await Promise.all(
+      masterCodes.map(code => getSubServiceLineGroupsByMaster(code))
+    );
+    const masterToSubGroupsMap = new Map<string, Awaited<ReturnType<typeof getSubServiceLineGroupsByMaster>>>();
+    masterCodes.forEach((code, index) => {
+      masterToSubGroupsMap.set(code, allSubGroupsArrays[index] || []);
+    });
+
+    // Build a map of SubServlineGroupCode -> ServLineCode[] from existing subGroupMapping data
+    const subGroupToServLineCodesMap = new Map<string, string[]>();
+    for (const mapping of subGroupMapping) {
+      if (mapping.SubServlineGroupCode && mapping.ServLineCode) {
+        const existing = subGroupToServLineCodesMap.get(mapping.SubServlineGroupCode) || [];
+        existing.push(mapping.ServLineCode);
+        subGroupToServLineCodesMap.set(mapping.SubServlineGroupCode, existing);
+      }
+    }
+
+    // Fetch additional ServLineCodes for sub-groups not in the initial mapping
+    const allUserSubGroups = Array.from(new Set(subGroupAssignments.map(a => a.subServiceLineGroup)));
+    const missingSubGroups = allUserSubGroups.filter(sg => !subGroupToServLineCodesMap.has(sg));
+    
+    if (missingSubGroups.length > 0) {
+      const additionalMappings = await prisma.serviceLineExternal.findMany({
+        where: { SubServlineGroupCode: { in: missingSubGroups } },
+        select: { SubServlineGroupCode: true, ServLineCode: true },
+      });
+      for (const mapping of additionalMappings) {
+        if (mapping.SubServlineGroupCode && mapping.ServLineCode) {
+          const existing = subGroupToServLineCodesMap.get(mapping.SubServlineGroupCode) || [];
+          existing.push(mapping.ServLineCode);
+          subGroupToServLineCodesMap.set(mapping.SubServlineGroupCode, existing);
+        }
+      }
+    }
+
+    // Build result: one entry per master code (now using pre-fetched data)
     const result: ServiceLineWithStats[] = [];
     for (const [masterCode, assignments] of masterCodeAssignments) {
       if (assignments.length === 0) continue;
       
-      // Get all sub-groups for this master code
-      const allSubGroupsForMaster = await getSubServiceLineGroupsByMaster(masterCode);
+      // Use pre-fetched sub-groups
+      const allSubGroupsForMaster = masterToSubGroupsMap.get(masterCode) || [];
       const userSubGroupCodes = new Set(assignments.map(a => a.subServiceLineGroup));
       
       // Filter to only user's accessible sub-groups
@@ -224,12 +262,12 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       const roles = assignments.map(a => a.role);
       const role = getHighestRole(roles);
 
-      // Calculate task counts for user's accessible sub-groups
+      // Calculate task counts using pre-fetched ServLineCodes map
       let taskCount = 0;
       let activeTaskCount = 0;
 
       for (const assignment of assignments) {
-        const servLineCodes = await getServLineCodesBySubGroup(assignment.subServiceLineGroup, masterCode);
+        const servLineCodes = subGroupToServLineCodesMap.get(assignment.subServiceLineGroup) || [];
         for (const code of servLineCodes) {
           taskCount += taskCountMap.get(code) || 0;
           activeTaskCount += activeTaskCountMap.get(code) || 0;

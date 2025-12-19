@@ -47,43 +47,30 @@ export async function POST(request: NextRequest) {
     const stdCode = validatedData.stdTaskCode.substring(0, 3).toUpperCase();
     const basePattern = `${servPrefix}${yearSuffix}${stdCode}`;
 
-    // Find all tasks that start with this pattern
-    const existingTasks = await prisma.task.findMany({
+    // OPTIMIZATION: First, do a lightweight query to get just TaskCodes for increment calculation
+    // This is faster than fetching all fields, especially when there are no duplicates
+    const taskCodesOnly = await prisma.task.findMany({
       where: {
         TaskCode: {
           startsWith: basePattern,
         },
       },
       select: {
-        id: true,
         TaskCode: true,
-        TaskDesc: true,
-        taskYear: true,
-        Active: true,
-        Client: {
-          select: {
-            clientCode: true,
-            clientNameFull: true,
-          },
-        },
       },
       orderBy: {
         TaskCode: 'desc',
       },
     });
 
-    // Calculate next increment
+    // Calculate next increment from lightweight query
     let maxIncrement = 0;
-    if (existingTasks.length > 0) {
-      // Extract increment numbers from existing task codes
-      for (const task of existingTasks) {
-        // Task code format: XXX24ABC01
-        // Extract last 2 digits
-        const incrementStr = task.TaskCode.slice(-2);
-        const increment = parseInt(incrementStr, 10);
-        if (!isNaN(increment) && increment > maxIncrement) {
-          maxIncrement = increment;
-        }
+    for (const task of taskCodesOnly) {
+      // Task code format: XXX24ABC01 - extract last 2 digits
+      const incrementStr = task.TaskCode.slice(-2);
+      const increment = parseInt(incrementStr, 10);
+      if (!isNaN(increment) && increment > maxIncrement) {
+        maxIncrement = increment;
       }
     }
 
@@ -91,23 +78,63 @@ export async function POST(request: NextRequest) {
     const nextIncrementStr = nextIncrement.toString().padStart(2, '0');
     const nextTaskCode = `${basePattern}${nextIncrementStr}`;
 
+    // OPTIMIZATION: Only fetch detailed task info if duplicates exist
+    // This avoids the expensive join query when there are no duplicates (most common case)
+    let existingTasksDetails: Array<{
+      id: number;
+      taskCode: string;
+      taskDesc: string;
+      taskYear: number | null;
+      active: boolean;
+      clientCode: string | null;
+      clientName: string | null;
+    }> = [];
+
+    if (taskCodesOnly.length > 0) {
+      const detailedTasks = await prisma.task.findMany({
+        where: {
+          TaskCode: {
+            startsWith: basePattern,
+          },
+        },
+        select: {
+          id: true,
+          TaskCode: true,
+          TaskDesc: true,
+          taskYear: true,
+          Active: true,
+          Client: {
+            select: {
+              clientCode: true,
+              clientNameFull: true,
+            },
+          },
+        },
+        orderBy: {
+          TaskCode: 'desc',
+        },
+      });
+
+      existingTasksDetails = detailedTasks.map(task => ({
+        id: task.id,
+        taskCode: task.TaskCode,
+        taskDesc: task.TaskDesc,
+        taskYear: task.taskYear,
+        active: task.Active === 'Yes',
+        clientCode: task.Client?.clientCode ?? null,
+        clientName: task.Client?.clientNameFull ?? null,
+      }));
+    }
+
     // Return results
     return NextResponse.json(
       successResponse({
-        exists: existingTasks.length > 0,
-        count: existingTasks.length,
+        exists: taskCodesOnly.length > 0,
+        count: taskCodesOnly.length,
         nextIncrement: nextIncrementStr,
         nextTaskCode,
         basePattern,
-        existingTasks: existingTasks.map(task => ({
-          id: task.id,
-          taskCode: task.TaskCode,
-          taskDesc: task.TaskDesc,
-          taskYear: task.taskYear,
-          active: task.Active === 'Yes',
-          clientCode: task.Client?.clientCode,
-          clientName: task.Client?.clientNameFull,
-        })),
+        existingTasks: existingTasksDetails,
       })
     );
   } catch (error) {
@@ -123,6 +150,7 @@ export async function POST(request: NextRequest) {
     return handleApiError(error, 'Check Duplicate Task Code');
   }
 }
+
 
 
 

@@ -3,6 +3,8 @@
  * Tracks API response times, cache hit rates, and slow queries
  */
 
+import { logger } from '@/lib/utils/logger';
+
 interface PerformanceMetric {
   endpoint: string;
   duration: number;
@@ -39,7 +41,9 @@ class PerformanceMonitor {
 
     // Log slow queries
     if (duration > this.SLOW_QUERY_THRESHOLD) {
-      console.warn(`[Performance] Slow API call: ${endpoint} took ${duration}ms`, {
+      logger.warn('Slow API call', {
+        endpoint,
+        duration,
         cacheHit,
         timestamp: metric.timestamp.toISOString(),
       });
@@ -47,7 +51,7 @@ class PerformanceMonitor {
 
     // Log cache hits for monitoring
     if (cacheHit && process.env.NODE_ENV === 'development') {
-      console.log(`[Cache Hit] ${endpoint} - ${duration}ms (from cache)`);
+      logger.debug('Cache Hit', { endpoint, duration });
     }
 
     return metric;
@@ -74,7 +78,9 @@ class PerformanceMonitor {
 
     // Log slow queries
     if (duration > this.SLOW_QUERY_THRESHOLD) {
-      console.warn(`[Performance] Slow database query: ${queryType} took ${duration}ms`, {
+      logger.warn('Slow database query', {
+        queryType,
+        duration,
         timestamp: metric.timestamp.toISOString(),
       });
     }
@@ -202,6 +208,7 @@ export async function withQueryTracking<T>(
     throw error;
   }
 }
+
 
 
 

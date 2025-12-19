@@ -5,9 +5,12 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
+import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
 
-// TTL for workspace counts: 5 minutes (300 seconds)
-const COUNTS_CACHE_TTL = 5 * 60;
+// TTL for workspace counts: 30 minutes (1800 seconds) - matches frontend staleTime
+const COUNTS_CACHE_TTL = 30 * 60;
 
 interface WorkspaceCountsResponse {
   groups: number;
@@ -25,10 +28,6 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Check Permission
-    const { checkFeature } = await import('@/lib/permissions/checkFeature');
-    const { Feature } = await import('@/lib/permissions/features');
-    const { getUserSubServiceLineGroups } = await import('@/lib/services/service-lines/serviceLineService');
-    
     const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
     const userSubGroups = await getUserSubServiceLineGroups(user.id);
     const hasServiceLineAccess = userSubGroups.length > 0;
@@ -105,6 +104,7 @@ export async function GET(request: NextRequest) {
     return handleApiError(error, 'Get Workspace Counts');
   }
 }
+
 
 
 

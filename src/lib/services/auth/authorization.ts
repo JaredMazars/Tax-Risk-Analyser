@@ -11,6 +11,11 @@ import { logger } from '@/lib/utils/logger';
 import { SystemRole, ServiceLineRole } from '@/types';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
+import {
+  getServiceLineRole as getServiceLineRoleFromService,
+  checkServiceLineAccess as checkAccessFromService,
+  checkSubGroupAccess,
+} from '@/lib/services/service-lines/serviceLineService';
 
 /**
  * Check if user is a System Admin (database lookup)
@@ -75,7 +80,6 @@ export async function getServiceLineRole(
 ): Promise<ServiceLineRole | null> {
   try {
     // Delegate to serviceLineService which handles sub-groups
-    const { getServiceLineRole: getServiceLineRoleFromService } = await import('@/lib/services/service-lines/serviceLineService');
     const role = await getServiceLineRoleFromService(userId, serviceLine);
     return role as ServiceLineRole | null;
   } catch (error) {
@@ -112,7 +116,6 @@ export async function hasServiceLineAccess(
 ): Promise<boolean> {
   try {
     // Delegate to serviceLineService which handles sub-groups
-    const { checkServiceLineAccess: checkAccessFromService } = await import('@/lib/services/service-lines/serviceLineService');
     return await checkAccessFromService(userId, serviceLine);
   } catch (error) {
     logger.error('Error checking service line access', { userId, serviceLine, error });
@@ -159,7 +162,6 @@ export async function canApproveAcceptance(
     }
 
     // Check if user has access to this sub-group with ADMINISTRATOR or PARTNER role
-    const { checkSubGroupAccess } = await import('@/lib/services/service-lines/serviceLineService');
     const hasAdminAccess = await checkSubGroupAccess(userId, serviceLineExternal.SubServlineGroupCode, ServiceLineRole.ADMINISTRATOR);
     const hasPartnerAccess = await checkSubGroupAccess(userId, serviceLineExternal.SubServlineGroupCode, ServiceLineRole.PARTNER);
     

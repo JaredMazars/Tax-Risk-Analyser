@@ -5,14 +5,24 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
+import { getCarlPartnerCodes } from '@/lib/cache/staticDataCache';
+
+// Maximum transactions per page to prevent memory issues
+const MAX_PAGE_SIZE = 500;
+const DEFAULT_PAGE_SIZE = 100;
 
 /**
  * GET /api/tasks/[id]/transactions
  * Get WIP transactions for a task with standard fields for transaction details modal
  * 
+ * Query params:
+ * - page: Page number (default 1)
+ * - limit: Items per page (default 100, max 500)
+ * 
  * Returns:
  * - Task information
  * - Array of WIP transactions with standard fields
+ * - Pagination metadata
  */
 export async function GET(
   request: NextRequest,
@@ -63,45 +73,51 @@ export async function GET(
       );
     }
 
-    // 5. Execute - Get CARL partner employee codes to exclude their costs
-    const carlPartners = await prisma.employee.findMany({
-      where: {
-        EmpCatCode: 'CARL',
-      },
-      select: {
-        EmpCode: true,
-      },
-    });
+    // 5. Parse pagination parameters
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_PAGE_SIZE), 10)));
+    const skip = (page - 1) * limit;
 
-    const carlPartnerCodes = new Set(carlPartners.map(emp => emp.EmpCode));
+    // 6. Execute - Get CARL partner employee codes from cache
+    const carlPartnerCodes = await getCarlPartnerCodes();
 
-    // Fetch WIP transactions with standard fields
-    const transactions = await prisma.wIPTransactions.findMany({
-      where: {
-        GSTaskID: task.GSTaskID,
-      },
-      select: {
-        id: true,
-        GSWIPTransID: true,
-        TranDate: true,
-        TranType: true,
-        TType: true,
-        EmpCode: true,
-        EmpName: true,
-        Amount: true,
-        Cost: true,
-        Hour: true,
-        Ref: true,
-        Narr: true,
-        OfficeCode: true,
-        TaskServLine: true,
-      },
-      orderBy: {
-        TranDate: 'desc',
-      },
-    });
+    // 7. Fetch WIP transactions with pagination
+    const [transactions, total] = await Promise.all([
+      prisma.wIPTransactions.findMany({
+        where: {
+          GSTaskID: task.GSTaskID,
+        },
+        select: {
+          id: true,
+          GSWIPTransID: true,
+          TranDate: true,
+          TranType: true,
+          TType: true,
+          EmpCode: true,
+          EmpName: true,
+          Amount: true,
+          Cost: true,
+          Hour: true,
+          Ref: true,
+          Narr: true,
+          OfficeCode: true,
+          TaskServLine: true,
+        },
+        orderBy: {
+          TranDate: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.wIPTransactions.count({
+        where: {
+          GSTaskID: task.GSTaskID,
+        },
+      }),
+    ]);
 
-    // 6. Respond - Map transactions and zero out CARL partner costs
+    // 8. Respond - Map transactions and zero out CARL partner costs
     const responseData = {
       taskId: task.id,
       taskCode: task.TaskCode,
@@ -122,6 +138,12 @@ export async function GET(
         officeCode: txn.OfficeCode,
         taskServLine: txn.TaskServLine,
       })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
 
     return NextResponse.json(successResponse(responseData));
@@ -129,6 +151,7 @@ export async function GET(
     return handleApiError(error, 'Get Task Transactions');
   }
 }
+
 
 
 

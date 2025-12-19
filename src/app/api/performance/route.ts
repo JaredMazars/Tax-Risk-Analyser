@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 import { getCurrentUser } from '@/lib/services/auth/auth';
 import { successResponse } from '@/lib/utils/apiUtils';
+import { isSystemAdmin } from '@/lib/services/auth/authorization';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * GET /api/performance
@@ -17,7 +19,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is system admin (only admins can view performance metrics)
-    const { isSystemAdmin } = await import('@/lib/services/auth/authorization');
     const isAdmin = await isSystemAdmin(user.id);
     
     if (!isAdmin) {
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(successResponse(data));
   } catch (error) {
-    console.error('[Performance API] Error:', error);
+    logger.error('Performance API Error', { error });
     return NextResponse.json({ 
       error: 'Failed to fetch performance metrics',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -77,7 +78,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if user is system admin
-    const { isSystemAdmin } = await import('@/lib/services/auth/authorization');
     const isAdmin = await isSystemAdmin(user.id);
     
     if (!isAdmin) {
@@ -90,13 +90,14 @@ export async function DELETE(request: NextRequest) {
       message: 'Performance metrics cleared successfully' 
     }));
   } catch (error) {
-    console.error('[Performance API] Error:', error);
+    logger.error('Performance API Error', { error });
     return NextResponse.json({ 
       error: 'Failed to clear performance metrics',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
+
 
 
 

@@ -6,455 +6,228 @@ alwaysApply: true
 
 Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure OpenAI | Azure AD
 
-## Styling
+## Styling & AI
 
-See `.cursor/rules/forvis-design-rules.mdc`
-
-## AI
-
-See `.cursor/rules/ai-patterns.mdc`
+- Styling: See `.cursor/rules/forvis-design-rules.mdc`
+- AI: See `.cursor/rules/ai-patterns.mdc`
 
 ## TypeScript
 
-**Type Organization:**
-- Prisma Schema → `types/index.ts` → derive DTOs with Partial/Pick/Omit
-- `types/branded.ts`: Branded ID types only
-- `types/dto.ts`: Data transfer objects
-- `types/api.ts`: API-specific types
+**Type Organization:** Prisma Schema -> `types/index.ts` -> derive DTOs with Partial/Pick/Omit
+- `types/branded.ts`: Branded ID types | `types/dto.ts`: DTOs | `types/api.ts`: API types
 
 **Requirements:**
-- Strict mode, `@/*` imports
-- ALL IDs use branded types
-- Route params converted via `parseXxxId()` utilities
-- NO duplicate types, NO deprecated code
-- Define enums ONCE in types/index.ts
+- Strict mode, `@/*` imports, ALL IDs use branded types
+- Route params via `parseXxxId()` utilities
+- Define enums ONCE in `types/index.ts` (e.g., `SystemRole`, `ServiceLineRole`)
 - `undefined` for optional, `null` for database nulls
-- Optional chaining (`?.`) and nullish coalescing (`??`)
-- **NO `any` types** - Use `unknown`, type guards, or proper types (ESLint error)
-
-**Validation:** All input via Zod schemas in `/src/lib/validation/schemas.ts`
+- **NO `any` types** - Use `unknown`, `Record<string, unknown>`, or proper interfaces
+- All input validated via Zod schemas in `/src/lib/validation/schemas.ts`
 
 ## Database
 
 **Dual-ID Convention:**
-- **Internal IDs** (`id`): Auto-increment integer primary keys for ALL tables
-- **External IDs** (`GS*` prefix): UniqueIdentifier (GUID) fields from the external database system
-- **Codes** (`*Code` suffix): String fields ONLY for display and search, NEVER for relationships
-
-**Examples:**
-- `Client` table: `id` (internal) vs `GSClientID` (external GUID) vs `clientCode` (display/search)
-- `Task` table: `id` (internal) vs `GSTaskID` (external GUID) vs `TaskCode` (display/search)
-- `Employee` table: `id` (internal) vs `GSEmployeeID` (external GUID) vs `EmpCode` (display/search)
-
-**Usage:**
-- Tables that sync with external systems (Client, Task, Employee, WipTransactions, DrsTransactions) use `GS*` GUIDs for relationships with each other
-- Internal-only tables (TaskTeam, TaskDocument, BDOpportunity, etc.) use `id` integer fields for relationships
-- Use `*Code` fields ONLY for display and search operations, NEVER for relationships
-- Route parameters and API responses continue using internal `id` for application routing
-
-**Schema Patterns:**
-
-**External System Tables** (use GS* for relationships with each other):
-```prisma
-model Client {
-  id         Int      @id @default(autoincrement())  // Internal ID - for internal-only relations
-  clientCode String   @unique                         // For display/search ONLY
-  GSClientID String   @unique @db.UniqueIdentifier   // External ID - for external table relations
-  Task       Task[]   // Relation uses GSClientID
-}
-
-model Task {
-  id         Int      @id @default(autoincrement())  // Internal ID - for internal-only relations
-  GSTaskID   String   @unique @db.UniqueIdentifier   // External ID - for external table relations
-  GSClientID String?  @db.UniqueIdentifier           // External FK - for queries with Client
-  TaskCode   String                                   // Display/search ONLY
-  Client     Client?  @relation(fields: [GSClientID], references: [GSClientID])
-}
-
-model Wip {
-  id         Int      @id @default(autoincrement())  // Internal ID
-  GSWipID    String   @unique @db.UniqueIdentifier   // External ID
-  GSClientID String   @db.UniqueIdentifier           // External FK - for queries with Client
-  GSTaskID   String   @db.UniqueIdentifier           // External FK - for queries with Task
-  Client     Client?  @relation(fields: [GSClientID], references: [GSClientID])
-  Task       Task?    @relation(fields: [GSTaskID], references: [GSTaskID])
-}
-```
-
-**Internal-Only Tables** (use id for relationships):
-```prisma
-model TaskTeam {
-  id     Int    @id @default(autoincrement())
-  taskId Int                                    // Internal FK - uses id
-  userId String
-  role   String                                 // Stores ServiceLineRole (e.g., PARTNER, MANAGER, USER)
-  Task   Task   @relation(fields: [taskId], references: [id])
-  User   User   @relation(fields: [userId], references: [id])
-}
-
-model BDOpportunity {
-  id       Int     @id @default(autoincrement())
-  clientId Int?                                 // Internal FK - uses id
-  Client   Client? @relation(fields: [clientId], references: [id])
-}
-```
+- **Internal IDs** (`id`): Auto-increment PKs for internal-only tables (TaskTeam, BDOpportunity)
+- **External IDs** (`GS*`): GUIDs for external system tables (Client, Task, Employee, Wip)
+- **Codes** (`*Code`): Display/search ONLY, NEVER for relationships
 
 **Query Patterns:**
-
-✅ **CORRECT** - Use GS* for external table relationships:
 ```typescript
-// DO use external GUID for queries between synced tables
-const tasks = await prisma.task.findMany({
-  where: { GSClientID: client.GSClientID }
-});
+// External tables: use GS* for relationships
+const tasks = await prisma.task.findMany({ where: { GSClientID: client.GSClientID } });
 
-const wip = await prisma.wip.findMany({
-  where: { GSTaskID: task.GSTaskID }
-});
+// Internal tables: use id
+const team = await prisma.taskTeam.findMany({ where: { taskId: task.id } });
+
+// Codes: search only
+const clients = await prisma.client.findMany({ where: { clientCode: { contains: term } } });
 ```
 
-✅ **CORRECT** - Use id for internal table relationships:
-```typescript
-// DO use internal ID for internal-only tables
-const teamMembers = await prisma.taskTeam.findMany({
-  where: { taskId: task.id }
-});
+## Service Lines
 
-const opportunities = await prisma.bDOpportunity.findMany({
-  where: { clientId: client.id }
-});
-```
+**Client-Facing:** TAX, AUDIT, ACCOUNTING, ADVISORY
+**Shared Services:** QRM, BUSINESS_DEV, IT, FINANCE, HR
 
-❌ **WRONG** - Using Code for relationships:
-```typescript
-// DON'T use codes for foreign keys
-const tasks = await prisma.task.findMany({
-  where: { ClientCode: clientCode }
-});
-```
-
-✅ **CORRECT** - Codes only for search:
-```typescript
-// Codes ONLY for search
-const clients = await prisma.client.findMany({
-  where: { clientCode: { contains: searchTerm } }
-});
-```
-
-## Service Lines & Shared Services
-
-**Service Lines** (Client-facing, billable work):
-- `TAX` - Tax services
-- `AUDIT` - Audit services
-- `ACCOUNTING` - Accounting services
-- `ADVISORY` - Advisory services
-
-**Shared Services** (Internal support functions):
-- `QRM` - Quality & Risk Management
-- `BUSINESS_DEV` - Business Development
-- `IT` - Information Technology
-- `FINANCE` - Internal Finance
-- `HR` - Human Resources
-
-**Defined in:** `types/index.ts` → `ServiceLine` enum (single source of truth)
-
-**Utility:** `isSharedService()` in `@/lib/utils/serviceLineUtils.ts` distinguishes between client-facing and shared services
-
-### Database Tables
-
+**Tables:**
 | Table | Purpose |
 |-------|---------|
-| `ServiceLineMaster` | Application-level master list (seeded) - `code`, `name`, `description`, `active`, `sortOrder` |
-| `ServiceLineExternal` | External system sync - maps `ServLineCode` → `masterCode` and `SubServlineGroupCode` |
-| `ServiceLineUser` | User assignments - links users to `subServiceLineGroup` with `role` |
+| `ServiceLineMaster` | Application master list (code, name, active) |
+| `ServiceLineExternal` | Maps `ServLineCode` -> `SubServlineGroupCode` -> `masterCode` |
+| `ServiceLineUser` | User assignments to `subServiceLineGroup` with `role` |
 
-### SubServiceLineGroup Mapping
+**Access Pattern:** Task's `ServLineCode` -> `SubServlineGroupCode` -> check user's `ServiceLineUser` assignments
 
-`ServiceLineExternal` bridges external system codes to application service lines:
+**URL:** `/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/tasks/[taskId]`
 
-```
-ServLineCode → SubServlineGroupCode → masterCode (ServiceLineMaster.code)
-```
+## Security (CRITICAL)
 
-- **Task.ServLineCode**: External service line code on tasks
-- **ServiceLineExternal.SubServlineGroupCode**: Groups external codes into sub-service line groupings
-- **ServiceLineExternal.masterCode**: Links to `ServiceLineMaster.code` for application routing
-- **ServiceLineUser.subServiceLineGroup**: User access is granted at the `SubServlineGroupCode` level
+### Role Model
 
-**Query Pattern:** Map task's `ServLineCode` → find matching `SubServlineGroupCode` → check user's `ServiceLineUser` assignments
-
-## URL Structure
-
-`/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/tasks/[taskId]`
-
-- `serviceLine`: TAX, AUDIT, ACCOUNTING, ADVISORY (or shared services: QRM, BUSINESS_DEV, IT, FINANCE, HR)
-- `subServiceLineGroup`: Dynamic grouping from `ServiceLineExternal.SubServlineGroupCode`
-- `id`: Internal client ID (integer, from Client.id)
-- `taskId`: Internal task ID (integer, from Task.id)
-- Even if the user refers to projects they actually mean tasks
-- The applications centres around clients and tasks
-
-**Note**: URLs use internal `id` fields for application routing. External `GS*` IDs are used for relationships between externally-synced tables (Client↔Task, Task↔Wip, etc.).
-
-
-## Security (CRITICAL - NOT Optional)
-
-### Two-Tier Role Model
 1. **System**: `SYSTEM_ADMIN` > `USER`
 2. **Service Line**: `ADMINISTRATOR` > `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
 
-**Note**: Task team assignments use ServiceLineRole values. When users are added to tasks (TaskTeam table), their role is automatically assigned based on their ServiceLineRole for that sub-service line group. Roles are system-assigned and determine access to features and operations.
+Roles defined in `@/lib/utils/roleHierarchy.ts`. SYSTEM_ADMIN bypasses all checks.
 
-### Feature-Based Permissions (TypeScript, No Database)
+### API Route Pattern (REQUIRED)
 
-Instead of CRUD permissions, use **Feature Flags** defined in `@/lib/permissions/features.ts`:
-- **Core Access**: `access_dashboard`, `access_clients`, `access_tasks`, `access_analytics`, `access_bd`, `access_admin`
-- **Task Management**: `manage_tasks`, `assign_task_team`, `approve_acceptance`, `approve_engagement_letter`
-- **Client Management**: `manage_clients`, `view_client_analytics`, `export_client_data`
-- **Documents**: `upload_documents`, `download_documents`, `delete_documents`
-- **Business Development**: `manage_opportunities`, `manage_contacts`, `view_bd_analytics`
-- **Admin**: `manage_users`, `manage_service_lines`, `manage_templates`
-- **Advanced**: `use_ai_tools`, `export_reports`, `view_wip_data`
+```typescript
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
+import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
+import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+import { sanitizeObject } from '@/lib/utils/sanitization';
+import { logger } from '@/lib/utils/logger';
 
-Features are mapped to roles in `@/lib/permissions/featurePermissions.ts` (in-memory, no DB queries).
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Rate limit (REQUIRED for mutations)
+    await enforceRateLimit(request, RateLimitPresets.STANDARD);
 
-### API Route Pattern (REQUIRED - 6 Steps)
+    // 2. Authenticate
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-1. **Authenticate**: `getCurrentUser()` → return 401 if none
-2. **Parse IDs**: Use `parseXxxId()` for branded types
-3. **Check Feature**: `checkFeature(userId, Feature.X, serviceLine?)` → return 403 if denied
-4. **Filter Service Lines**: `getUserServiceLines()` → filter accessible service lines
-5. **Execute**: Query with `select:` (explicit fields only), filter by service lines
-6. **Respond**: `successResponse(data)` or `handleApiError(error, context)`
+    // 3. Sanitize + Validate (REQUIRED for mutations)
+    const body = await request.json();
+    const sanitized = sanitizeObject(body);
+    const validated = Schema.parse(sanitized);
 
-**POST/PUT/PATCH:** Add `sanitizeObject()` + Zod validation after step 2
+    // 4. Authorize (Feature OR Service Line access)
+    const hasFeature = await checkFeature(user.id, Feature.MANAGE_TASKS);
+    const userSubGroups = await getUserSubServiceLineGroups(user.id);
+    if (!hasFeature && userSubGroups.length === 0) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-### Backend Security Checklist
+    // 5. Execute with explicit select
+    const result = await prisma.task.create({
+      data: validated,
+      select: { id: true, TaskCode: true },
+    });
 
+    // 6. Log and respond
+    logger.info('Task created', { taskId: result.id });
+    return NextResponse.json(successResponse(result));
+  } catch (error) {
+    return handleApiError(error, 'POST /api/tasks');
+  }
+}
+```
+
+**Or use middleware:**
+```typescript
+import { withAccess, requireAccess } from '@/lib/api/authMiddleware';
+
+// Middleware wrapper
+export const GET = withAccess({
+  feature: Feature.ACCESS_TASKS,
+  requireServiceLine: true,
+}, handler);
+
+// Direct function call
+const access = await requireAccess(user.id, { feature: Feature.X, taskId: 123 });
+if (!access.allowed) return 403;
+```
+
+### Security Checklist
+
+- [ ] `enforceRateLimit()` for ALL mutations (POST/PUT/PATCH/DELETE)
 - [ ] `getCurrentUser()` at start
-- [ ] `checkFeature(userId, Feature.X)` before business logic
-- [ ] Filter by `getUserServiceLines()` accessible service lines
-- [ ] For tasks: Verify task team membership (TaskTeam table)
-- [ ] For approvals: `canApproveAcceptance()` or `canApproveEngagementLetter()`
-- [ ] Return 401/403/404 appropriately
-- [ ] `handleApiError()` in catch blocks
+- [ ] `sanitizeObject()` + Zod before processing body
+- [ ] `checkFeature()` OR `getUserSubServiceLineGroups()` for access
+- [ ] For tasks: `checkTaskAccess(userId, taskId)`
 - [ ] Explicit `select:` fields only
-- [ ] Transactions for multi-step operations
+- [ ] `handleApiError()` in catch
+- [ ] `logger.info/warn/error()` NOT `console.*`
+
+### Rate Limiting
+
+```typescript
+import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+
+// Presets
+await enforceRateLimit(request, RateLimitPresets.STANDARD);     // 30/min
+await enforceRateLimit(request, RateLimitPresets.AI_ENDPOINTS); // 5/min
+await enforceRateLimit(request, RateLimitPresets.FILE_UPLOADS); // 10/min
+
+// Admin routes: stricter limits
+await enforceRateLimit(request, { maxRequests: 20, windowMs: 60000, keyPrefix: 'admin' });
+```
+
+### Page-Level Access
+
+**4-Tier Lookup:** Redis Cache -> Database Override -> Code Override -> Convention Default
+
+**Access Levels:** `NONE` (redirect) | `VIEW` (read-only) | `FULL` (all actions)
+
+**Convention Defaults:**
+- Admin pages: SYSTEM_ADMIN only
+- Analytics/BD: PARTNER+ (MANAGER gets VIEW)
+- Regular pages: All roles FULL, VIEWER gets VIEW
+
+**Implementation:**
+```typescript
+// Layout
+import { PageAccessGuard } from '@/components/guards/PageAccessGuard';
+<PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>
+
+// Components
+const { isViewOnly, canEdit } = usePageAccess();
+{isViewOnly && <ViewOnlyBadge />}
+<EditActionWrapper><button>Edit</button></EditActionWrapper>
+```
 
 ### Frontend Security
 
-- Wrap UI: `<FeatureGate feature={Feature.X}>`
-- Conditional: `useFeature(Feature.X, serviceLine?)`
+- `<FeatureGate feature={Feature.X}>` for conditional UI
+- `useFeature(Feature.X)` hook for checks
 - Server Components default, `'use client'` only when needed
-- Never browser popups (use custom modals)
-
-### Page-Level Access Control
-
-**Database-Driven Page Permissions** with 4-tier lookup system:
-
-**Architecture:**
-1. **Auto-Discovery**: Pages automatically registered by scanning file system
-2. **Convention Defaults**: Smart defaults based on URL patterns and role hierarchy
-3. **Code Overrides**: Optional hardcoded exceptions in `@/lib/permissions/pagePermissions.ts`
-4. **Database Overrides**: Highest priority, managed via admin UI
-
-**Access Levels:**
-- `PageAccessLevel.NONE` - Cannot access page, redirects to dashboard with error
-- `PageAccessLevel.VIEW` - Can view page but no edit/create/delete actions
-- `PageAccessLevel.FULL` - Complete access to all features
-
-**Role Support:**
-- System roles: `SYSTEM_ADMIN`
-- Service Line roles: `ADMINISTRATOR`, `PARTNER`, `MANAGER`, `SUPERVISOR`, `USER`, `VIEWER`
-- Permissions check user's highest role for the relevant service line
-- SYSTEM_ADMIN bypasses all checks
-
-**Convention-Based Defaults:**
-```
-Admin pages (/dashboard/admin/*):      SYSTEM_ADMIN only
-Analytics pages (**/analytics):         PARTNER+ (Managers get VIEW)
-BD pages (**/bd):                       PARTNER+ (Managers get VIEW)
-Templates pages (**/templates):         MANAGER+ can edit, others VIEW
-Regular pages:                          All roles FULL, VIEWER gets VIEW
-```
-
-**4-Tier Lookup (in order):**
-1. **Redis Cache** (10 min TTL) - Performance optimization
-2. **Database Override** (`PagePermission` table) - Admin-configured exceptions
-3. **Code Override** (`PAGE_PERMISSIONS` constant) - Hardcoded edge cases
-4. **Convention Default** (URL pattern matching) - Automatic fallback
-
-**Database Tables:**
-```prisma
-model PageRegistry {
-  id        Int      @id @default(autoincrement())
-  pathname  String   @unique
-  pageTitle String?
-  category  String?
-  discovered Boolean @default(true)  // Auto-discovered vs manual
-  active    Boolean  @default(true)
-  lastSeen  DateTime @default(now())
-}
-
-model PagePermission {
-  id          Int      @id @default(autoincrement())
-  pathname    String
-  role        String   // SYSTEM_ADMIN or ServiceLineRole
-  accessLevel String   // NONE, VIEW, FULL
-  description String?
-  active      Boolean  @default(true)
-  createdBy   String?
-  
-  @@unique([pathname, role])
-}
-```
-
-**Admin UI** (`/dashboard/admin/page-permissions`):
-- **Auto-Discovery**: Scan file system to find all dashboard pages
-- **Permission Matrix**: View/edit access levels for all roles
-- **Quick Presets**: Admin Only, Partners+, Managers+, All Access
-- **Bulk Operations**: Set all roles for a page at once
-- **Source Indicators**: AUTO (convention), CODE (hardcoded), DB (override)
-- **Search/Filter**: Find pages by pathname, category, or source
-
-**Pattern Matching:**
-- Exact: `/dashboard/admin/users`
-- Wildcards: `/dashboard/admin/*` matches all admin pages
-- Dynamic params: `/dashboard/tasks/:id` matches task detail pages
-- Service line context: `/dashboard/:serviceLine/...` → checks user's role in that service line
-
-**Implementation:**
-
-1. **Wrap pages with PageAccessGuard** (server component):
-```typescript
-import { PageAccessGuard } from '@/components/guards/PageAccessGuard';
-
-export default async function AdminLayout({ children }) {
-  const pathname = headersList.get('x-pathname') || '/dashboard/admin';
-  return <PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>;
-}
-```
-
-2. **Use access level in components**:
-```typescript
-import { usePageAccess } from '@/hooks/permissions/usePageAccess';
-import { ViewOnlyBadge } from '@/components/shared/ViewOnlyBadge';
-import { EditActionWrapper } from '@/components/shared/EditActionWrapper';
-
-const { isViewOnly, canEdit } = usePageAccess();
-
-// Show badge
-{isViewOnly && <ViewOnlyBadge />}
-
-// Hide edit buttons
-<EditActionWrapper>
-  <button onClick={handleEdit}>Edit</button>
-</EditActionWrapper>
-```
-
-3. **Override permissions via Admin UI or code** (optional):
-```typescript
-// Code override in @/lib/permissions/pagePermissions.ts (rarely needed)
-export const PAGE_PERMISSIONS: PagePermissionMap = {
-  '/dashboard/special-page': {
-    PARTNER: PageAccessLevel.FULL,
-    MANAGER: PageAccessLevel.NONE,  // Exception to normal pattern
-  },
-};
-```
-
-**Benefits:**
-- Zero configuration for new pages (auto-discovery + conventions)
-- No deployments needed for permission changes (database overrides)
-- Context-aware (user's role in relevant service line)
-- Fast (Redis caching)
-- Resilient (graceful fallback to conventions if DB fails)
-- Visual management via admin UI
-
-### UI Confirmations
-
-- NEVER use `confirm()`, `alert()`, or `prompt()` browser dialogs
-- ALWAYS use custom modal components for confirmations/alerts
-- Destructive actions (delete, remove, etc.) require modal confirmation
-- Modal should show action context (e.g., item name being deleted)
-
-### Authorization Utilities
-
-**Feature Checks** (`@/lib/permissions/checkFeature`):
-- `checkFeature(userId, feature, serviceLine?)`: Check if user has feature
-- `checkAnyFeature(userId, features[])`: Check if user has any of the features
-- `checkAllFeatures(userId, features[])`: Check if user has all features
-- `getUserFeatures(userId, serviceLine?)`: Get all features user has access to
-
-**Task Access** (`@/lib/services/tasks/taskAuthorization`):
-- `checkTaskAccess(userId, taskId)`: Check if user is on task team
-- Task permissions are derived from user's ServiceLineRole, not task-specific roles
-- Partners and Managers have elevated permissions across all tasks in their service line
-
-**Auth** (`@/lib/services/auth/authorization`):
-- `isSystemAdmin(userId)`, `getUserSystemRole()`, `getServiceLineRole()`
-- `isPartner()`, `isManager()`, `hasServiceLineAccess()`
-- `canApproveEngagementLetter()`, `canApproveAcceptance()`
-- `hasFeature(userId, feature, serviceLine?)`: Convenience wrapper
-- `canManageTasks()`, `canManageClients()`, `canAccessAdmin()`, etc.
-
-### Security Principles
-
-1. Defense in Depth: Check at system and service line levels
-2. Fail Secure: Default deny
-3. Explicit Checks: Never assume permission
-4. Service Line Isolation: Users see only their service lines (unless SYSTEM_ADMIN)
-5. Role-Based Access: ServiceLineRole determines permissions automatically
-6. Input Validation: Zod schemas + `sanitizeObject()`
-7. No Information Leakage: Generic error messages
+- NEVER use `confirm()`, `alert()`, `prompt()` - use custom modals
 
 ## Performance (REQUIRED)
+
+### Imports
+
+- **Static imports ONLY** at top of file - NO `await import()` in handlers
+- Exception: AI/ML dependencies may use lazy loading for bundle size
 
 ### Database
 
 - ALWAYS explicit `select:` fields
-- NEVER `include` unnecessarily
 - Batch queries: `Promise.all()`
 - Transactions for multi-step operations
-- Indexes for filtered fields
 - Prevent N+1 queries
 
-### Caching (Redis)
+### Caching (Redis with fallback)
 
-**TTLs:**
-- Sessions: 1h (3600s)
-- User/Service Line/Task: 10min (600s)
-- Analytics/Static: 30min (1800s)
+**TTLs:** Sessions 1h | User/Task 10min | Analytics/Static 30min
 
-**Cache Prefixes** (`CACHE_PREFIXES.*`):
-- `SESSION`, `RATE_LIMIT`, `USER`, `TASK`, `SERVICE_LINE`, `NOTIFICATION`, `ANALYTICS`
+**Prefixes:** `CACHE_PREFIXES.SESSION`, `USER`, `TASK`, `SERVICE_LINE`, `ANALYTICS`
 
-**Note**: Feature permissions are NOT cached (in-memory TypeScript constants, no DB queries)
+Feature permissions are in-memory TypeScript constants (no caching needed).
 
-**Rate Limiting:** `await checkRateLimit(request, RateLimitPresets.STANDARD)`
-- Presets: AI_ENDPOINTS (5/min), FILE_UPLOADS (10/min), STANDARD (30/min), READ_ONLY (100/min), AUTH_ENDPOINTS (10/min)
+### Logging
 
-**Background Jobs:** `queue.enqueue(queueType, operation, data, options)` for long tasks
-- Queue types: documents, emails, reports
-- Never fire-and-forget
+```typescript
+import { logger } from '@/lib/utils/logger';
 
-### Imports
+logger.info('Action completed', { userId, taskId });
+logger.warn('Unusual condition', { details });
+logger.error('Operation failed', error);
 
-- Static imports only for core dependencies
-- Tree-shakeable exports
-- Lazy load heavy dependencies
-
-### Client-Side
-
-- React Query for server state
-- Pagination for large datasets
-- Server Components default
+// NEVER use console.log/warn/error in production code
+```
 
 ## Error Handling
 
-- Throw: `new AppError(status, message, ErrorCodes.X, metadata)`
-- Catch: `handleApiError(error, context)`
-- Codes: VALIDATION_ERROR, NOT_FOUND, FORBIDDEN, UNAUTHORIZED
+```typescript
+throw new AppError(status, message, ErrorCodes.X, metadata);
+// Catch
+return handleApiError(error, 'Context');
+```
+
+Codes: `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN`, `UNAUTHORIZED`
 
 ## Code Quality
 
@@ -462,16 +235,13 @@ export const PAGE_PERMISSIONS: PagePermissionMap = {
 - Files under 500 lines
 - camelCase file names
 - No duplicates, no deprecated code
-- Delete .bak/.old immediately
-- NO summarization files (e.g., SUMMARY.md, overview.md)
 - Business logic in `/src/lib/services/<domain>/`
-- Component organization: `ui/`, `layout/`, `shared/`, `features/<domain>/`
+- Components: `ui/`, `layout/`, `shared/`, `features/<domain>/`
 
-## AI Assistant Communication
+## AI Assistant
 
 - Upon task completion, simply state "Completed"
-- No verbose summaries or explanations after finishing work
-- User can observe progress in real-time
+- No verbose summaries after finishing work
 
 ## Core Principles
 
