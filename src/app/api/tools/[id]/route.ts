@@ -1,51 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { sanitizeObject } from '@/lib/utils/sanitization';
+import { successResponse, parseToolId } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { UpdateToolSchema } from '@/lib/validation/schemas';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * GET /api/tools/[id]
  * Get a specific tool by ID
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.MANAGE_TOOLS,
+  handler: async (request, { params }) => {
+    const toolId = parseToolId(params.id);
 
-    // 2. Parse ID
-    const toolId = parseInt(params.id);
-    if (isNaN(toolId)) {
-      return NextResponse.json({ error: 'Invalid tool ID' }, { status: 400 });
-    }
-
-    // 3. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TOOLS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 4. Query tool
     const tool = await prisma.tool.findUnique({
       where: { id: toolId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        description: true,
+        icon: true,
+        componentPath: true,
+        active: true,
+        sortOrder: true,
+        createdAt: true,
+        updatedAt: true,
         subTabs: {
           orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            icon: true,
+            componentPath: true,
+            active: true,
+            sortOrder: true,
+          },
         },
         serviceLines: {
-          include: {
-            tool: {
-              select: { id: true, name: true, code: true },
-            },
+          select: {
+            subServiceLineGroup: true,
           },
         },
         _count: {
@@ -59,88 +55,92 @@ export async function GET(
     });
 
     if (!tool) {
-      return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
+      throw new AppError(404, 'Tool not found', ErrorCodes.NOT_FOUND, { toolId });
     }
 
     return NextResponse.json(successResponse(tool));
-  } catch (error) {
-    return handleApiError(error, 'Failed to fetch tool');
-  }
-}
+  },
+});
 
 /**
  * PUT /api/tools/[id]
  * Update a tool
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TOOLS,
+  schema: UpdateToolSchema,
+  handler: async (request, { params, data }) => {
+    const toolId = parseToolId(params.id);
+    const { name, code, description, icon, componentPath, active, sortOrder } = data;
 
-    // 2. Parse ID
-    const toolId = parseInt(params.id);
-    if (isNaN(toolId)) {
-      return NextResponse.json({ error: 'Invalid tool ID' }, { status: 400 });
-    }
-
-    // 3. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TOOLS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 4. Parse and sanitize body
-    const body = await request.json();
-    const sanitizedData = sanitizeObject(body);
-
-    const { name, code, description, icon, componentPath, active, sortOrder } = sanitizedData;
-
-    // 5. Check if tool exists
+    // Check if tool exists
     const existingTool = await prisma.tool.findUnique({
       where: { id: toolId },
+      select: { id: true, code: true },
     });
 
     if (!existingTool) {
-      return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
+      throw new AppError(404, 'Tool not found', ErrorCodes.NOT_FOUND, { toolId });
     }
 
-    // 6. Check if code is changing and already exists
+    // Check if code is changing and already exists
     if (code && code !== existingTool.code) {
       const codeExists = await prisma.tool.findUnique({
         where: { code },
+        select: { id: true },
       });
 
       if (codeExists) {
-        return NextResponse.json(
-          { error: 'Tool with this code already exists' },
-          { status: 409 }
+        throw new AppError(
+          409,
+          'Tool with this code already exists',
+          ErrorCodes.CONFLICT,
+          { code }
         );
       }
     }
 
-    // 7. Update tool
+    // Build update data explicitly (no spreading)
+    const updateData: Record<string, unknown> = {};
+    if (name !== undefined) updateData.name = name;
+    if (code !== undefined) updateData.code = code;
+    if (description !== undefined) updateData.description = description;
+    if (icon !== undefined) updateData.icon = icon;
+    if (componentPath !== undefined) updateData.componentPath = componentPath;
+    if (active !== undefined) updateData.active = active;
+    if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
     const tool = await prisma.tool.update({
       where: { id: toolId },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(code !== undefined && { code }),
-        ...(description !== undefined && { description }),
-        ...(icon !== undefined && { icon }),
-        ...(componentPath !== undefined && { componentPath }),
-        ...(active !== undefined && { active }),
-        ...(sortOrder !== undefined && { sortOrder }),
-      },
-      include: {
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        description: true,
+        icon: true,
+        componentPath: true,
+        active: true,
+        sortOrder: true,
+        createdAt: true,
+        updatedAt: true,
         subTabs: {
           orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            icon: true,
+            componentPath: true,
+            active: true,
+            sortOrder: true,
+          },
         },
-        serviceLines: true,
+        serviceLines: {
+          select: {
+            subServiceLineGroup: true,
+          },
+        },
         _count: {
           select: {
             tasks: true,
@@ -152,42 +152,23 @@ export async function PUT(
     });
 
     return NextResponse.json(successResponse(tool));
-  } catch (error) {
-    return handleApiError(error, 'Failed to update tool');
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/tools/[id]
  * Delete a tool
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TOOLS,
+  handler: async (request, { params }) => {
+    const toolId = parseToolId(params.id);
 
-    // 2. Parse ID
-    const toolId = parseInt(params.id);
-    if (isNaN(toolId)) {
-      return NextResponse.json({ error: 'Invalid tool ID' }, { status: 400 });
-    }
-
-    // 3. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TOOLS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 4. Check if tool exists
+    // Check if tool exists and get task count
     const existingTool = await prisma.tool.findUnique({
       where: { id: toolId },
-      include: {
+      select: {
+        id: true,
         _count: {
           select: {
             tasks: true,
@@ -197,24 +178,24 @@ export async function DELETE(
     });
 
     if (!existingTool) {
-      return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
+      throw new AppError(404, 'Tool not found', ErrorCodes.NOT_FOUND, { toolId });
     }
 
-    // 5. Check if tool is in use
+    // Check if tool is in use
     if (existingTool._count.tasks > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete tool that is assigned to tasks. Deactivate it instead.' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Cannot delete tool that is assigned to tasks. Deactivate it instead.',
+        ErrorCodes.VALIDATION_ERROR,
+        { toolId, tasksCount: existingTool._count.tasks }
       );
     }
 
-    // 6. Delete tool (cascade will handle subTabs, serviceLines, etc.)
+    // Delete tool (cascade will handle subTabs, serviceLines, etc.)
     await prisma.tool.delete({
       where: { id: toolId },
     });
 
     return NextResponse.json(successResponse({ message: 'Tool deleted successfully' }));
-  } catch (error) {
-    return handleApiError(error, 'Failed to delete tool');
-  }
-}
+  },
+});

@@ -1,64 +1,79 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { canApproveAcceptance } from '@/lib/services/tasks/taskAuthorization';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
-import { toTaskId } from '@/types/branded';
+import { AppError, ErrorCodes, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
+import { parseTaskId } from '@/lib/utils/apiUtils';
 import { logAcceptanceApproved } from '@/lib/services/acceptance/auditLog';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { toTaskId } from '@/types/branded';
 
 /**
  * POST /api/tasks/[id]/acceptance
  * Approve client acceptance and continuance for a task
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'VIEWER',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const brandedTaskId = toTaskId(taskId);
 
     // Check if user can approve acceptance
     // Rules: SYSTEM_ADMIN OR Partner/Administrator (ServiceLineUser.role = ADMINISTRATOR or PARTNER for task's service line)
-    const hasApprovalPermission = await canApproveAcceptance(user.id, taskId);
+    const hasApprovalPermission = await canApproveAcceptance(user.id, brandedTaskId);
 
     if (!hasApprovalPermission) {
-      return NextResponse.json(
-        { error: 'Only Partners and System Administrators can approve client acceptance' },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Only Partners and System Administrators can approve client acceptance',
+        ErrorCodes.FORBIDDEN
       );
     }
 
     // Check if this is a client task
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: {
-        Client: true,
-        TaskAcceptance: true,
+      select: {
+        id: true,
+        TaskDesc: true,
+        Active: true,
+        Client: {
+          select: {
+            id: true,
+            GSClientID: true,
+            clientCode: true,
+            clientNameFull: true,
+          },
+        },
+        TaskAcceptance: {
+          select: {
+            acceptanceApproved: true,
+            approvedBy: true,
+            approvedAt: true,
+          },
+        },
       },
     });
 
     if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     if (!task.Client) {
-      return NextResponse.json(
-        { error: 'Client acceptance is only required for client tasks' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Client acceptance is only required for client tasks',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
     if (task.TaskAcceptance?.acceptanceApproved) {
-      return NextResponse.json(
-        { error: 'Client acceptance already approved', code: AcceptanceErrorCodes.ALREADY_APPROVED },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Client acceptance already approved',
+        AcceptanceErrorCodes.ALREADY_APPROVED
       );
     }
 
@@ -77,32 +92,35 @@ export async function POST(
     });
 
     if (!questionnaireResponse) {
-      return NextResponse.json(
-        { error: 'Questionnaire must be initialized and completed before approval', code: AcceptanceErrorCodes.QUESTIONNAIRE_NOT_INITIALIZED },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Questionnaire must be initialized and completed before approval',
+        AcceptanceErrorCodes.QUESTIONNAIRE_NOT_INITIALIZED
       );
     }
 
     if (!questionnaireResponse.completedAt) {
-      return NextResponse.json(
-        { error: 'Questionnaire must be completed and submitted before approval', code: AcceptanceErrorCodes.INCOMPLETE_QUESTIONNAIRE },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Questionnaire must be completed and submitted before approval',
+        AcceptanceErrorCodes.INCOMPLETE_QUESTIONNAIRE
       );
     }
 
     // Use transaction to ensure both updates succeed or both fail
-    const [updatedResponse, updatedTaskAcceptance] = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       // Update the acceptance response review status
-      const response = await tx.clientAcceptanceResponse.update({
+      await tx.clientAcceptanceResponse.update({
         where: { id: questionnaireResponse.id },
         data: {
           reviewedBy: user.email || user.id,
           reviewedAt: new Date(),
         },
+        select: { id: true },
       });
 
       // Upsert the TaskAcceptance record
-      const taskAcceptance = await tx.taskAcceptance.upsert({
+      await tx.taskAcceptance.upsert({
         where: { taskId },
         create: {
           taskId,
@@ -121,9 +139,8 @@ export async function POST(
           overallRiskScore: questionnaireResponse.overallRiskScore,
           riskRating: questionnaireResponse.riskRating,
         },
+        select: { id: true },
       });
-
-      return [response, taskAcceptance];
     });
 
     // Fetch the task with updated acceptance data for response
@@ -153,20 +170,13 @@ export async function POST(
 
     // Audit log the approval
     await logAcceptanceApproved(
-      taskId,
+      brandedTaskId,
       user.id,
       questionnaireResponse.questionnaireType,
       questionnaireResponse.riskRating || undefined,
       questionnaireResponse.overallRiskScore || undefined
     );
 
-    return NextResponse.json(
-      successResponse(updatedTask),
-      { status: 200 }
-    );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/acceptance');
-  }
-}
-
-
+    return NextResponse.json(successResponse(updatedTask), { status: 200 });
+  },
+});

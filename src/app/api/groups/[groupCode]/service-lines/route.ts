@@ -1,34 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/groups/[groupCode]/service-lines
  * Get service line counts for tasks in a specific group
  * Used to populate service line tabs without fetching all tasks
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { groupCode: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check Permission
-    const hasPermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
-    }
-
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request, { user, params }) => {
     const { groupCode } = params;
 
     // Try cache first
@@ -48,10 +32,7 @@ export async function GET(
     });
 
     if (!groupInfo) {
-      return NextResponse.json(
-        { error: 'Group not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Group not found', ErrorCodes.NOT_FOUND);
     }
 
     // Get task counts grouped by ServLineCode for this group (organization-wide)
@@ -79,6 +60,7 @@ export async function GET(
         ServLineCode: true,
         masterCode: true,
       },
+      take: 1000,
     });
 
     // Get unique master codes
@@ -95,6 +77,7 @@ export async function GET(
         code: true,
         name: true,
       },
+      take: 100,
     });
 
     // Create a map of master codes to names
@@ -142,8 +125,6 @@ export async function GET(
     await cache.set(cacheKey, responseData, 10 * 60);
 
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    return handleApiError(error, 'Get Group Service Lines');
-  }
-}
+  },
+});
 

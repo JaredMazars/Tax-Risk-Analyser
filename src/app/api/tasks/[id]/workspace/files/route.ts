@@ -1,71 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { Prisma } from '@prisma/client';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { getCurrentUser } from '@/lib/services/auth/auth';
 import { logger } from '@/lib/utils/logger';
 import { uploadToOneDrive, getOfficeOnlineUrl, getOrCreateWorkspaceRoot, createFolder, deleteFromOneDrive } from '@/lib/services/workspace/graphService';
+
+// Maximum files to return per request
+const MAX_FILES = 500;
+
+// Query param validation schema
+const ListFilesQuerySchema = z.object({
+  folderId: z.string().optional(),
+});
 
 /**
  * GET /api/tasks/[id]/workspace/files
  * List files in a task's workspace folder
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_WORKSPACE,
+  taskIdParam: 'id',
+  taskRole: 'VIEWER',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
-    // 2. Check feature permission
-    const hasAccess = await checkFeature(user.id, Feature.ACCESS_WORKSPACE);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-
-    // 3. Parse task ID
-    const params = await context.params;
-    const taskId = parseInt(params.id, 10);
-
-    if (isNaN(taskId)) {
-      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
-    }
-
-    // 4. Verify task exists
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { id: true },
+    // Parse and validate query params
+    const { searchParams } = new URL(request.url);
+    const queryResult = ListFilesQuerySchema.safeParse({
+      folderId: searchParams.get('folderId') ?? undefined,
     });
 
-    if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    if (!queryResult.success) {
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // 5. Get folderId from query params (optional)
-    const { searchParams } = new URL(request.url);
-    const folderIdParam = searchParams.get('folderId');
-    const folderId = folderIdParam ? parseInt(folderIdParam, 10) : null;
+    // Parse folderId if provided
+    const folderId = queryResult.data.folderId
+      ? parseNumericId(queryResult.data.folderId, 'Folder', false)
+      : null;
 
-    // 6. Build where clause
-    const whereClause: any = {
+    // Build where clause with proper typing
+    const whereClause: Prisma.WorkspaceFileWhereInput = {
       Folder: {
         taskId,
         active: true,
       },
+      ...(folderId ? { folderId } : {}),
     };
 
-    // Filter by specific folder if provided
-    if (folderId) {
-      whereClause.folderId = folderId;
-    }
-
-    // 7. Fetch files
+    // Fetch files with explicit select and limit
     const files = await prisma.workspaceFile.findMany({
       where: whereClause,
       select: {
@@ -91,6 +79,7 @@ export async function GET(
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: MAX_FILES,
     });
 
     logger.info('Listed task workspace files', {
@@ -100,68 +89,32 @@ export async function GET(
       count: files.length,
     });
 
-    return NextResponse.json(successResponse(files));
-  } catch (error) {
-    return handleApiError(error, 'Failed to list files');
-  }
-}
+    return NextResponse.json(successResponse(files), {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  },
+});
 
 /**
  * POST /api/tasks/[id]/workspace/files
  * Upload a file to a task's workspace folder
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  let taskId: number | null = null;
-  try {
-    // Parse params first for better error logging
-    const params = await context.params;
-    taskId = parseInt(params.id, 10);
-    
-    if (isNaN(taskId)) {
-      logger.warn('Invalid task ID in file upload request', { taskIdString: params.id });
-      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
-    }
+export const POST = secureRoute.fileUploadWithParams({
+  feature: Feature.MANAGE_WORKSPACE_FILES,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
-    const hasAccess = await checkFeature(user.id, Feature.MANAGE_WORKSPACE_FILES);
-    if (!hasAccess) {
-      logger.warn('User denied access to workspace file upload', { userId: user.id, taskId });
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-
-    // 3. Verify task exists
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { 
-        id: true, 
-        TaskCode: true,
-        TaskDesc: true,
-      },
-    });
-
-    if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
-
-    // 5. Parse form data
+    // Parse form data
     let formData: FormData;
     try {
       formData = await request.formData();
     } catch (formError) {
       logger.error('Failed to parse form data', { error: formError, taskId });
-      return NextResponse.json(
-        { error: 'Failed to parse form data. Please ensure the request is multipart/form-data.' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Failed to parse form data. Please ensure the request is multipart/form-data.', ErrorCodes.VALIDATION_ERROR);
     }
 
     const file = formData.get('file') as File | null;
@@ -170,21 +123,17 @@ export async function POST(
 
     if (!file || !(file instanceof File)) {
       logger.warn('No file provided in upload request', { taskId, hasFile: !!file });
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      throw new AppError(400, 'No file provided', ErrorCodes.VALIDATION_ERROR);
     }
 
     if (!folderIdStr || typeof folderIdStr !== 'string') {
       logger.warn('No folder ID provided in upload request', { taskId, folderIdStr });
-      return NextResponse.json({ error: 'Folder ID is required' }, { status: 400 });
+      throw new AppError(400, 'Folder ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    const folderId = parseInt(folderIdStr, 10);
-    if (isNaN(folderId)) {
-      logger.warn('Invalid folder ID format', { taskId, folderIdStr });
-      return NextResponse.json({ error: 'Invalid folder ID' }, { status: 400 });
-    }
+    const folderId = parseNumericId(folderIdStr, 'Folder');
 
-    // 6. Verify folder exists and belongs to this task
+    // Verify folder exists and belongs to this task
     const folder = await prisma.workspaceFolder.findFirst({
       where: {
         id: folderId,
@@ -200,14 +149,10 @@ export async function POST(
     });
 
     if (!folder) {
-      return NextResponse.json(
-        { error: 'Folder not found or does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Folder not found or does not belong to this task', ErrorCodes.NOT_FOUND);
     }
 
-    // 7. Ensure folder exists in OneDrive/SharePoint
-    // If folder doesn't have driveId/itemId, create it in OneDrive first
+    // Ensure folder exists in OneDrive/SharePoint
     let driveId = folder.driveId;
     let itemId = folder.itemId;
 
@@ -241,78 +186,28 @@ export async function POST(
           driveId: oneDriveFolder.driveId,
           itemId: oneDriveFolder.itemId,
         });
-      } catch (graphError: any) {
+      } catch (graphError: unknown) {
         // Extract error details for better logging
-        const errorMessage = graphError?.message || 'Failed to initialize folder in cloud storage';
-        const statusCode = graphError?.statusCode || graphError?.code || 500;
-        
-        // Extract all error details
-        const errorDetails: Record<string, unknown> = {};
-        if (graphError?.code) errorDetails.code = graphError.code;
-        if (graphError?.statusCode) errorDetails.statusCode = graphError.statusCode;
-        if (graphError?.requestId) errorDetails.requestId = graphError.requestId;
-        if (graphError?.body) {
-          try {
-            errorDetails.body = typeof graphError.body === 'string' 
-              ? JSON.parse(graphError.body) 
-              : graphError.body;
-          } catch {
-            errorDetails.body = graphError.body;
-          }
-        }
-        if (graphError?.stack) errorDetails.stack = graphError.stack;
-        
-        // Try to get inner error if present
-        if (graphError?.body?.innerError) {
-          errorDetails.innerError = graphError.body.innerError;
-        }
+        const errorMessage = graphError instanceof Error ? graphError.message : 'Failed to initialize folder in cloud storage';
+        const statusCode = (graphError as { statusCode?: number; code?: number })?.statusCode || (graphError as { code?: number })?.code || 500;
         
         logger.error('Failed to create folder in OneDrive during file upload', {
           folderId,
           folderName: folder.name,
           errorMessage,
           statusCode,
-          errorDetails: Object.keys(errorDetails).length > 0 ? errorDetails : {
-            errorType: typeof graphError,
-            errorString: String(graphError),
-          },
         });
 
-        // Return appropriate error response
         const isAuthError = statusCode === 401 || statusCode === 403;
+        const userMessage = isAuthError
+          ? 'Cloud storage authentication failed. Please contact your administrator.'
+          : 'Failed to initialize folder in cloud storage. Please try again.';
         
-        // Provide helpful error message based on error type
-        let userMessage: string;
-        if (isAuthError) {
-          userMessage = 'Cloud storage authentication failed. This usually means: ' +
-            '1) Azure AD app permissions are not configured, ' +
-            '2) Admin consent is required, or ' +
-            '3) Credentials are invalid. Please contact your administrator.';
-        } else {
-          userMessage = 'Failed to initialize folder in cloud storage. Please try again.';
-        }
-        
-        return NextResponse.json(
-          { 
-            error: userMessage,
-            details: process.env.NODE_ENV === 'development' 
-              ? { 
-                  message: errorMessage,
-                  code: graphError?.code,
-                  statusCode,
-                  requestId: graphError?.requestId,
-                  hint: isAuthError 
-                    ? 'Ensure the Azure AD app has Sites.ReadWrite.All or Files.ReadWrite.All permissions with admin consent'
-                    : undefined,
-                }
-              : undefined,
-          },
-          { status: isAuthError ? 401 : 500 }
-        );
+        throw new AppError(isAuthError ? 401 : 500, userMessage, ErrorCodes.EXTERNAL_API_ERROR);
       }
     }
 
-    // 8. Upload file to OneDrive/SharePoint
+    // Upload file to OneDrive/SharePoint
     let fileBuffer: ArrayBuffer;
     try {
       fileBuffer = await file.arrayBuffer();
@@ -324,10 +219,7 @@ export async function POST(
         fileSize: file.size,
         error: bufferError,
       });
-      return NextResponse.json(
-        { error: 'Failed to read file data' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Failed to read file data', ErrorCodes.VALIDATION_ERROR);
     }
 
     const fileType = file.name.split('.').pop() || '';
@@ -340,7 +232,7 @@ export async function POST(
         driveId!,
         itemId!
       );
-    } catch (uploadError: any) {
+    } catch (uploadError: unknown) {
       logger.error('Failed to upload file to OneDrive', {
         taskId,
         folderId,
@@ -348,19 +240,12 @@ export async function POST(
         fileSize: file.size,
         driveId,
         itemId,
-        error: uploadError?.message || uploadError,
-        stack: uploadError?.stack,
+        error: uploadError instanceof Error ? uploadError.message : uploadError,
       });
-      return NextResponse.json(
-        {
-          error: 'Failed to upload file to cloud storage',
-          details: process.env.NODE_ENV === 'development' ? uploadError?.message : undefined,
-        },
-        { status: 500 }
-      );
+      throw new AppError(500, 'Failed to upload file to cloud storage', ErrorCodes.EXTERNAL_API_ERROR);
     }
 
-    // 9. Get Office Online URL for embedding (optional, may fail for non-Office files)
+    // Get Office Online URL for embedding (optional, may fail for non-Office files)
     let embedUrl: string | null = null;
     try {
       embedUrl = await getOfficeOnlineUrl(uploadResult.driveId, uploadResult.itemId);
@@ -373,7 +258,7 @@ export async function POST(
       });
     }
 
-    // 10. Create file record in database
+    // Create file record in database
     let workspaceFile;
     try {
       workspaceFile = await prisma.workspaceFile.create({
@@ -403,7 +288,8 @@ export async function POST(
           createdAt: true,
         },
       });
-    } catch (dbError: any) {
+    } catch (dbError: unknown) {
+      const errorMessage = dbError instanceof Error ? dbError.message : 'Database error';
       logger.error('Failed to create file record in database', {
         taskId,
         folderId,
@@ -411,9 +297,7 @@ export async function POST(
         fileSize: file.size,
         driveId: uploadResult.driveId,
         itemId: uploadResult.itemId,
-        error: dbError?.message || dbError,
-        code: dbError?.code,
-        meta: dbError?.meta,
+        error: errorMessage,
       });
       
       // Attempt to clean up uploaded file from OneDrive if database insert fails
@@ -433,13 +317,7 @@ export async function POST(
         });
       }
 
-      return NextResponse.json(
-        {
-          error: 'Failed to save file record. The file was uploaded but could not be saved to the database.',
-          details: process.env.NODE_ENV === 'development' ? dbError?.message : undefined,
-        },
-        { status: 500 }
-      );
+      throw new AppError(500, 'Failed to save file record', ErrorCodes.DATABASE_ERROR);
     }
 
     logger.info('Uploaded file to task workspace', {
@@ -452,38 +330,6 @@ export async function POST(
     });
 
     return NextResponse.json(successResponse(workspaceFile), { status: 201 });
-  } catch (error) {
-    // Enhanced error logging
-    const errorDetails: Record<string, unknown> = {
-      taskId: taskId || 'unknown',
-      errorType: error instanceof Error ? error.constructor.name : typeof error,
-      errorMessage: error instanceof Error ? error.message : String(error),
-    };
-
-    if (error instanceof Error) {
-      errorDetails.stack = error.stack;
-      if ('code' in error) errorDetails.code = (error as any).code;
-      if ('statusCode' in error) errorDetails.statusCode = (error as any).statusCode;
-    }
-
-    // Log the full error details
-    logger.error('Unexpected error in file upload', errorDetails);
-
-    // Return detailed error in development, generic in production
-    return NextResponse.json(
-      {
-        success: false,
-        error: process.env.NODE_ENV === 'development' 
-          ? (error instanceof Error ? error.message : 'An unexpected error occurred')
-          : 'Failed to upload file. Please try again or contact support if the issue persists.',
-        code: 'FILE_UPLOAD_ERROR',
-        ...(process.env.NODE_ENV === 'development' ? { 
-          details: errorDetails,
-          stack: error instanceof Error ? error.stack : undefined,
-        } : {}),
-      },
-      { status: 500 }
-    );
-  }
-}
+  },
+});
 

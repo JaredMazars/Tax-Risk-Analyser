@@ -4,6 +4,7 @@ import { notificationService } from '@/lib/services/notifications/notificationSe
 import { SendUserMessageSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * POST /api/notifications/send-message
@@ -15,10 +16,11 @@ export const POST = secureRoute.mutation({
     // Check if recipient exists
     const recipient = await prisma.user.findUnique({
       where: { id: data.recipientUserId },
+      select: { id: true },
     });
 
     if (!recipient) {
-      return NextResponse.json({ success: false, error: 'Recipient user not found' }, { status: 404 });
+      throw new AppError(404, 'Recipient user not found', ErrorCodes.NOT_FOUND);
     }
 
     // If taskId is provided, verify both users have access to the task
@@ -26,18 +28,20 @@ export const POST = secureRoute.mutation({
       const [senderAccess, recipientAccess] = await Promise.all([
         prisma.taskTeam.findFirst({
           where: { taskId: data.taskId, userId: user.id },
+          select: { id: true },
         }),
         prisma.taskTeam.findFirst({
           where: { taskId: data.taskId, userId: data.recipientUserId },
+          select: { id: true },
         }),
       ]);
 
       if (!senderAccess) {
-        return NextResponse.json({ success: false, error: 'You do not have access to this project' }, { status: 403 });
+        throw new AppError(403, 'You do not have access to this project', ErrorCodes.FORBIDDEN);
       }
 
       if (!recipientAccess) {
-        return NextResponse.json({ success: false, error: 'Recipient does not have access to this project' }, { status: 400 });
+        throw new AppError(400, 'Recipient does not have access to this project', ErrorCodes.VALIDATION_ERROR);
       }
     }
 

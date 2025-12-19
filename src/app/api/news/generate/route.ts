@@ -3,15 +3,14 @@
  * POST /api/news/generate - Generate bulletin body content using AI
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { models, getModelParams } from '@/lib/ai/config';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { logger } from '@/lib/utils/logger';
+import { secureRoute } from '@/lib/api/secureRoute';
 import { z } from 'zod';
 
 const GenerateBulletinBodySchema = z.object({
@@ -19,51 +18,44 @@ const GenerateBulletinBodySchema = z.object({
   summary: z.string().min(1, 'Summary is required'),
   category: z.string().optional(),
   tone: z.enum(['formal', 'friendly', 'urgent']).optional().default('formal'),
-});
+}).strict();
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
+/**
+ * POST /api/news/generate
+ * Generate bulletin body content using AI
+ */
+export const POST = secureRoute.ai({
+  schema: GenerateBulletinBodySchema,
+  handler: async (request, { user, data }) => {
     const hasPermission = await checkFeature(user.id, Feature.MANAGE_NEWS, 'BUSINESS_DEV');
     if (!hasPermission) {
       return NextResponse.json(
-        { error: 'Forbidden: You do not have permission to generate bulletin content' },
+        { success: false, error: 'Forbidden: You do not have permission to generate bulletin content' },
         { status: 403 }
       );
     }
 
-    // 3. Parse and validate request body
-    const body = await request.json();
-    const validated = GenerateBulletinBodySchema.parse(body);
-
-    // 4. Build the prompt
     const toneInstructions = {
       formal: 'Use a professional, formal tone appropriate for corporate communications.',
       friendly: 'Use a warm, approachable tone that feels personal yet professional.',
       urgent: 'Use a clear, direct tone that conveys importance and urgency.',
     };
 
-    const categoryContext = validated.category 
-      ? `This is a ${validated.category.replace('_', ' ').toLowerCase()} bulletin.` 
+    const categoryContext = data.category
+      ? `This is a ${data.category.replace('_', ' ').toLowerCase()} bulletin.`
       : '';
 
     const prompt = `You are a professional corporate communications writer for a professional services firm.
 
 Generate the body content for a company news bulletin based on the following:
 
-**Title:** ${validated.title}
+**Title:** ${data.title}
 
-**Summary:** ${validated.summary}
+**Summary:** ${data.summary}
 
 ${categoryContext}
 
-**Tone:** ${toneInstructions[validated.tone]}
+**Tone:** ${toneInstructions[data.tone]}
 
 **Requirements:**
 - Write 2-4 paragraphs of engaging, well-structured content
@@ -77,10 +69,9 @@ ${categoryContext}
 
 Generate the bulletin body content now:`;
 
-    // 5. Generate content using AI
-    logger.info('Generating bulletin body content', { 
-      userId: user.id, 
-      title: validated.title.substring(0, 50) 
+    logger.info('Generating bulletin body content', {
+      userId: user.id,
+      title: data.title.substring(0, 50),
     });
 
     const result = await generateText({
@@ -93,19 +84,16 @@ Generate the bulletin body content now:`;
       throw new Error('AI generation returned empty response');
     }
 
-    logger.info('Bulletin body content generated successfully', { 
+    logger.info('Bulletin body content generated successfully', {
       userId: user.id,
-      contentLength: result.text.length 
+      contentLength: result.text.length,
     });
 
     return NextResponse.json(
-      successResponse({ 
+      successResponse({
         body: result.text.trim(),
         usage: result.usage,
       })
     );
-  } catch (error) {
-    logger.error('Failed to generate bulletin body', { error });
-    return handleApiError(error, 'POST /api/news/generate');
-  }
-}
+  },
+});

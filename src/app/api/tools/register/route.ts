@@ -1,11 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { sanitizeObject } from '@/lib/utils/sanitization';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { RegisterToolSchema } from '@/lib/validation/schemas';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { getToolConfigByCode } from '@/components/tools/ToolRegistry.server';
 
 /**
@@ -13,65 +11,49 @@ import { getToolConfigByCode } from '@/components/tools/ToolRegistry.server';
  * Register a tool from code registry to database
  * Creates Tool and ToolSubTab entries based on tool config
  */
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_TOOLS,
+  schema: RegisterToolSchema,
+  handler: async (request, { data }) => {
+    const { code } = data;
 
-    // 2. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TOOLS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 3. Parse and sanitize body
-    const body = await request.json();
-    const sanitizedData = sanitizeObject(body);
-    const { code } = sanitizedData;
-
-    if (!code || typeof code !== 'string') {
-      return NextResponse.json(
-        { error: 'Missing or invalid tool code' },
-        { status: 400 }
-      );
-    }
-
-    // 4. Get tool config from registry (server-safe)
+    // Get tool config from registry (server-safe)
     const toolConfig = getToolConfigByCode(code);
     if (!toolConfig) {
-      return NextResponse.json(
-        { error: `Tool with code "${code}" not found in registry` },
-        { status: 404 }
+      throw new AppError(
+        404,
+        `Tool with code "${code}" not found in registry`,
+        ErrorCodes.NOT_FOUND,
+        { code }
       );
     }
 
-    // 5. Check if tool already exists in database
+    // Check if tool already exists in database
     const existingTool = await prisma.tool.findUnique({
       where: { code },
+      select: { id: true },
     });
 
     if (existingTool) {
-      return NextResponse.json(
-        { error: `Tool with code "${code}" already exists in database` },
-        { status: 409 }
+      throw new AppError(
+        409,
+        `Tool with code "${code}" already exists in database`,
+        ErrorCodes.CONFLICT,
+        { code }
       );
     }
 
-    // 6. Determine componentPath (derived from tool structure)
     // Map tool codes to their actual directory names
     const toolDirectoryMap: Record<string, string> = {
-      'TAX_CALC': 'TaxCalculationTool',
-      'TAX_ADV': 'TaxAdvisoryTool',
-      'TAX_COMP': 'TaxComplianceTool',
+      TAX_CALC: 'TaxCalculationTool',
+      TAX_ADV: 'TaxAdvisoryTool',
+      TAX_COMP: 'TaxComplianceTool',
     };
-    
+
     const toolDirectory = toolDirectoryMap[code] || code;
     const componentPath = `@/components/tools/${toolDirectory}`;
 
-    // 7. Create tool and sub-tabs in a transaction
+    // Create tool and sub-tabs in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create the tool
       const tool = await tx.tool.create({
@@ -83,6 +65,7 @@ export async function POST(request: NextRequest) {
           active: true,
           sortOrder: 0,
         },
+        select: { id: true },
       });
 
       // Create sub-tabs from defaultSubTabs if provided
@@ -92,7 +75,7 @@ export async function POST(request: NextRequest) {
             toolId: tool.id,
             name: subTab.label,
             code: subTab.id,
-            componentPath: `${componentPath}`, // Sub-tabs are handled internally by the tool component
+            componentPath: componentPath,
             icon: subTab.icon,
             sortOrder: index,
             active: true,
@@ -103,11 +86,31 @@ export async function POST(request: NextRequest) {
       // Fetch the complete tool with relationships
       return await tx.tool.findUnique({
         where: { id: tool.id },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          description: true,
+          icon: true,
+          componentPath: true,
+          active: true,
+          sortOrder: true,
+          createdAt: true,
           subTabs: {
             orderBy: { sortOrder: 'asc' },
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              icon: true,
+              sortOrder: true,
+            },
           },
-          serviceLines: true,
+          serviceLines: {
+            select: {
+              subServiceLineGroup: true,
+            },
+          },
           _count: {
             select: {
               tasks: true,
@@ -120,8 +123,5 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(successResponse(result), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'Failed to register tool');
-  }
-}
-
+  },
+});

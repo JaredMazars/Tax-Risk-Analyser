@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
 import { notificationService } from '@/lib/services/notifications/notificationService';
 import { UpdateInAppNotificationSchema } from '@/lib/validation/schemas';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * PATCH /api/notifications/[id]
@@ -12,16 +13,18 @@ import { secureRoute } from '@/lib/api/secureRoute';
 export const PATCH = secureRoute.mutationWithParams<typeof UpdateInAppNotificationSchema, { id: string }>({
   schema: UpdateInAppNotificationSchema,
   handler: async (request, { user, data, params }) => {
-    const notificationId = Number.parseInt(params.id, 10);
-
-    if (Number.isNaN(notificationId)) {
-      return NextResponse.json({ success: false, error: 'Invalid notification ID' }, { status: 400 });
-    }
+    const notificationId = parseNumericId(params.id, 'Notification');
 
     if (data.isRead) {
       const success = await notificationService.markAsRead(notificationId, user.id);
       if (!success) {
-        return NextResponse.json({ success: false, error: 'Notification not found or unauthorized' }, { status: 404 });
+        throw new AppError(404, 'Notification not found or unauthorized', ErrorCodes.NOT_FOUND);
+      }
+    } else {
+      // Handle marking as unread
+      const success = await notificationService.markAsUnread(notificationId, user.id);
+      if (!success) {
+        throw new AppError(404, 'Notification not found or unauthorized', ErrorCodes.NOT_FOUND);
       }
     }
 
@@ -35,16 +38,12 @@ export const PATCH = secureRoute.mutationWithParams<typeof UpdateInAppNotificati
  */
 export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string }>({
   handler: async (request, { user, params }) => {
-    const notificationId = Number.parseInt(params.id, 10);
-
-    if (Number.isNaN(notificationId)) {
-      return NextResponse.json({ success: false, error: 'Invalid notification ID' }, { status: 400 });
-    }
+    const notificationId = parseNumericId(params.id, 'Notification');
 
     const success = await notificationService.deleteNotification(notificationId, user.id);
 
     if (!success) {
-      return NextResponse.json({ success: false, error: 'Notification not found or unauthorized' }, { status: 404 });
+      throw new AppError(404, 'Notification not found or unauthorized', ErrorCodes.NOT_FOUND);
     }
 
     return NextResponse.json(successResponse({ message: 'Notification deleted successfully' }));

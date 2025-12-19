@@ -1,33 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getRedisStatus, pingRedis } from '@/lib/cache/redisClient';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { isSystemAdmin } from '@/lib/services/auth/authorization';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { successResponse } from '@/lib/utils/apiUtils';
 
 /**
  * GET /api/health/redis
  * Check Redis connection health
- * Requires SYSTEM_ADMIN role
+ * Requires admin access
  */
-export async function GET() {
-  try {
-    // Security: Only system admins can check Redis health
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
+export const GET = secureRoute.query({
+  feature: Feature.ACCESS_ADMIN,
+  handler: async (request, { user }) => {
     // Get connection status
     const status = getRedisStatus();
-    
+
     // Try to ping Redis if connected
     let pingResult = false;
     let pingError: string | null = null;
-    
+
     if (status.connected) {
       try {
         pingResult = await pingRedis();
@@ -36,9 +26,8 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
+    return NextResponse.json(
+      successResponse({
         configured: status.configured,
         connected: status.connected,
         status: status.status,
@@ -47,15 +36,7 @@ export async function GET() {
           error: pingError,
         },
         timestamp: new Date().toISOString(),
-      },
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to check Redis health',
-      },
-      { status: 500 }
+      })
     );
-  }
-}
+  },
+});

@@ -1,57 +1,57 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { toTaskId } from '@/types/branded';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { InitializeQuestionnaireSchema } from '@/lib/validation/schemas';
 import { getQuestionnaireType, getQuestionnaireStructure } from '@/lib/services/acceptance/questionnaireService';
-import { getAllQuestions } from '@/constants/acceptance-questions';
+import { getAllQuestions, type QuestionnaireType } from '@/constants/acceptance-questions';
 import { calculateCompletionPercentage } from '@/lib/services/acceptance/riskCalculation';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * POST /api/tasks/[id]/acceptance/initialize
  * Initialize or retrieve questionnaire for a task
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'VIEWER',
+  schema: InitializeQuestionnaireSchema,
+  handler: async (request, { user, params, data }) => {
+    const taskId = parseTaskId(params.id);
 
     // Get task with client
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: {
-        Client: true,
+      select: {
+        id: true,
+        TaskDesc: true,
+        Client: {
+          select: {
+            id: true,
+            GSClientID: true,
+            clientCode: true,
+            clientNameFull: true,
+          },
+        },
       },
     });
 
     if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
     if (!task.Client) {
-      return NextResponse.json(
-        { error: 'Client acceptance is only required for client tasks' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Client acceptance is only required for client tasks',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
-    // Parse request body
-    const body = await request.json();
-    const validated = InitializeQuestionnaireSchema.parse(body);
-
     // Determine questionnaire type
     const typeResult = await getQuestionnaireType(taskId, task.Client.id);
-    const questionnaireType = validated.questionnaireType || typeResult.recommendedType;
+    const questionnaireType = data.questionnaireType || typeResult.recommendedType;
 
     // Check if response already exists - fetch only essential fields
     let response = await prisma.clientAcceptanceResponse.findFirst({
@@ -106,10 +106,34 @@ export async function POST(
     const [answers, documents] = await Promise.all([
       prisma.acceptanceAnswer.findMany({
         where: { responseId: response.id },
-        include: { AcceptanceQuestion: true },
+        take: 500,
+        orderBy: [{ questionId: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          responseId: true,
+          questionId: true,
+          answer: true,
+          comment: true,
+          createdAt: true,
+          updatedAt: true,
+          AcceptanceQuestion: {
+            select: {
+              id: true,
+              questionKey: true,
+              questionText: true,
+              fieldType: true,
+              sectionKey: true,
+              order: true,
+              required: true,
+              riskWeight: true,
+            },
+          },
+        },
       }),
       prisma.acceptanceDocument.findMany({
         where: { responseId: response.id },
+        take: 100,
+        orderBy: [{ uploadedAt: 'desc' }, { id: 'asc' }],
         select: {
           id: true,
           documentType: true,
@@ -127,7 +151,7 @@ export async function POST(
     // Calculate completion percentage if questionnaire exists
     let completionPercentage = 0;
     if (response && structure) {
-      const questionDefs = getAllQuestions(questionnaireType as any);
+      const questionDefs = getAllQuestions(questionnaireType as QuestionnaireType);
       const answerData = answers.map((a) => ({
         questionKey: a.AcceptanceQuestion.questionKey,
         answer: a.answer || '',
@@ -138,11 +162,13 @@ export async function POST(
     }
 
     // Build risk assessment data for easier access
-    const riskAssessment = response ? {
-      overallRiskScore: response.overallRiskScore,
-      riskRating: response.riskRating,
-      riskSummary: response.riskSummary,
-    } : null;
+    const riskAssessment = response
+      ? {
+          overallRiskScore: response.overallRiskScore,
+          riskRating: response.riskRating,
+          riskSummary: response.riskSummary,
+        }
+      : null;
 
     return NextResponse.json(
       successResponse({
@@ -155,9 +181,5 @@ export async function POST(
         riskAssessment,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/acceptance/initialize');
-  }
-}
-
-
+  },
+});

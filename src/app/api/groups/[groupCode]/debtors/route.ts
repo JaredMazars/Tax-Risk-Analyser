@@ -1,21 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { 
   aggregateDebtorsByServiceLine, 
   aggregateOverallDebtorData,
   DebtorMetrics 
 } from '@/lib/services/analytics/debtorAggregation';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
-
-interface MasterServiceLineInfo {
-  code: string;
-  name: string;
-}
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/groups/[groupCode]/debtors
@@ -28,34 +21,16 @@ interface MasterServiceLineInfo {
  * - Transaction count
  * - Latest update timestamp
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { groupCode: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Parse IDs
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.VIEW_WIP_DATA,
+  handler: async (request, { user, params }) => {
     const { groupCode } = params;
 
     if (!groupCode) {
-      return NextResponse.json(
-        { error: 'Group code is required' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Group code is required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // 3. Check Permission
-    const hasPermission = await checkFeature(user.id, Feature.VIEW_WIP_DATA);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
-    }
-
-    // 4. Execute - Verify the group exists
+    // Verify the group exists
     const groupInfo = await prisma.client.findFirst({
       where: { groupCode },
       select: {
@@ -65,10 +40,7 @@ export async function GET(
     });
 
     if (!groupInfo) {
-      return NextResponse.json(
-        { error: 'Group not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Group not found', ErrorCodes.NOT_FOUND);
     }
 
     // Generate cache key
@@ -80,7 +52,7 @@ export async function GET(
       return NextResponse.json(successResponse(cached));
     }
 
-    // Get all clients in this group (organization-wide)
+    // Get all clients in this group (organization-wide, limited to 1000)
     const clientsInGroup = await prisma.client.findMany({
       where: {
         groupCode,
@@ -88,6 +60,7 @@ export async function GET(
       select: {
         GSClientID: true,
       },
+      take: 1000,
     });
 
     const GSClientIDs = clientsInGroup.map(c => c.GSClientID);
@@ -119,7 +92,7 @@ export async function GET(
       );
     }
 
-    // 4-5. Execute - Fetch debtor transactions for all clients in the group
+    // Fetch debtor transactions for all clients in the group (limited to 50000)
     const debtorTransactions = await prisma.drsTransactions.findMany({
       where: {
         GSClientID: {
@@ -136,6 +109,7 @@ export async function GET(
         ServLineCode: true,
         updatedAt: true,
       },
+      take: 50000,
     });
 
     // Get Service Line External mappings to Master Service Lines
@@ -144,6 +118,7 @@ export async function GET(
         ServLineCode: true,
         masterCode: true,
       },
+      take: 1000,
     });
 
     // Create a map of ServLineCode to masterCode
@@ -174,6 +149,7 @@ export async function GET(
         code: true,
         name: true,
       },
+      take: 100,
     });
 
     // Convert grouped data to response format
@@ -207,7 +183,5 @@ export async function GET(
     await cache.set(cacheKey, responseData, 600);
 
     return NextResponse.json(successResponse(responseData));
-  } catch (error) {
-    return handleApiError(error, 'Get Group Debtors');
-  }
-}
+  },
+});

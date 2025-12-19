@@ -1,29 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { toTaskId } from '@/types/branded';
+import { NextResponse } from 'next/server';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { getQuestionnaireStatus } from '@/lib/services/acceptance/questionnaireService';
 import { calculateCompletionPercentage } from '@/lib/services/acceptance/riskCalculation';
-import { getAllQuestions } from '@/constants/acceptance-questions';
+import { getAllQuestions, type QuestionnaireType } from '@/constants/acceptance-questions';
 import { prisma } from '@/lib/db/prisma';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/tasks/[id]/acceptance/status
  * Get questionnaire status and completion info
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'VIEWER',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
     const status = await getQuestionnaireStatus(taskId);
 
@@ -32,17 +24,26 @@ export async function GET(
       const response = await prisma.clientAcceptanceResponse.findFirst({
         where: { taskId },
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          questionnaireType: true,
           AcceptanceAnswer: {
-            include: {
-              AcceptanceQuestion: true,
+            take: 500,
+            select: {
+              answer: true,
+              comment: true,
+              AcceptanceQuestion: {
+                select: {
+                  questionKey: true,
+                },
+              },
             },
           },
         },
       });
 
       if (response) {
-        const questionDefs = getAllQuestions(response.questionnaireType as any);
+        const questionDefs = getAllQuestions(response.questionnaireType as QuestionnaireType);
         const answerData = response.AcceptanceAnswer.map((a) => ({
           questionKey: a.AcceptanceQuestion.questionKey,
           answer: a.answer || '',
@@ -55,7 +56,12 @@ export async function GET(
           successResponse({
             ...status,
             completionPercentage,
-          })
+          }),
+          {
+            headers: {
+              'Cache-Control': 'no-store',
+            },
+          }
         );
       }
     }
@@ -64,20 +70,12 @@ export async function GET(
       successResponse({
         ...status,
         completionPercentage: status.exists ? 0 : null,
-      })
+      }),
+      {
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/acceptance/status');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

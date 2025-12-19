@@ -1,59 +1,75 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { toTaskId } from '@/types/branded';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
 import { validateRequiredQuestions } from '@/lib/services/acceptance/riskCalculation';
-import { getAllQuestions } from '@/constants/acceptance-questions';
+import { getAllQuestions, type QuestionnaireType } from '@/constants/acceptance-questions';
+import { validateAcceptanceAccess } from '@/lib/api/acceptanceMiddleware';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * POST /api/tasks/[id]/acceptance/submit
  * Submit questionnaire for review
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+    // Validate user has access to task
+    const hasAccess = await validateAcceptanceAccess(taskId, user.id);
+    if (!hasAccess) {
+      throw new AppError(
+        403,
+        'Forbidden',
+        AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS
+      );
+    }
 
     // Get the active questionnaire response for this task
     const response = await prisma.clientAcceptanceResponse.findFirst({
       where: { taskId },
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        id: true,
+        questionnaireType: true,
+        completedAt: true,
         AcceptanceAnswer: {
-          include: {
-            AcceptanceQuestion: true,
+          take: 500,
+          select: {
+            answer: true,
+            comment: true,
+            AcceptanceQuestion: {
+              select: {
+                questionKey: true,
+              },
+            },
           },
         },
       },
     });
 
     if (!response) {
-      return NextResponse.json(
-        { error: 'Questionnaire not initialized' },
-        { status: 404 }
+      throw new AppError(
+        404,
+        'Questionnaire not initialized',
+        AcceptanceErrorCodes.QUESTIONNAIRE_NOT_INITIALIZED
       );
     }
 
     // Check if already completed
     if (response.completedAt) {
-      return NextResponse.json(
-        { error: 'Questionnaire already submitted' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Questionnaire already submitted',
+        AcceptanceErrorCodes.ALREADY_SUBMITTED
       );
     }
 
     // Validate all required questions are answered
-    const questionDefs = getAllQuestions(response.questionnaireType as any);
+    const questionDefs = getAllQuestions(response.questionnaireType as QuestionnaireType);
     const answerData = response.AcceptanceAnswer.map((a) => ({
       questionKey: a.AcceptanceQuestion.questionKey,
       answer: a.answer || '',
@@ -63,12 +79,11 @@ export async function POST(
     const validation = validateRequiredQuestions(questionDefs, answerData);
 
     if (!validation.isValid) {
-      return NextResponse.json(
-        {
-          error: 'Not all required questions have been answered',
-          missingQuestions: validation.missingQuestions,
-        },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Not all required questions have been answered',
+        AcceptanceErrorCodes.INCOMPLETE_QUESTIONNAIRE,
+        { missingQuestions: validation.missingQuestions }
       );
     }
 
@@ -78,6 +93,15 @@ export async function POST(
       data: {
         completedAt: new Date(),
         completedBy: user.email || user.id,
+      },
+      select: {
+        id: true,
+        taskId: true,
+        questionnaireType: true,
+        completedAt: true,
+        completedBy: true,
+        overallRiskScore: true,
+        riskRating: true,
       },
     });
 
@@ -89,18 +113,5 @@ export async function POST(
         message: 'Questionnaire submitted successfully for review',
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/acceptance/submit');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

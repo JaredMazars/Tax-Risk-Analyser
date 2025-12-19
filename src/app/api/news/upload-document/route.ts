@@ -3,61 +3,43 @@
  * POST /api/news/upload-document - Upload PDF and extract content for bulletin generation
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { logger } from '@/lib/utils/logger';
 import { processUploadedPDF, uploadBulletinDocument } from '@/lib/services/news/documentService';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
-import { checkRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_MIME_TYPES = ['application/pdf'];
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
+/**
+ * POST /api/news/upload-document
+ * Upload PDF and extract content for bulletin generation
+ */
+export const POST = secureRoute.fileUpload({
+  handler: async (request, { user }) => {
     const hasPermission = await checkFeature(user.id, Feature.MANAGE_NEWS, 'BUSINESS_DEV');
     if (!hasPermission) {
       return NextResponse.json(
-        { error: 'Forbidden: You do not have permission to upload bulletin documents' },
+        { success: false, error: 'Forbidden: You do not have permission to upload bulletin documents' },
         { status: 403 }
       );
     }
 
-    // 3. Rate limiting
-    await checkRateLimit(request, RateLimitPresets.FILE_UPLOADS);
-
-    // 4. Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      throw new AppError(
-        400,
-        'No file provided',
-        ErrorCodes.VALIDATION_ERROR
-      );
+      throw new AppError(400, 'No file provided', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // 5. Validate file type
-    if (file.type !== 'application/pdf') {
-      throw new AppError(
-        400,
-        'Invalid file type. Only PDF files are supported.',
-        ErrorCodes.VALIDATION_ERROR
-      );
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      throw new AppError(400, 'Invalid file type. Only PDF files are supported.', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // 6. Validate file size
     if (file.size > MAX_FILE_SIZE) {
       throw new AppError(
         400,
@@ -66,7 +48,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7. Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -76,7 +57,6 @@ export async function POST(request: NextRequest) {
       fileSize: file.size,
     });
 
-    // 8. Process PDF: extract text and generate suggestions
     const result = await processUploadedPDF(buffer);
 
     logger.info('Successfully processed PDF and generated suggestions', {
@@ -85,7 +65,6 @@ export async function POST(request: NextRequest) {
       confidence: result.suggestions.confidence,
     });
 
-    // 9. Upload document to blob storage (temp folder - no bulletin ID yet)
     const uploadResult = await uploadBulletinDocument(buffer, file.name);
 
     logger.info('Successfully uploaded document to blob storage', {
@@ -93,11 +72,10 @@ export async function POST(request: NextRequest) {
       filePath: uploadResult.filePath,
     });
 
-    // 10. Return suggestions and document metadata to user for review
     return NextResponse.json(
       successResponse({
         suggestions: result.suggestions,
-        extractedText: result.extractedText.substring(0, 500), // Preview only
+        extractedText: result.extractedText.substring(0, 500),
         documentMetadata: {
           fileName: uploadResult.fileName,
           filePath: uploadResult.filePath,
@@ -106,11 +84,8 @@ export async function POST(request: NextRequest) {
         },
       })
     );
-  } catch (error) {
-    logger.error('Failed to process bulletin document upload', { error });
-    return handleApiError(error, 'POST /api/news/upload-document');
-  }
-}
+  },
+});
 
 
 

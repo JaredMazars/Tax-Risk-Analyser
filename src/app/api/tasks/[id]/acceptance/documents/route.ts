@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
-import { toTaskId } from '@/types/branded';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
 import { uploadAcceptanceDocument, getAcceptanceDocuments, deleteAcceptanceDocument } from '@/lib/services/acceptance/documentService';
 import { validateAcceptanceAccess } from '@/lib/api/acceptanceMiddleware';
 import { sanitizeFilename } from '@/lib/utils/sanitization';
 import { logDocumentUploaded, logDocumentDeleted } from '@/lib/services/acceptance/auditLog';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 // File upload constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -22,29 +22,31 @@ const ALLOWED_MIME_TYPES = [
   'text/plain',
 ];
 
+const VALID_DOCUMENT_TYPES = ['WECHECK', 'PONG', 'OTHER'] as const;
+
+// Zod schema for DELETE query params
+const DeleteDocumentQuerySchema = z.object({
+  documentId: z.string().min(1, 'Document ID is required'),
+});
+
 /**
  * POST /api/tasks/[id]/acceptance/documents
  * Upload a supporting document with enhanced validation
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+export const POST = secureRoute.fileUploadWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
     // Validate user has access to project
     const hasAccess = await validateAcceptanceAccess(taskId, user.id);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Forbidden', code: AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Forbidden',
+        AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS
       );
     }
 
@@ -59,17 +61,19 @@ export async function POST(
     });
 
     if (!response) {
-      return NextResponse.json(
-        { error: 'Questionnaire not initialized', code: AcceptanceErrorCodes.QUESTIONNAIRE_NOT_INITIALIZED },
-        { status: 404 }
+      throw new AppError(
+        404,
+        'Questionnaire not initialized',
+        AcceptanceErrorCodes.QUESTIONNAIRE_NOT_INITIALIZED
       );
     }
 
     // Check if questionnaire is locked (reviewed)
     if (response.reviewedAt) {
-      return NextResponse.json(
-        { error: 'Cannot upload documents after review', code: AcceptanceErrorCodes.CANNOT_MODIFY_AFTER_REVIEW },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Cannot upload documents after review',
+        AcceptanceErrorCodes.CANNOT_MODIFY_AFTER_REVIEW
       );
     }
 
@@ -79,31 +83,33 @@ export async function POST(
     const documentType = (formData.get('documentType') as string) || 'OTHER';
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      throw new AppError(400, 'No file provided', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`, code: AcceptanceErrorCodes.FILE_TOO_LARGE },
-        { status: 400 }
+      throw new AppError(
+        400,
+        `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`,
+        AcceptanceErrorCodes.FILE_TOO_LARGE
       );
     }
 
     // Validate MIME type
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'File type not allowed. Allowed types: PDF, Word, Excel, PNG, JPEG', code: AcceptanceErrorCodes.INVALID_DOCUMENT_TYPE },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'File type not allowed. Allowed types: PDF, Word, Excel, PNG, JPEG',
+        AcceptanceErrorCodes.INVALID_DOCUMENT_TYPE
       );
     }
 
     // Validate document type
-    const validTypes = ['WECHECK', 'PONG', 'OTHER'];
-    if (!validTypes.includes(documentType)) {
-      return NextResponse.json(
-        { error: 'Invalid document type', code: AcceptanceErrorCodes.INVALID_DOCUMENT_TYPE },
-        { status: 400 }
+    if (!VALID_DOCUMENT_TYPES.includes(documentType as typeof VALID_DOCUMENT_TYPES[number])) {
+      throw new AppError(
+        400,
+        'Invalid document type',
+        AcceptanceErrorCodes.INVALID_DOCUMENT_TYPE
       );
     }
 
@@ -116,7 +122,7 @@ export async function POST(
     // Upload document
     const document = await uploadAcceptanceDocument({
       responseId: response.id,
-      documentType: documentType as any,
+      documentType: documentType as typeof VALID_DOCUMENT_TYPES[number],
       file: {
         name: sanitizedFilename,
         data: buffer,
@@ -129,34 +135,27 @@ export async function POST(
     await logDocumentUploaded(taskId, user.id, document.id, sanitizedFilename, documentType);
 
     return NextResponse.json(successResponse(document), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/acceptance/documents');
-  }
-}
+  },
+});
 
 /**
  * GET /api/tasks/[id]/acceptance/documents
  * Get all documents for the questionnaire
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'VIEWER',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
     // Validate user has access to task
     const hasAccess = await validateAcceptanceAccess(taskId, user.id);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Forbidden', code: AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Forbidden',
+        AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS
       );
     }
 
@@ -170,56 +169,63 @@ export async function GET(
     });
 
     if (!response) {
-      return NextResponse.json(
-        { error: 'Questionnaire not initialized', code: AcceptanceErrorCodes.QUESTIONNAIRE_NOT_INITIALIZED },
-        { status: 404 }
+      throw new AppError(
+        404,
+        'Questionnaire not initialized',
+        AcceptanceErrorCodes.QUESTIONNAIRE_NOT_INITIALIZED
       );
     }
 
     const documents = await getAcceptanceDocuments(response.id);
 
-    return NextResponse.json(successResponse(documents));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/acceptance/documents');
-  }
-}
+    return NextResponse.json(successResponse(documents), {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  },
+});
 
 /**
- * DELETE /api/tasks/[id]/acceptance/documents/[documentId]
+ * DELETE /api/tasks/[id]/acceptance/documents
  * Delete a document with authorization and audit
+ * Note: documentId passed as query param
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
     const { searchParams } = new URL(request.url);
-    const documentId = searchParams.get('documentId');
+    const queryResult = DeleteDocumentQuerySchema.safeParse({
+      documentId: searchParams.get('documentId'),
+    });
 
-    if (!documentId) {
-      return NextResponse.json({ error: 'Document ID required' }, { status: 400 });
+    if (!queryResult.success) {
+      throw new AppError(
+        400,
+        'Document ID required',
+        ErrorCodes.VALIDATION_ERROR
+      );
     }
+
+    const documentId = parseNumericId(queryResult.data.documentId, 'Document');
 
     // Validate user has access to task
     const hasAccess = await validateAcceptanceAccess(taskId, user.id);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Forbidden', code: AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Forbidden',
+        AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS
       );
     }
 
     // Get document details for audit log
     const document = await prisma.acceptanceDocument.findUnique({
-      where: { id: Number.parseInt(documentId) },
+      where: { id: documentId },
       select: {
         id: true,
         fileName: true,
@@ -232,27 +238,24 @@ export async function DELETE(
     });
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      throw new AppError(404, 'Document not found', ErrorCodes.NOT_FOUND);
     }
 
     // Check if questionnaire is locked
     if (document.ClientAcceptanceResponse.reviewedAt) {
-      return NextResponse.json(
-        { error: 'Cannot delete documents after review', code: AcceptanceErrorCodes.CANNOT_MODIFY_AFTER_REVIEW },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Cannot delete documents after review',
+        AcceptanceErrorCodes.CANNOT_MODIFY_AFTER_REVIEW
       );
     }
 
     // Delete document
-    await deleteAcceptanceDocument(Number.parseInt(documentId));
+    await deleteAcceptanceDocument(documentId);
 
     // Audit log
-    await logDocumentDeleted(taskId, user.id, Number.parseInt(documentId), document.fileName);
+    await logDocumentDeleted(taskId, user.id, documentId, document.fileName);
 
     return NextResponse.json(successResponse({ deleted: true }));
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/tasks/[id]/acceptance/documents');
-  }
-}
-
-
+  },
+});

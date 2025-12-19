@@ -1,75 +1,70 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
-import { toTaskId } from '@/types/branded';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
 import { SaveAnswersByKeySchema } from '@/lib/validation/schemas';
 import { calculateRiskAssessment } from '@/lib/services/acceptance/riskCalculation';
-import { getAllQuestions } from '@/constants/acceptance-questions';
+import { getAllQuestions, type QuestionnaireType } from '@/constants/acceptance-questions';
 import { sanitizeComment } from '@/lib/utils/sanitization';
-import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 import { validateAcceptanceAccess } from '@/lib/api/acceptanceMiddleware';
 import { logAnswersSaved } from '@/lib/services/acceptance/auditLog';
 import { logger } from '@/lib/utils/logger';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * PATCH /api/tasks/[id]/acceptance/answers
  * Save or update questionnaire answers (autosave)
  */
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
-
-    // Rate limit autosave to prevent abuse
-    await enforceRateLimit(request, RateLimitPresets.STANDARD);
+export const PATCH = secureRoute.mutationWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  schema: SaveAnswersByKeySchema,
+  handler: async (request, { user, params, data }) => {
+    const taskId = parseTaskId(params.id);
 
     // Validate user has access to task
     const hasAccess = await validateAcceptanceAccess(taskId, user.id);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Forbidden', code: AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Forbidden',
+        AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS
       );
     }
-
-    // Parse and validate request body
-    const body = await request.json();
-    const validated = SaveAnswersByKeySchema.parse(body);
 
     // Get the active questionnaire response for this task
     const response = await prisma.clientAcceptanceResponse.findFirst({
       where: { taskId },
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        questionnaireType: true,
+        reviewedAt: true,
+      },
     });
 
     if (!response) {
-      return NextResponse.json(
-        { error: 'Questionnaire not initialized. Call /initialize first.' },
-        { status: 404 }
+      throw new AppError(
+        404,
+        'Questionnaire not initialized. Call /initialize first.',
+        ErrorCodes.NOT_FOUND
       );
     }
 
     // Check if user can edit (not reviewed)
     if (response.reviewedAt) {
-      return NextResponse.json(
-        { error: 'Cannot modify questionnaire after review', code: AcceptanceErrorCodes.CANNOT_MODIFY_AFTER_REVIEW },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Cannot modify questionnaire after review',
+        AcceptanceErrorCodes.CANNOT_MODIFY_AFTER_REVIEW
       );
     }
 
     // Get all questions for this questionnaire type to map keys to IDs
     const allQuestions = await prisma.acceptanceQuestion.findMany({
       where: { questionnaireType: response.questionnaireType },
+      take: 200,
       select: {
         id: true,
         questionKey: true,
@@ -79,10 +74,10 @@ export async function PATCH(
     const questionMap = new Map(allQuestions.map((q) => [q.questionKey, q]));
 
     // Batch upsert answers (no transaction - each upsert is atomic)
-    const upsertPromises = validated.answers
+    const upsertPromises = data.answers
       .map((answerInput) => {
         const question = questionMap.get(answerInput.questionKey);
-        
+
         if (!question) {
           logger.warn('Question not found', { questionKey: answerInput.questionKey });
           return null;
@@ -108,6 +103,7 @@ export async function PATCH(
             answer: answerInput.answer,
             comment: sanitizedComment,
           },
+          select: { id: true },
         });
       })
       .filter((p) => p !== null);
@@ -118,6 +114,7 @@ export async function PATCH(
     // Get all current answers (optimized query - only needed fields)
     const allAnswers = await prisma.acceptanceAnswer.findMany({
       where: { responseId: response.id },
+      take: 500,
       select: {
         answer: true,
         comment: true,
@@ -130,7 +127,7 @@ export async function PATCH(
     });
 
     // Calculate risk assessment
-    const questionDefs = getAllQuestions(response.questionnaireType as any);
+    const questionDefs = getAllQuestions(response.questionnaireType as QuestionnaireType);
     const answerData = allAnswers.map((a) => ({
       questionKey: a.AcceptanceQuestion.questionKey,
       answer: a.answer || '',
@@ -157,19 +154,14 @@ export async function PATCH(
       },
     });
 
-    const updatedResponse = { updated, riskAssessment };
-
     // Audit log
-    await logAnswersSaved(taskId, user.id, validated.answers.length);
+    await logAnswersSaved(taskId, user.id, data.answers.length);
 
     return NextResponse.json(
       successResponse({
-        response: updatedResponse.updated,
-        riskAssessment: updatedResponse.riskAssessment,
+        response: updated,
+        riskAssessment,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'PATCH /api/tasks/[id]/acceptance/answers');
-  }
-}
-
+  },
+});

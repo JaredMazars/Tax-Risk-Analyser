@@ -5,220 +5,158 @@
  * DELETE /api/news/[id] - Soft delete bulletin (admin)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute } from '@/lib/api/secureRoute';
 import { UpdateNewsBulletinSchema } from '@/lib/validation/schemas';
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
+const bulletinSelect = {
+  id: true,
+  title: true,
+  summary: true,
+  body: true,
+  category: true,
+  serviceLine: true,
+  effectiveDate: true,
+  expiresAt: true,
+  contactPerson: true,
+  actionRequired: true,
+  callToActionUrl: true,
+  callToActionText: true,
+  isPinned: true,
+  isActive: true,
+  documentFileName: true,
+  documentFilePath: true,
+  documentFileSize: true,
+  documentUploadedAt: true,
+  showDocumentLink: true,
+  createdAt: true,
+  updatedAt: true,
+  createdBy: { select: { id: true, name: true, email: true } },
+} as const;
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
-    const bulletinId = Number.parseInt(id, 10);
+/**
+ * GET /api/news/[id]
+ * Get single bulletin
+ */
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  handler: async (request, { user, params }) => {
+    const bulletinId = Number.parseInt(params.id, 10);
 
     if (Number.isNaN(bulletinId)) {
-      return NextResponse.json({ error: 'Invalid bulletin ID' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid bulletin ID' }, { status: 400 });
     }
 
-    // 2. Get the bulletin
     const bulletin = await prisma.newsBulletin.findUnique({
       where: { id: bulletinId },
-      select: {
-        id: true,
-        title: true,
-        summary: true,
-        body: true,
-        category: true,
-        serviceLine: true,
-        effectiveDate: true,
-        expiresAt: true,
-        contactPerson: true,
-        actionRequired: true,
-        callToActionUrl: true,
-        callToActionText: true,
-        isPinned: true,
-        isActive: true,
-        documentFileName: true,
-        documentFilePath: true,
-        documentFileSize: true,
-        documentUploadedAt: true,
-        showDocumentLink: true,
-        createdAt: true,
-        updatedAt: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+      select: bulletinSelect,
     });
 
     if (!bulletin) {
-      return NextResponse.json({ error: 'Bulletin not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Bulletin not found' }, { status: 404 });
     }
 
     return NextResponse.json(successResponse(bulletin));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/news/[id]');
-  }
-}
+  },
+});
 
-export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
+/**
+ * PUT /api/news/[id]
+ * Update bulletin (admin)
+ */
+export const PUT = secureRoute.mutationWithParams<typeof UpdateNewsBulletinSchema, { id: string }>({
+  schema: UpdateNewsBulletinSchema,
+  handler: async (request, { user, params, data }) => {
     const hasPermission = await checkFeature(user.id, Feature.MANAGE_NEWS, 'BUSINESS_DEV');
     if (!hasPermission) {
       return NextResponse.json(
-        { error: 'Forbidden: You do not have permission to update news bulletins' },
+        { success: false, error: 'Forbidden: You do not have permission to update news bulletins' },
         { status: 403 }
       );
     }
 
-    const { id } = await params;
-    const bulletinId = Number.parseInt(id, 10);
+    const bulletinId = Number.parseInt(params.id, 10);
 
     if (Number.isNaN(bulletinId)) {
-      return NextResponse.json({ error: 'Invalid bulletin ID' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid bulletin ID' }, { status: 400 });
     }
 
-    // 3. Check bulletin exists
     const existing = await prisma.newsBulletin.findUnique({
       where: { id: bulletinId },
       select: { id: true },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: 'Bulletin not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Bulletin not found' }, { status: 404 });
     }
 
-    // 4. Parse and validate request body
-    const body = await request.json();
-    const validated = UpdateNewsBulletinSchema.parse(body);
-
-    // 5. Update the bulletin
     const bulletin = await prisma.newsBulletin.update({
       where: { id: bulletinId },
       data: {
-        ...(validated.title !== undefined && { title: validated.title }),
-        ...(validated.summary !== undefined && { summary: validated.summary }),
-        ...(validated.body !== undefined && { body: validated.body }),
-        ...(validated.category !== undefined && { category: validated.category }),
-        ...(validated.serviceLine !== undefined && { serviceLine: validated.serviceLine }),
-        ...(validated.effectiveDate !== undefined && { effectiveDate: validated.effectiveDate }),
-        ...(validated.expiresAt !== undefined && { expiresAt: validated.expiresAt }),
-        ...(validated.contactPerson !== undefined && { contactPerson: validated.contactPerson }),
-        ...(validated.actionRequired !== undefined && { actionRequired: validated.actionRequired }),
-        ...(validated.callToActionUrl !== undefined && { callToActionUrl: validated.callToActionUrl }),
-        ...(validated.callToActionText !== undefined && { callToActionText: validated.callToActionText }),
-        ...(validated.isPinned !== undefined && { isPinned: validated.isPinned }),
-        ...(validated.isActive !== undefined && { isActive: validated.isActive }),
-        ...(validated.documentFileName !== undefined && { documentFileName: validated.documentFileName }),
-        ...(validated.documentFilePath !== undefined && { documentFilePath: validated.documentFilePath }),
-        ...(validated.documentFileSize !== undefined && { documentFileSize: validated.documentFileSize }),
-        ...(validated.documentUploadedAt !== undefined && { documentUploadedAt: validated.documentUploadedAt }),
-        ...(validated.showDocumentLink !== undefined && { showDocumentLink: validated.showDocumentLink }),
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.summary !== undefined && { summary: data.summary }),
+        ...(data.body !== undefined && { body: data.body }),
+        ...(data.category !== undefined && { category: data.category }),
+        ...(data.serviceLine !== undefined && { serviceLine: data.serviceLine }),
+        ...(data.effectiveDate !== undefined && { effectiveDate: data.effectiveDate }),
+        ...(data.expiresAt !== undefined && { expiresAt: data.expiresAt }),
+        ...(data.contactPerson !== undefined && { contactPerson: data.contactPerson }),
+        ...(data.actionRequired !== undefined && { actionRequired: data.actionRequired }),
+        ...(data.callToActionUrl !== undefined && { callToActionUrl: data.callToActionUrl }),
+        ...(data.callToActionText !== undefined && { callToActionText: data.callToActionText }),
+        ...(data.isPinned !== undefined && { isPinned: data.isPinned }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.documentFileName !== undefined && { documentFileName: data.documentFileName }),
+        ...(data.documentFilePath !== undefined && { documentFilePath: data.documentFilePath }),
+        ...(data.documentFileSize !== undefined && { documentFileSize: data.documentFileSize }),
+        ...(data.documentUploadedAt !== undefined && { documentUploadedAt: data.documentUploadedAt }),
+        ...(data.showDocumentLink !== undefined && { showDocumentLink: data.showDocumentLink }),
       },
-      select: {
-        id: true,
-        title: true,
-        summary: true,
-        body: true,
-        category: true,
-        serviceLine: true,
-        effectiveDate: true,
-        expiresAt: true,
-        contactPerson: true,
-        actionRequired: true,
-        callToActionUrl: true,
-        callToActionText: true,
-        isPinned: true,
-        isActive: true,
-        documentFileName: true,
-        documentFilePath: true,
-        documentFileSize: true,
-        documentUploadedAt: true,
-        showDocumentLink: true,
-        createdAt: true,
-        updatedAt: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+      select: bulletinSelect,
     });
 
     return NextResponse.json(successResponse(bulletin));
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/news/[id]');
-  }
-}
+  },
+});
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check feature permission
+/**
+ * DELETE /api/news/[id]
+ * Soft delete bulletin (admin)
+ */
+export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string }>({
+  handler: async (request, { user, params }) => {
     const hasPermission = await checkFeature(user.id, Feature.MANAGE_NEWS, 'BUSINESS_DEV');
     if (!hasPermission) {
       return NextResponse.json(
-        { error: 'Forbidden: You do not have permission to delete news bulletins' },
+        { success: false, error: 'Forbidden: You do not have permission to delete news bulletins' },
         { status: 403 }
       );
     }
 
-    const { id } = await params;
-    const bulletinId = Number.parseInt(id, 10);
+    const bulletinId = Number.parseInt(params.id, 10);
 
     if (Number.isNaN(bulletinId)) {
-      return NextResponse.json({ error: 'Invalid bulletin ID' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid bulletin ID' }, { status: 400 });
     }
 
-    // 3. Check bulletin exists
     const existing = await prisma.newsBulletin.findUnique({
       where: { id: bulletinId },
       select: { id: true },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: 'Bulletin not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Bulletin not found' }, { status: 404 });
     }
 
-    // 4. Soft delete by setting isActive to false
     await prisma.newsBulletin.update({
       where: { id: bulletinId },
       data: { isActive: false },
     });
 
     return NextResponse.json(successResponse({ message: 'Bulletin deleted successfully' }));
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/news/[id]');
-  }
-}
+  },
+});

@@ -3,6 +3,39 @@ import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute } from '@/lib/api/secureRoute';
 
+// Maximum allocations to return to prevent unbounded queries
+const MAX_ALLOCATIONS = 500;
+
+// Type definitions for response data
+interface AllocationData {
+  id: number;
+  taskId: number;
+  taskName: string | null;
+  taskCode: string | null;
+  clientName: string;
+  clientCode: string;
+  role: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  allocatedHours: number | null;
+  allocatedPercentage: number | null;
+  actualHours: number | null;
+  isCurrentTask: boolean;
+}
+
+interface FlatAllocationData extends AllocationData {
+  clientId: number | null;
+  serviceLine: string | null;
+  subServiceLineGroup: string | null;
+}
+
+interface ClientGroup {
+  clientId: number | null;
+  clientName: string;
+  clientCode: string;
+  allocations: AllocationData[];
+}
+
 /**
  * GET /api/users/me/allocations
  * Fetch all task allocations for the current user, grouped by client
@@ -25,7 +58,8 @@ export const GET = secureRoute.query({
           }
         }
       },
-      orderBy: { startDate: 'asc' }
+      orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
+      take: MAX_ALLOCATIONS,
     });
 
     const servLineCodes = [...new Set(userAllocations.map(a => a.Task.ServLineCode).filter(Boolean))];
@@ -44,14 +78,8 @@ export const GET = secureRoute.query({
       }
     });
 
-    const clientMap = new Map<number | null, {
-      clientId: number | null;
-      clientName: string;
-      clientCode: string;
-      allocations: unknown[];
-    }>();
-
-    const flatList: unknown[] = [];
+    const clientMap = new Map<number | null, ClientGroup>();
+    const flatList: FlatAllocationData[] = [];
 
     userAllocations.forEach(allocation => {
       const task = allocation.Task;
@@ -68,7 +96,7 @@ export const GET = secureRoute.query({
         });
       }
 
-      const allocationData = {
+      const allocationData: AllocationData = {
         id: allocation.id,
         taskId: task.id,
         taskName: task.TaskDesc,
@@ -84,7 +112,7 @@ export const GET = secureRoute.query({
         isCurrentTask: false
       };
 
-      (clientMap.get(clientId)!.allocations as unknown[]).push(allocationData);
+      clientMap.get(clientId)!.allocations.push(allocationData);
 
       flatList.push({
         ...allocationData,

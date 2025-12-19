@@ -1,33 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * GET /api/tools/available?subServiceLineGroup=TAX-CORP
  * Get tools available for a specific sub-service line group
  */
-export async function GET(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Parse query parameters
+export const GET = secureRoute.query({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request) => {
     const { searchParams } = new URL(request.url);
     const subServiceLineGroup = searchParams.get('subServiceLineGroup');
 
     if (!subServiceLineGroup) {
-      return NextResponse.json(
-        { error: 'Missing subServiceLineGroup parameter' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Missing subServiceLineGroup parameter',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
-    // 3. Query tools assigned to this sub-service line group
+    // Validate subServiceLineGroup format (alphanumeric with hyphens/underscores)
+    if (!/^[A-Za-z0-9_-]+$/.test(subServiceLineGroup)) {
+      throw new AppError(
+        400,
+        'Invalid subServiceLineGroup format',
+        ErrorCodes.VALIDATION_ERROR,
+        { subServiceLineGroup }
+      );
+    }
+
     const tools = await prisma.tool.findMany({
       where: {
         active: true,
@@ -38,7 +42,14 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        description: true,
+        icon: true,
+        componentPath: true,
+        sortOrder: true,
         subTabs: {
           where: { active: true },
           orderBy: { sortOrder: 'asc' },
@@ -51,14 +62,9 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: [
-        { sortOrder: 'asc' },
-        { name: 'asc' },
-      ],
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
 
     return NextResponse.json(successResponse(tools));
-  } catch (error) {
-    return handleApiError(error, 'Failed to fetch available tools');
-  }
-}
+  },
+});

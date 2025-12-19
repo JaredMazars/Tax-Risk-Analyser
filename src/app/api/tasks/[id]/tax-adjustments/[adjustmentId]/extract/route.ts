@@ -1,68 +1,72 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { toTaskId } from '@/types/branded';
-import { z } from 'zod';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import {
+  parseTaskId,
+  parseAdjustmentId,
+  successResponse,
+  verifyAdjustmentBelongsToTask,
+} from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 const ExtractDocumentSchema = z.object({
   documentId: z.number().int().positive(),
-  context: z.string().optional(),
-});
+  context: z.string().max(2000).optional(),
+}).strict();
 
 /**
  * POST /api/tasks/[id]/tax-adjustments/[adjustmentId]/extract
  * Manually trigger or retry extraction for a document
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; adjustmentId: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  schema: ExtractDocumentSchema,
+  handler: async (request, { params, data }) => {
+    const taskId = parseTaskId(params.id);
+    const adjustmentId = parseAdjustmentId(params.adjustmentId);
+    const { documentId, context: extractContext } = data;
 
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-    const adjustmentId = Number.parseInt(params.adjustmentId);
-
-    // Check project access (requires EDITOR role or higher)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validated = ExtractDocumentSchema.parse(body);
-    const { documentId, context: extractContext } = validated;
+    // IDOR protection: verify adjustment belongs to task
+    await verifyAdjustmentBelongsToTask(adjustmentId, taskId);
 
     // Fetch the document
     const document = await prisma.adjustmentDocument.findUnique({
       where: { id: documentId },
+      select: {
+        id: true,
+        taxAdjustmentId: true,
+        filePath: true,
+        fileType: true,
+      },
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: 'Document not found' },
-        { status: 404 }
+      throw new AppError(
+        404,
+        'Document not found',
+        ErrorCodes.NOT_FOUND,
+        { documentId }
       );
     }
 
+    // Verify document belongs to this adjustment
     if (document.taxAdjustmentId !== adjustmentId) {
-      return NextResponse.json(
-        { error: 'Document does not belong to this adjustment' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Document does not belong to this adjustment',
+        ErrorCodes.VALIDATION_ERROR,
+        { documentId, adjustmentId }
       );
     }
 
     // Update status to PROCESSING
     await prisma.adjustmentDocument.update({
       where: { id: documentId },
-      data: { 
+      data: {
         extractionStatus: 'PROCESSING',
         extractionError: null,
       },
@@ -88,6 +92,7 @@ export async function POST(
       // Update the tax adjustment with extracted data
       const adjustment = await prisma.taxAdjustment.findUnique({
         where: { id: adjustmentId },
+        select: { extractedData: true },
       });
 
       if (adjustment) {
@@ -106,40 +111,40 @@ export async function POST(
         });
       }
 
-      return NextResponse.json({
-        message: 'Extraction completed successfully',
-        extractedData,
-      });
+      return NextResponse.json(
+        successResponse({ message: 'Extraction completed successfully', extractedData })
+      );
     } catch (extractionError) {
       // Update document with error
       await prisma.adjustmentDocument.update({
         where: { id: documentId },
         data: {
           extractionStatus: 'FAILED',
-          extractionError: extractionError instanceof Error 
-            ? extractionError.message 
-            : 'Unknown error',
+          extractionError:
+            extractionError instanceof Error
+              ? extractionError.message
+              : 'Unknown error',
         },
       });
 
       throw extractionError;
     }
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/tax-adjustments/[adjustmentId]/extract');
-  }
-}
+  },
+});
 
 /**
  * GET /api/tasks/[id]/tax-adjustments/[adjustmentId]/extract
  * Get extraction status for all documents of an adjustment
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; adjustmentId: string }> }
-) {
-  try {
-    const params = await context.params;
-    const adjustmentId = Number.parseInt(params.adjustmentId);
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { params }) => {
+    const taskId = parseTaskId(params.id);
+    const adjustmentId = parseAdjustmentId(params.adjustmentId);
+
+    // IDOR protection: verify adjustment belongs to task
+    await verifyAdjustmentBelongsToTask(adjustmentId, taskId);
 
     const documents = await prisma.adjustmentDocument.findMany({
       where: { taxAdjustmentId: adjustmentId },
@@ -150,23 +155,21 @@ export async function GET(
         extractionError: true,
         updatedAt: true,
       },
+      orderBy: [
+        { updatedAt: 'desc' },
+        { id: 'desc' },
+      ],
+      take: 100,
     });
 
     const summary = {
       total: documents.length,
-      pending: documents.filter(d => d.extractionStatus === 'PENDING').length,
-      processing: documents.filter(d => d.extractionStatus === 'PROCESSING').length,
-      completed: documents.filter(d => d.extractionStatus === 'COMPLETED').length,
-      failed: documents.filter(d => d.extractionStatus === 'FAILED').length,
+      pending: documents.filter((d) => d.extractionStatus === 'PENDING').length,
+      processing: documents.filter((d) => d.extractionStatus === 'PROCESSING').length,
+      completed: documents.filter((d) => d.extractionStatus === 'COMPLETED').length,
+      failed: documents.filter((d) => d.extractionStatus === 'FAILED').length,
     };
 
-    return NextResponse.json({
-      documents,
-      summary,
-    });
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/tax-adjustments/[adjustmentId]/extract');
-  }
-}
-
-
+    return NextResponse.json(successResponse({ documents, summary }));
+  },
+});

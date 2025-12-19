@@ -1,44 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AppError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { mapEmployeeCategoryToRole } from '@/lib/utils/serviceLineUtils';
 import { NON_CLIENT_EVENT_LABELS, NonClientEventType } from '@/types';
 import { mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+
+interface SubGroupInfo {
+  code: string;
+  description?: string;
+}
 
 /**
  * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/users
  * Fetch all employees in a sub-service line group with their task allocations
  * Now returns ALL employees (not just registered users) filtered by SubServLineCode
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { serviceLine: string; subServiceLineGroup: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return handleApiError(new AppError(401, 'Unauthorized'), 'Get sub-service line employees');
-    }
-    // 2. Extract subServiceLineGroup from params
-    const subServiceLineGroup = params.subServiceLineGroup;
+export const GET = secureRoute.queryWithParams<{ serviceLine: string; subServiceLineGroup: string }>({
+  feature: Feature.ACCESS_DASHBOARD,
+  handler: async (request, { user, params }) => {
+    const { subServiceLineGroup } = params;
+    
     if (!subServiceLineGroup) {
-      return handleApiError(new AppError(400, 'Sub-service line group is required'), 'Get sub-service line employees');
+      throw new AppError(400, 'Sub-service line group is required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // 3. Check user has access to this sub-service line group
+    // Check user has access to this sub-service line group
     const userServiceLines = await getUserServiceLines(user.id);
     const hasAccess = userServiceLines.some(sl => 
-      sl.subGroups?.some((sg: any) => sg.code === subServiceLineGroup)
+      sl.subGroups?.some((sg: SubGroupInfo) => sg.code === subServiceLineGroup)
     );
     if (!hasAccess) {
-      return handleApiError(
-        new AppError(403, 'You do not have access to this sub-service line group'),
-        'Get sub-service line employees'
-      );
+      throw new AppError(403, 'You do not have access to this sub-service line group', ErrorCodes.FORBIDDEN);
     }
 
     // 4. Map subServiceLineGroup to external service line codes via ServiceLineExternal
@@ -244,7 +239,5 @@ export async function GET(
     });
 
     return NextResponse.json(successResponse({ users: employeesWithAllocations }));
-  } catch (error) {
-    return handleApiError(error, 'Get sub-service line employees');
-  }
-}
+  },
+});

@@ -1,50 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { sanitizeObject } from '@/lib/utils/sanitization';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AddToolToTaskSchema } from '@/lib/validation/schemas';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * GET /api/tools/task/[taskId]
  * Get all tools assigned to a task
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { taskId: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'taskId',
+  taskRole: 'VIEWER',
+  handler: async (request, { params }) => {
+    const taskId = parseTaskId(params.taskId);
 
-    // 2. Parse task ID
-    const taskId = parseInt(params.taskId);
-    if (isNaN(taskId)) {
-      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
-    }
-
-    // 3. Verify task exists and user has access
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { id: true },
-    });
-
-    if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
-
-    // 4. Get task tools
     const taskTools = await prisma.taskTool.findMany({
       where: { taskId },
-      include: {
+      select: {
+        id: true,
+        taskId: true,
+        toolId: true,
+        sortOrder: true,
+        addedBy: true,
+        createdAt: true,
         tool: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            description: true,
+            icon: true,
+            componentPath: true,
+            active: true,
             subTabs: {
               where: { active: true },
               orderBy: { sortOrder: 'asc' },
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                icon: true,
+                sortOrder: true,
+              },
             },
           },
         },
@@ -53,61 +52,42 @@ export async function GET(
     });
 
     return NextResponse.json(successResponse(taskTools));
-  } catch (error) {
-    return handleApiError(error, 'Failed to fetch task tools');
-  }
-}
+  },
+});
 
 /**
  * POST /api/tools/task/[taskId]
  * Add a tool to a task
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { taskId: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'taskId',
+  taskRole: 'EDITOR',
+  schema: AddToolToTaskSchema,
+  handler: async (request, { user, params, data }) => {
+    const taskId = parseTaskId(params.taskId);
+    const { toolId, sortOrder } = data;
 
-    // 2. Parse task ID
-    const taskId = parseInt(params.taskId);
-    if (isNaN(taskId)) {
-      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
-    }
-
-    // 3. Parse and sanitize body
-    const body = await request.json();
-    const sanitizedData = sanitizeObject(body);
-    const { toolId, sortOrder = 0 } = sanitizedData;
-
-    if (!toolId) {
-      return NextResponse.json({ error: 'Missing toolId' }, { status: 400 });
-    }
-
-    // 4. Verify task exists
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { id: true },
-    });
-
-    if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
-
-    // 5. Verify tool exists and is active
+    // Verify tool exists and is active
     const tool = await prisma.tool.findUnique({
       where: { id: toolId },
+      select: { id: true, active: true },
     });
 
-    if (!tool || !tool.active) {
-      return NextResponse.json({ error: 'Tool not found or inactive' }, { status: 404 });
+    if (!tool) {
+      throw new AppError(404, 'Tool not found', ErrorCodes.NOT_FOUND, { toolId });
     }
 
-    // 6. Check if tool is already assigned
+    if (!tool.active) {
+      throw new AppError(
+        400,
+        'Cannot add inactive tool to task',
+        ErrorCodes.VALIDATION_ERROR,
+        { toolId }
+      );
+    }
+
+    // Check if tool is already assigned
     const existing = await prisma.taskTool.findUnique({
       where: {
         taskId_toolId: {
@@ -115,29 +95,52 @@ export async function POST(
           toolId,
         },
       },
+      select: { id: true },
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: 'Tool already assigned to this task' },
-        { status: 409 }
+      throw new AppError(
+        409,
+        'Tool already assigned to this task',
+        ErrorCodes.CONFLICT,
+        { taskId, toolId }
       );
     }
 
-    // 7. Add tool to task
+    // Add tool to task
     const taskTool = await prisma.taskTool.create({
       data: {
         taskId,
         toolId,
         addedBy: user.id,
-        sortOrder,
+        sortOrder: sortOrder ?? 0,
       },
-      include: {
+      select: {
+        id: true,
+        taskId: true,
+        toolId: true,
+        sortOrder: true,
+        addedBy: true,
+        createdAt: true,
         tool: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            description: true,
+            icon: true,
+            componentPath: true,
+            active: true,
             subTabs: {
               where: { active: true },
               orderBy: { sortOrder: 'asc' },
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                icon: true,
+                sortOrder: true,
+              },
             },
           },
         },
@@ -145,46 +148,35 @@ export async function POST(
     });
 
     return NextResponse.json(successResponse(taskTool), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'Failed to add tool to task');
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/tools/task/[taskId]?toolId=123
  * Remove a tool from a task
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { taskId: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'taskId',
+  taskRole: 'EDITOR',
+  handler: async (request, { params }) => {
+    const taskId = parseTaskId(params.taskId);
 
-    // 2. Parse task ID
-    const taskId = parseInt(params.taskId);
-    if (isNaN(taskId)) {
-      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
-    }
-
-    // 3. Parse query parameter
+    // Parse query parameter
     const { searchParams } = new URL(request.url);
     const toolIdParam = searchParams.get('toolId');
-    
+
     if (!toolIdParam) {
-      return NextResponse.json({ error: 'Missing toolId parameter' }, { status: 400 });
+      throw new AppError(
+        400,
+        'Missing toolId parameter',
+        ErrorCodes.VALIDATION_ERROR
+      );
     }
 
-    const toolId = parseInt(toolIdParam);
-    if (isNaN(toolId)) {
-      return NextResponse.json({ error: 'Invalid tool ID' }, { status: 400 });
-    }
+    const toolId = parseNumericId(toolIdParam, 'Tool');
 
-    // 4. Check if assignment exists
+    // Check if assignment exists
     const taskTool = await prisma.taskTool.findUnique({
       where: {
         taskId_toolId: {
@@ -192,13 +184,19 @@ export async function DELETE(
           toolId,
         },
       },
+      select: { id: true },
     });
 
     if (!taskTool) {
-      return NextResponse.json({ error: 'Tool not assigned to this task' }, { status: 404 });
+      throw new AppError(
+        404,
+        'Tool not assigned to this task',
+        ErrorCodes.NOT_FOUND,
+        { taskId, toolId }
+      );
     }
 
-    // 5. Remove tool from task
+    // Remove tool from task
     await prisma.taskTool.delete({
       where: {
         taskId_toolId: {
@@ -209,7 +207,5 @@ export async function DELETE(
     });
 
     return NextResponse.json(successResponse({ message: 'Tool removed from task successfully' }));
-  } catch (error) {
-    return handleApiError(error, 'Failed to remove tool from task');
-  }
-}
+  },
+});

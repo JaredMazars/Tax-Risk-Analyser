@@ -1,40 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { sanitizeObject } from '@/lib/utils/sanitization';
+import { successResponse, parseToolId } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { UpdateToolAssignmentsSchema } from '@/lib/validation/schemas';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * GET /api/tools/[id]/assignments
  * Get all sub-service line group assignments for a tool
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.MANAGE_TOOLS,
+  handler: async (request, { params }) => {
+    const toolId = parseToolId(params.id);
 
-    // 2. Parse ID
-    const toolId = parseInt(params.id);
-    if (isNaN(toolId)) {
-      return NextResponse.json({ error: 'Invalid tool ID' }, { status: 400 });
-    }
-
-    // 3. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TOOLS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 4. Get tool with assignments
     const tool = await prisma.tool.findUnique({
       where: { id: toolId },
       select: {
@@ -52,10 +31,10 @@ export async function GET(
     });
 
     if (!tool) {
-      return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
+      throw new AppError(404, 'Tool not found', ErrorCodes.NOT_FOUND, { toolId });
     }
 
-    // 5. Extract unique sub-service line groups
+    // Extract unique sub-service line groups
     const assignments = [...new Set(tool.serviceLines.map((sl) => sl.subServiceLineGroup))];
 
     return NextResponse.json(
@@ -69,61 +48,31 @@ export async function GET(
         assignments,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'Failed to fetch tool assignments');
-  }
-}
+  },
+});
 
 /**
  * PUT /api/tools/[id]/assignments
  * Update sub-service line group assignments for a tool
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TOOLS,
+  schema: UpdateToolAssignmentsSchema,
+  handler: async (request, { params, data }) => {
+    const toolId = parseToolId(params.id);
+    const { subServiceLineGroups } = data;
 
-    // 2. Parse ID
-    const toolId = parseInt(params.id);
-    if (isNaN(toolId)) {
-      return NextResponse.json({ error: 'Invalid tool ID' }, { status: 400 });
-    }
-
-    // 3. Check feature permission
-    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TOOLS);
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 4. Parse and sanitize body
-    const body = await request.json();
-    const sanitizedData = sanitizeObject(body);
-    const { subServiceLineGroups } = sanitizedData;
-
-    if (!Array.isArray(subServiceLineGroups)) {
-      return NextResponse.json(
-        { error: 'subServiceLineGroups must be an array' },
-        { status: 400 }
-      );
-    }
-
-    // 5. Check if tool exists
+    // Check if tool exists
     const tool = await prisma.tool.findUnique({
       where: { id: toolId },
       select: { id: true },
     });
 
     if (!tool) {
-      return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
+      throw new AppError(404, 'Tool not found', ErrorCodes.NOT_FOUND, { toolId });
     }
 
-    // 6. Update assignments in a transaction
+    // Update assignments in a transaction
     await prisma.$transaction(async (tx) => {
       // Delete all existing assignments for this tool
       await tx.serviceLineTool.deleteMany({
@@ -142,7 +91,7 @@ export async function PUT(
       }
     });
 
-    // 7. Fetch updated tool with assignments
+    // Fetch updated tool with assignments
     const updatedTool = await prisma.tool.findUnique({
       where: { id: toolId },
       select: {
@@ -172,7 +121,5 @@ export async function PUT(
         assignments,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'Failed to update tool assignments');
-  }
-}
+  },
+});

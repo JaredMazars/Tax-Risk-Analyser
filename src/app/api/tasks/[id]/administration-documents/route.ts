@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { toTaskId } from '@/types/branded';
-import { sanitizeFilename, sanitizeText } from '@/lib/utils/sanitization';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { prisma } from '@/lib/db/prisma';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { sanitizeFilename, sanitizeText } from '@/lib/utils/sanitization';
+
+// Maximum documents to return per request
+const MAX_DOCUMENTS = 500;
 
 const CreateAdminDocumentSchema = z.object({
   fileName: z.string().min(1).max(255),
@@ -16,77 +16,88 @@ const CreateAdminDocumentSchema = z.object({
   category: z.string().max(100).optional(),
   description: z.string().optional(),
   version: z.number().int().positive().optional(),
-});
+}).strict();
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+/**
+ * GET /api/tasks/[id]/administration-documents
+ * List administration documents for a task
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'VIEWER',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
 
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-
-    // Check project access
-    const hasAccess = await checkTaskAccess(user.id, taskId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
     const documents = await prisma.taskDocument.findMany({
       where: { taskId },
+      select: {
+        id: true,
+        taskId: true,
+        fileName: true,
+        fileType: true,
+        fileSize: true,
+        filePath: true,
+        category: true,
+        description: true,
+        version: true,
+        uploadedBy: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { createdAt: 'desc' },
+      take: MAX_DOCUMENTS,
     });
 
-    return NextResponse.json(successResponse(documents));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/administration-documents');
-  }
-}
+    return NextResponse.json(successResponse(documents), {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  },
+});
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-
-    // Check project access (requires EDITOR role or higher)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validated = CreateAdminDocumentSchema.parse(body);
+/**
+ * POST /api/tasks/[id]/administration-documents
+ * Create an administration document record for a task
+ */
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  schema: CreateAdminDocumentSchema,
+  handler: async (request, { user, params, data }) => {
+    const taskId = parseTaskId(params.id);
 
     const document = await prisma.taskDocument.create({
       data: {
         taskId,
-        fileName: sanitizeFilename(validated.fileName),
-        fileType: validated.fileType,
-        fileSize: validated.fileSize,
-        filePath: validated.filePath,
-        category: validated.category || 'General',
-        description: validated.description ? sanitizeText(validated.description, { allowNewlines: true }) : undefined,
-        version: validated.version || 1,
+        fileName: sanitizeFilename(data.fileName),
+        fileType: data.fileType,
+        fileSize: data.fileSize,
+        filePath: data.filePath,
+        category: data.category || 'General',
+        description: data.description ? sanitizeText(data.description, { allowNewlines: true }) : undefined,
+        version: data.version || 1,
         uploadedBy: user.id,
+      },
+      select: {
+        id: true,
+        taskId: true,
+        fileName: true,
+        fileType: true,
+        fileSize: true,
+        filePath: true,
+        category: true,
+        description: true,
+        version: true,
+        uploadedBy: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
     return NextResponse.json(successResponse(document), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/administration-documents');
-  }
-}
+  },
+});
 

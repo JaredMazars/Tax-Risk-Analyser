@@ -36,6 +36,22 @@ export interface EmployeeSearchFilters {
  * @param excludeUserIds - User IDs to exclude from results (e.g., already on task)
  * @param filters - Optional filters for service line and job grade
  */
+interface EmployeeWhereClause {
+  Active: string;
+  ServLineCode?: { in: string[] };
+  ServLineDesc?: string;
+  EmpCatDesc?: string;
+  OfficeCode?: string;
+  AND?: Array<{
+    OR: Array<
+      | { EmpName: { contains: string } }
+      | { EmpNameFull: { contains: string } }
+      | { EmpCode: { contains: string } }
+      | { WinLogon: { contains: string } }
+    >;
+  }>;
+}
+
 export async function searchActiveEmployees(
   query: string,
   limit: number = 20,
@@ -45,7 +61,7 @@ export async function searchActiveEmployees(
   return withRetry(
     async () => {
       // Build where clause with proper AND/OR structure
-      const whereClause: any = {
+      const whereClause: EmployeeWhereClause = {
         Active: 'Yes',
       };
 

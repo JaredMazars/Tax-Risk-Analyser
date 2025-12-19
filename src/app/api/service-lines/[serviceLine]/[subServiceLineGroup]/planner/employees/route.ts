@@ -1,12 +1,83 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AppError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { startOfDay } from 'date-fns';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { mapUsersToEmployees, mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { ServiceLineRole } from '@/types';
+
+// Type for subGroup in userServiceLines
+interface SubGroupInfo {
+  code: string;
+  description?: string;
+}
+
+// Query params validation schema
+const EmployeePlannerQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  includeUnallocated: z.enum(['true', 'false']).optional().transform(v => v === 'true'),
+  'employees[]': z.array(z.string()).optional().default([]),
+  'jobGrades[]': z.array(z.string()).optional().default([]),
+  'offices[]': z.array(z.string()).optional().default([]),
+  'clients[]': z.array(z.string()).optional().default([]),
+  'taskCategories[]': z.array(z.string()).optional().default([]),
+});
+
+// Type for cache response
+interface EmployeePlannerResponse {
+  allocations: AllocationRow[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
+interface AllocationRow {
+  allocationId: number;
+  userId: string;
+  employeeId: number | null;
+  userName: string;
+  userEmail: string;
+  jobGradeCode: string | null;
+  serviceLineRole: string;
+  officeLocation: string | null;
+  clientId: number | null;
+  clientName: string;
+  clientCode: string;
+  taskId: number;
+  taskName: string | null;
+  taskCode: string | null;
+  startDate: Date;
+  endDate: Date;
+  role: string;
+  allocatedHours: number | null;
+  allocatedPercentage: number | null;
+  actualHours: number | null;
+  isNonClientEvent: boolean;
+  nonClientEventType: string | null;
+  notes: string | null;
+}
+
+// Type for employee from database
+interface ServiceLineEmployee {
+  id: number;
+  GSEmployeeID: string | null;
+  EmpCode: string;
+  EmpName: string | null;
+  EmpNameFull: string;
+  OfficeCode: string | null;
+  ServLineCode: string | null;
+  EmpCatCode: string | null;
+  WinLogon: string | null;
+}
 
 /**
  * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/employees
@@ -19,53 +90,49 @@ import { mapUsersToEmployees, mapEmployeesToUsers } from '@/lib/services/employe
  * - Server-side filtering by employee, job grade, office, client, task category
  * - Optimized queries with Promise.all batching
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { serviceLine: string; subServiceLineGroup: string } }
-) {
-  const perfStart = Date.now();
-  
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return handleApiError(new AppError(401, 'Unauthorized'), 'Get employee planner data');
-    }
-
-    // 2. Extract and validate params
-    const subServiceLineGroup = params.subServiceLineGroup;
+export const GET = secureRoute.queryWithParams<{ serviceLine: string; subServiceLineGroup: string }>({
+  feature: Feature.ACCESS_DASHBOARD,
+  handler: async (request, { user, params }) => {
+    const { serviceLine, subServiceLineGroup } = params;
+    
     if (!subServiceLineGroup) {
-      return handleApiError(new AppError(400, 'Sub-service line group is required'), 'Get employee planner data');
+      throw new AppError(400, 'Sub-service line group is required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // 3. Check user has access to this sub-service line group
+    // Check user has access to this sub-service line group
     const userServiceLines = await getUserServiceLines(user.id);
     const hasAccess = userServiceLines.some(sl => 
-      sl.subGroups?.some((sg: any) => sg.code === subServiceLineGroup)
+      sl.subGroups?.some((sg: SubGroupInfo) => sg.code === subServiceLineGroup)
     );
     if (!hasAccess) {
-      return handleApiError(
-        new AppError(403, 'You do not have access to this sub-service line group'),
-        'Get employee planner data'
-      );
+      throw new AppError(403, 'You do not have access to this sub-service line group', ErrorCodes.FORBIDDEN);
     }
 
-    // 4. Get search params for filtering and pagination (array-based filters)
+    // Parse and validate query params
     const searchParams = request.nextUrl.searchParams;
-    const employees = searchParams.getAll('employees[]'); // User IDs or emails
-    const jobGrades = searchParams.getAll('jobGrades[]'); // Job titles
-    const offices = searchParams.getAll('offices[]'); // Office locations
-    const clientCodes = searchParams.getAll('clients[]'); // Client codes
-    const taskCategories = searchParams.getAll('taskCategories[]'); // 'client', 'no_planning', or NonClientEventType values
-    const includeUnallocated = searchParams.get('includeUnallocated') === 'true'; // For timeline view
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const queryParams = EmployeePlannerQuerySchema.parse({
+      page: searchParams.get('page') || 1,
+      limit: searchParams.get('limit') || 50,
+      includeUnallocated: searchParams.get('includeUnallocated') || 'false',
+      'employees[]': searchParams.getAll('employees[]'),
+      'jobGrades[]': searchParams.getAll('jobGrades[]'),
+      'offices[]': searchParams.getAll('offices[]'),
+      'clients[]': searchParams.getAll('clients[]'),
+      'taskCategories[]': searchParams.getAll('taskCategories[]'),
+    });
+    
+    const { page, limit, includeUnallocated } = queryParams;
+    const employees = queryParams['employees[]'];
+    const jobGrades = queryParams['jobGrades[]'];
+    const offices = queryParams['offices[]'];
+    const clientCodes = queryParams['clients[]'];
+    const taskCategories = queryParams['taskCategories[]'];
 
-    // 5. Build comprehensive cache key with array filters
-    const cacheKey = `${CACHE_PREFIXES.TASK}planner:employees:${params.serviceLine}:${subServiceLineGroup}:employees:${employees.join(',') || 'all'}:jobGrades:${jobGrades.join(',') || 'all'}:offices:${offices.join(',') || 'all'}:clients:${clientCodes.join(',') || 'all'}:categories:${taskCategories.join(',') || 'all'}:unalloc:${includeUnallocated}:${page}:${limit}`;
+    // Build comprehensive cache key with array filters
+    const cacheKey = `${CACHE_PREFIXES.TASK}planner:employees:${serviceLine}:${subServiceLineGroup}:employees:${employees.join(',') || 'all'}:jobGrades:${jobGrades.join(',') || 'all'}:offices:${offices.join(',') || 'all'}:clients:${clientCodes.join(',') || 'all'}:categories:${taskCategories.join(',') || 'all'}:unalloc:${includeUnallocated}:${page}:${limit}`;
     
     // Try cache first
-    const cached = await cache.get(cacheKey) as any;
+    const cached = await cache.get<EmployeePlannerResponse>(cacheKey);
     if (cached) {
       return NextResponse.json(successResponse(cached));
     }
@@ -95,8 +162,19 @@ export async function GET(
       return NextResponse.json(successResponse(emptyResponse));
     }
 
-    // 7. Build WHERE clause for TaskTeam query with filters
-    const taskTeamWhere: any = {
+    // Build WHERE clause for TaskTeam query with filters
+    interface TaskTeamWhereInput {
+      startDate: { not: null };
+      endDate: { not: null };
+      Task: {
+        ServLineCode: { in: string[] };
+        Client?: { clientCode: { in: string[] } };
+        GSClientID?: { not: null } | null;
+      };
+      userId?: { in: string[] };
+    }
+    
+    const taskTeamWhere: TaskTeamWhereInput = {
       startDate: { not: null },
       endDate: { not: null },
       Task: {
@@ -153,8 +231,8 @@ export async function GET(
       }
     }
 
-    // 8. For timeline view, get ALL service line employees first (from Employee table, not ServiceLineUser)
-    let allServiceLineEmployees: any[] = [];
+    // For timeline view, get ALL service line employees first (from Employee table, not ServiceLineUser)
+    let allServiceLineEmployees: ServiceLineEmployee[] = [];
     if (includeUnallocated) {
       // Get all employees whose ServLineCode matches the external codes (same as /users endpoint)
       const employeesQuery = await prisma.employee.findMany({
@@ -213,9 +291,7 @@ export async function GET(
       }
     }
 
-    // 9. Fetch TaskTeam allocations with pagination
-    const queryStart = Date.now();
-    
+    // Fetch TaskTeam allocations with pagination
     // If includeUnallocated, we need to map employees to user IDs first
     // Otherwise, paginate the allocations themselves
     let taskTeamWhereFinal = taskTeamWhere;
@@ -346,8 +422,7 @@ export async function GET(
       });
     }
 
-    // 12. Transform to flat structure
-    const transformStart = Date.now();
+    // Transform to flat structure
     const allocationRows = filteredAllocations.map(allocation => {
       const employee = employeeMap.get(allocation.userId.toLowerCase()) || 
                       employeeMap.get(allocation.userId.split('@')[0]?.toLowerCase() || '');
@@ -424,7 +499,7 @@ export async function GET(
           taskCode: null,
           startDate: startOfDay(new Date()),
           endDate: startOfDay(new Date()),
-          role: 'VIEWER' as any,
+          role: ServiceLineRole.VIEWER,
           allocatedHours: null,
           allocatedPercentage: null,
           actualHours: null,
@@ -464,7 +539,5 @@ export async function GET(
     await cache.set(cacheKey, response, 300);
 
     return NextResponse.json(successResponse(response));
-  } catch (error) {
-    return handleApiError(error, 'Get employee planner data');
-  }
-}
+  },
+});

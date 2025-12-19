@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { prisma } from '@/lib/db/prisma';
 import { searchActiveEmployees, EmployeeSearchFilters } from '@/lib/services/employees/employeeSearch';
 import { secureRoute } from '@/lib/api/secureRoute';
 
 export const dynamic = 'force-dynamic';
+
+// Allowlists for filter validation
+const MAX_QUERY_LENGTH = 100;
+const MAX_LIMIT = 100;
+const MIN_LIMIT = 1;
+const DEFAULT_LIMIT = 20;
 
 /**
  * GET /api/users/search
@@ -13,14 +20,27 @@ export const dynamic = 'force-dynamic';
 export const GET = secureRoute.query({
   handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q') || '';
-    const limit = Number.parseInt(searchParams.get('limit') || '20');
+    
+    // Validate and sanitize query param
+    const rawQuery = searchParams.get('q') || '';
+    const query = rawQuery.slice(0, MAX_QUERY_LENGTH);
+    
+    // Validate limit
+    const limitParam = searchParams.get('limit');
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : DEFAULT_LIMIT;
+    if (Number.isNaN(parsedLimit) || parsedLimit < MIN_LIMIT || parsedLimit > MAX_LIMIT) {
+      throw new AppError(400, `Limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}`, ErrorCodes.VALIDATION_ERROR);
+    }
+    const limit = parsedLimit;
+    
+    // Validate filter params (alphanumeric codes only)
     const subServiceLineGroup = searchParams.get('subServiceLineGroup');
     const jobGrade = searchParams.get('jobGrade');
     const office = searchParams.get('office');
-
-    if (limit < 1 || limit > 100) {
-      return NextResponse.json({ success: false, error: 'Limit must be between 1 and 100' }, { status: 400 });
+    
+    // Validate subServiceLineGroup format if provided
+    if (subServiceLineGroup && !/^[a-zA-Z0-9_-]+$/.test(subServiceLineGroup)) {
+      throw new AppError(400, 'Invalid subServiceLineGroup format', ErrorCodes.VALIDATION_ERROR);
     }
 
     const excludeUserIds: string[] = [];

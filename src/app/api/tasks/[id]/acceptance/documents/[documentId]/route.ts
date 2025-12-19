@@ -1,34 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { handleApiError, AcceptanceErrorCodes } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
+import { parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes, AcceptanceErrorCodes, handleApiError } from '@/lib/utils/errorHandler';
 import { getAcceptanceDocument, getDocumentBuffer } from '@/lib/services/acceptance/documentService';
 import { validateDocumentAccess } from '@/lib/api/acceptanceMiddleware';
 import { logDocumentViewed } from '@/lib/services/acceptance/auditLog';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/tasks/[id]/acceptance/documents/[documentId]
  * Download a supporting document with authorization and audit
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; documentId: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { documentId } = await context.params;
-    const docId = Number.parseInt(documentId);
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  handler: async (request, { user, params }) => {
+    const docId = parseNumericId(params.documentId, 'Document');
 
     // Validate user has access to the document's task
     const { hasAccess, taskId } = await validateDocumentAccess(docId, user.id);
-    
+
     if (!hasAccess || !taskId) {
-      return NextResponse.json(
-        { error: 'Forbidden', code: AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS },
-        { status: 403 }
+      throw new AppError(
+        403,
+        'Forbidden',
+        AcceptanceErrorCodes.INSUFFICIENT_PERMISSIONS
       );
     }
 
@@ -36,7 +30,7 @@ export async function GET(
     const document = await getAcceptanceDocument(docId);
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      throw new AppError(404, 'Document not found', ErrorCodes.NOT_FOUND);
     }
 
     // Download file from blob storage
@@ -67,11 +61,9 @@ export async function GET(
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="${document.fileName}"`,
         'Content-Length': buffer.length.toString(),
-        'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/acceptance/documents/[documentId]');
-  }
-}
-
+  },
+});

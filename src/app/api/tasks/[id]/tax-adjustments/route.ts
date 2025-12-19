@@ -1,135 +1,118 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { toTaskId } from '@/types/branded';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import {
   getTaxAdjustments,
   createTaxAdjustment,
   deleteAllTaxAdjustments,
 } from '@/lib/tools/tax-calculation/api/adjustmentsHandler';
+import { toTaskId } from '@/types/branded';
+
+// Allowed status filter values
+const ALLOWED_STATUSES = ['SUGGESTED', 'APPROVED', 'REJECTED', 'MODIFIED', 'PENDING'] as const;
+
+// Schema for query params
+const QueryParamsSchema = z.object({
+  status: z.enum(ALLOWED_STATUSES).optional(),
+});
+
+// Schema for creating a tax adjustment
+const CreateTaxAdjustmentSchema = z.object({
+  type: z.enum(['DEBIT', 'CREDIT', 'ALLOWANCE', 'RECOUPMENT']),
+  description: z.string().min(1).max(500),
+  amount: z.number().or(z.string().transform(val => parseFloat(val))),
+  sarsSection: z.string().max(100).optional(),
+  notes: z.string().max(2000).optional(),
+  confidenceScore: z.number().min(0).max(1).optional(),
+  calculationDetails: z.record(z.unknown()).optional(),
+  sourceDocuments: z.array(z.number()).optional(),
+}).strict();
 
 /**
  * GET /api/tasks/[id]/tax-adjustments
- * Fetch all tax adjustments for a project
+ * Fetch all tax adjustments for a task
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
-    
-    // Check project access (any role can view)
-    const hasAccess = await checkTaskAccess(user.id, taskId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { params }) => {
+    const taskId = parseTaskId(params.id);
+    const brandedTaskId = toTaskId(taskId);
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || undefined;
+
+    // Validate query params
+    const statusParam = searchParams.get('status') || undefined;
+    if (statusParam) {
+      const queryResult = QueryParamsSchema.safeParse({ status: statusParam });
+      if (!queryResult.success) {
+        throw new AppError(
+          400,
+          `Invalid status filter. Allowed: ${ALLOWED_STATUSES.join(', ')}`,
+          ErrorCodes.VALIDATION_ERROR,
+          { providedStatus: statusParam }
+        );
+      }
+    }
 
     // Get adjustments using tool handler
-    const adjustments = await getTaxAdjustments(taskId, status);
+    const adjustments = await getTaxAdjustments(brandedTaskId, statusParam);
 
     return NextResponse.json(successResponse(adjustments));
-  } catch (error) {
-    return handleApiError(error, 'Fetch Tax Adjustments');
-  }
-}
+  },
+});
 
 /**
  * POST /api/tasks/[id]/tax-adjustments
  * Create a new tax adjustment
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
-    
-    // Check project access (requires EDITOR role or higher)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
-    const body = await request.json();
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  schema: CreateTaxAdjustmentSchema,
+  handler: async (request, { params, data }) => {
+    const taskId = parseTaskId(params.id);
+    const brandedTaskId = toTaskId(taskId);
 
-    // Create adjustment using tool handler
-    const adjustment = await createTaxAdjustment(taskId, body);
+    // Create adjustment using tool handler with validated data
+    const adjustment = await createTaxAdjustment(brandedTaskId, data);
 
     return NextResponse.json(successResponse(adjustment), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'Create Tax Adjustment');
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/tasks/[id]/tax-adjustments
- * Delete all tax adjustments for a project (use with caution)
+ * Delete all tax adjustments for a task (use with caution)
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
-    
-    // Check project access (requires ADMIN role)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'ADMIN');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'ADMIN',
+  handler: async (request, { params }) => {
+    const taskId = parseTaskId(params.id);
+    const brandedTaskId = toTaskId(taskId);
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || undefined;
+
+    // Validate status param if provided
+    const statusParam = searchParams.get('status') || undefined;
+    if (statusParam) {
+      const queryResult = QueryParamsSchema.safeParse({ status: statusParam });
+      if (!queryResult.success) {
+        throw new AppError(
+          400,
+          `Invalid status filter. Allowed: ${ALLOWED_STATUSES.join(', ')}`,
+          ErrorCodes.VALIDATION_ERROR,
+          { providedStatus: statusParam }
+        );
+      }
+    }
 
     // Delete adjustments using tool handler
-    const result = await deleteAllTaxAdjustments(taskId, status);
+    const result = await deleteAllTaxAdjustments(brandedTaskId, statusParam);
 
     return NextResponse.json(successResponse(result));
-  } catch (error) {
-    return handleApiError(error, 'Delete Tax Adjustments');
-  }
-}
-
-
+  },
+});

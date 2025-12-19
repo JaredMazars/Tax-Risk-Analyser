@@ -3,27 +3,17 @@ import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
-import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
-import { secureRoute } from '@/lib/api/secureRoute';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/groups/filters
  * Fetch all distinct groups for filter dropdowns
  */
 export const GET = secureRoute.query({
+  feature: Feature.ACCESS_CLIENTS,
   handler: async (request, { user }) => {
     const startTime = Date.now();
     let cacheHit = false;
-
-    const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
-    const userSubGroups = await getUserSubServiceLineGroups(user.id);
-    const hasServiceLineAccess = userSubGroups.length > 0;
-    
-    if (!hasPagePermission && !hasServiceLineAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Insufficient permissions' }, { status: 403 });
-    }
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
@@ -54,7 +44,9 @@ export const GET = secureRoute.query({
     const FILTER_LIMIT = 30;
     const groupsData = await prisma.client.groupBy({
       by: ['groupCode', 'groupDesc'],
-      where, orderBy: { groupDesc: 'asc' }, take: FILTER_LIMIT,
+      where,
+      orderBy: [{ groupDesc: 'asc' }, { groupCode: 'asc' }],
+      take: FILTER_LIMIT,
     });
 
     const groups = groupsData

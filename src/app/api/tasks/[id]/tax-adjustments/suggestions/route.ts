@@ -1,53 +1,44 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { TaxAdjustmentEngine } from '@/lib/tools/tax-calculation/services/taxAdjustmentEngine';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { toTaskId } from '@/types/branded';
-import { z } from 'zod';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 const GenerateSuggestionsSchema = z.object({
-  useAI: z.boolean().optional(),
-  autoSave: z.boolean().optional(),
-});
+  useAI: z.boolean().optional().default(true),
+  autoSave: z.boolean().optional().default(false),
+}).strict();
+
+// Limit for mapped accounts to prevent excessive processing
+const MAX_MAPPED_ACCOUNTS = 500;
 
 /**
  * POST /api/tasks/[id]/tax-adjustments/suggestions
  * Generate AI-powered tax adjustment suggestions
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.aiWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  schema: GenerateSuggestionsSchema,
+  handler: async (request, { params, data }) => {
+    const taskId = parseTaskId(params.id);
+    const { useAI, autoSave } = data;
 
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-
-    // Check project access (requires EDITOR role or higher for generating suggestions)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validated = GenerateSuggestionsSchema.parse(body);
-    const { useAI = true, autoSave = false } = validated;
-
-    // Fetch mapped accounts for this project
+    // Fetch mapped accounts for this task (with limit)
     const mappedAccounts = await prisma.mappedAccount.findMany({
       where: { taskId },
+      take: MAX_MAPPED_ACCOUNTS,
+      orderBy: { id: 'asc' },
     });
 
     if (mappedAccounts.length === 0) {
-      return NextResponse.json(
-        { error: 'No mapped accounts found. Please complete account mapping first.' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'No mapped accounts found. Please complete account mapping first.',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
@@ -56,8 +47,8 @@ export async function POST(
       where: {
         taskId,
         status: {
-          in: ['APPROVED', 'MODIFIED', 'REJECTED']
-        }
+          in: ['APPROVED', 'MODIFIED', 'REJECTED'],
+        },
       },
       select: {
         id: true,
@@ -66,16 +57,17 @@ export async function POST(
         amount: true,
         sarsSection: true,
         status: true,
-      }
+      },
+      take: 200, // Limit existing adjustments
     });
 
     // Generate suggestions using the tax adjustment engine
     // Convert null to undefined for sarsSection
-    const existingAdjustmentsFormatted = existingAdjustments.map(adj => ({
+    const existingAdjustmentsFormatted = existingAdjustments.map((adj) => ({
       ...adj,
-      sarsSection: adj.sarsSection ?? undefined
+      sarsSection: adj.sarsSection ?? undefined,
     }));
-    
+
     const suggestions = await TaxAdjustmentEngine.analyzeMappedAccounts(
       mappedAccounts,
       useAI,
@@ -84,30 +76,33 @@ export async function POST(
 
     // Optionally save suggestions to database
     if (autoSave) {
-      // Delete existing SUGGESTED adjustments to avoid duplicates
-      await prisma.taxAdjustment.deleteMany({
-        where: {
-          taskId,
-          status: 'SUGGESTED',
-        },
-      });
-
-      // Create new suggestions
-      for (const suggestion of suggestions) {
-        await prisma.taxAdjustment.create({
-          data: {
+      // Use transaction for atomicity
+      await prisma.$transaction(async (tx) => {
+        // Delete existing SUGGESTED adjustments to avoid duplicates
+        await tx.taxAdjustment.deleteMany({
+          where: {
             taskId,
-            type: suggestion.type,
-            description: suggestion.description,
-            amount: suggestion.amount,
             status: 'SUGGESTED',
-            sarsSection: suggestion.sarsSection,
-            confidenceScore: suggestion.confidenceScore,
-            calculationDetails: JSON.stringify(suggestion.calculationDetails),
-            notes: suggestion.reasoning,
           },
         });
-      }
+
+        // Create new suggestions using createMany for efficiency
+        if (suggestions.length > 0) {
+          await tx.taxAdjustment.createMany({
+            data: suggestions.map((suggestion) => ({
+              taskId,
+              type: suggestion.type,
+              description: suggestion.description,
+              amount: suggestion.amount,
+              status: 'SUGGESTED',
+              sarsSection: suggestion.sarsSection,
+              confidenceScore: suggestion.confidenceScore,
+              calculationDetails: JSON.stringify(suggestion.calculationDetails),
+              notes: suggestion.reasoning,
+            })),
+          });
+        }
+      });
 
       // Fetch and return the saved adjustments
       const savedAdjustments = await prisma.taxAdjustment.findMany({
@@ -115,69 +110,91 @@ export async function POST(
           taskId,
           status: 'SUGGESTED',
         },
-        orderBy: {
-          createdAt: 'desc',
+        select: {
+          id: true,
+          type: true,
+          description: true,
+          amount: true,
+          status: true,
+          sarsSection: true,
+          confidenceScore: true,
+          notes: true,
+          createdAt: true,
         },
+        orderBy: [
+          { confidenceScore: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        take: 100,
       });
 
-      return NextResponse.json({
-        suggestions: savedAdjustments,
-        count: savedAdjustments.length,
-        saved: true,
-      });
+      return NextResponse.json(
+        successResponse({
+          suggestions: savedAdjustments,
+          count: savedAdjustments.length,
+          saved: true,
+        })
+      );
     }
 
     // Return suggestions without saving
-    return NextResponse.json({
-      suggestions,
-      count: suggestions.length,
-      saved: false,
-    });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/tax-adjustments/suggestions');
-  }
-}
+    return NextResponse.json(
+      successResponse({
+        suggestions,
+        count: suggestions.length,
+        saved: false,
+      })
+    );
+  },
+});
 
 /**
  * GET /api/tasks/[id]/tax-adjustments/suggestions
  * Get existing suggested adjustments
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const params = await context.params;
-    const taskId = toTaskId(params.id);
-
-    // Check project access
-    const hasAccess = await checkTaskAccess(user.id, taskId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { params }) => {
+    const taskId = parseTaskId(params.id);
 
     const suggestions = await prisma.taxAdjustment.findMany({
       where: {
         taskId,
         status: 'SUGGESTED',
       },
-      orderBy: {
-        confidenceScore: 'desc',
+      select: {
+        id: true,
+        type: true,
+        description: true,
+        amount: true,
+        status: true,
+        sarsSection: true,
+        confidenceScore: true,
+        notes: true,
+        calculationDetails: true,
+        createdAt: true,
       },
+      orderBy: [
+        { confidenceScore: 'desc' },
+        { id: 'desc' }, // Secondary sort for deterministic ordering
+      ],
+      take: 100, // Limit results
     });
 
-    return NextResponse.json({
-      suggestions,
-      count: suggestions.length,
-    });
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/tax-adjustments/suggestions');
-  }
-}
+    // Parse JSON fields
+    const parsedSuggestions = suggestions.map((s) => ({
+      ...s,
+      calculationDetails: s.calculationDetails
+        ? JSON.parse(s.calculationDetails)
+        : null,
+    }));
 
-
+    return NextResponse.json(
+      successResponse({
+        suggestions: parsedSuggestions,
+        count: suggestions.length,
+      })
+    );
+  },
+});

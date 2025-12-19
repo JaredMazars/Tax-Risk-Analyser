@@ -1,31 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { canApproveAcceptance } from '@/lib/services/auth/authorization';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { toTaskId } from '@/types/branded';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/tasks/[id]/permissions/approve-acceptance
  * Check if current user can approve acceptance for this task
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'VIEWER',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+    const brandedTaskId = toTaskId(taskId);
 
-    const { id } = await context.params;
-    const taskId = toTaskId(id);
+    const allowed = await canApproveAcceptance(user.id, brandedTaskId);
 
-    const allowed = await canApproveAcceptance(user.id, taskId);
-
-    return NextResponse.json(successResponse({ allowed }));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/permissions/approve-acceptance');
-  }
-}
+    return NextResponse.json(successResponse({ allowed }), {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  },
+});

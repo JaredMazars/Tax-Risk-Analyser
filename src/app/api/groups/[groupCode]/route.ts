@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
-import { Feature } from '@/lib/permissions/features';
 import { calculateWIPByTask } from '@/lib/services/clients/clientBalanceCalculation';
-import { secureRoute } from '@/lib/api/secureRoute';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { z } from 'zod';
+
+const queryParamsSchema = z.object({
+  search: z.string().optional().default(''),
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  type: z.enum(['clients', 'tasks']).optional().default('clients'),
+  serviceLine: z.string().optional(),
+});
 
 /**
  * GET /api/groups/[groupCode]
@@ -17,11 +26,19 @@ export const GET = secureRoute.queryWithParams({
     const { groupCode } = params;
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
-    const page = Number.parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
-    const dataType = searchParams.get('type') || 'clients';
-    const serviceLine = searchParams.get('serviceLine') || undefined;
+    const queryResult = queryParamsSchema.safeParse({
+      search: searchParams.get('search'),
+      page: searchParams.get('page'),
+      limit: searchParams.get('limit'),
+      type: searchParams.get('type'),
+      serviceLine: searchParams.get('serviceLine'),
+    });
+
+    if (!queryResult.success) {
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    const { search, page, limit, type: dataType, serviceLine } = queryResult.data;
     const skip = (page - 1) * limit;
 
     const cacheParams = {
@@ -42,7 +59,7 @@ export const GET = secureRoute.queryWithParams({
     });
 
     if (!groupInfo) {
-      return NextResponse.json({ success: false, error: 'Group not found' }, { status: 404 });
+      throw new AppError(404, 'Group not found', ErrorCodes.NOT_FOUND);
     }
 
     if (dataType === 'tasks') {
@@ -57,7 +74,7 @@ export const GET = secureRoute.queryWithParams({
         prisma.task.findMany({
           where: taskWhere,
           skip, take: limit,
-          orderBy: { updatedAt: 'desc' },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
           select: {
             id: true, GSTaskID: true, TaskDesc: true, TaskCode: true, Active: true,
             ServLineCode: true, ServLineDesc: true, SLGroup: true, createdAt: true, updatedAt: true,
@@ -119,7 +136,7 @@ export const GET = secureRoute.queryWithParams({
     const [total, clients] = await Promise.all([
       prisma.client.count({ where }),
       prisma.client.findMany({
-        where, skip, take: limit, orderBy: { clientNameFull: 'asc' },
+        where, skip, take: limit, orderBy: [{ clientNameFull: 'asc' }, { id: 'asc' }],
         select: {
           id: true, GSClientID: true, clientCode: true, clientNameFull: true,
           clientPartner: true, clientManager: true, clientIncharge: true, industry: true, active: true,

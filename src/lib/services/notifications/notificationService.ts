@@ -188,6 +188,7 @@ export class NotificationService {
     try {
       const notification = await prisma.inAppNotification.findUnique({
         where: { id: notificationId },
+        select: { id: true, userId: true },
       });
 
       if (!notification || notification.userId !== userId) {
@@ -206,6 +207,36 @@ export class NotificationService {
       return true;
     } catch (error) {
       logger.error('Error marking notification as read:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mark a notification as unread
+   */
+  async markAsUnread(notificationId: number, userId: string): Promise<boolean> {
+    try {
+      const notification = await prisma.inAppNotification.findUnique({
+        where: { id: notificationId },
+        select: { id: true, userId: true },
+      });
+
+      if (!notification || notification.userId !== userId) {
+        return false;
+      }
+
+      await prisma.inAppNotification.update({
+        where: { id: notificationId },
+        data: {
+          isRead: false,
+          readAt: null,
+        },
+      });
+
+      logger.info('Notification marked as unread', { notificationId, userId });
+      return true;
+    } catch (error) {
+      logger.error('Error marking notification as unread:', error);
       return false;
     }
   }
@@ -256,6 +287,7 @@ export class NotificationService {
     try {
       const notification = await prisma.inAppNotification.findUnique({
         where: { id: notificationId },
+        select: { id: true, userId: true },
       });
 
       if (!notification || notification.userId !== userId) {

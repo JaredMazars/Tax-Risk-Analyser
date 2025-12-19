@@ -1,98 +1,136 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { determineSectionAndSubsection } from '@/lib/tools/tax-opinion/services/sectionMapper';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
-import { toTaskId } from '@/types/branded';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { z } from 'zod';
+import { logger } from '@/lib/utils/logger';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
-    
-    // Check project access (any role can view)
-    const hasAccess = await checkTaskAccess(user.id, taskId);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
+// Maximum mapped accounts to return per request
+const MAX_MAPPED_ACCOUNTS = 1000;
+
+// Zod schema for creating a mapped account
+const createMappedAccountSchema = z.object({
+  accountCode: z.string().min(1).max(50),
+  accountName: z.string().min(1).max(255),
+  balance: z.number(),
+  priorYearBalance: z.number().default(0),
+  sarsItem: z.string().min(1).max(100),
+  section: z.string().max(100).optional(),
+  subsection: z.string().max(100).optional(),
+}).strict();
+
+/**
+ * GET /api/tasks/[id]/mapped-accounts
+ * List all mapped accounts for a task
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'VIEWER',
+  handler: async (request, { user, params }) => {
+    const taskId = parseTaskId(params.id);
+
     const mappedAccounts = await prisma.mappedAccount.findMany({
       where: {
         taskId,
       },
-      orderBy: {
-        accountCode: 'asc',
+      select: {
+        id: true,
+        accountCode: true,
+        accountName: true,
+        section: true,
+        subsection: true,
+        balance: true,
+        priorYearBalance: true,
+        sarsItem: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [
+        { section: 'asc' },
+        { subsection: 'asc' },
+        { accountCode: 'asc' },
+      ],
+      take: MAX_MAPPED_ACCOUNTS,
+    });
+
+    logger.info('Listed mapped accounts', {
+      userId: user.id,
+      taskId,
+      count: mappedAccounts.length,
+    });
+
+    return NextResponse.json(successResponse(mappedAccounts), {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  },
+});
+
+/**
+ * POST /api/tasks/[id]/mapped-accounts
+ * Create a new mapped account for a task
+ */
+export const POST = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  taskIdParam: 'id',
+  taskRole: 'EDITOR',
+  schema: createMappedAccountSchema,
+  handler: async (request, { user, params, data }) => {
+    const taskId = parseTaskId(params.id);
+
+    // Verify task exists
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, TaskCode: true },
+    });
+
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Determine section and subsection based on sarsItem and balance
+    const { section, subsection } = determineSectionAndSubsection(
+      data.sarsItem,
+      data.balance
+    );
+
+    // Create mapped account with explicit field mapping (no spreading)
+    const mappedAccount = await prisma.mappedAccount.create({
+      data: {
+        accountCode: data.accountCode,
+        accountName: data.accountName,
+        balance: data.balance,
+        priorYearBalance: data.priorYearBalance,
+        sarsItem: data.sarsItem,
+        section: data.section ?? section,
+        subsection: data.subsection ?? subsection,
+        taskId,
+      },
+      select: {
+        id: true,
+        accountCode: true,
+        accountName: true,
+        section: true,
+        subsection: true,
+        balance: true,
+        priorYearBalance: true,
+        sarsItem: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
-    return NextResponse.json(successResponse(mappedAccounts));
-  } catch (error) {
-    return handleApiError(error, 'Get Mapped Accounts');
-  }
-}
-
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
-    
-    // Check project access (requires EDITOR role or higher)
-    const hasAccess = await checkTaskAccess(user.id, taskId, 'EDITOR');
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    
-    const data = await request.json();
-    
-    // If sarsItem and balance are provided, determine section and subsection
-    if (data.sarsItem && typeof data.balance === 'number') {
-      const { section, subsection } = determineSectionAndSubsection(
-        data.sarsItem,
-        data.balance
-      );
-      data.section = section;
-      data.subsection = subsection;
-    }
-
-    const mappedAccount = await prisma.mappedAccount.create({
-      data: {
-        ...data,
-        taskId,
-      },
+    logger.info('Created mapped account', {
+      userId: user.id,
+      taskId,
+      taskCode: task.TaskCode,
+      mappedAccountId: mappedAccount.id,
+      accountCode: mappedAccount.accountCode,
     });
 
     return NextResponse.json(successResponse(mappedAccount), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'Create Mapped Account');
-  }
-} 
+  },
+});

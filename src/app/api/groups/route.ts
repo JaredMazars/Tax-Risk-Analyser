@@ -2,24 +2,15 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
-import { checkFeature } from '@/lib/permissions/checkFeature';
-import { Feature } from '@/lib/permissions/features';
-import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
-import { secureRoute } from '@/lib/api/secureRoute';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/groups
  * List client groups with pagination
  */
 export const GET = secureRoute.query({
+  feature: Feature.ACCESS_CLIENTS,
   handler: async (request, { user }) => {
-    const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
-    const userSubGroups = await getUserSubServiceLineGroups(user.id);
-    const hasServiceLineAccess = userSubGroups.length > 0;
-    
-    if (!hasPagePermission && !hasServiceLineAccess) {
-      return NextResponse.json({ success: false, error: 'Forbidden - Insufficient permissions' }, { status: 403 });
-    }
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
@@ -66,7 +57,7 @@ export const GET = secureRoute.query({
       where,
       select: { groupCode: true, groupDesc: true },
       distinct: ['groupCode'],
-      orderBy: { groupDesc: 'asc' },
+      orderBy: [{ groupDesc: 'asc' }, { groupCode: 'asc' }],
       skip,
       take: limit,
     });

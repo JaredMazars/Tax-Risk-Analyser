@@ -103,6 +103,16 @@ export function parseAdjustmentId(id: string | undefined): number {
 }
 
 /**
+ * Parse and validate tool ID from route params
+ * @param id - String ID from route params
+ * @returns Validated numeric tool ID
+ * @throws AppError if ID is invalid
+ */
+export function parseToolId(id: string | undefined): number {
+  return parseNumericId(id, 'Tool');
+}
+
+/**
  * Parse and validate document ID from route params
  * @param id - String ID from route params
  * @returns Validated numeric document ID

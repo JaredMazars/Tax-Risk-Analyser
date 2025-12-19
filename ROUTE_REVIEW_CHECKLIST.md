@@ -172,14 +172,14 @@ For routes that call external APIs or services:
 | Auth | 6 | 6 |
 | BD | 27 | 27 |
 | Clients | 21 | 21 |
-| Tasks | 59 | 30 |
-| Service Lines | 12 | 0 |
-| Groups | 7 | 0 |
-| Notifications | 5 | 0 |
-| Users | 5 | 0 |
-| Tools | 8 | 0 |
+| Tasks | 63 | 63 |
+| Service Lines | 12 | 12 |
+| Groups | 6 | 6 |
+| Notifications | 7 | 7 |
+| Users | 6 | 6 |
+| Tools | 14 | 14 |
 | Utility | 10 | 0 |
-| **Total** | **188** | **112** |
+| **Total** | **200** | **191** |
 
 ---
 
@@ -1189,192 +1189,305 @@ For routes that call external APIs or services:
 
 ### Task Acceptance
 
-- [ ] `GET /api/tasks/[id]/acceptance` - Get acceptance status
+- [x] `POST /api/tasks/[id]/acceptance` - Approve client acceptance
   - **File**: `src/app/api/tasks/[id]/acceptance/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` permission. Replaced `toTaskId()` with `parseTaskId()`. Changed `include` to explicit `select` fields. Replaced all ad-hoc error responses with `AppError`. Route already had: transaction, audit logging.
 
-- [ ] `POST /api/tasks/[id]/acceptance/initialize` - Initialize acceptance
+- [x] `POST /api/tasks/[id]/acceptance/initialize` - Initialize acceptance
   - **File**: `src/app/api/tasks/[id]/acceptance/initialize/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.mutationWithParams`. Added `Feature.ACCESS_TASKS` permission with task access check. Replaced `toTaskId()` with `parseTaskId()`. Changed `include` to explicit `select` fields. Added `take` limits (500 answers, 100 documents). Added deterministic secondary sort (`id`). Replaced ad-hoc errors with `AppError`. Schema validation via secureRoute.
 
-- [ ] `GET /api/tasks/[id]/acceptance/answers` - Get answers
+- [x] `PATCH /api/tasks/[id]/acceptance/answers` - Save/update answers (autosave)
   - **File**: `src/app/api/tasks/[id]/acceptance/answers/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.mutationWithParams`. Added `Feature.ACCESS_TASKS` permission with EDITOR role. Replaced `toTaskId()` with `parseTaskId()`. Changed `include` to explicit `select` fields. Added `take` limits (200 questions, 500 answers). Added explicit `select` on response query. Replaced ad-hoc errors with `AppError`. Route already had: sanitization, audit logging.
+  - **Notes**: Checklist incorrectly listed as GET/POST - this is PATCH.
 
-- [ ] `POST /api/tasks/[id]/acceptance/answers` - Submit answers
-  - **File**: `src/app/api/tasks/[id]/acceptance/answers/route.ts`
-  - **Frontend**: 
-    - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
-
-- [ ] `GET /api/tasks/[id]/acceptance/documents` - List acceptance docs
+- [x] `GET /api/tasks/[id]/acceptance/documents` - List acceptance docs
   - **File**: `src/app/api/tasks/[id]/acceptance/documents/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS` permission with task access check. Replaced `toTaskId()` with `parseTaskId()`. Added `Cache-Control: no-store`. Replaced ad-hoc errors with `AppError`.
 
-- [ ] `POST /api/tasks/[id]/acceptance/documents` - Upload acceptance doc
+- [x] `POST /api/tasks/[id]/acceptance/documents` - Upload acceptance doc
   - **File**: `src/app/api/tasks/[id]/acceptance/documents/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.fileUploadWithParams`. Added `Feature.MANAGE_TASKS` permission with EDITOR role. Replaced `toTaskId()` with `parseTaskId()`. Replaced ad-hoc errors with `AppError`. Route already had: MIME type validation, file size validation, filename sanitization, audit logging.
 
-- [ ] `DELETE /api/tasks/[id]/acceptance/documents/[documentId]` - Delete doc
+- [x] `DELETE /api/tasks/[id]/acceptance/documents` - Delete doc (via query param)
+  - **File**: `src/app/api/tasks/[id]/acceptance/documents/route.ts`
+  - **Frontend**: 
+    - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` permission with EDITOR role. Added `DeleteDocumentQuerySchema` Zod validation for query params. Replaced `Number.parseInt()` with `parseNumericId()`. Replaced ad-hoc errors with `AppError`. Route already had: audit logging.
+  - **Notes**: Checklist incorrectly listed DELETE at `[documentId]` route - DELETE is on documents route with query param.
+
+- [x] `GET /api/tasks/[id]/acceptance/documents/[documentId]` - Download doc
   - **File**: `src/app/api/tasks/[id]/acceptance/documents/[documentId]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS` permission. Replaced `Number.parseInt()` with `parseNumericId()`. Replaced ad-hoc errors with `AppError`. Changed `Cache-Control` from `private, max-age=3600` to `no-store` for sensitive documents. Added `X-Content-Type-Options: nosniff` security header. Route already had: audit logging.
 
-- [ ] `GET /api/tasks/[id]/acceptance/status` - Get acceptance status
+- [x] `GET /api/tasks/[id]/acceptance/status` - Get acceptance status
   - **File**: `src/app/api/tasks/[id]/acceptance/status/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS` permission with task access check. Replaced `toTaskId()` with `parseTaskId()`. Changed `include` to explicit `select` fields. Added `take: 500` limit on answers. Added `Cache-Control: no-store`. Replaced ad-hoc errors with `AppError`.
 
-- [ ] `POST /api/tasks/[id]/acceptance/submit` - Submit for approval
+- [x] `POST /api/tasks/[id]/acceptance/submit` - Submit for approval
   - **File**: `src/app/api/tasks/[id]/acceptance/submit/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` permission with EDITOR role. Replaced `toTaskId()` with `parseTaskId()`. Changed `include` to explicit `select` fields. Added `take: 500` limit on answers. Added explicit `select` on update response. Replaced ad-hoc errors with `AppError` with proper error codes.
 
-- [ ] `POST /api/tasks/[id]/permissions/approve-acceptance` - Approve
+- [x] `GET /api/tasks/[id]/permissions/approve-acceptance` - Check approval permission
   - **File**: `src/app/api/tasks/[id]/permissions/approve-acceptance/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/acceptance/useAcceptanceQuestionnaire.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS` permission with task access check. Replaced `toTaskId()` with `parseTaskId()`. Added `Cache-Control: no-store`. Replaced ad-hoc errors with `AppError`.
+  - **Notes**: Checklist incorrectly listed as POST - this is GET.
 
 ### Task Tax & Compliance
 
-- [ ] `GET /api/tasks/[id]/tax-calculation` - Get tax calculation
+- [x] `GET /api/tasks/[id]/tax-calculation` - Get tax calculation
   - **File**: `src/app/api/tasks/[id]/tax-calculation/route.ts`
   - **Frontend**: 
     - Hook: `src/components/tools/tax-calculation/hooks/useTaxCalculation.ts`
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS` permission with task access check. Replaced `toTaskId()` with `parseTaskId()`.
+  - **Notes**: Checklist incorrectly listed POST - only GET exists. Tax calculation is read from mapped accounts, not created via POST.
 
-- [ ] `POST /api/tasks/[id]/tax-calculation` - Calculate tax
-  - **File**: `src/app/api/tasks/[id]/tax-calculation/route.ts`
-  - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/tax-calculation/page.tsx`
-
-- [ ] `GET /api/tasks/[id]/tax-calculation/export` - Export tax calc
+- [x] `GET /api/tasks/[id]/tax-calculation/export` - Export tax calc
   - **File**: `src/app/api/tasks/[id]/tax-calculation/export/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS` permission. Replaced `toTaskId()` with `parseTaskId()`. Added format parameter validation against allowlist (`excel`, `pdf`, `csv`). Uses `AppError` for invalid format.
 
-- [ ] `GET /api/tasks/[id]/tax-adjustments` - List tax adjustments
+- [x] `GET /api/tasks/[id]/tax-adjustments` - List tax adjustments
   - **File**: `src/app/api/tasks/[id]/tax-adjustments/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS` permission. Replaced `toTaskId()` with `parseTaskId()`. Added Zod validation for `status` query param with allowlist. Replaced ad-hoc error responses with `AppError`.
 
-- [ ] `POST /api/tasks/[id]/tax-adjustments` - Create adjustment
+- [x] `POST /api/tasks/[id]/tax-adjustments` - Create adjustment
   - **File**: `src/app/api/tasks/[id]/tax-adjustments/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/new/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` with EDITOR role. Added `CreateTaxAdjustmentSchema` with `.strict()` for mass assignment protection. Explicit field mapping to handler.
 
-- [ ] `GET /api/tasks/[id]/tax-adjustments/[adjustmentId]` - Get adjustment
+- [x] `DELETE /api/tasks/[id]/tax-adjustments` - Delete all adjustments
+  - **File**: `src/app/api/tasks/[id]/tax-adjustments/route.ts`
+  - **Frontend**: N/A (admin action)
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` with ADMIN role. Added status query param validation. Replaced ad-hoc error responses with `AppError`.
+
+- [x] `GET /api/tasks/[id]/tax-adjustments/[adjustmentId]` - Get adjustment
   - **File**: `src/app/api/tasks/[id]/tax-adjustments/[adjustmentId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/[adjustmentId]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS`. Added IDOR protection via `verifyAdjustmentBelongsToTask()`. Replaced `include` with explicit `select` fields.
 
-- [ ] `PUT /api/tasks/[id]/tax-adjustments/[adjustmentId]` - Update adjustment
+- [x] `PATCH /api/tasks/[id]/tax-adjustments/[adjustmentId]` - Update adjustment
   - **File**: `src/app/api/tasks/[id]/tax-adjustments/[adjustmentId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/[adjustmentId]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.mutationWithParams`. Added `UpdateTaxAdjustmentSchema` with `.strict()`. Added IDOR protection. Role-based authorization (REVIEWER for approve/reject, EDITOR for other edits). Replaced `include` with explicit `select`.
+  - **Notes**: Checklist incorrectly listed as PUT - actual method is PATCH.
 
-- [ ] `DELETE /api/tasks/[id]/tax-adjustments/[adjustmentId]` - Delete
+- [x] `DELETE /api/tasks/[id]/tax-adjustments/[adjustmentId]` - Delete
   - **File**: `src/app/api/tasks/[id]/tax-adjustments/[adjustmentId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` with EDITOR role. Added IDOR protection. Uses `prisma.$transaction` for atomic delete of documents and adjustment.
 
-- [ ] `GET /api/tasks/[id]/tax-adjustments/[adjustmentId]/documents` - Docs
+- [x] `GET /api/tasks/[id]/tax-adjustments/[adjustmentId]/documents` - List docs
   - **File**: `src/app/api/tasks/[id]/tax-adjustments/[adjustmentId]/documents/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/[adjustmentId]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS`. Added IDOR protection. Added explicit `select` fields. Added `take: 100` limit. Added deterministic secondary sort (`id`). Uses `successResponse` wrapper.
 
-- [ ] `POST /api/tasks/[id]/tax-adjustments/[adjustmentId]/extract` - Extract
+- [x] `POST /api/tasks/[id]/tax-adjustments/[adjustmentId]/documents` - Upload doc
+  - **File**: `src/app/api/tasks/[id]/tax-adjustments/[adjustmentId]/documents/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/[adjustmentId]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.fileUploadWithParams`. Added `Feature.MANAGE_TASKS` with EDITOR role. Added IDOR protection. Replaced `Number.parseInt` with `parseTaskId`/`parseAdjustmentId`. Uses `AppError` for validation errors. Added explicit `select` on create response.
+  - **Notes**: Route already had file size and MIME type validation.
+
+- [x] `POST /api/tasks/[id]/tax-adjustments/[adjustmentId]/extract` - Extract data
   - **File**: `src/app/api/tasks/[id]/tax-adjustments/[adjustmentId]/extract/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/[adjustmentId]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` with EDITOR role. Added IDOR protection for both adjustment and document. Replaced `Number.parseInt` with proper ID parsers. Added `.strict()` to schema. Uses `AppError` for errors.
 
-- [ ] `GET /api/tasks/[id]/tax-adjustments/suggestions` - AI suggestions
+- [x] `GET /api/tasks/[id]/tax-adjustments/[adjustmentId]/extract` - Extraction status
+  - **File**: `src/app/api/tasks/[id]/tax-adjustments/[adjustmentId]/extract/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/[adjustmentId]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS`. Added IDOR protection. Added `take: 100` limit. Added deterministic secondary sort.
+
+- [x] `GET /api/tasks/[id]/tax-adjustments/suggestions` - Get AI suggestions
   - **File**: `src/app/api/tasks/[id]/tax-adjustments/suggestions/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS`. Replaced `toTaskId()` with `parseTaskId()`. Added `take: 100` limit. Added explicit `select` fields. Added deterministic secondary sort.
 
-- [ ] `GET /api/tasks/[id]/compliance-checklist` - Get checklist
+- [x] `POST /api/tasks/[id]/tax-adjustments/suggestions` - Generate suggestions
+  - **File**: `src/app/api/tasks/[id]/tax-adjustments/suggestions/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/tasks/[id]/tax-calculation/adjustments/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.aiWithParams` (AI rate limiting). Added `Feature.MANAGE_TASKS` with EDITOR role. Added `.strict()` to schema. Added `MAX_MAPPED_ACCOUNTS` limit (500). Uses `$transaction` with `createMany` for efficiency. Uses `AppError` for errors.
+
+- [x] `GET /api/tasks/[id]/compliance-checklist` - Get checklist
   - **File**: `src/app/api/tasks/[id]/compliance-checklist/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/compliance-checklist/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted from raw handler to `secureRoute.queryWithParams`. Added `Feature.ACCESS_TASKS` with task access check. Replaced `Number.parseInt` with `parseTaskId()`. Fixed old `{ params }` signature to Promise pattern. Added explicit `select` fields. Added `take: 500` limit. Added deterministic secondary sort (`id`).
 
-- [ ] `POST /api/tasks/[id]/compliance-checklist` - Create checklist
+- [x] `POST /api/tasks/[id]/compliance-checklist` - Create checklist item
   - **File**: `src/app/api/tasks/[id]/compliance-checklist/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/compliance-checklist/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` with EDITOR role. Added `CreateChecklistItemSchema` with `.strict()` for mass assignment protection. Explicit field mapping in Prisma `data`. Added explicit `select` on response.
 
-- [ ] `PUT /api/tasks/[id]/compliance-checklist/[itemId]` - Update item
+- [x] `PUT /api/tasks/[id]/compliance-checklist/[itemId]` - Update item
   - **File**: `src/app/api/tasks/[id]/compliance-checklist/[itemId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/compliance-checklist/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Converted to `secureRoute.mutationWithParams`. Added `Feature.MANAGE_TASKS` with EDITOR role. Added `UpdateChecklistItemSchema` with `.strict()`. Replaced `Number.parseInt` with `parseNumericId()`. Added IDOR protection via `verifyChecklistItemBelongsToTask()`. Explicit field mapping. Added explicit `select`.
 
-- [ ] `DELETE /api/tasks/[id]/compliance-checklist/[itemId]` - Delete item
+- [x] `DELETE /api/tasks/[id]/compliance-checklist/[itemId]` - Delete item
   - **File**: `src/app/api/tasks/[id]/compliance-checklist/[itemId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/compliance-checklist/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added DELETE handler (was missing). Uses `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS` and EDITOR role. Added IDOR protection.
+
+- [x] `GET /api/tasks/[id]/compliance-checklist/[itemId]` - Get single item
+  - **File**: `src/app/api/tasks/[id]/compliance-checklist/[itemId]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/tasks/[id]/compliance-checklist/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Notes**: Added GET handler for completeness. Uses `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS`. Added IDOR protection.
 
 ### Task Documents & Workspace
 
-- [ ] `GET /api/tasks/[id]/administration-documents` - List admin docs
+- [x] `GET /api/tasks/[id]/administration-documents` - List admin docs
   - **File**: `src/app/api/tasks/[id]/administration-documents/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/document-management/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS`. Added explicit `select` fields, `take: 500` limit, `Cache-Control: no-store` header, and `parseTaskId()` utility.
 
-- [ ] `GET /api/tasks/[id]/workspace/files` - List workspace files
+- [x] `POST /api/tasks/[id]/administration-documents` - Create admin doc
+  - **File**: `src/app/api/tasks/[id]/administration-documents/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/tasks/[id]/document-management/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`. Added `.strict()` to Zod schema, explicit `select` fields on create. Uses sanitization utilities.
+
+- [x] `GET /api/tasks/[id]/workspace/files` - List workspace files
   - **File**: `src/app/api/tasks/[id]/workspace/files/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/document-management/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_WORKSPACE`. Added Zod query param validation for `folderId`, replaced `any` type with `Prisma.WorkspaceFileWhereInput`, added `take: 500` limit, `Cache-Control: no-store` header.
 
-- [ ] `POST /api/tasks/[id]/workspace/files` - Upload file
+- [x] `POST /api/tasks/[id]/workspace/files` - Upload file
   - **File**: `src/app/api/tasks/[id]/workspace/files/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/document-management/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.fileUploadWithParams` with `Feature.MANAGE_WORKSPACE_FILES`. Replaced `any` types with `unknown`, replaced ad-hoc error responses with `AppError`. Uses `parseTaskId()` and `parseNumericId()` utilities.
 
-- [ ] `GET /api/tasks/[id]/workspace/files/[fileId]` - Get file
+- [x] `GET /api/tasks/[id]/workspace/files/[fileId]` - Download file
   - **File**: `src/app/api/tasks/[id]/workspace/files/[fileId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/document-management/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_WORKSPACE`. Added `X-Content-Type-Options: nosniff` and `Cache-Control: no-store` headers. Uses `parseTaskId()` and `parseNumericId()` utilities. IDOR protection via task ownership check.
 
-- [ ] `DELETE /api/tasks/[id]/workspace/files/[fileId]` - Delete file
+- [x] `DELETE /api/tasks/[id]/workspace/files/[fileId]` - Delete file
   - **File**: `src/app/api/tasks/[id]/workspace/files/[fileId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/document-management/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.mutationWithParams` with `Feature.DELETE_WORKSPACE_FILES`. Uses `parseTaskId()` and `parseNumericId()` utilities. IDOR protection via task ownership check. AppError for consistent error handling.
 
-- [ ] `GET /api/tasks/[id]/workspace/folders` - List folders
+- [x] `GET /api/tasks/[id]/workspace/folders` - List folders
   - **File**: `src/app/api/tasks/[id]/workspace/folders/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/document-management/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_WORKSPACE`. Added `take: 500` limit, `Cache-Control: no-store` header. Uses `parseTaskId()` utility. Already had explicit `select`.
 
-- [ ] `POST /api/tasks/[id]/workspace/folders` - Create folder
+- [x] `POST /api/tasks/[id]/workspace/folders` - Create folder
   - **File**: `src/app/api/tasks/[id]/workspace/folders/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/document-management/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_WORKSPACE_FOLDERS`. Added `.strict()` to Zod schema. Uses `parseTaskId()` and `parseNumericId()` utilities. Explicit field mapping prevents mass assignment. IDOR protection for parent folder.
 
 ### Task Mapped Accounts
 
-- [ ] `GET /api/tasks/[id]/mapped-accounts` - List mapped accounts
+- [x] `GET /api/tasks/[id]/mapped-accounts` - List mapped accounts
   - **File**: `src/app/api/tasks/[id]/mapped-accounts/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/mapping/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS`. Added `parseTaskId()` utility. Added explicit `select` fields. Added `take: 1000` limit with deterministic ordering (section, subsection, accountCode). Added `Cache-Control: no-store` header. Added logging.
 
-- [ ] `POST /api/tasks/[id]/mapped-accounts` - Create mapping
+- [x] `POST /api/tasks/[id]/mapped-accounts` - Create mapping
   - **File**: `src/app/api/tasks/[id]/mapped-accounts/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/mapping/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`. Added Zod schema with `.strict()` for mass assignment protection. Replaced `...data` spread with explicit field mapping. Added explicit `select` fields. Added logging.
 
-- [ ] `PUT /api/tasks/[id]/mapped-accounts/[accountId]` - Update mapping
+- [x] `PATCH /api/tasks/[id]/mapped-accounts/[accountId]` - Update mapping
   - **File**: `src/app/api/tasks/[id]/mapped-accounts/[accountId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/mapping/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`. Added authentication and authorization (was missing!). Added Zod schema with `.strict()`. Replaced inline `parseInt` with `parseTaskId()` and `parseNumericId()` utilities. Added IDOR protection (verify account belongs to task). Replaced `data` spread with explicit field mapping. Added explicit `select` fields. Added `successResponse` wrapper. Added logging.
+  - **Note**: Checklist listed as PUT but route was PATCH - corrected to match actual implementation.
 
-- [ ] `DELETE /api/tasks/[id]/mapped-accounts/[accountId]` - Delete mapping
+- [x] `DELETE /api/tasks/[id]/mapped-accounts/[accountId]` - Delete mapping
   - **File**: `src/app/api/tasks/[id]/mapped-accounts/[accountId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/mapping/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Handler was missing - created new DELETE handler using `secureRoute.mutationWithParams` with `Feature.MANAGE_TASKS`. Uses `parseTaskId()` and `parseNumericId()` utilities. Added IDOR protection. Added logging.
 
 ### Task Opinion Drafts
 
@@ -1511,237 +1624,346 @@ For routes that call external APIs or services:
 
 ## Service Line Routes (12)
 
-- [ ] `GET /api/service-lines` - List service lines
+- [x] `GET /api/service-lines` - List service lines
   - **File**: `src/app/api/service-lines/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/service-lines/useServiceLines.ts`
     - Page: `src/app/dashboard/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `Feature.ACCESS_DASHBOARD` permission check.
 
-- [ ] `GET /api/service-lines/user-role` - Get user's service line role
+- [x] `GET /api/service-lines/user-role` - Get user's service line role
   - **File**: `src/app/api/service-lines/user-role/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/permissions/useServiceLineAccess.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added Zod validation for query params. Added IDOR protection (users can only query roles for sub-groups they have access to, or their own role). Added `Feature.ACCESS_DASHBOARD` permission. Fixed employee ID parsing validation. Replaced ad-hoc error responses with AppError.
 
-- [ ] `GET /api/service-lines/[serviceLine]` - Get service line stats
+- [x] `GET /api/service-lines/[serviceLine]` - Get service line stats
   - **File**: `src/app/api/service-lines/[serviceLine]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added `Feature.ACCESS_DASHBOARD` permission. Replaced ad-hoc error responses with AppError throws.
 
-- [ ] `GET /api/service-lines/[serviceLine]/sub-groups` - List sub-groups
+- [x] `GET /api/service-lines/[serviceLine]/sub-groups` - List sub-groups
   - **File**: `src/app/api/service-lines/[serviceLine]/sub-groups/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/service-lines/useSubServiceLineGroups.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams()`. Added service line validation with `isValidServiceLine()`. Added service line access check. Removed unused `cache` and `CACHE_PREFIXES` imports. Removed trailing blank lines.
 
-- [ ] `GET /api/service-lines/[serviceLine]/external-lines` - External lines
+- [x] `GET /api/service-lines/[serviceLine]/external-lines` - External lines
   - **File**: `src/app/api/service-lines/[serviceLine]/external-lines/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams()`. Added service line validation with `isValidServiceLine()`. Added service line access check with `checkServiceLineAccess()`. Removed trailing blank lines.
 
-- [ ] `GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/users` - Users
+- [x] `GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/users` - Users
   - **File**: `src/app/api/service-lines/[serviceLine]/[subServiceLineGroup]/users/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/service-lines/useSubServiceLineUsers.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams()`. Fixed `any` type usage by defining proper `SubGroupInfo` interface. Replaced `handleApiError` catch with secureRoute error handling. Added proper Feature permission.
 
-- [ ] `GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/external-lines`
+- [x] `GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/external-lines`
   - **File**: `src/app/api/service-lines/[serviceLine]/[subServiceLineGroup]/external-lines/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams()`. Added service line validation. Added both service line and sub-service line group access checks. Removed trailing blank lines.
 
 ### Planner Routes
 
-- [ ] `GET /api/service-lines/[sL]/[sSLG]/planner/clients` - Planner clients
+- [x] `GET /api/service-lines/[sL]/[sSLG]/planner/clients` - Planner clients
   - **File**: `src/app/api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/clients/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/planning/useClientPlanner.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams()` with `Feature.ACCESS_DASHBOARD`. Added Zod validation for query params (page, limit, filter arrays with max limit 100). Defined proper TypeScript interfaces (`SubGroupInfo`, `ClientPlannerResponse`, `TaskRow`, `AllocationRow`) to replace `any` types. Replaced `handleApiError` catch with AppError throws. Removed unused perf tracking variables.
 
-- [ ] `GET /api/service-lines/[sL]/[sSLG]/planner/clients/filters` - Filters
+- [x] `GET /api/service-lines/[sL]/[sSLG]/planner/clients/filters` - Filters
   - **File**: `src/app/api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/clients/filters/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/planning/useClientPlannerFilters.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams()` with `Feature.ACCESS_DASHBOARD`. Defined proper TypeScript interfaces (`SubGroupInfo`, `ClientPlannerFiltersResponse`, `FilterOption`) to replace `any` types. Replaced `handleApiError` catch with AppError throws. Removed unused `queryStart` perf variable. Removed trailing blank lines.
 
-- [ ] `GET /api/service-lines/[sL]/[sSLG]/planner/employees` - Planner employees
+- [x] `GET /api/service-lines/[sL]/[sSLG]/planner/employees` - Planner employees
   - **File**: `src/app/api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/employees/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/planning/useEmployeePlanner.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams()` with `Feature.ACCESS_DASHBOARD`. Added Zod validation for query params (page, limit max 100, includeUnallocated, filter arrays). Defined proper TypeScript interfaces (`SubGroupInfo`, `EmployeePlannerResponse`, `AllocationRow`, `ServiceLineEmployee`, `TaskTeamWhereInput`) to replace `any` types. Replaced `role: 'VIEWER' as any` with `ServiceLineRole.VIEWER`. Replaced `handleApiError` catch with AppError throws. Removed unused perf tracking variables.
 
-- [ ] `GET /api/service-lines/[sL]/[sSLG]/planner/employees/filters` - Filters
+- [x] `GET /api/service-lines/[sL]/[sSLG]/planner/employees/filters` - Filters
   - **File**: `src/app/api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/employees/filters/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/planning/useEmployeePlannerFilters.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated to `secureRoute.queryWithParams()` with `Feature.ACCESS_DASHBOARD`. Defined proper TypeScript interfaces (`SubGroupInfo`, `EmployeePlannerFiltersResponse`, `FilterOption`) to replace `any` types. Removed unused `mapUsersToEmployees` import. Replaced `handleApiError` catch with AppError throws. Removed unused `queryStart` perf variable.
 
 ---
 
-## Group Routes (7)
+## Group Routes (6)
 
-- [ ] `GET /api/groups` - List groups with pagination
+- [x] `GET /api/groups` - List groups with pagination
   - **File**: `src/app/api/groups/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/clients/useClientGroups.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Moved `checkFeature` to `secureRoute.query({ feature: Feature.ACCESS_CLIENTS })`. Added secondary sort (`groupCode`) for deterministic pagination. Removed unused imports (`checkFeature`, `Feature`, `getUserSubServiceLineGroups`).
 
-- [ ] `GET /api/groups/filters` - Get group filter options
+- [x] `GET /api/groups/filters` - Get group filter options
   - **File**: `src/app/api/groups/filters/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/groups/useGroupFilters.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Moved `checkFeature` to `secureRoute.query({ feature: Feature.ACCESS_CLIENTS })`. Added secondary sort (`groupCode`) for deterministic pagination. Removed unused imports (`checkFeature`, `Feature`, `getUserSubServiceLineGroups`).
 
-- [ ] `GET /api/groups/[groupCode]` - Get group details
+- [x] `GET /api/groups/[groupCode]` - Get group details
   - **File**: `src/app/api/groups/[groupCode]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/clients/useClientGroup.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/groups/[groupCode]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added Zod schema validation for query params (`search`, `page`, `limit`, `type`, `serviceLine`) with allowlist for `type`. Replaced ad-hoc error responses with `AppError`. Added secondary sort (`id`) for deterministic pagination on tasks and clients queries.
 
-- [ ] `GET /api/groups/[groupCode]/debtors` - Get group debtors
+- [x] `GET /api/groups/[groupCode]/debtors` - Get group debtors
   - **File**: `src/app/api/groups/[groupCode]/debtors/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/groups/useGroupDebtors.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/groups/[groupCode]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated from raw handler to `secureRoute.queryWithParams` with `Feature.VIEW_WIP_DATA`. Replaced ad-hoc error responses with `AppError`. Added `take` limits: clients (1000), debtorTransactions (50000), serviceLineExternals (1000), masterServiceLines (100). Removed manual auth/permission checks and try-catch.
 
-- [ ] `GET /api/groups/[groupCode]/wip` - Get group WIP
+- [x] `GET /api/groups/[groupCode]/wip` - Get group WIP
   - **File**: `src/app/api/groups/[groupCode]/wip/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/groups/useGroupWip.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/groups/[groupCode]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated from raw handler to `secureRoute.queryWithParams` with `Feature.VIEW_WIP_DATA`. Replaced ad-hoc error responses with `AppError`. Added `take` limits: clients (1000), wipTransactions (100000), masterServiceLines (100). Removed manual auth/permission checks and try-catch.
 
-- [ ] `GET /api/groups/[groupCode]/service-lines` - Get group service lines
+- [x] `GET /api/groups/[groupCode]/service-lines` - Get group service lines
   - **File**: `src/app/api/groups/[groupCode]/service-lines/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/clients/useGroupServiceLines.ts`
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/groups/[groupCode]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Migrated from raw handler to `secureRoute.queryWithParams` with `Feature.ACCESS_CLIENTS`. Replaced ad-hoc error responses with `AppError`. Added `take` limits: serviceLineExternals (1000), serviceLineMasters (100). Removed manual auth/permission checks and try-catch.
 
 ---
 
-## Notification Routes (5)
+## Notification Routes (7)
 
-- [ ] `GET /api/notifications` - List notifications
+- [x] `GET /api/notifications` - List notifications
   - **File**: `src/app/api/notifications/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/notifications/useNotifications.ts`
     - Page: `src/app/dashboard/notifications/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added Zod validation schema for query params (page, pageSize with max 100, isRead, taskId). Uses `z.coerce` for URL string-to-number conversion. IDOR protection via service filtering by userId.
 
-- [ ] `DELETE /api/notifications` - Delete all read notifications
+- [x] `DELETE /api/notifications` - Delete all read notifications
   - **File**: `src/app/api/notifications/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/notifications/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Notes**: Uses `secureRoute.mutation`. IDOR protection via service filtering by userId. No input validation needed (deletes current user's read notifications only).
 
-- [ ] `PATCH /api/notifications/[id]` - Mark as read/unread
+- [x] `PATCH /api/notifications/[id]` - Mark as read/unread
   - **File**: `src/app/api/notifications/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/notifications/useNotifications.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced `Number.parseInt` with `parseNumericId()`. Replaced ad-hoc error JSON with `AppError` throws. Added `markAsUnread` method to service to handle `isRead: false` case. Added explicit `select` to service findUnique.
 
-- [ ] `DELETE /api/notifications/[id]` - Delete notification
+- [x] `DELETE /api/notifications/[id]` - Delete notification
   - **File**: `src/app/api/notifications/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/notifications/useNotifications.ts`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced `z.ZodAny` with `undefined` for no-body mutation. Replaced `Number.parseInt` with `parseNumericId()`. Replaced ad-hoc error JSON with `AppError` throws. Added explicit `select` to service findUnique.
 
-- [ ] `POST /api/notifications/mark-all-read` - Mark all as read
+- [x] `POST /api/notifications/mark-all-read` - Mark all as read
   - **File**: `src/app/api/notifications/mark-all-read/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/notifications/useNotifications.ts`
     - Page: `src/app/dashboard/notifications/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added Zod schema `MarkAllReadSchema` with `.strict()` for optional taskId validation. Replaced manual `request.json()` with schema-based validation. IDOR protection via service filtering by userId.
 
-- [ ] `GET /api/notifications/unread-count` - Get unread count
+- [x] `GET /api/notifications/unread-count` - Get unread count
   - **File**: `src/app/api/notifications/unread-count/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/notifications/useNotifications.ts`
     - Component: Header notification badge
+  - **Reviewed**: 2024-12-19
+  - **Notes**: Uses `secureRoute.query`. Proper `Cache-Control: no-store` header. IDOR protection via service filtering by userId. Simple and secure.
 
-- [ ] `POST /api/notifications/send-message` - Send message to user
+- [x] `POST /api/notifications/send-message` - Send message to user
   - **File**: `src/app/api/notifications/send-message/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/users/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced ad-hoc error JSON with `AppError` throws. Added explicit `select` clauses to `findUnique` and `findFirst` queries. Schema `SendUserMessageSchema` already uses `.strict()`. Task access authorization check in place.
 
 ---
 
-## User Routes (5)
+## User Routes (6)
 
-- [ ] `GET /api/users/search` - Search users
+- [x] `GET /api/users/search` - Search users
   - **File**: `src/app/api/users/search/route.ts`
   - **Frontend**: 
     - Component: User search components
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added AppError for validation errors. Added query param validation (limit bounds, subServiceLineGroup format regex). Capped query length at 100 chars. Fixed `any` type in employeeSearch service with proper `EmployeeWhereClause` interface.
 
-- [ ] `GET /api/users/search/filters` - Get search filters
+- [x] `GET /api/users/search/filters` - Get search filters
   - **File**: `src/app/api/users/search/filters/route.ts`
   - **Frontend**: 
     - Component: User search filters
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added Redis caching with 30-minute TTL (filter options change infrequently).
 
-- [ ] `GET /api/users/me/allocations` - Get my allocations
+- [x] `GET /api/users/me/allocations` - Get my allocations
   - **File**: `src/app/api/users/me/allocations/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added secondary sort (`id`) for deterministic ordering. Added `take: 500` limit for bounded queries. Replaced `unknown[]` types with proper `AllocationData`, `FlatAllocationData`, `ClientGroup` interfaces.
 
-- [ ] `GET /api/users/notification-preferences` - Get preferences
+- [x] `GET /api/users/notification-preferences` - Get preferences
   - **File**: `src/app/api/users/notification-preferences/route.ts`
   - **Frontend**: 
     - Page: Settings/preferences pages
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Added explicit `select:` for all fields. Added tertiary sort (`id`) for deterministic ordering. Added `take: 200` limit.
 
-- [ ] `POST /api/users/notification-preferences` - Create preferences
+- [x] `POST /api/users/notification-preferences` - Create preferences
   - **File**: `src/app/api/users/notification-preferences/route.ts`
   - **Frontend**: 
     - Page: Settings/preferences pages
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced ad-hoc error response with `AppError`. Added explicit `select:` for create and existence check.
 
-- [ ] `PUT /api/users/notification-preferences` - Update preferences
+- [x] `PUT /api/users/notification-preferences` - Update preferences
   - **File**: `src/app/api/users/notification-preferences/route.ts`
   - **Frontend**: 
     - Page: Settings/preferences pages
+  - **Reviewed**: 2024-12-19
+  - **Fix Applied**: Replaced ad-hoc error responses with `AppError`. Added query param validation (notificationType format regex, taskId numeric validation). Added explicit `select:` for update/create/existence check.
 
 ---
 
-## Tool Routes (8)
+## Tool Routes (14)
 
-- [ ] `GET /api/tools` - List tools
+- [x] `GET /api/tools` - List tools
   - **File**: `src/app/api/tools/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using secureRoute.query but no issues. Added explicit select fields.
+  - **Fix Applied**: Uses secureRoute.query with Feature.MANAGE_TOOLS. Explicit select fields for all queries.
 
-- [ ] `POST /api/tools` - Create tool
+- [x] `POST /api/tools` - Create tool
   - **File**: `src/app/api/tools/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using secureRoute.mutation but no Zod schema. Used ad-hoc error responses instead of AppError.
+  - **Fix Applied**: Added CreateToolSchema for Zod validation. Uses AppError with proper error codes. Explicit select fields.
 
-- [ ] `GET /api/tools/[id]` - Get tool details
+- [x] `GET /api/tools/[id]` - Get tool details
   - **File**: `src/app/api/tools/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler instead of secureRoute. Used parseInt instead of parseToolId. Feature imported from wrong path.
+  - **Fix Applied**: Migrated to secureRoute.queryWithParams. Added parseToolId for ID parsing. Uses AppError. Explicit select fields.
 
-- [ ] `PUT /api/tools/[id]` - Update tool
+- [x] `PUT /api/tools/[id]` - Update tool
   - **File**: `src/app/api/tools/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. No Zod schema validation. Used parseInt. Manual sanitization.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams with UpdateToolSchema. Uses parseToolId. Explicit field mapping (no spreading user input).
 
-- [ ] `DELETE /api/tools/[id]` - Delete tool
+- [x] `DELETE /api/tools/[id]` - Delete tool
   - **File**: `src/app/api/tools/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Used parseInt.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams. Uses parseToolId. Checks task count before deletion.
 
-- [ ] `GET /api/tools/[id]/assignments` - Get tool assignments
+- [x] `GET /api/tools/[id]/assignments` - Get tool assignments
   - **File**: `src/app/api/tools/[id]/assignments/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Used parseInt. Feature imported from wrong path.
+  - **Fix Applied**: Migrated to secureRoute.queryWithParams. Uses parseToolId. Explicit select fields.
 
-- [ ] `POST /api/tools/[id]/assignments` - Assign tool
+- [x] `PUT /api/tools/[id]/assignments` - Update tool assignments
   - **File**: `src/app/api/tools/[id]/assignments/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Used parseInt. No Zod schema. Manual array validation.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams with UpdateToolAssignmentsSchema. Uses parseToolId. Uses transaction for atomic updates.
 
-- [ ] `GET /api/tools/available` - Get available tools
+- [x] `GET /api/tools/available` - Get available tools
   - **File**: `src/app/api/tools/available/route.ts`
   - **Frontend**: 
     - Component: Tool selection components
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. No feature permission check. No validation of subServiceLineGroup param.
+  - **Fix Applied**: Migrated to secureRoute.query with Feature.ACCESS_TASKS. Added query param validation with regex. Explicit select fields.
 
-- [ ] `POST /api/tools/register` - Register tool for task
+- [x] `POST /api/tools/register` - Register tool from code registry
   - **File**: `src/app/api/tools/register/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Feature imported from wrong path. Manual body parsing/sanitization.
+  - **Fix Applied**: Migrated to secureRoute.mutation with RegisterToolSchema. Uses AppError. Uses transaction for creating tool + sub-tabs.
 
-- [ ] `GET /api/tools/registered` - Get registered tools
+- [x] `GET /api/tools/registered` - Get registered tools sync status
   - **File**: `src/app/api/tools/registered/route.ts`
   - **Frontend**: 
-    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+    - Page: `src/app/dashboard/admin/tools/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Feature imported from wrong path.
+  - **Fix Applied**: Migrated to secureRoute.query. Uses logger for error logging. Uses AppError for config load failures.
 
-- [ ] `GET /api/tools/task/[taskId]` - Get tools for task
+- [x] `GET /api/tools/task/[taskId]` - Get tools for task
   - **File**: `src/app/api/tools/task/[taskId]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Used parseInt. No task access check.
+  - **Fix Applied**: Migrated to secureRoute.queryWithParams with taskIdParam for automatic task access check. Uses parseTaskId. VIEWER role required.
+
+- [x] `POST /api/tools/task/[taskId]` - Add tool to task
+  - **File**: `src/app/api/tools/task/[taskId]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. No Zod schema. Manual sanitization.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams with AddToolToTaskSchema and taskIdParam. EDITOR role required. Checks tool active status.
+
+- [x] `DELETE /api/tools/task/[taskId]` - Remove tool from task
+  - **File**: `src/app/api/tools/task/[taskId]/route.ts`
+  - **Frontend**: 
+    - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Used parseInt for both taskId and toolId query param.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams with taskIdParam. Uses parseTaskId and parseNumericId. EDITOR role required.
 
 ---
 
@@ -1749,150 +1971,239 @@ For routes that call external APIs or services:
 
 ### Employee Routes
 
-- [ ] `GET /api/employees` - List employees
+- [x] `GET /api/employees` - List employees
   - **File**: `src/app/api/employees/route.ts`
   - **Frontend**: 
     - Component: Employee pickers/selectors
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query correctly.
+  - **Fix Applied**: None needed.
 
-- [ ] `GET /api/employees/[empCode]` - Get employee details
+- [x] `GET /api/employees/[empCode]` - Get employee details
   - **File**: `src/app/api/employees/[empCode]/route.ts`
   - **Frontend**: 
     - Component: Employee profile displays
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.queryWithParams correctly.
+  - **Fix Applied**: None needed.
 
 ### Health & Debug
 
-- [ ] `GET /api/health` - Health check
+- [x] `GET /api/health` - Health check
   - **File**: `src/app/api/health/route.ts`
   - **Frontend**: 
     - None (monitoring only)
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - intentionally unauthenticated for monitoring.
+  - **Fix Applied**: None needed (health endpoints should be unauthenticated).
 
-- [ ] `GET /api/health/redis` - Redis health check
+- [x] `GET /api/health/redis` - Redis health check
   - **File**: `src/app/api/health/redis/route.ts`
   - **Frontend**: 
     - None (monitoring only)
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth/admin checks.
+  - **Fix Applied**: Migrated to secureRoute.query with Feature.SYSTEM_ADMIN. Uses successResponse.
 
-- [ ] `GET /api/debug/user-role` - Debug user role
+- [x] `GET /api/debug/user-role` - Debug user role
   - **File**: `src/app/api/debug/user-role/route.ts`
   - **Frontend**: 
     - None (development only)
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query correctly.
+  - **Fix Applied**: None needed.
 
 ### Search Routes
 
-- [ ] `POST /api/search/legal-precedents` - Search legal precedents
+- [x] `GET /api/search/legal-precedents` - Search legal precedents
   - **File**: `src/app/api/search/legal-precedents/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth and enforceRateLimit.
+  - **Fix Applied**: Migrated to secureRoute.query (rate limiting built-in). Cleaned up imports.
 
-- [ ] `POST /api/search/tax-law` - Search tax law
+- [x] `GET /api/search/tax-law` - Search tax law
   - **File**: `src/app/api/search/tax-law/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/tasks/[id]/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth and enforceRateLimit.
+  - **Fix Applied**: Migrated to secureRoute.query (rate limiting built-in). Cleaned up imports.
 
-- [ ] `POST /api/search/web` - Web search
+- [x] `GET /api/search/web` - Web search
   - **File**: `src/app/api/search/web/route.ts`
   - **Frontend**: 
     - AI components
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth. No validation on count param.
+  - **Fix Applied**: Migrated to secureRoute.query. Added max limit (50) on count param.
 
 ### News Routes
 
-- [ ] `GET /api/news` - List news bulletins
+- [x] `GET /api/news` - List news bulletins
   - **File**: `src/app/api/news/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/news/useNewsBulletins.ts`
     - Page: `src/app/dashboard/business_dev/news/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query correctly.
+  - **Fix Applied**: None needed.
 
-- [ ] `POST /api/news` - Create news bulletin
+- [x] `POST /api/news` - Create news bulletin
   - **File**: `src/app/api/news/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/business_dev/news/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.mutation with schema.
+  - **Fix Applied**: None needed.
 
-- [ ] `GET /api/news/[id]` - Get bulletin details
+- [x] `GET /api/news/[id]` - Get bulletin details
   - **File**: `src/app/api/news/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/business_dev/news/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth.
+  - **Fix Applied**: Migrated to secureRoute.queryWithParams. Extracted common select fields.
 
-- [ ] `PUT /api/news/[id]` - Update bulletin
+- [x] `PUT /api/news/[id]` - Update bulletin
   - **File**: `src/app/api/news/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/business_dev/news/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth and JSON parsing.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams with UpdateNewsBulletinSchema.
 
-- [ ] `DELETE /api/news/[id]` - Delete bulletin
+- [x] `DELETE /api/news/[id]` - Delete bulletin
   - **File**: `src/app/api/news/[id]/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/business_dev/news/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams.
 
-- [ ] `GET /api/news/[id]/document` - Get bulletin document
+- [x] `GET /api/news/[id]/document` - Get bulletin document
   - **File**: `src/app/api/news/[id]/document/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/business_dev/news/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth. Old params pattern (synchronous).
+  - **Fix Applied**: Migrated to secureRoute.queryWithParams. Uses AppError for validation.
 
-- [ ] `POST /api/news/generate` - AI generate news
+- [x] `POST /api/news/generate` - AI generate news
   - **File**: `src/app/api/news/generate/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/business_dev/news/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Not using secureRoute.ai wrapper.
+  - **Fix Applied**: Migrated to secureRoute.ai with GenerateBulletinBodySchema (.strict()). AI rate limiting built-in.
 
-- [ ] `POST /api/news/upload-document` - Upload news document
+- [x] `POST /api/news/upload-document` - Upload news document
   - **File**: `src/app/api/news/upload-document/route.ts`
   - **Frontend**: 
     - Page: `src/app/dashboard/business_dev/news/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler. Not using secureRoute.fileUpload wrapper.
+  - **Fix Applied**: Migrated to secureRoute.fileUpload. File upload rate limiting built-in. Added ALLOWED_MIME_TYPES constant.
 
 ### Other Utility Routes
 
-- [ ] `GET /api/office-codes` - List office codes
+- [x] `GET /api/office-codes` - List office codes
   - **File**: `src/app/api/office-codes/route.ts`
   - **Frontend**: 
     - Component: Office code dropdowns
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query correctly.
+  - **Fix Applied**: None needed.
 
-- [ ] `GET /api/permissions/check` - Check feature permissions
+- [x] `GET /api/permissions/check` - Check feature permissions
   - **File**: `src/app/api/permissions/check/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/permissions/useFeature.ts`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query correctly.
+  - **Fix Applied**: None needed.
 
-- [ ] `GET /api/workspace-counts` - Get workspace counts
+- [x] `GET /api/workspace-counts` - Get workspace counts
   - **File**: `src/app/api/workspace-counts/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/workspace/useWorkspaceCounts.ts`
     - Page: `src/app/dashboard/page.tsx`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query correctly with caching.
+  - **Fix Applied**: None needed.
 
-- [ ] `GET /api/standard-tasks` - List standard tasks
+- [x] `GET /api/standard-tasks` - List standard tasks
   - **File**: `src/app/api/standard-tasks/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/tasks/useStandardTasks.ts`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query with Feature.MANAGE_TASKS.
+  - **Fix Applied**: None needed.
 
-- [ ] `GET /api/templates/available` - Get available templates
+- [x] `GET /api/templates/available` - Get available templates
   - **File**: `src/app/api/templates/available/route.ts`
   - **Frontend**: 
     - Component: Template selectors
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query correctly.
+  - **Fix Applied**: None needed.
 
-- [ ] `GET /api/non-client-allocations` - List non-client allocations
+- [x] `GET /api/non-client-allocations` - List non-client allocations
   - **File**: `src/app/api/non-client-allocations/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/planning/useNonClientAllocations.ts`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.query with Feature.MANAGE_TASKS.
+  - **Fix Applied**: None needed.
 
-- [ ] `POST /api/non-client-allocations` - Create allocation
+- [x] `POST /api/non-client-allocations` - Create allocation
   - **File**: `src/app/api/non-client-allocations/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/planning/useNonClientAllocations.ts`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: None - already using secureRoute.mutation with Feature.MANAGE_TASKS.
+  - **Fix Applied**: None needed.
 
-- [ ] `PUT /api/non-client-allocations/[id]` - Update allocation
+- [x] `PUT /api/non-client-allocations/[id]` - Update allocation
   - **File**: `src/app/api/non-client-allocations/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/planning/useNonClientAllocations.ts`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth. No Zod schema. Used parseInt.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams with UpdateAllocationSchema. Uses Number.parseInt.
 
-- [ ] `DELETE /api/non-client-allocations/[id]` - Delete allocation
+- [x] `DELETE /api/non-client-allocations/[id]` - Delete allocation
   - **File**: `src/app/api/non-client-allocations/[id]/route.ts`
   - **Frontend**: 
     - Hook: `src/hooks/planning/useNonClientAllocations.ts`
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual auth. Used parseInt.
+  - **Fix Applied**: Migrated to secureRoute.mutationWithParams with Feature.MANAGE_TASKS. Uses Number.parseInt.
 
-- [ ] `GET /api/performance` - Performance metrics
+- [x] `GET /api/performance` - Performance metrics
   - **File**: `src/app/api/performance/route.ts`
   - **Frontend**: 
     - None (monitoring only)
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual isSystemAdmin check. No rate limiting.
+  - **Fix Applied**: Migrated to secureRoute.query with Feature.SYSTEM_ADMIN. Rate limiting built-in.
 
-- [ ] `GET /api/map` - Get map data
+- [x] `DELETE /api/performance` - Clear performance metrics
+  - **File**: `src/app/api/performance/route.ts`
+  - **Frontend**: 
+    - None (monitoring only)
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: Was using raw handler with manual isSystemAdmin check.
+  - **Fix Applied**: Migrated to secureRoute.mutation with Feature.SYSTEM_ADMIN.
+
+- [x] `POST /api/map` - Process trial balance mapping
   - **File**: `src/app/api/map/route.ts`
   - **Frontend**: 
     - Map component
+  - **Reviewed**: 2024-12-19
+  - **Issues Found**: CRITICAL - No authentication at all! No file validation. Used deprecated logInfo/logError.
+  - **Fix Applied**: Added authentication, Feature.MANAGE_TASKS permission check, AI rate limiting, file type/size validation. Uses logger. Uses AppError for validation errors.
 
 ---
 

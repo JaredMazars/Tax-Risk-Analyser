@@ -55,10 +55,15 @@ export function containsPathTraversal(value: string): boolean {
 /**
  * Safe string validator that rejects SQL injection and path traversal
  * Use for user-provided input that goes into queries or file paths
+ * @param maxLength - Maximum string length
+ * @param minLength - Minimum string length (applied before refinements)
  */
-export const safeString = (maxLength?: number) => {
+export const safeString = (maxLength?: number, minLength?: number) => {
   let schema = z.string();
-  if (maxLength) {
+  if (minLength !== undefined) {
+    schema = schema.min(minLength);
+  }
+  if (maxLength !== undefined) {
     schema = schema.max(maxLength);
   }
   return schema
@@ -73,13 +78,18 @@ export const safeString = (maxLength?: number) => {
 /**
  * Safe identifier string (alphanumeric, underscore, hyphen only)
  * Use for codes, keys, and identifiers
+ * @param maxLength - Maximum string length
+ * @param minLength - Minimum string length
  */
-export const safeIdentifier = (maxLength: number = 50) => {
-  return z.string()
-    .max(maxLength)
-    .regex(/^[a-zA-Z0-9_-]+$/, {
-      message: 'Must contain only letters, numbers, underscores, and hyphens',
-    });
+export const safeIdentifier = (maxLength: number = 50, minLength?: number) => {
+  let schema = z.string();
+  if (minLength !== undefined) {
+    schema = schema.min(minLength);
+  }
+  schema = schema.max(maxLength);
+  return schema.regex(/^[a-zA-Z0-9_-]+$/, {
+    message: 'Must contain only letters, numbers, underscores, and hyphens',
+  });
 };
 
 /**
@@ -1143,5 +1153,54 @@ export type PagePermissionInput = z.infer<typeof PagePermissionSchema>;
 export type PagePermissionBulkInput = z.infer<typeof PagePermissionBulkSchema>;
 export type UpdatePagePermissionInput = z.infer<typeof UpdatePagePermissionSchema>;
 export type PageRegistryEntryInput = z.infer<typeof PageRegistryEntrySchema>;
+
+// =============================================================================
+// Tool Schemas
+// =============================================================================
+
+// Create tool schema
+export const CreateToolSchema = z.object({
+  name: safeString(100, 1),
+  code: safeIdentifier(50, 1),
+  description: safeString(500).optional().nullable(),
+  icon: safeString(100).optional().nullable(),
+  componentPath: safeString(255, 1),
+  active: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).max(9999).default(0),
+}).strict();
+
+// Update tool schema
+export const UpdateToolSchema = z.object({
+  name: safeString(100, 1).optional(),
+  code: safeIdentifier(50, 1).optional(),
+  description: safeString(500).optional().nullable(),
+  icon: safeString(100).optional().nullable(),
+  componentPath: safeString(255, 1).optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+}).strict();
+
+// Register tool schema
+export const RegisterToolSchema = z.object({
+  code: safeIdentifier(50).min(1, 'Tool code is required'),
+}).strict();
+
+// Update tool assignments schema
+export const UpdateToolAssignmentsSchema = z.object({
+  subServiceLineGroups: z.array(safeIdentifier(50)).max(100),
+}).strict();
+
+// Add tool to task schema
+export const AddToolToTaskSchema = z.object({
+  toolId: z.number().int().positive('Tool ID must be a positive integer'),
+  sortOrder: z.number().int().min(0).max(9999).default(0),
+}).strict();
+
+// Inferred types for tools
+export type CreateToolInput = z.infer<typeof CreateToolSchema>;
+export type UpdateToolInput = z.infer<typeof UpdateToolSchema>;
+export type RegisterToolInput = z.infer<typeof RegisterToolSchema>;
+export type UpdateToolAssignmentsInput = z.infer<typeof UpdateToolAssignmentsSchema>;
+export type AddToolToTaskInput = z.infer<typeof AddToolToTaskSchema>;
 
 

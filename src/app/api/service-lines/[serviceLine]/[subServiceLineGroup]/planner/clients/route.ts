@@ -1,12 +1,75 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineService';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError, AppError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { startOfDay } from 'date-fns';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { mapUsersToEmployees } from '@/lib/services/employees/employeeService';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+
+// Type for subGroup in userServiceLines
+interface SubGroupInfo {
+  code: string;
+  description?: string;
+}
+
+// Query params validation schema
+const ClientPlannerQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  'clientCodes[]': z.array(z.string()).optional().default([]),
+  'groupDescs[]': z.array(z.string()).optional().default([]),
+  'partnerCodes[]': z.array(z.string()).optional().default([]),
+  'taskCodes[]': z.array(z.string()).optional().default([]),
+  'managerCodes[]': z.array(z.string()).optional().default([]),
+});
+
+// Type for cache response
+interface ClientPlannerResponse {
+  tasks: TaskRow[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
+interface TaskRow {
+  taskId: number;
+  taskCode: string | null;
+  taskName: string | null;
+  taskManager: string | null;
+  taskManagerName: string | null;
+  taskPartner: string | null;
+  taskPartnerName: string | null;
+  clientId: number;
+  clientCode: string | null;
+  clientName: string | null;
+  groupDesc: string | null;
+  clientPartner: string | null;
+  allocations: AllocationRow[];
+}
+
+interface AllocationRow {
+  id: number;
+  taskId: number;
+  userId: string;
+  employeeId: number | null;
+  employeeName: string;
+  employeeCode: string | null;
+  jobGradeCode: string | null;
+  officeLocation: string | null;
+  role: string;
+  startDate: Date;
+  endDate: Date;
+  allocatedHours: number | null;
+  allocatedPercentage: number | null;
+  actualHours: number | null;
+}
 
 /**
  * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/clients
@@ -18,52 +81,48 @@ import { mapUsersToEmployees } from '@/lib/services/employees/employeeService';
  * - Pagination (25 limit default)
  * - Optimized queries with Promise.all batching
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { serviceLine: string; subServiceLineGroup: string } }
-) {
-  const perfStart = Date.now();
-  
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return handleApiError(new AppError(401, 'Unauthorized'), 'Get client planner data');
-    }
-
-    // 2. Extract and validate params
-    const subServiceLineGroup = params.subServiceLineGroup;
+export const GET = secureRoute.queryWithParams<{ serviceLine: string; subServiceLineGroup: string }>({
+  feature: Feature.ACCESS_DASHBOARD,
+  handler: async (request, { user, params }) => {
+    const { serviceLine, subServiceLineGroup } = params;
+    
     if (!subServiceLineGroup) {
-      return handleApiError(new AppError(400, 'Sub-service line group is required'), 'Get client planner data');
+      throw new AppError(400, 'Sub-service line group is required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // 3. Check user has access to this sub-service line group
+    // Check user has access to this sub-service line group
     const userServiceLines = await getUserServiceLines(user.id);
     const hasAccess = userServiceLines.some(sl => 
-      sl.subGroups?.some((sg: any) => sg.code === subServiceLineGroup)
+      sl.subGroups?.some((sg: SubGroupInfo) => sg.code === subServiceLineGroup)
     );
     if (!hasAccess) {
-      return handleApiError(
-        new AppError(403, 'You do not have access to this sub-service line group'),
-        'Get client planner data'
-      );
+      throw new AppError(403, 'You do not have access to this sub-service line group', ErrorCodes.FORBIDDEN);
     }
 
-    // 4. Get search params for filtering and pagination (array-based filters)
+    // Parse and validate query params
     const searchParams = request.nextUrl.searchParams;
-    const clientCodes = searchParams.getAll('clientCodes[]');
-    const groupDescs = searchParams.getAll('groupDescs[]');
-    const partnerCodes = searchParams.getAll('partnerCodes[]');
-    const taskCodes = searchParams.getAll('taskCodes[]');
-    const managerCodes = searchParams.getAll('managerCodes[]');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '25');
+    const queryParams = ClientPlannerQuerySchema.parse({
+      page: searchParams.get('page') || 1,
+      limit: searchParams.get('limit') || 25,
+      'clientCodes[]': searchParams.getAll('clientCodes[]'),
+      'groupDescs[]': searchParams.getAll('groupDescs[]'),
+      'partnerCodes[]': searchParams.getAll('partnerCodes[]'),
+      'taskCodes[]': searchParams.getAll('taskCodes[]'),
+      'managerCodes[]': searchParams.getAll('managerCodes[]'),
+    });
+    
+    const { page, limit } = queryParams;
+    const clientCodes = queryParams['clientCodes[]'];
+    const groupDescs = queryParams['groupDescs[]'];
+    const partnerCodes = queryParams['partnerCodes[]'];
+    const taskCodes = queryParams['taskCodes[]'];
+    const managerCodes = queryParams['managerCodes[]'];
 
-    // 5. Build comprehensive cache key with array filters
-    const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${params.serviceLine}:${subServiceLineGroup}:clients:${clientCodes.join(',') || 'all'}:groups:${groupDescs.join(',') || 'all'}:partners:${partnerCodes.join(',') || 'all'}:tasks:${taskCodes.join(',') || 'all'}:managers:${managerCodes.join(',') || 'all'}:${page}:${limit}`;
+    // Build comprehensive cache key with array filters
+    const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${serviceLine}:${subServiceLineGroup}:clients:${clientCodes.join(',') || 'all'}:groups:${groupDescs.join(',') || 'all'}:partners:${partnerCodes.join(',') || 'all'}:tasks:${taskCodes.join(',') || 'all'}:managers:${managerCodes.join(',') || 'all'}:${page}:${limit}`;
     
     // Try cache first
-    const cached = await cache.get(cacheKey) as any;
+    const cached = await cache.get<ClientPlannerResponse>(cacheKey);
     if (cached) {
       return NextResponse.json(successResponse(cached));
     }
@@ -135,8 +194,7 @@ export async function GET(
     // 9. Apply pagination (always paginate, even with filters)
     const offset = (page - 1) * limit;
 
-    // 10. Fetch ALL tasks matching service line and filters (including those without allocations)
-    const queryStart = Date.now();
+    // Fetch ALL tasks matching service line and filters (including those without allocations)
     const [tasks, totalCount] = await Promise.all([
       prisma.task.findMany({
         where: taskWhereConditions,
@@ -194,8 +252,6 @@ export async function GET(
       return NextResponse.json(successResponse(emptyResponse));
     }
 
-    const dataFetchStart = Date.now();
-    
     const taskTeamMembers = await prisma.taskTeam.findMany({
       where: {
         taskId: { in: taskIds }
@@ -237,8 +293,7 @@ export async function GET(
       taskTeamMap.get(member.taskId)!.push(member);
     });
 
-    // 17. Build flat task rows with employee allocations
-    const transformStart = Date.now();
+    // Build flat task rows with employee allocations
     const taskRows = filteredTasks
       .map(task => {
         if (!task.Client || !task.Client.GSClientID) return null;
@@ -313,7 +368,5 @@ export async function GET(
     await cache.set(cacheKey, response, 300);
 
     return NextResponse.json(successResponse(response));
-  } catch (error) {
-    return handleApiError(error, 'Get client planner data');
-  }
-}
+  },
+});

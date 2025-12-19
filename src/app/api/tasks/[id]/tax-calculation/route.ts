@@ -1,30 +1,23 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { successResponse, getTaskOrThrow } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { getTaxCalculationData } from '@/lib/tools/tax-calculation/api/taxCalculationHandler';
 import { toTaskId } from '@/types/branded';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Ensure context and params exist
-    if (!context || !context.params) {
-      throw new Error('Invalid route context');
-    }
-    
-    const params = await context.params;
-    const taskId = toTaskId(params?.id);
-    
-    // Verify project exists
-    await getTaskOrThrow(taskId);
-    
+/**
+ * GET /api/tasks/[id]/tax-calculation
+ * Get tax calculation data for a task
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_TASKS,
+  taskIdParam: 'id',
+  handler: async (request, { params }) => {
+    const taskId = parseTaskId(params.id);
+    const brandedTaskId = toTaskId(taskId);
+
     // Get tax calculation data from tool handler
-    const data = await getTaxCalculationData(taskId);
+    const data = await getTaxCalculationData(brandedTaskId);
 
     return NextResponse.json(successResponse(data));
-  } catch (error) {
-    return handleApiError(error, 'Fetch Tax Calculation');
-  }
-} 
+  },
+});
