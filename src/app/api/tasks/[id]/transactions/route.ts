@@ -132,3 +132,4 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     return NextResponse.json(successResponse(responseData));
   },
 });
+

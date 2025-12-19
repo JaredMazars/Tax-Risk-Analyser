@@ -28,3 +28,4 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'Task_TaskCode_idx' AND ob
 BEGIN
     CREATE NONCLUSTERED INDEX [Task_TaskCode_idx] ON [dbo].[Task]([TaskCode] ASC);
 END;
+

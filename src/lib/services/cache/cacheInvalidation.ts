@@ -173,3 +173,4 @@ export async function invalidateOnClientMutation(
     logger.error('Failed to invalidate client mutation caches', { clientId, error });
   }
 }
+
