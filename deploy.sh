@@ -7,10 +7,10 @@
 set -e  # Exit on any error
 
 # Configuration
-RESOURCE_GROUP="walter_sandbox"
-CONTAINER_APP_NAME="mapper-tax-app"
-ACR_NAME="mappertaxregistry"
-IMAGE_NAME="mapper-tax-app"
+RESOURCE_GROUP="rg-fmza-gt3"
+CONTAINER_APP_NAME="gt3"
+ACR_NAME="gt3acr"
+IMAGE_NAME="gt3"
 
 # Get version from command line argument or auto-increment
 if [[ -z "$1" ]]; then

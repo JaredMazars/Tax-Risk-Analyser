@@ -85,7 +85,8 @@ export async function GET(request: NextRequest) {
     
     if (!code) {
       logWarn('Auth callback called without authorization code');
-      return NextResponse.redirect(new URL('/auth/error?reason=missing_code', request.url));
+      const baseUrl = process.env.NEXTAUTH_URL || request.url;
+      return NextResponse.redirect(new URL('/auth/error?reason=missing_code', baseUrl));
     }
     
     logInfo('Processing auth callback', { hasCode: !!code });
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
     
     if (!process.env.NEXTAUTH_URL) {
       logError('NEXTAUTH_URL environment variable is not set', new Error('Missing NEXTAUTH_URL'));
+      // Fallback to request.url only when NEXTAUTH_URL is missing
       return NextResponse.redirect(new URL('/auth/error?reason=config_error', request.url));
     }
     
@@ -190,8 +192,9 @@ export async function GET(request: NextRequest) {
         possibleCause: 'Azure SQL cold-start or network timeout',
         recommendation: 'User should retry login'
       });
+      const baseUrl = process.env.NEXTAUTH_URL || request.url;
       return NextResponse.redirect(
-        new URL('/auth/error?reason=database_timeout&retry=true', request.url)
+        new URL('/auth/error?reason=database_timeout&retry=true', baseUrl)
       );
     }
     
@@ -212,7 +215,8 @@ export async function GET(request: NextRequest) {
         recommendation: 'Verify Azure AD App Registration redirect URIs match NEXTAUTH_URL/api/auth/callback',
         expectedRedirectUri: `${process.env.NEXTAUTH_URL}/api/auth/callback`
       });
-      return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', request.url));
+      const baseUrl = process.env.NEXTAUTH_URL || request.url;
+      return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', baseUrl));
     }
     
     // Check for missing admin consent
@@ -227,7 +231,8 @@ export async function GET(request: NextRequest) {
         possibleCause: 'Application requires admin consent',
         recommendation: 'Admin must grant consent in Azure Portal'
       });
-      return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', request.url));
+      const baseUrl = process.env.NEXTAUTH_URL || request.url;
+      return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', baseUrl));
     }
     
     // Generic auth callback error with full diagnostics
@@ -236,7 +241,8 @@ export async function GET(request: NextRequest) {
       recommendation: 'Check Azure AD configuration and environment variables'
     });
     
-    return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', request.url));
+    const baseUrl = process.env.NEXTAUTH_URL || request.url;
+    return NextResponse.redirect(new URL('/auth/error?reason=callback_failed', baseUrl));
   }
 }
 

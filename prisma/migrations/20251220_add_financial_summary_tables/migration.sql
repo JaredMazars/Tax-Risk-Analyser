@@ -167,3 +167,4 @@ CREATE NONCLUSTERED INDEX [WIPAging_GSClientID_PeriodRef_idx] ON [dbo].[WIPAging
 CREATE NONCLUSTERED INDEX [WIPAging_GSTaskID_PeriodRef_idx] ON [dbo].[WIPAging]([GSTaskID], [PeriodRef]);
 
 
+
