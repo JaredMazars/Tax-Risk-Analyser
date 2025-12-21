@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db/prisma';
 import { ServiceLine, ServiceLineRole } from '@/types';
 import { ServiceLineWithStats } from '@/types/dto';
 import { logger } from '@/lib/utils/logger';
+import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getSubServiceLineGroupsByMaster, getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 
 export type AssignmentType = 'MAIN_SERVICE_LINE' | 'SPECIFIC_SUBGROUP' | 'NONE';
@@ -14,9 +15,18 @@ export type AssignmentType = 'MAIN_SERVICE_LINE' | 'SPECIFIC_SUBGROUP' | 'NONE';
 /**
  * Get all service lines accessible to a user with their roles
  * Now groups sub-service line groups by master code
+ * Results are cached for 10 minutes to improve login/dashboard performance
  */
 export async function getUserServiceLines(userId: string): Promise<ServiceLineWithStats[]> {
   try {
+    // Check cache first for performance
+    const cacheKey = `${CACHE_PREFIXES.SERVICE_LINE}user:${userId}`;
+    const cached = await cache.get<ServiceLineWithStats[]>(cacheKey);
+    if (cached) {
+      logger.info('Service lines cache hit', { userId });
+      return cached;
+    }
+
     // Check if user is a SYSTEM_ADMIN - they get access to all service lines
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -87,7 +97,7 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
       );
       const allSubGroupsArrays = await Promise.all(allSubGroupsPromises);
       
-      return allServiceLines.map((sl, index) => {
+      const result = allServiceLines.map((sl, index) => {
         const servLineCodes = masterToServLineCodesMap.get(sl) || [];
         
         // Sum up counts for all ServLineCodes mapped to this master code
@@ -115,6 +125,12 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
           subGroups,
         };
       });
+
+      // Cache result (10 minutes = 600 seconds)
+      await cache.set(cacheKey, result, 600);
+      logger.info('Service lines cached', { userId, count: result.length });
+
+      return result;
     }
 
     // For regular users, get their sub-service line group assignments
@@ -283,6 +299,10 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         subGroups: accessibleSubGroups,
       });
     }
+
+    // Cache result (10 minutes = 600 seconds)
+    await cache.set(cacheKey, result, 600);
+    logger.info('Service lines cached', { userId, count: result.length });
 
     return result;
   } catch (error) {

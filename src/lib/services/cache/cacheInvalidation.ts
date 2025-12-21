@@ -174,6 +174,60 @@ export async function invalidateOnClientMutation(
   }
 }
 
+/**
+ * Invalidate user's service line cache
+ * Use this when a user's service line access is granted, revoked, or modified
+ */
+export async function invalidateUserServiceLines(userId: string): Promise<void> {
+  try {
+    await cache.delete(`${CACHE_PREFIXES.SERVICE_LINE}user:${userId}`);
+    logger.info('Invalidated user service line cache', { userId });
+  } catch (error) {
+    logger.error('Failed to invalidate user service line cache', { userId, error });
+  }
+}
+
+/**
+ * Invalidate subgroups cache for a master service line
+ * Use this when service line external mappings change
+ */
+export async function invalidateSubGroupsCache(masterCode: string): Promise<void> {
+  try {
+    await cache.delete(`${CACHE_PREFIXES.SERVICE_LINE}subgroups:${masterCode}`);
+    logger.debug('Invalidated subgroups cache', { masterCode });
+  } catch (error) {
+    logger.error('Failed to invalidate subgroups cache', { masterCode, error });
+  }
+}
+
+/**
+ * Comprehensive invalidation after service line access mutation
+ * Use this when granting, revoking, or modifying service line access
+ */
+export async function invalidateOnServiceLineAccessMutation(
+  userId: string,
+  masterCode?: string
+): Promise<void> {
+  try {
+    const promises: Promise<void>[] = [
+      invalidateUserServiceLines(userId),
+    ];
+    
+    if (masterCode) {
+      promises.push(invalidateSubGroupsCache(masterCode));
+    }
+    
+    await Promise.all(promises);
+    logger.debug('Service line access mutation caches invalidated', { userId, masterCode });
+  } catch (error) {
+    logger.error('Failed to invalidate service line access mutation caches', { userId, masterCode, error });
+  }
+}
+
+
+
+
+
 
 
 

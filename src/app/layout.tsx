@@ -1,6 +1,7 @@
 import './globals.css';
 import { Providers } from '@/components/Providers';
 import { Inter, WindSong } from 'next/font/google';
+import type { Metadata } from 'next';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -15,6 +16,11 @@ const windSong = WindSong({
   variable: '--font-windsong',
   display: 'swap',
 });
+
+export const metadata: Metadata = {
+  title: 'Forvis Mazars - Task Management',
+  description: 'Professional services task management platform',
+};
 
 export default function RootLayout({
   children,

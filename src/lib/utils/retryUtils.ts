@@ -119,6 +119,42 @@ export const RetryPresets = {
       return false;
     },
   },
+  
+  // For authentication database operations (fast retry, short delays)
+  // Optimized for user-facing login flow where speed is critical
+  AUTH_DATABASE: {
+    maxRetries: 2,
+    initialDelayMs: 500, // 500ms instead of 5s - much faster for users
+    maxDelayMs: 2000, // 2s max instead of 30s
+    backoffMultiplier: 2,
+    retryableErrors: (error: unknown) => {
+      // Same error detection as AZURE_SQL_COLD_START
+      // P1001: Can't reach database server
+      // P1017: Server closed connection
+      // P2024: Timed out fetching from data source
+      // P1008: Operations timed out
+      if (typeof error === 'object' && error !== null) {
+        if ('code' in error) {
+          const code = (error as { code?: string }).code;
+          if (code && ['P1001', 'P1017', 'P2024', 'P1008'].includes(code)) {
+            return true;
+          }
+        }
+        // Also retry on connection-related error messages
+        if ('message' in error) {
+          const message = (error as { message?: string }).message;
+          if (message) {
+            const messageLower = message.toLowerCase();
+            return messageLower.includes('timeout') || 
+                   messageLower.includes('connect') ||
+                   messageLower.includes('connection') ||
+                   messageLower.includes('econnreset');
+          }
+        }
+      }
+      return false;
+    },
+  },
 } as const;
 
 /**

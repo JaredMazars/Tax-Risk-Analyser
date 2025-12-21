@@ -26,6 +26,7 @@ import {
 import { secureRoute, RateLimitPresets, Feature } from '@/lib/api/secureRoute';
 import { auditServiceLineAccessChange } from '@/lib/utils/auditLog';
 import { getClientIdentifier } from '@/lib/utils/rateLimit';
+import { invalidateOnServiceLineAccessMutation } from '@/lib/services/cache/cacheInvalidation';
 import { z } from 'zod';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
@@ -113,6 +114,9 @@ export const POST = secureRoute.mutation({
     if (type === 'main' && masterCode) {
       await grantServiceLineAccess(userId, masterCode, role, 'main');
       
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(userId, masterCode);
+      
       // Audit log
       await auditServiceLineAccessChange(user.id, userId, masterCode, 'granted', role, ipAddress);
       
@@ -145,6 +149,9 @@ export const POST = secureRoute.mutation({
       );
     } else if (type === 'subgroup' && subGroups) {
       await grantServiceLineAccess(userId, subGroups, role, 'subgroup');
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(userId);
 
       return NextResponse.json(
         successResponse({ message: `Access granted to ${subGroups.length} specific sub-group(s)`, type: 'subgroup' }),
@@ -178,6 +185,9 @@ export const PUT = secureRoute.mutation({
     if ('action' in data && data.action === 'switchType') {
       const { userId, masterCode, newType, specificSubGroups } = data as z.infer<typeof SwitchAssignmentTypeSchema>;
       await switchAssignmentType(userId, masterCode, newType, specificSubGroups);
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(userId, masterCode);
 
       return NextResponse.json(
         successResponse({ message: `Assignment type switched to ${newType}`, userId, masterCode })
@@ -187,6 +197,9 @@ export const PUT = secureRoute.mutation({
     // Otherwise, it's a role update
     const { userId, serviceLineOrSubGroup, role, isSubGroup } = data as z.infer<typeof UpdateServiceLineRoleSchema>;
     await updateServiceLineRole(userId, serviceLineOrSubGroup, role, isSubGroup);
+    
+    // Invalidate user's service line cache
+    await invalidateOnServiceLineAccessMutation(userId, isSubGroup ? undefined : serviceLineOrSubGroup);
 
     // Notification (non-blocking)
     try {
@@ -249,6 +262,9 @@ export const DELETE = secureRoute.mutation({
 
     if (validType === 'main' && validMasterCode) {
       await revokeServiceLineAccess(validUserId, validMasterCode, 'main');
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(validUserId, validMasterCode);
 
       // Audit log
       await auditServiceLineAccessChange(user.id, validUserId, validMasterCode, 'revoked', undefined, ipAddress);
@@ -272,6 +288,9 @@ export const DELETE = secureRoute.mutation({
       return NextResponse.json(successResponse({ message: `Access revoked from ${validMasterCode}` }));
     } else if (validType === 'subgroup' && subGroups) {
       await revokeServiceLineAccess(validUserId, subGroups, 'subgroup');
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(validUserId);
 
       return NextResponse.json(successResponse({ message: `Access revoked from ${subGroups.length} sub-group(s)` }));
     } else {

@@ -10,7 +10,7 @@ import { GT3Logo } from '@/components/shared/GT3Logo';
 import { useCurrentUser } from '@/hooks/auth/usePermissions';
 
 export default function DashboardHomePage() {
-  const { availableServiceLines, isLoading, setCurrentServiceLine, refetch } = useServiceLine();
+  const { availableServiceLines, isLoading, setCurrentServiceLine } = useServiceLine();
   const { data: currentUser } = useCurrentUser();
   const searchParams = useSearchParams();
   const [showError, setShowError] = useState(true);
@@ -22,13 +22,11 @@ export default function DashboardHomePage() {
   const error = searchParams.get('error');
   const serviceLine = searchParams.get('serviceLine');
 
-  // Clear any stored service line when landing on this page and refetch
+  // Clear any stored service line when landing on this page
+  // React Query handles data freshness automatically - no refetch needed
   useEffect(() => {
     setCurrentServiceLine(null);
-    // Refetch service lines when landing on dashboard to ensure fresh data
-    refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, [setCurrentServiceLine]);
 
   if (isLoading) {
     return (

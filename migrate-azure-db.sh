@@ -60,3 +60,6 @@ echo "  1. Redeploy the application: ./deploy.sh"
 echo "  2. Test login at: https://gt3.lemonsky-25b43da2.southafricanorth.azurecontainerapps.io"
 echo ""
 
+
+
+

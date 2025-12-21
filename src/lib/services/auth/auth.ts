@@ -157,7 +157,7 @@ export async function handleCallback(code: string, redirectUri: string) {
         where: { email },
       });
     },
-    RetryPresets.AZURE_SQL_COLD_START,
+    RetryPresets.AUTH_DATABASE,
     'Auth callback - find user'
   );
 
@@ -169,7 +169,7 @@ export async function handleCallback(code: string, redirectUri: string) {
       async () => {
         return await prisma.user.count();
       },
-      RetryPresets.AZURE_SQL_COLD_START,
+      RetryPresets.AUTH_DATABASE,
       'Auth callback - count users'
     );
     
@@ -192,7 +192,7 @@ export async function handleCallback(code: string, redirectUri: string) {
           },
         });
       },
-      RetryPresets.AZURE_SQL_COLD_START,
+      RetryPresets.AUTH_DATABASE,
       'Auth callback - create user'
     );
     
@@ -265,7 +265,7 @@ export async function createSession(
         },
       });
     },
-    RetryPresets.AZURE_SQL_COLD_START,
+    RetryPresets.AUTH_DATABASE,
     'Create session'
   );
 
@@ -326,7 +326,7 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
     }
 
     // Not in cache or expired - fetch from database
-    // Use retry logic for session lookup to handle Azure SQL cold-start
+    // Use fast retry logic for session lookup (user-facing operation)
     const session = await withRetry(
       async () => {
         return await prisma.session.findUnique({
@@ -334,7 +334,7 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
           include: { User: true },
         });
       },
-      RetryPresets.AZURE_SQL_COLD_START,
+      RetryPresets.AUTH_DATABASE,
       'Get session from database'
     );
 
@@ -348,7 +348,7 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
               where: { sessionToken: token },
             });
           },
-          RetryPresets.AZURE_SQL_COLD_START,
+          RetryPresets.AUTH_DATABASE,
           'Delete expired session'
         );
       }

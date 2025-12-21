@@ -13,6 +13,7 @@ export const serviceLineKeys = {
 
 /**
  * Fetch service lines available to current user
+ * Optimized settings match Redis cache TTL (10 minutes) to reduce unnecessary refetches
  */
 export function useServiceLines() {
   return useQuery<ServiceLineWithStats[]>({
@@ -27,9 +28,10 @@ export function useServiceLines() {
       const data = result.success ? result.data : result;
       return Array.isArray(data) ? data : [];
     },
-    staleTime: 30 * 1000, // 30 seconds - allow more frequent updates when access changes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: true, // Refetch when window regains focus
+    staleTime: 10 * 60 * 1000, // 10 minutes - matches Redis cache TTL
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false, // Don't refetch on focus - data is cached
+    refetchOnMount: false, // Don't refetch if data is fresh
   });
 }
 

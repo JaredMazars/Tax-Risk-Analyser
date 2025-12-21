@@ -263,6 +263,7 @@ export async function bulkMapByPattern(pattern: {
  * @returns Array of SubServiceLineGroups with counts
  * 
  * OPTIMIZED: Uses batched queries instead of N+1 pattern
+ * CACHED: Results are cached for 10 minutes to improve performance
  */
 export async function getSubServiceLineGroupsByMaster(
   masterCode: string
@@ -274,6 +275,19 @@ export async function getSubServiceLineGroupsByMaster(
   masterCode: string;
 }>> {
   try {
+    // Check cache first for performance
+    const cacheKey = `${CACHE_PREFIXES.SERVICE_LINE}subgroups:${masterCode}`;
+    const cached = await cache.get<Array<{
+      code: string;
+      description: string;
+      activeTasks: number;
+      totalTasks: number;
+      masterCode: string;
+    }>>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     // Step 1: Get all SubServLineGroups with their ServLineCodes in a single query
     const allMappings = await prisma.serviceLineExternal.findMany({
       where: {
@@ -371,6 +385,9 @@ export async function getSubServiceLineGroupsByMaster(
         masterCode,
       };
     });
+
+    // Cache result (10 minutes = 600 seconds)
+    await cache.set(cacheKey, result, 600);
 
     return result;
   } catch (error) {
