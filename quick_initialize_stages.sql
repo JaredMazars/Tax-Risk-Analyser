@@ -8,7 +8,7 @@ PRINT 'Starting bulk insert...';
 INSERT INTO dbo.TaskStage (taskId, stage, movedBy, notes, createdAt)
 SELECT 
     t.id,
-    'DRAFT',
+    'ENGAGE',
     '93bdd18f-1a43-4c77-bca6-d147ca1c82a9.c98c02b7-1480-4cf2-bf51-c12fdf55a9f8',
     'Initial stage set during data migration',
     GETDATE()

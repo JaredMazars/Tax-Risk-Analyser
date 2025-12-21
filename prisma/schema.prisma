@@ -311,9 +311,12 @@ model Client {
   ClientAcceptanceResponse ClientAcceptanceResponse[]
   ClientAnalyticsDocument  ClientAnalyticsDocument[]
   ClientCreditRating       ClientCreditRating[]
+  Debtors                  Debtors[]
   DrsTransactions          DrsTransactions[]
   Task                     Task[]
   TaskBudget               TaskBudget[]
+  Wip                      Wip[]
+  WIPAging                 WIPAging[]
   WIPTransactions          WIPTransactions[]
 
   @@index([active])
@@ -940,6 +943,8 @@ model Task {
   TaskTeam                 TaskTeam[]
   TaskTool                 TaskTool[]
   TaxAdjustment            TaxAdjustment[]
+  Wip                      Wip[]
+  WIPAging                 WIPAging[]
   WIPTransactions          WIPTransactions[]
   WorkspaceFolder          WorkspaceFolder[]
 
@@ -1470,4 +1475,159 @@ model WorkspaceFilePermission {
   @@index([fileId])
   @@index([userId])
   @@index([serviceLine])
+}
+
+model Wip {
+  id                Int       @id @default(autoincrement())
+  GSClientID        String    @db.UniqueIdentifier
+  GSTaskID          String    @db.UniqueIdentifier
+  PeriodRef         Int?
+  PeriodStart       DateTime?
+  PeriodEnd         DateTime?
+  ClientCode        String    @db.NVarChar(10)
+  TaskCode          String    @db.NVarChar(10)
+  OfficeCode        String    @db.NVarChar(10)
+  ServLineCode      String    @db.NVarChar(10)
+  TaskPartner       String    @db.NVarChar(10)
+  LTDTime           Float?    @db.Money
+  LTDDisb           Float?    @db.Money
+  LTDFeeTime        Float?    @db.Money
+  LTDFeeDisb        Float?    @db.Money
+  LTDAdjTime        Float?    @db.Money
+  LTDAdjDisb        Float?    @db.Money
+  LTDCost           Float?    @db.Money
+  YTDTime           Float?    @db.Money
+  YTDDisb           Float?    @db.Money
+  YTDFeeTime        Float?    @db.Money
+  YTDFeeDisb        Float?    @db.Money
+  YTDAdjTime        Float?    @db.Money
+  YTDAdjDisb        Float?    @db.Money
+  YTDCost           Float?    @db.Money
+  PTDTime           Float?    @db.Money
+  PTDDisb           Float?    @db.Money
+  PTDFeeTime        Float?    @db.Money
+  PTDFeeDisb        Float?    @db.Money
+  PTDAdjTime        Float?    @db.Money
+  PTDAdjDisb        Float?    @db.Money
+  PTDCost           Float?    @db.Money
+  BalTime           Float?    @db.Money
+  BalDisb           Float?    @db.Money
+  BalWIP            Float?    @db.Money
+  WipProvision      Float?    @db.Money
+  PTDProvision      Float?    @db.Money
+  YTDProvision      Float?    @db.Money
+  PTDPendingTime    Float?    @db.Money
+  YTDPendingTime    Float?    @db.Money
+  LTDPendingTime    Float?    @db.Money
+  PTDCostExcludeCP  Float?    @db.Money
+  YTDCostExcludeCP  Float?    @db.Money
+  LTDCostExcludeCP  Float?    @db.Money
+  LTDHours          Float?    @db.Money
+  YTDHours          Float?    @db.Money
+  PTDHours          Float?    @db.Money
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  Client            Client    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Task              Task      @relation(fields: [GSTaskID], references: [GSTaskID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([GSTaskID])
+  @@index([PeriodRef])
+  @@index([OfficeCode])
+  @@index([ServLineCode])
+  @@index([TaskPartner])
+  @@index([GSClientID, PeriodRef])
+  @@index([GSTaskID, PeriodRef])
+}
+
+model Debtors {
+  id                   Int       @id @default(autoincrement())
+  GSClientID           String    @db.UniqueIdentifier
+  PeriodRef            Int?
+  PeriodStart          DateTime?
+  PeriodEnd            DateTime?
+  ClientCode           String    @db.NVarChar(10)
+  Biller               String    @db.NVarChar(10)
+  OfficeCode           String    @db.NVarChar(10)
+  ServLineCode         String    @db.NVarChar(10)
+  LTDInv               Float?    @db.Money
+  LTDFee               Float?    @db.Money
+  LTDVat               Float?    @db.Money
+  LTDCn                Float?    @db.Money
+  LTDRec               Float?    @db.Money
+  LTDInt               Float?    @db.Money
+  LTDPLFC              Float?    @db.Money
+  YTDInv               Float?    @db.Money
+  YTDFee               Float?    @db.Money
+  YTDVat               Float?    @db.Money
+  YTDCn                Float?    @db.Money
+  YTDRec               Float?    @db.Money
+  YTDInt               Float?    @db.Money
+  YTDPLFC              Float?    @db.Money
+  PTDInv               Float?    @db.Money
+  PTDFee               Float?    @db.Money
+  PTDVat               Float?    @db.Money
+  PTDCn                Float?    @db.Money
+  PTDRec               Float?    @db.Money
+  PTDInt               Float?    @db.Money
+  PTDPLFC              Float?    @db.Money
+  CBal                 Float?    @db.Money
+  BalCurr              Float?    @db.Money
+  Bal30                Float?    @db.Money
+  Bal60                Float?    @db.Money
+  Bal90                Float?    @db.Money
+  Bal120               Float?    @db.Money
+  Bal150               Float?    @db.Money
+  Bal180               Float?    @db.Money
+  DebtorProvision      Float?    @db.Money
+  PTDDebtorProvision   Float?    @db.Money
+  YTDDebtorProvision   Float?    @db.Money
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  Client               Client    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([PeriodRef])
+  @@index([Biller])
+  @@index([OfficeCode])
+  @@index([ServLineCode])
+  @@index([GSClientID, PeriodRef])
+}
+
+model WIPAging {
+  id           Int       @id @default(autoincrement())
+  GSClientID   String    @db.UniqueIdentifier
+  GSTaskID     String    @db.UniqueIdentifier
+  PeriodRef    Int?
+  PeriodStart  DateTime?
+  PeriodEnd    DateTime?
+  ClientCode   String?   @db.NVarChar(10)
+  TaskCode     String?   @db.NVarChar(10)
+  OfficeCode   String    @db.NVarChar(10)
+  ServLineCode String    @db.NVarChar(10)
+  TaskPartner  String    @db.NVarChar(10)
+  Curr         Float?    @db.Money
+  Bal30        Float?    @db.Money
+  Bal60        Float?    @db.Money
+  Bal90        Float?    @db.Money
+  Bal120       Float?    @db.Money
+  Bal150       Float?    @db.Money
+  Bal180       Float?    @db.Money
+  BalWip       Float?    @db.Money
+  Provision    Float?    @db.Money
+  NettWip      Float?    @db.Money
+  PtdFeeAmt    Float?    @db.Money
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  Client       Client    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
+  Task         Task      @relation(fields: [GSTaskID], references: [GSTaskID], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([GSClientID])
+  @@index([GSTaskID])
+  @@index([PeriodRef])
+  @@index([OfficeCode])
+  @@index([ServLineCode])
+  @@index([TaskPartner])
+  @@index([GSClientID, PeriodRef])
+  @@index([GSTaskID, PeriodRef])
 }

@@ -5,7 +5,7 @@
  */
 
 export enum TaskStage {
-  DRAFT = 'DRAFT',
+  ENGAGE = 'ENGAGE',
   IN_PROGRESS = 'IN_PROGRESS',
   UNDER_REVIEW = 'UNDER_REVIEW',
   COMPLETED = 'COMPLETED',

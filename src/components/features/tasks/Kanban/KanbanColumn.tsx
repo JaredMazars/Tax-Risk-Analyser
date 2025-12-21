@@ -23,7 +23,7 @@ export function KanbanColumn({
   // Get color based on stage
   const getStageGradient = (stage: string) => {
     switch (stage) {
-      case 'DRAFT':
+      case 'ENGAGE':
         return 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)';
       case 'IN_PROGRESS':
         return 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)';

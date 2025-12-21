@@ -109,7 +109,7 @@ export default function ServiceLineClientDetailPage() {
   // Placeholder function - returns random stage for demo
   const getProjectStage = (taskId: number): TaskStage => {
     const stages: TaskStage[] = [
-      TaskStage.DRAFT,
+      TaskStage.ENGAGE,
       TaskStage.IN_PROGRESS,
       TaskStage.UNDER_REVIEW,
       TaskStage.COMPLETED,
@@ -117,7 +117,7 @@ export default function ServiceLineClientDetailPage() {
     ];
     // Simple hash to keep stage consistent per project
     const stage = stages[taskId % stages.length];
-    return stage || TaskStage.DRAFT;
+    return stage || TaskStage.ENGAGE;
   };
 
   const handleTaskCreated = async (task: any) => {

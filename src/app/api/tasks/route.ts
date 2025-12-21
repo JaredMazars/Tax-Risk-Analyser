@@ -13,6 +13,7 @@ import { Feature } from '@/lib/permissions/features';
 import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
 import { logger } from '@/lib/utils/logger';
 import { secureRoute } from '@/lib/api/secureRoute';
+import { TaskStage } from '@/types/task-stages';
 
 // Zod schema for GET query params validation
 const TaskListQuerySchema = z.object({
@@ -392,6 +393,16 @@ export const POST = secureRoute.mutation({
           Client: {
             select: { id: true, GSClientID: true, clientNameFull: true, clientCode: true },
           },
+        },
+      });
+
+      // Create initial ENGAGE stage for the new task
+      await tx.taskStage.create({
+        data: {
+          taskId: task.id,
+          stage: TaskStage.ENGAGE,
+          movedBy: user.id,
+          notes: 'Task created',
         },
       });
 

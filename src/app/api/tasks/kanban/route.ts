@@ -197,7 +197,7 @@ export const GET = secureRoute.query({
         SELECT taskId, stage as latestStage, ROW_NUMBER() OVER (PARTITION BY taskId ORDER BY createdAt DESC) as rn
         FROM TaskStage
       )
-      SELECT t.id, COALESCE(ls.latestStage, 'DRAFT') as latestStage
+      SELECT t.id, COALESCE(ls.latestStage, 'ENGAGE') as latestStage
       FROM Task t
       LEFT JOIN LatestStages ls ON t.id = ls.taskId AND ls.rn = 1
       WHERE ${servLineFilter} ${activeFilter} ${partnerFilter} ${managerFilter} ${clientFilter} ${taskFilter} ${searchFilter} ${myTasksFilter}
@@ -207,7 +207,7 @@ export const GET = secureRoute.query({
 
     const taskIdsByStage = new Map<TaskStage, number[]>();
     for (const task of tasksWithLatestStage) {
-      const stage = (task.latestStage || 'DRAFT') as TaskStage;
+      const stage = (task.latestStage || 'ENGAGE') as TaskStage;
       if (!taskIdsByStage.has(stage)) {
         taskIdsByStage.set(stage, []);
       }
@@ -222,7 +222,7 @@ export const GET = secureRoute.query({
       taskIdsByStage.set(TaskStage.ARCHIVED, archivedTasks.map(t => t.id));
     }
 
-    const stages = [TaskStage.DRAFT, TaskStage.IN_PROGRESS, TaskStage.UNDER_REVIEW, TaskStage.COMPLETED];
+    const stages = [TaskStage.ENGAGE, TaskStage.IN_PROGRESS, TaskStage.UNDER_REVIEW, TaskStage.COMPLETED];
     if (includeArchived) stages.push(TaskStage.ARCHIVED);
 
     const stageResultsPromises = stages.map(async (stage) => {
@@ -256,7 +256,7 @@ export const GET = secureRoute.query({
       const employeeNameMap = new Map(employees.map(emp => [emp.EmpCode, emp.EmpName]));
 
       const transformedTasks = tasks.map(task => {
-        const currentStage = task.TaskStage.length > 0 ? task.TaskStage[0]?.stage ?? TaskStage.DRAFT : TaskStage.DRAFT;
+        const currentStage = task.TaskStage.length > 0 ? task.TaskStage[0]?.stage ?? TaskStage.ENGAGE : TaskStage.ENGAGE;
         const taskTeamRole = task.TaskTeam.find(member => member.userId === user.id)?.role;
         const userRole = taskTeamRole || userServiceLineRole;
 

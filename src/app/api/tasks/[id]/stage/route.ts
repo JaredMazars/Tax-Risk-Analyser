@@ -7,12 +7,13 @@ import { sanitizeText } from '@/lib/utils/sanitization';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { TaskStage } from '@/types/task-stages';
+import { normalizeTaskStage } from '@/lib/utils/taskStages';
 import { z } from 'zod';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 const updateStageSchema = z.object({
-  stage: z.enum(['DRAFT', 'IN_PROGRESS', 'UNDER_REVIEW', 'COMPLETED', 'ARCHIVED']),
+  stage: z.nativeEnum(TaskStage),
   notes: z.string().max(500).optional(),
 }).strict();
 
@@ -42,7 +43,7 @@ export const GET = secureRoute.queryWithParams({
       take: 100,
     });
 
-    const currentStage = stages.length > 0 ? stages[0]?.stage ?? TaskStage.DRAFT : TaskStage.DRAFT;
+    const currentStage = stages.length > 0 ? stages[0]?.stage ?? TaskStage.ENGAGE : TaskStage.ENGAGE;
 
     const response = { currentStage, history: stages };
 
@@ -66,6 +67,8 @@ export const POST = secureRoute.mutationWithParams({
       throw new AppError(403, 'Forbidden - EDITOR role required', ErrorCodes.FORBIDDEN);
     }
 
+    // Normalize stage to uppercase for case-insensitive consistency
+    const normalizedStage = normalizeTaskStage(data.stage);
     const sanitizedNotes = data.notes ? sanitizeText(data.notes, { maxLength: 500, allowNewlines: true }) : null;
 
     const task = await prisma.task.findUnique({
@@ -83,7 +86,8 @@ export const POST = secureRoute.mutationWithParams({
       select: { stage: true },
     });
 
-    if (currentStage && currentStage.stage === data.stage) {
+    // Compare normalized stage values for case-insensitive matching
+    if (currentStage && currentStage.stage.toUpperCase() === normalizedStage) {
       return NextResponse.json(successResponse({
         stage: currentStage,
         message: 'Task already in this stage',
@@ -91,7 +95,7 @@ export const POST = secureRoute.mutationWithParams({
     }
 
     const newStage = await prisma.taskStage.create({
-      data: { taskId, stage: data.stage, movedBy: user.id, notes: sanitizedNotes },
+      data: { taskId, stage: normalizedStage, movedBy: user.id, notes: sanitizedNotes },
       select: { id: true, stage: true, movedBy: true, notes: true, createdAt: true },
     });
 
