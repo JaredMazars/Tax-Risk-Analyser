@@ -153,3 +153,5 @@ export function TaxCalculationTool({ taskId, subTabs }: ToolComponentProps) {
 // Export config for auto-discovery
 export { taxCalculationToolConfig } from './config';
 
+
+

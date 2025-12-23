@@ -69,10 +69,10 @@ export function NewsTicker() {
     >
       <div className="relative flex items-center h-9">
         {/* Left fade for ticker items disappearing - extended and more gradual */}
-        <div className="absolute left-0 z-10 h-full w-64" style={{ background: 'linear-gradient(to right, rgba(91, 147, 215, 1) 0%, rgba(91, 147, 215, 1) 50%, rgba(91, 147, 215, 0.95) 65%, rgba(91, 147, 215, 0.85) 80%, rgba(91, 147, 215, 0.6) 90%, transparent 100%)', pointerEvents: 'none' }}></div>
+        <div className="absolute left-0 z-10 h-full w-64 pl-4 sm:pl-6 lg:pl-8" style={{ background: 'linear-gradient(to right, rgba(91, 147, 215, 1) 0%, rgba(91, 147, 215, 1) 50%, rgba(91, 147, 215, 0.95) 65%, rgba(91, 147, 215, 0.85) 80%, rgba(91, 147, 215, 0.6) 90%, transparent 100%)', pointerEvents: 'none' }}></div>
         
         {/* News icon and label */}
-        <div className="absolute left-0 z-20 flex items-center pl-4 pr-8 h-full">
+        <div className="absolute left-0 z-20 flex items-center pl-4 sm:pl-6 lg:pl-8 pr-8 h-full">
           <Newspaper className="h-4 w-4 text-white mr-2" />
           <span className="text-xs font-bold text-white uppercase tracking-wide">Latest News</span>
         </div>

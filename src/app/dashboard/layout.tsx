@@ -28,7 +28,7 @@ export default async function DashboardLayout({
         {/* Top Header with Logo and User Menu */}
         <header className="bg-white border-b border-forvis-gray-200">
           <div className="w-full px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-12">
+            <div className="flex items-center justify-between h-9">
               <Link href="/dashboard" className="flex items-center">
                 <Image 
                   src="/Mazars-logo-intranet.jpg" 

@@ -202,7 +202,7 @@ export default function DashboardNav() {
     <nav 
       className="w-full" 
       style={{ 
-        minHeight: '48px',
+        minHeight: '36px',
         background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
         position: 'relative',
         zIndex: 40
@@ -210,7 +210,7 @@ export default function DashboardNav() {
       ref={menuRef}
     >
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-12">
+        <div className="flex items-center justify-between h-9">
           <div className="flex items-center space-x-1">
           {/* Service Line Indicator */}
           {currentServiceLine && (
