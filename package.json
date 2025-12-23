@@ -27,7 +27,7 @@
     "@ai-sdk/openai": "^2.0.64",
     "@auth/prisma-adapter": "^2.7.5",
     "@azure/ai-agents": "^1.1.0",
-    "@azure/ai-projects": "^1.0.1",
+    "@azure/ai-projects": "2.0.0-beta.2",
     "@azure/communication-email": "^1.1.0",
     "@azure/core-util": "^1.13.1",
     "@azure/identity": "^4.13.0",
@@ -61,6 +61,7 @@
     "openai": "^4.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "sharp": "^0.34.5",
     "winston": "^3.18.3",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.6"

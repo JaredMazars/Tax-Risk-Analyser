@@ -1,12 +1,11 @@
 /**
- * Azure AI Agent Service Client
- * Client for calling Azure AI Foundry Agent Service with Grounding with Bing Search
- * Uses @azure/ai-agents SDK with Azure AD authentication
- * Based on official Azure documentation pattern
+ * Azure AI Project Client
+ * Client for calling Azure AI Projects with existing agent that has Bing Search grounding
+ * Uses @azure/ai-projects SDK v2.0.0-beta with Azure AD authentication
+ * Pattern from official Azure AI Projects documentation
  */
 
-import { AgentsClient, ToolUtility, isOutputOfType } from '@azure/ai-agents';
-import { delay } from '@azure/core-util';
+import { AIProjectClient } from '@azure/ai-projects';
 import { DefaultAzureCredential } from '@azure/identity';
 import { logger } from '@/lib/utils/logger';
 import { env } from '@/lib/config/env';
@@ -30,27 +29,27 @@ export interface AgentResponse {
 }
 
 /**
- * Azure AI Agent Service Client using official @azure/ai-agents SDK
+ * Azure AI Project Client using official @azure/ai-projects SDK v2.0.0-beta
  * Uses DefaultAzureCredential for Azure AD authentication
- * Creates agent dynamically with Bing grounding tool
+ * Connects to existing agent with Bing grounding pre-configured
  */
 export class AzureAIAgentClient {
-  private client: AgentsClient | null = null;
+  private client: AIProjectClient | null = null;
   private endpoint: string;
-  private connectionId: string;
+  private agentName: string;
   private configured: boolean;
 
   constructor() {
     this.endpoint = env.azureAIFoundryEndpoint ?? '';
-    this.connectionId = env.azureBingConnectionId ?? '';
-    this.configured = !!(this.endpoint && this.connectionId);
+    this.agentName = env.azureAIAgentId ?? '';
+    this.configured = !!(this.endpoint && this.agentName);
 
     if (this.configured) {
       try {
-        this.client = new AgentsClient(this.endpoint, new DefaultAzureCredential());
-        logger.info('AgentsClient initialized', { endpoint: this.endpoint });
+        this.client = new AIProjectClient(this.endpoint, new DefaultAzureCredential());
+        logger.info('AIProjectClient initialized', { endpoint: this.endpoint, agentName: this.agentName });
       } catch (error) {
-        logger.error('Failed to initialize AgentsClient', { error });
+        logger.error('Failed to initialize AIProjectClient', { error });
         this.configured = false;
       }
     }
@@ -60,7 +59,7 @@ export class AzureAIAgentClient {
    * Check if the agent service is configured
    */
   static isConfigured(): boolean {
-    return !!(env.azureAIFoundryEndpoint && env.azureBingConnectionId);
+    return !!(env.azureAIFoundryEndpoint && env.azureAIAgentId);
   }
 
   /**
@@ -72,135 +71,103 @@ export class AzureAIAgentClient {
 
   /**
    * Send a message to the agent and get a grounded response
-   * Creates agent dynamically with Bing grounding tool attached
+   * Uses existing agent with pre-configured Bing grounding
+   * Pattern matches official Azure AI Projects documentation
    */
   async chat(message: string): Promise<AgentResponse> {
     if (!this.isReady() || !this.client) {
       throw new Error('Azure AI Agent Service is not configured');
     }
 
-    let agentId: string | null = null;
-
     try {
-      logger.info('Starting AI Foundry agent conversation with Bing grounding');
+      logger.info('Starting AI Projects agent conversation', { agentName: this.agentName });
 
-      // Initialize Bing grounding tool with connection ID
-      const bingTool = ToolUtility.createBingGroundingTool([{ connectionId: this.connectionId }]);
-
-      // Create agent with Bing tool
-      const agent = await this.client.createAgent('gpt-4.1', {
-        name: 'bd-research-agent',
-        instructions: 'You are a professional business intelligence analyst. Provide comprehensive, well-researched responses with citations.',
-        tools: [bingTool.definition],
+      // Retrieve Agent by name (with version if specified)
+      const retrievedAgent = await this.client.agents.get(this.agentName);
+      logger.info('Retrieved agent by name', { 
+        agentName: retrievedAgent.versions?.latest?.name || retrievedAgent.name,
+        agentId: retrievedAgent.id 
       });
-      agentId = agent.id;
-      logger.info('Created agent with Bing grounding', { agentId: agent.id });
 
-      // Create thread for communication
-      const thread = await this.client.threads.create();
-      logger.info('Created thread', { threadId: thread.id });
+      // Get OpenAI client from the project
+      const openAIClient = await this.client.getOpenAIClient();
+      logger.info('Retrieved OpenAI client');
 
-      // Create message to thread
-      const msg = await this.client.messages.create(thread.id, 'user', message);
-      logger.info('Created message', { messageId: msg.id });
+      // Create conversation with initial user message
+      logger.info('Creating conversation with user message');
+      const conversation = await openAIClient.conversations.create({
+        items: [{ type: "message", role: "user", content: message }]
+      });
+      logger.info('Created conversation', { conversationId: conversation.id });
 
-      // Create and process agent run
-      let run = await this.client.runs.create(thread.id, agentId);
-      logger.info('Started run', { runId: run.id, status: run.status });
-
-      // Poll until the run reaches a terminal status
-      while (run.status === 'queued' || run.status === 'in_progress') {
-        await delay(1000);
-        run = await this.client.runs.get(thread.id, run.id);
-        logger.info('Polling run status', { runId: run.id, status: run.status });
-      }
-
-      if (run.status === 'failed') {
-        logger.error('Run failed', { error: run.lastError });
-        throw new Error(`Agent run failed: ${run.lastError?.message || 'Unknown error'}`);
-      }
-
-      logger.info('Run completed', { status: run.status });
-
-      // Fetch and extract messages
-      const messagesIterator = this.client.messages.list(thread.id);
-
-      // Extract response using isOutputOfType
-      const response = await this.extractResponse(messagesIterator);
-
-      // Clean up - delete the agent when done
-      await this.client.deleteAgent(agentId);
-      logger.info('Deleted agent', { agentId });
-
-      return response;
-    } catch (error) {
-      logger.error('Error calling Azure AI Foundry Agent', { error });
-
-      // Try to clean up agent on error
-      if (agentId && this.client) {
-        try {
-          await this.client.deleteAgent(agentId);
-        } catch {
-          // Ignore cleanup errors
+      // Generate response using the agent
+      logger.info('Generating response with agent');
+      const response = await openAIClient.responses.create(
+        { conversation: conversation.id },
+        { 
+          body: { 
+            agent: { 
+              name: retrievedAgent.versions?.latest?.name || retrievedAgent.name, 
+              type: "agent_reference" 
+            }
+          } 
         }
-      }
+      );
 
+      logger.info('Response generated successfully');
+
+      // Extract response and citations
+      const extractedResponse = this.extractResponse(response);
+
+      return extractedResponse;
+    } catch (error) {
+      logger.error('Error calling Azure AI Projects Agent', { error });
       throw error;
     }
   }
 
   /**
-   * Extract the response and citations from messages
-   * Uses isOutputOfType helper from Azure SDK
+   * Extract the response and citations from OpenAI response object
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async extractResponse(messagesIterator: any): Promise<AgentResponse> {
-    let content = '';
+  private extractResponse(response: any): AgentResponse {
     const citations: Citation[] = [];
 
-    // Get messages and find assistant response
-    for await (const m of messagesIterator) {
-      if (m.role === 'assistant' && m.content && m.content.length > 0) {
-        const agentMessage = m.content[0];
+    // Extract content from output_text
+    const content = response.output_text || '';
 
-        // Use isOutputOfType helper from SDK
-        if (isOutputOfType(agentMessage, 'text')) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const textContent = agentMessage as any;
+    // Extract citations if present
+    if (response.citations && Array.isArray(response.citations)) {
+      for (const citation of response.citations) {
+        citations.push({
+          title: citation.title || citation.name || 'Source',
+          url: citation.url || citation.uri || '',
+          snippet: citation.snippet || citation.content || '',
+        });
+      }
+    }
 
-          // Extract text value
-          content = textContent.text.value;
+    // Also check for grounding_data or grounding in response
+    if (response.grounding_data?.web_results) {
+      for (const result of response.grounding_data.web_results) {
+        citations.push({
+          title: result.title || 'Source',
+          url: result.url || '',
+          snippet: result.snippet || '',
+        });
+      }
+    }
 
-          // Extract citations from annotations if present
-          if (textContent.text?.annotations) {
-            for (const annotation of textContent.text.annotations) {
-              // Check for url_citation (SDK uses camelCase: urlCitation)
-              if (annotation.type === 'url_citation' && annotation.urlCitation) {
-                citations.push({
-                  title: annotation.urlCitation.title || annotation.text || 'Source',
-                  url: annotation.urlCitation.url || '',
-                  snippet: annotation.text,
-                });
-              }
-              // Check for bing_grounding format (alternative)
-              else if (annotation.type === 'bing_grounding' || annotation.bingGrounding) {
-                const bingData = annotation.bingGrounding || annotation;
-                citations.push({
-                  title: bingData.title || annotation.text || 'Source',
-                  url: bingData.url || '',
-                  snippet: annotation.text,
-                });
-              }
-              // Check for web_search format
-              else if (annotation.type === 'web_search' || annotation.webSearch) {
-                const webData = annotation.webSearch || annotation;
-                citations.push({
-                  title: webData.title || annotation.text || 'Source',
-                  url: webData.url || '',
-                  snippet: annotation.text,
-                });
-              }
-            }
+    // Check output items for citations
+    if (response.output?.items) {
+      for (const item of response.output.items) {
+        if (item.citations) {
+          for (const citation of item.citations) {
+            citations.push({
+              title: citation.title || 'Source',
+              url: citation.url || '',
+              snippet: citation.snippet || '',
+            });
           }
         }
       }
