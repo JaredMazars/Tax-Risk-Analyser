@@ -1219,4 +1219,129 @@ export type RegisterToolInput = z.infer<typeof RegisterToolSchema>;
 export type UpdateToolAssignmentsInput = z.infer<typeof UpdateToolAssignmentsSchema>;
 export type AddToolToTaskInput = z.infer<typeof AddToolToTaskSchema>;
 
+// =============================================================================
+// Review Notes Validation Schemas
+// =============================================================================
+
+// Review note status enum
+const ReviewNoteStatusEnum = z.enum(['OPEN', 'IN_PROGRESS', 'ADDRESSED', 'CLEARED', 'REJECTED']);
+
+// Review note priority enum
+const ReviewNotePriorityEnum = z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']);
+
+// Review reference type enum
+const ReviewReferenceTypeEnum = z.enum(['FILE', 'PAGE', 'EXTERNAL']);
+
+// Create review note schema
+export const CreateReviewNoteSchema = z.object({
+  taskId: z.number().int().positive('Task ID must be a positive integer'),
+  title: safeString(255, 1),
+  description: safeString(5000).optional(),
+  referenceUrl: z.string().max(1000).optional().refine(
+    (val) => !val || isValidUrl(val),
+    'Must be a valid URL'
+  ),
+  referenceType: ReviewReferenceTypeEnum.default('EXTERNAL'),
+  referenceId: safeIdentifier(100).optional(),
+  section: safeString(255).optional(),
+  priority: ReviewNotePriorityEnum.default('MEDIUM'),
+  categoryId: z.number().int().positive().optional(),
+  dueDate: z.coerce.date().optional(),
+  assignedTo: safeIdentifier(1000).optional(),
+}).strict();
+
+// Update review note schema
+export const UpdateReviewNoteSchema = z.object({
+  title: safeString(255, 1).optional(),
+  description: safeString(5000).optional(),
+  referenceUrl: z.string().max(1000).optional().refine(
+    (val) => !val || isValidUrl(val),
+    'Must be a valid URL'
+  ),
+  referenceType: ReviewReferenceTypeEnum.optional(),
+  referenceId: safeIdentifier(100).optional(),
+  section: safeString(255).optional(),
+  priority: ReviewNotePriorityEnum.optional(),
+  categoryId: z.number().int().positive().nullable().optional(),
+  dueDate: z.coerce.date().nullable().optional(),
+  assignedTo: safeIdentifier(1000).nullable().optional(),
+}).strict();
+
+// Change review note status schema
+export const ChangeReviewNoteStatusSchema = z.object({
+  status: ReviewNoteStatusEnum,
+  comment: safeString(2000).optional(),
+  reason: safeString(2000).optional(),
+}).strict();
+
+// Assign review note schema
+export const AssignReviewNoteSchema = z.object({
+  assignedTo: safeIdentifier(1000),
+}).strict();
+
+// Create review note comment schema
+export const CreateReviewNoteCommentSchema = z.object({
+  comment: safeString(5000, 1),
+  isInternal: z.boolean().default(false),
+}).strict();
+
+// Review note filter schema
+export const ReviewNoteFilterSchema = z.object({
+  taskId: z.number().int().positive(),
+  status: z.union([ReviewNoteStatusEnum, z.array(ReviewNoteStatusEnum)]).optional(),
+  priority: z.union([ReviewNotePriorityEnum, z.array(ReviewNotePriorityEnum)]).optional(),
+  categoryId: z.union([z.number().int().positive(), z.array(z.number().int().positive())]).optional(),
+  assignedTo: z.string().max(1000).optional(),
+  raisedBy: z.string().max(1000).optional(),
+  dueDateFrom: z.coerce.date().optional(),
+  dueDateTo: z.coerce.date().optional(),
+  overdue: z.boolean().optional(),
+  search: safeString(500).optional(),
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().min(1).max(100).default(20),
+  sortBy: z.enum(['dueDate', 'priority', 'createdAt', 'updatedAt']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+}).strict();
+
+// Create review category schema
+export const CreateReviewCategorySchema = z.object({
+  name: safeString(100, 1),
+  description: safeString(500).optional(),
+  serviceLine: safeIdentifier(50).optional(),
+  sortOrder: z.number().int().min(0).max(9999).default(0),
+}).strict();
+
+// Update review category schema
+export const UpdateReviewCategorySchema = z.object({
+  name: safeString(100, 1).optional(),
+  description: safeString(500).optional(),
+  serviceLine: safeIdentifier(50).nullable().optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+}).strict();
+
+// Review note report filter schema
+export const ReviewNoteReportFilterSchema = z.object({
+  status: z.array(ReviewNoteStatusEnum).optional(),
+  priority: z.array(ReviewNotePriorityEnum).optional(),
+  categoryId: z.array(z.number().int().positive()).max(50).optional(),
+  assignedTo: z.array(safeIdentifier(1000)).max(50).optional(),
+  raisedBy: z.array(safeIdentifier(1000)).max(50).optional(),
+  dateFrom: z.coerce.date().optional(),
+  dateTo: z.coerce.date().optional(),
+  includeComments: z.boolean().default(true),
+  includeAttachments: z.boolean().default(true),
+}).strict();
+
+// Inferred types for review notes
+export type CreateReviewNoteInput = z.infer<typeof CreateReviewNoteSchema>;
+export type UpdateReviewNoteInput = z.infer<typeof UpdateReviewNoteSchema>;
+export type ChangeReviewNoteStatusInput = z.infer<typeof ChangeReviewNoteStatusSchema>;
+export type AssignReviewNoteInput = z.infer<typeof AssignReviewNoteSchema>;
+export type CreateReviewNoteCommentInput = z.infer<typeof CreateReviewNoteCommentSchema>;
+export type ReviewNoteFilterInput = z.infer<typeof ReviewNoteFilterSchema>;
+export type CreateReviewCategoryInput = z.infer<typeof CreateReviewCategorySchema>;
+export type UpdateReviewCategoryInput = z.infer<typeof UpdateReviewCategorySchema>;
+export type ReviewNoteReportFilterInput = z.infer<typeof ReviewNoteReportFilterSchema>;
+
 

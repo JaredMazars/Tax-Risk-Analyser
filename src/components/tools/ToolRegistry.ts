@@ -13,6 +13,7 @@
 import { TaxCalculationTool, taxCalculationToolConfig } from './TaxCalculationTool';
 import { TaxAdvisoryTool, taxAdvisoryToolConfig } from './TaxAdvisoryTool';
 import { TaxComplianceTool, taxComplianceToolConfig } from './TaxComplianceTool';
+import { ReviewNotebookTool, reviewNotebookToolConfig } from './ReviewNotebookTool';
 import type { ToolComponent, ToolComponentProps, ToolModule, ToolModuleConfig } from './types';
 
 /**
@@ -32,6 +33,10 @@ const TOOL_MODULES: ToolModule[] = [
   {
     component: TaxComplianceTool,
     config: taxComplianceToolConfig,
+  },
+  {
+    component: ReviewNotebookTool,
+    config: reviewNotebookToolConfig,
   },
 ];
 
@@ -92,6 +97,8 @@ export function getAllToolModules(): ToolModule[] {
 
 // Re-export types for convenience
 export type { ToolComponent, ToolComponentProps, ToolModule, ToolModuleConfig } from './types';
+
+
 
 
 

@@ -204,27 +204,41 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
                   `}
                 >
                   <span className="text-sm font-medium">{taskTool.tool.name}</span>
-                  <button
+                  <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveTool(taskTool.toolId, taskTool.tool.name);
+                      if (!removeToolMutation.isPending) {
+                        handleRemoveTool(taskTool.toolId, taskTool.tool.name);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!removeToolMutation.isPending) {
+                          handleRemoveTool(taskTool.toolId, taskTool.tool.name);
+                        }
+                      }
                     }}
                     className={`
-                      p-1 rounded transition-colors
+                      p-1 rounded transition-colors cursor-pointer
                       ${isActive
                         ? 'hover:bg-white/20 text-white'
                         : 'hover:bg-red-100 text-forvis-gray-500 hover:text-red-600'
                       }
+                      ${removeToolMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}
                     `}
                     title="Remove tool"
-                    disabled={removeToolMutation.isPending}
+                    aria-label="Remove tool"
                   >
                     {removeToolMutation.isPending && activeToolId === taskTool.toolId ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <X className="w-4 h-4" />
                     )}
-                  </button>
+                  </div>
                   {isActive && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white"></div>
                   )}
@@ -364,6 +378,8 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
     </div>
   );
 }
+
+
 
 
 

@@ -932,6 +932,7 @@ model Task {
   NotificationPreference   NotificationPreference[]
   OpinionDraft             OpinionDraft[]
   ResearchNote             ResearchNote[]
+  ReviewNote               ReviewNote[]
   SarsResponse             SarsResponse[]
   User                     User?                      @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Client                   Client?                    @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
@@ -1156,6 +1157,12 @@ model User {
   Task                                                 Task[]
   TaskTeam                                             TaskTeam[]
   TaskTool                                             TaskTool[]
+  ReviewNote_ReviewNote_raisedByToUser                 ReviewNote[]             @relation("ReviewNote_raisedByToUser")
+  ReviewNote_ReviewNote_assignedToToUser               ReviewNote[]             @relation("ReviewNote_assignedToToUser")
+  ReviewNote_ReviewNote_addressedByToUser              ReviewNote[]             @relation("ReviewNote_addressedByToUser")
+  ReviewNote_ReviewNote_clearedByToUser                ReviewNote[]             @relation("ReviewNote_clearedByToUser")
+  ReviewNoteComment                                    ReviewNoteComment[]
+  ReviewNoteAttachment                                 ReviewNoteAttachment[]
 
   @@index([role])
 }
@@ -1630,4 +1637,98 @@ model WIPAging {
   @@index([TaskPartner])
   @@index([GSClientID, PeriodRef])
   @@index([GSTaskID, PeriodRef])
+}
+
+model ReviewCategory {
+  id          Int          @id @default(autoincrement())
+  name        String       @db.NVarChar(100)
+  description String?      @db.NVarChar(500)
+  serviceLine String?      @db.NVarChar(50)
+  active      Boolean      @default(true)
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  ReviewNote  ReviewNote[]
+
+  @@index([serviceLine])
+  @@index([active])
+  @@index([sortOrder])
+}
+
+model ReviewNote {
+  id                                         Int                      @id @default(autoincrement())
+  taskId                                     Int
+  title                                      String                   @db.NVarChar(255)
+  description                                String?                  @db.NVarChar(Max)
+  referenceUrl                               String?                  @db.NVarChar(1000)
+  referenceType                              String                   @default("EXTERNAL") @db.NVarChar(20)
+  referenceId                                String?                  @db.NVarChar(100)
+  section                                    String?                  @db.NVarChar(255)
+  status                                     String                   @default("OPEN") @db.NVarChar(20)
+  priority                                   String                   @default("MEDIUM") @db.NVarChar(20)
+  categoryId                                 Int?
+  dueDate                                    DateTime?
+  raisedBy                                   String
+  assignedTo                                 String?
+  addressedAt                                DateTime?
+  addressedBy                                String?
+  addressedComment                           String?                  @db.NVarChar(Max)
+  clearedAt                                  DateTime?
+  clearedBy                                  String?
+  clearanceComment                           String?                  @db.NVarChar(Max)
+  rejectedAt                                 DateTime?
+  rejectionReason                            String?                  @db.NVarChar(Max)
+  createdAt                                  DateTime                 @default(now())
+  updatedAt                                  DateTime                 @updatedAt
+  Task                                       Task                     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  ReviewCategory                             ReviewCategory?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  User_ReviewNote_raisedByToUser             User                     @relation("ReviewNote_raisedByToUser", fields: [raisedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_assignedToToUser           User?                    @relation("ReviewNote_assignedToToUser", fields: [assignedTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_addressedByToUser          User?                    @relation("ReviewNote_addressedByToUser", fields: [addressedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_clearedByToUser            User?                    @relation("ReviewNote_clearedByToUser", fields: [clearedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ReviewNoteComment                          ReviewNoteComment[]
+  ReviewNoteAttachment                       ReviewNoteAttachment[]
+
+  @@index([taskId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([raisedBy])
+  @@index([dueDate])
+  @@index([priority])
+  @@index([categoryId])
+  @@index([taskId, status])
+  @@index([assignedTo, status])
+  @@index([createdAt(sort: Desc)])
+}
+
+model ReviewNoteComment {
+  id           Int        @id @default(autoincrement())
+  reviewNoteId Int
+  userId       String
+  comment      String     @db.NVarChar(Max)
+  isInternal   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  ReviewNote   ReviewNote @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
+  User         User       @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([reviewNoteId])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model ReviewNoteAttachment {
+  id           Int        @id @default(autoincrement())
+  reviewNoteId Int
+  fileName     String     @db.NVarChar(255)
+  filePath     String     @db.NVarChar(1000)
+  fileSize     Int
+  fileType     String     @db.NVarChar(100)
+  uploadedBy   String
+  createdAt    DateTime   @default(now())
+  ReviewNote   ReviewNote @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
+  User         User       @relation(fields: [uploadedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([reviewNoteId])
+  @@index([uploadedBy])
 }
