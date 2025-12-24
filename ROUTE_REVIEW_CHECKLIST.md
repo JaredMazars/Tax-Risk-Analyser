@@ -172,14 +172,14 @@ For routes that call external APIs or services:
 | Auth | 6 | 6 |
 | BD | 29 | 29 |
 | Clients | 21 | 21 |
-| Tasks | 63 | 63 |
+| Tasks | 90 | 81 |
 | Service Lines | 12 | 12 |
 | Groups | 6 | 6 |
 | Notifications | 7 | 7 |
 | Users | 6 | 6 |
 | Tools | 14 | 14 |
-| Utility | 10 | 0 |
-| **Total** | **202** | **193** |
+| Utility | 85 | 85 |
+| **Total** | **229** | **211** |
 
 ---
 
@@ -971,7 +971,7 @@ For routes that call external APIs or services:
 
 ---
 
-## Task Routes (59)
+## Task Routes (90)
 
 ### Task List & Details
 
@@ -1603,6 +1603,149 @@ For routes that call external APIs or services:
     - Page: `src/app/dashboard/tasks/[id]/opinion-drafting/page.tsx`
   - **Reviewed**: 2024-12-23
   - **Notes**: Route file exists but needs review (deferred to next batch).
+
+### Task Review Notebook
+
+- [x] `GET /api/tasks/[id]/review-notes` - List review notes
+  - **File**: `src/app/api/tasks/[id]/review-notes/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNotes.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteList.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Notes**: Already uses `secureRoute.queryWithParams` with taskIdParam. Added Zod validation for query params.
+
+- [x] `POST /api/tasks/[id]/review-notes` - Create review note
+  - **File**: `src/app/api/tasks/[id]/review-notes/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteActions.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/CreateReviewNoteModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Notes**: Already uses `secureRoute.mutationWithParams` with schema. Sends notifications on assignment.
+
+- [x] `GET /api/tasks/[id]/review-notes/[noteId]` - Get review note details
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNotes.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `Feature.ACCESS_TASKS`, `parseNumericId()`, IDOR protection, `Cache-Control: no-store`.
+
+- [x] `PUT /api/tasks/[id]/review-notes/[noteId]` - Update review note
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteActions.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `parseNumericId()`, IDOR protection, replaced ad-hoc errors with `AppError`.
+
+- [x] `DELETE /api/tasks/[id]/review-notes/[noteId]` - Delete review note
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteActions.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteList.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `parseNumericId()`, IDOR protection, replaced ad-hoc errors with `AppError`.
+
+- [x] `POST /api/tasks/[id]/review-notes/[noteId]/status` - Change review note status
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/status/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteActions.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `parseNumericId()`, IDOR protection, replaced ad-hoc errors with `AppError`. Sends notifications on status change.
+
+- [x] `POST /api/tasks/[id]/review-notes/[noteId]/assign` - Assign review note
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/assign/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteActions.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `parseNumericId()`, IDOR protection, replaced ad-hoc errors with `AppError`. Sends notification to assignee.
+
+- [x] `GET /api/tasks/[id]/review-notes/[noteId]/attachments` - List attachments
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/attachments/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteAttachments.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `Feature.ACCESS_TASKS`, `parseNumericId()`, IDOR protection, `take: 100` limit, deterministic sort, `Cache-Control: no-store`.
+
+- [x] `POST /api/tasks/[id]/review-notes/[noteId]/attachments` - Upload attachment
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/attachments/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteAttachments.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Migrated to `secureRoute.fileUploadWithParams`, added `Feature.MANAGE_TASKS`, `parseNumericId()`, IDOR protection, replaced ad-hoc errors with `AppError`. File validation (size 10MB, MIME allowlist).
+
+- [x] `GET /api/tasks/[id]/review-notes/[noteId]/attachments/[attachmentId]` - Download attachment
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/attachments/[attachmentId]/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteAttachments.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `Feature.ACCESS_TASKS`, `parseNumericId()` for both noteId and attachmentId, IDOR protection, `Cache-Control: no-store`, replaced ad-hoc errors with `AppError`. Supports both blob storage and local filesystem.
+
+- [x] `DELETE /api/tasks/[id]/review-notes/[noteId]/attachments/[attachmentId]` - Delete attachment
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/attachments/[attachmentId]/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteAttachments.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `parseNumericId()`, IDOR protection, business logic authorization (only uploader or raiser can delete), replaced ad-hoc errors with `AppError`. Audit logging included.
+
+- [x] `GET /api/tasks/[id]/review-notes/[noteId]/comments` - List comments
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/comments/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteComments.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `Feature.ACCESS_TASKS`, `parseNumericId()`, IDOR protection, `take: 500` limit, deterministic sort, `Cache-Control: no-store`. Filters internal comments based on user role.
+
+- [x] `POST /api/tasks/[id]/review-notes/[noteId]/comments` - Add comment
+  - **File**: `src/app/api/tasks/[id]/review-notes/[noteId]/comments/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNoteComments.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteDetailModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `parseNumericId()`, IDOR protection, replaced ad-hoc errors with `AppError`. Sends notification for non-internal comments.
+
+- [x] `GET /api/tasks/[id]/review-notes/analytics` - Get analytics
+  - **File**: `src/app/api/tasks/[id]/review-notes/analytics/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNotes.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/ReviewNoteAnalytics.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `Feature.ACCESS_TASKS`, `Cache-Control: no-store`.
+
+- [x] `GET /api/tasks/[id]/review-notes/categories` - List categories
+  - **File**: `src/app/api/tasks/[id]/review-notes/categories/route.ts`
+  - **Frontend**: 
+    - Hook: `src/components/tools/ReviewNotebookTool/hooks/useReviewNotes.ts`
+    - Component: `src/components/tools/ReviewNotebookTool/components/CreateReviewNoteModal.tsx`
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `Feature.ACCESS_TASKS`, fixed `any` type to `Prisma.ReviewCategoryWhereInput`, `take: 100` limit, deterministic sort, `Cache-Control: private, max-age=300`.
+
+- [x] `POST /api/tasks/[id]/review-notes/categories` - Create category
+  - **File**: `src/app/api/tasks/[id]/review-notes/categories/route.ts`
+  - **Frontend**: 
+    - Component: Admin category management (PARTNER+ only)
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Added `Feature.MANAGE_TASKS`, replaced ad-hoc error with `AppError`. Business logic authorization for PARTNER+ only.
+
+- [x] `PUT /api/tasks/[id]/review-notes/categories/[categoryId]` - Update category
+  - **File**: `src/app/api/tasks/[id]/review-notes/categories/[categoryId]/route.ts`
+  - **Frontend**: 
+    - Component: Admin category management (PARTNER+ only)
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Migrated to `secureRoute.mutationWithParams`, added `Feature.MANAGE_TASKS`, `parseNumericId()`, replaced ad-hoc errors with `AppError`. Business logic authorization for PARTNER+ only.
+
+- [x] `DELETE /api/tasks/[id]/review-notes/categories/[categoryId]` - Deactivate category
+  - **File**: `src/app/api/tasks/[id]/review-notes/categories/[categoryId]/route.ts`
+  - **Frontend**: 
+    - Component: Admin category management (PARTNER+ only)
+  - **Reviewed**: 2024-12-23
+  - **Fix Applied**: Migrated to `secureRoute.mutationWithParams`, added `Feature.MANAGE_TASKS`, `parseNumericId()`, replaced ad-hoc errors with `AppError`. Soft delete (deactivate). Business logic authorization for PARTNER+ only.
 
 ### Task Research & AI
 

@@ -5,9 +5,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { secureRoute } from '@/lib/api/secureRoute';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { UpdateReviewCategorySchema } from '@/lib/validation/schemas';
-import { successResponse } from '@/lib/utils/apiUtils';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { prisma } from '@/lib/db/prisma';
 import { hasPartnerAccess } from '@/lib/utils/roleHierarchy';
 
@@ -15,28 +16,16 @@ import { hasPartnerAccess } from '@/lib/utils/roleHierarchy';
  * PUT /api/tasks/[taskId]/review-notes/categories/[categoryId]
  * Update a review category (PARTNER+ only)
  */
-export const PUT = secureRoute.mutation({
+export const PUT = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
   schema: UpdateReviewCategorySchema,
-  handler: async (request, { user, data }) => {
-    // Check if user is partner or above
+  handler: async (request, { user, data, params }) => {
+    // Business logic authorization: Only partners and above can update categories
     if (!hasPartnerAccess(user.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Only partners and above can update categories' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'Only partners and above can update categories', ErrorCodes.FORBIDDEN);
     }
 
-    // Get category ID from URL
-    const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
-    const categoryId = Number(pathParts[pathParts.length - 1]);
-
-    if (isNaN(categoryId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid category ID' },
-        { status: 400 }
-      );
-    }
+    const categoryId = parseNumericId(params.categoryId, 'Category ID');
 
     // Check if category exists
     const existingCategory = await prisma.reviewCategory.findUnique({
@@ -45,10 +34,7 @@ export const PUT = secureRoute.mutation({
     });
 
     if (!existingCategory) {
-      return NextResponse.json(
-        { success: false, error: 'Category not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Category not found', ErrorCodes.NOT_FOUND);
     }
 
     // Update category
@@ -76,27 +62,15 @@ export const PUT = secureRoute.mutation({
  * Deactivate a review category (PARTNER+ only)
  * Note: We don't actually delete to preserve data integrity
  */
-export const DELETE = secureRoute.mutation({
-  handler: async (request, { user }) => {
-    // Check if user is partner or above
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_TASKS,
+  handler: async (request, { user, params }) => {
+    // Business logic authorization: Only partners and above can deactivate categories
     if (!hasPartnerAccess(user.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Only partners and above can deactivate categories' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'Only partners and above can deactivate categories', ErrorCodes.FORBIDDEN);
     }
 
-    // Get category ID from URL
-    const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
-    const categoryId = Number(pathParts[pathParts.length - 1]);
-
-    if (isNaN(categoryId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid category ID' },
-        { status: 400 }
-      );
-    }
+    const categoryId = parseNumericId(params.categoryId, 'Category ID');
 
     // Check if category exists
     const existingCategory = await prisma.reviewCategory.findUnique({
@@ -105,13 +79,10 @@ export const DELETE = secureRoute.mutation({
     });
 
     if (!existingCategory) {
-      return NextResponse.json(
-        { success: false, error: 'Category not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Category not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Deactivate category
+    // Deactivate category (soft delete)
     await prisma.reviewCategory.update({
       where: { id: categoryId },
       data: { active: false },

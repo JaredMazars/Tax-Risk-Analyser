@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { secureRoute } from '@/lib/api/secureRoute';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { getReviewNoteAnalytics } from '@/lib/services/review-notes/reviewNoteAnalyticsService';
 import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 
@@ -14,13 +14,16 @@ import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
  */
 export const GET = secureRoute.queryWithParams({
   taskIdParam: 'id',
+  feature: Feature.ACCESS_TASKS,
   handler: async (request, { user, params }) => {
     const taskId = parseTaskId(params.id);
 
     // Get analytics
     const analytics = await getReviewNoteAnalytics(taskId);
 
-    return NextResponse.json(successResponse(analytics));
+    const response = NextResponse.json(successResponse(analytics));
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
   },
 });
 

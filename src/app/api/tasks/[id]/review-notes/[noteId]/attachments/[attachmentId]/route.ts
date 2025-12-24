@@ -7,12 +7,18 @@
 import { NextResponse } from 'next/server';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { getReviewNoteById } from '@/lib/services/review-notes/reviewNoteService';
-import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { prisma } from '@/lib/db/prisma';
 import { readFile, unlink } from 'fs/promises';
 import { join } from 'path';
-import { downloadScreenshot, deleteScreenshot, isBlobStorageConfigured } from '@/lib/services/documents/blobStorage';
+import { existsSync } from 'fs';
 import { logger } from '@/lib/utils/logger';
+import { 
+  downloadReviewNoteAttachment, 
+  deleteReviewNoteAttachment,
+  reviewNoteAttachmentExists 
+} from '@/lib/services/documents/blobStorage';
 
 /**
  * GET /api/tasks/[taskId]/review-notes/[noteId]/attachments/[attachmentId]
@@ -20,25 +26,16 @@ import { logger } from '@/lib/utils/logger';
  */
 export const GET = secureRoute.queryWithParams({
   taskIdParam: 'id',
+  feature: Feature.ACCESS_TASKS,
   handler: async (request, { user, params }) => {
     const taskId = parseTaskId(params.id);
-    const noteId = Number(params.noteId);
-    const attachmentId = Number(params.attachmentId);
+    const noteId = parseNumericId(params.noteId, 'Review note ID');
+    const attachmentId = parseNumericId(params.attachmentId, 'Attachment ID');
 
-    if (isNaN(noteId) || isNaN(attachmentId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid ID' },
-        { status: 400 }
-      );
-    }
-
-    // Verify note belongs to this task
+    // Verify note belongs to this task (IDOR protection)
     const reviewNote = await getReviewNoteById(noteId);
     if (reviewNote.taskId !== taskId) {
-      return NextResponse.json(
-        { success: false, error: 'Review note does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
     // Get attachment
@@ -54,37 +51,25 @@ export const GET = secureRoute.queryWithParams({
     });
 
     if (!attachment) {
-      return NextResponse.json(
-        { success: false, error: 'Attachment not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Attachment not found', ErrorCodes.NOT_FOUND);
     }
 
+    // Verify attachment belongs to this note (IDOR protection)
     if (attachment.reviewNoteId !== noteId) {
-      return NextResponse.json(
-        { success: false, error: 'Attachment does not belong to this review note' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Attachment not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Read file - check if it's from blob storage or local filesystem
-    let fileBuffer: Buffer;
-    const isScreenshot = attachment.fileType.startsWith('image/') && 
-                        attachment.filePath.includes('/screenshots/');
+    // Determine if file is in blob storage or local filesystem
+    // Blob paths don't start with / and don't have file extensions in path structure
+    const isBlobPath = !attachment.filePath.startsWith('/');
     
-    if (isScreenshot && isBlobStorageConfigured()) {
+    let fileBuffer: Buffer;
+    
+    if (isBlobPath) {
       // Download from blob storage
-      try {
-        fileBuffer = await downloadScreenshot(attachment.filePath);
-      } catch (error) {
-        logger.error('Failed to download screenshot from blob storage', { error, attachmentId });
-        return NextResponse.json(
-          { success: false, error: 'Failed to download file' },
-          { status: 500 }
-        );
-      }
+      fileBuffer = await downloadReviewNoteAttachment(attachment.filePath);
     } else {
-      // Read from local filesystem (legacy attachments)
+      // Read from local filesystem (backward compatibility)
       const fullPath = join(process.cwd(), attachment.filePath);
       fileBuffer = await readFile(fullPath);
     }
@@ -95,6 +80,7 @@ export const GET = secureRoute.queryWithParams({
         'Content-Type': attachment.fileType,
         'Content-Disposition': `attachment; filename="${attachment.fileName}"`,
         'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
       },
     });
   },
@@ -109,23 +95,13 @@ export const DELETE = secureRoute.mutationWithParams({
   feature: Feature.MANAGE_TASKS,
   handler: async (request, { user, params }) => {
     const taskId = parseTaskId(params.id);
-    const noteId = Number(params.noteId);
-    const attachmentId = Number(params.attachmentId);
+    const noteId = parseNumericId(params.noteId, 'Review note ID');
+    const attachmentId = parseNumericId(params.attachmentId, 'Attachment ID');
 
-    if (isNaN(noteId) || isNaN(attachmentId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid ID' },
-        { status: 400 }
-      );
-    }
-
-    // Verify note belongs to this task
+    // Verify note belongs to this task (IDOR protection)
     const reviewNote = await getReviewNoteById(noteId);
     if (reviewNote.taskId !== taskId) {
-      return NextResponse.json(
-        { success: false, error: 'Review note does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
     // Get attachment
@@ -140,38 +116,33 @@ export const DELETE = secureRoute.mutationWithParams({
     });
 
     if (!attachment) {
-      return NextResponse.json(
-        { success: false, error: 'Attachment not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Attachment not found', ErrorCodes.NOT_FOUND);
     }
 
+    // Verify attachment belongs to this note (IDOR protection)
     if (attachment.reviewNoteId !== noteId) {
-      return NextResponse.json(
-        { success: false, error: 'Attachment does not belong to this review note' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Attachment not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Only uploader or raiser can delete
+    // Business logic authorization: Only uploader or raiser can delete
     if (attachment.uploadedBy !== user.id && reviewNote.raisedBy !== user.id) {
-      return NextResponse.json(
-        { success: false, error: 'You do not have permission to delete this attachment' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'You do not have permission to delete this attachment', ErrorCodes.FORBIDDEN);
     }
 
-    // Delete file - check if it's from blob storage or local filesystem
-    const isScreenshot = attachment.filePath.includes('/screenshots/');
+    // Determine if file is in blob storage or local filesystem
+    const isBlobPath = !attachment.filePath.startsWith('/');
     
+    // Delete file
     try {
-      if (isScreenshot && isBlobStorageConfigured()) {
+      if (isBlobPath) {
         // Delete from blob storage
-        await deleteScreenshot(attachment.filePath);
+        await deleteReviewNoteAttachment(attachment.filePath);
       } else {
-        // Delete from local filesystem (legacy attachments)
+        // Delete from local filesystem (backward compatibility)
         const fullPath = join(process.cwd(), attachment.filePath);
-        await unlink(fullPath);
+        if (existsSync(fullPath)) {
+          await unlink(fullPath);
+        }
       }
     } catch (error) {
       // Log but continue - file might already be deleted
@@ -183,7 +154,7 @@ export const DELETE = secureRoute.mutationWithParams({
       where: { id: attachmentId },
     });
 
-    logger.info('Attachment deleted successfully', { attachmentId, noteId, taskId });
+    logger.info('Attachment deleted successfully', { attachmentId, noteId, taskId, userId: user.id });
 
     return NextResponse.json(successResponse({ message: 'Attachment deleted successfully' }));
   },

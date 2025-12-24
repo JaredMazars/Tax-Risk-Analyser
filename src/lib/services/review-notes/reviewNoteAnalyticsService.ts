@@ -44,6 +44,20 @@ export async function getReviewNoteAnalytics(taskId: number): Promise<ReviewNote
       },
     });
 
+    // #region agent log
+    logger.info('[DEBUG_ANALYTICS] Notes fetched from database', {
+      taskId,
+      totalNotes: allNotes.length,
+      notesSample: allNotes.map(n => ({
+        id: n.id,
+        status: n.status,
+        createdAt: n.createdAt?.toISOString(),
+        clearedAt: n.clearedAt?.toISOString()
+      })),
+      hypothesisId: 'A,B,C,D'
+    });
+    // #endregion
+
     // Calculate summary metrics
     const summary = {
       total: allNotes.length,
@@ -61,7 +75,7 @@ export async function getReviewNoteAnalytics(taskId: number): Promise<ReviewNote
         LOW: allNotes.filter((n) => n.priority === 'LOW').length,
       } as Record<ReviewNotePriority, number>,
       overdue: await getOverdueCount(taskId),
-      averageResolutionTimeHours: await calculateAverageResolutionTime(allNotes),
+      averageResolutionTimeHours: calculateAverageResolutionTime(allNotes),
     };
 
     // Calculate by category
@@ -104,28 +118,95 @@ async function getOverdueCount(taskId: number): Promise<number> {
 
 /**
  * Calculate average resolution time in hours
+ * Only considers notes with status='CLEARED' and valid timestamps
+ * @param notes - Array of review notes with status, createdAt, and clearedAt fields
+ * @returns Average resolution time in hours (rounded), or null if no cleared notes
  */
-function calculateAverageResolutionTime(notes: any[]): number | null {
-  const clearedNotes = notes.filter((n) => n.clearedAt && n.createdAt);
+function calculateAverageResolutionTime(
+  notes: Array<{ 
+    status: string; 
+    createdAt: Date; 
+    clearedAt: Date | null;
+  }>
+): number | null {
+  // #region agent log
+  logger.info('[DEBUG_ANALYTICS] calculateAverageResolutionTime entry', {
+    totalNotesReceived: notes.length,
+    notesData: notes.map(n => ({
+      status: n.status,
+      createdAt: n.createdAt?.toISOString(),
+      clearedAt: n.clearedAt?.toISOString()
+    })),
+    hypothesisId: 'D,E'
+  });
+  // #endregion
+
+  // Filter for cleared notes with valid timestamps
+  const clearedNotes = notes.filter(
+    (n) => n.status === 'CLEARED' && n.clearedAt && n.createdAt
+  );
+
+  // #region agent log
+  logger.info('[DEBUG_ANALYTICS] After filtering for CLEARED notes', {
+    clearedNotesCount: clearedNotes.length,
+    clearedStatusOnly: notes.filter(n => n.status === 'CLEARED').length,
+    hasTimestamps: notes.filter(n => n.status === 'CLEARED' && n.clearedAt).length,
+    hasCreatedAt: notes.filter(n => n.status === 'CLEARED' && n.createdAt).length,
+    clearedNotesData: clearedNotes.map(n => ({
+      status: n.status,
+      createdAt: n.createdAt?.toISOString(),
+      clearedAt: n.clearedAt?.toISOString()
+    })),
+    hypothesisId: 'A,B,C'
+  });
+  // #endregion
 
   if (clearedNotes.length === 0) {
+    // #region agent log
+    logger.info('[DEBUG_ANALYTICS] Returning null - no cleared notes', {
+      totalNotes: notes.length,
+      statusBreakdown: notes.reduce((acc, n) => {
+        acc[n.status] = (acc[n.status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      hypothesisId: 'A,B,C,D'
+    });
+    // #endregion
     return null;
   }
 
   const totalHours = clearedNotes.reduce((sum, note) => {
     const created = new Date(note.createdAt).getTime();
-    const cleared = new Date(note.clearedAt).getTime();
+    const cleared = new Date(note.clearedAt!).getTime();
     const hours = (cleared - created) / (1000 * 60 * 60);
     return sum + hours;
   }, 0);
 
-  return Math.round(totalHours / clearedNotes.length);
+  // Use Math.ceil to always show at least 1 hour for cleared notes
+  // This prevents displaying N/A for notes cleared in < 30 minutes
+  const average = Math.ceil(totalHours / clearedNotes.length);
+
+  // #region agent log
+  logger.info('[DEBUG_ANALYTICS] Returning average', {
+    average,
+    totalHours,
+    clearedNotesCount: clearedNotes.length,
+    hypothesisId: 'E'
+  });
+  // #endregion
+
+  return average;
 }
 
 /**
  * Get notes grouped by category
  */
-function getByCategory(notes: any[]): Array<{
+function getByCategory(
+  notes: Array<{
+    categoryId: number | null;
+    ReviewCategory?: { name: string } | null;
+  }>
+): Array<{
   categoryId: number | null;
   categoryName: string;
   count: number;
@@ -153,7 +234,15 @@ function getByCategory(notes: any[]): Array<{
 /**
  * Get notes grouped by assignee with metrics
  */
-function getByAssignee(notes: any[]): Array<{
+function getByAssignee(
+  notes: Array<{
+    status: string;
+    assignedTo: string | null;
+    createdAt: Date;
+    clearedAt: Date | null;
+    User_ReviewNote_assignedToToUser?: { name: string } | null;
+  }>
+): Array<{
   userId: string;
   userName: string;
   open: number;
@@ -173,7 +262,11 @@ function getByAssignee(notes: any[]): Array<{
       addressed: number;
       cleared: number;
       rejected: number;
-      notes: any[];
+      notes: Array<{
+        status: string;
+        createdAt: Date;
+        clearedAt: Date | null;
+      }>;
     }
   >();
 
@@ -293,13 +386,13 @@ async function getTimeline(taskId: number): Promise<
 
   // Initialize all dates with 0
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = d.toISOString().split('T')[0]!;
     timelineMap.set(dateStr, { opened: 0, cleared: 0, rejected: 0 });
   }
 
   // Add opened counts
   createdNotes.forEach((entry) => {
-    const dateStr = new Date(entry.createdAt).toISOString().split('T')[0];
+    const dateStr = new Date(entry.createdAt).toISOString().split('T')[0]!;
     if (timelineMap.has(dateStr)) {
       timelineMap.get(dateStr)!.opened = entry._count;
     }
@@ -308,7 +401,7 @@ async function getTimeline(taskId: number): Promise<
   // Add cleared counts
   clearedNotes.forEach((entry) => {
     if (!entry.clearedAt) return;
-    const dateStr = new Date(entry.clearedAt).toISOString().split('T')[0];
+    const dateStr = new Date(entry.clearedAt).toISOString().split('T')[0]!;
     if (timelineMap.has(dateStr)) {
       timelineMap.get(dateStr)!.cleared = entry._count;
     }
@@ -317,7 +410,7 @@ async function getTimeline(taskId: number): Promise<
   // Add rejected counts
   rejectedNotes.forEach((entry) => {
     if (!entry.rejectedAt) return;
-    const dateStr = new Date(entry.rejectedAt).toISOString().split('T')[0];
+    const dateStr = new Date(entry.rejectedAt).toISOString().split('T')[0]!;
     if (timelineMap.has(dateStr)) {
       timelineMap.get(dateStr)!.rejected = entry._count;
     }

@@ -196,3 +196,20 @@ export function isSystemAdmin(role: string): boolean {
   return role === SystemRole.SYSTEM_ADMIN;
 }
 
+/**
+ * Check if user has Partner-level access
+ * Partners and Administrators (service line) or System Admins (system level) have partner access
+ * @param role - The user's role (can be system or service line role, may be undefined)
+ * @returns true if has partner access
+ */
+export function hasPartnerAccess(role?: string): boolean {
+  if (!role) return false;
+  
+  // System admins always have partner access
+  if (role === SystemRole.SYSTEM_ADMIN) {
+    return true;
+  }
+  // Partner and Administrator service line roles have partner access
+  return role === ServiceLineRole.PARTNER || role === ServiceLineRole.ADMINISTRATOR;
+}
+

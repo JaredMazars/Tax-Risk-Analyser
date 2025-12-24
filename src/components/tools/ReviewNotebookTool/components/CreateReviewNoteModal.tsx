@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { TaskTeamSelector } from './TaskTeamSelector';
+import { AttachmentManager } from './AttachmentManager';
 import { useCreateReviewNote } from '../hooks/useReviewNoteActions';
 import { ReviewNotePriority, ReviewReferenceType } from '@/types/review-notes';
 import type { CreateReviewNoteDTO } from '@/types/review-notes';
@@ -26,9 +27,12 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
     referenceUrl: '',
     referenceType: ReviewReferenceType.EXTERNAL,
     priority: ReviewNotePriority.MEDIUM,
-    assignedTo: '',
+    assignees: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   
   const createMutation = useCreateReviewNote(taskId);
 
@@ -70,15 +74,52 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
     }
 
     try {
-      await createMutation.mutateAsync({
+      // Validate at least one assignee
+      if (!formData.assignees || formData.assignees.length === 0) {
+        setErrors({ submit: 'At least one assignee is required' });
+        return;
+      }
+
+      // Create the review note first
+      const result = await createMutation.mutateAsync({
         taskId,
         title: formData.title!,
         description: formData.description || undefined,
         referenceUrl: formData.referenceUrl || undefined,
         referenceType: formData.referenceType || ReviewReferenceType.EXTERNAL,
         priority: formData.priority || ReviewNotePriority.MEDIUM,
-        assignedTo: formData.assignedTo || undefined,
+        assignees: formData.assignees,
+        assignedTo: formData.assignees && formData.assignees.length > 0 ? formData.assignees[0] : undefined,
       } as CreateReviewNoteDTO);
+
+      // Upload attachments if any
+      if (attachments.length > 0 && result.id) {
+        setIsUploadingAttachments(true);
+        
+        for (let i = 0; i < attachments.length; i++) {
+          const file = attachments[i];
+          setUploadProgress(`Uploading ${i + 1} of ${attachments.length}...`);
+          
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          const response = await fetch(
+            `/api/tasks/${taskId}/review-notes/${result.id}/attachments`,
+            {
+              method: 'POST',
+              body: formData,
+            }
+          );
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to upload attachment');
+          }
+        }
+        
+        setIsUploadingAttachments(false);
+        setUploadProgress('');
+      }
 
       // Reset form and close modal on success
       setFormData({
@@ -87,26 +128,30 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
         referenceUrl: '',
         referenceType: ReviewReferenceType.EXTERNAL,
         priority: ReviewNotePriority.MEDIUM,
-        assignedTo: '',
+        assignees: [],
       });
+      setAttachments([]);
       setErrors({});
       onClose();
     } catch (error) {
       console.error('Failed to create review note:', error);
       setErrors({ submit: error instanceof Error ? error.message : 'Failed to create review note' });
+      setIsUploadingAttachments(false);
+      setUploadProgress('');
     }
   };
 
   const handleClose = () => {
-    if (!createMutation.isPending) {
+    if (!createMutation.isPending && !isUploadingAttachments) {
       setFormData({
         title: '',
         description: '',
         referenceUrl: '',
         referenceType: ReviewReferenceType.EXTERNAL,
         priority: ReviewNotePriority.MEDIUM,
-        assignedTo: '',
+        assignees: [],
       });
+      setAttachments([]);
       setErrors({});
       onClose();
     }
@@ -215,14 +260,36 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
             </select>
           </div>
 
-          {/* Assigned To */}
+          {/* Assigned To - Multiple Selection */}
           <TaskTeamSelector
             taskId={taskId}
-            value={formData.assignedTo || null}
-            onChange={(userId, userName) => setFormData({ ...formData, assignedTo: userId })}
+            value={formData.assignees || []}
+            onChange={(userIds) => setFormData({ ...formData, assignees: userIds })}
             label="Assign To"
-            required={false}
+            required={true}
+            multiple={true}
           />
+
+          {/* Attachments */}
+          <div>
+            <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+              Attachments
+            </label>
+            <AttachmentManager
+              maxFiles={10}
+              onAttachmentsChange={setAttachments}
+              disabled={createMutation.isPending || isUploadingAttachments}
+              showUploadButton={true}
+            />
+          </div>
+
+          {/* Upload Progress */}
+          {isUploadingAttachments && (
+            <div className="flex items-center gap-2 p-3 bg-forvis-blue-50 border border-forvis-blue-200 rounded-md">
+              <Loader2 className="w-4 h-4 animate-spin text-forvis-blue-600" />
+              <span className="text-sm text-forvis-blue-800">{uploadProgress}</span>
+            </div>
+          )}
 
           {/* Submit Error */}
           {errors.submit && (
@@ -238,7 +305,7 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
               variant="secondary"
               size="md"
               onClick={handleClose}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || isUploadingAttachments}
             >
               Cancel
             </Button>
@@ -246,10 +313,14 @@ export function CreateReviewNoteModal({ isOpen, onClose, taskId }: CreateReviewN
               type="submit"
               variant="gradient"
               size="md"
-              disabled={createMutation.isPending}
-              icon={createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
+              disabled={createMutation.isPending || isUploadingAttachments}
+              icon={createMutation.isPending || isUploadingAttachments ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Review Note'}
+              {isUploadingAttachments 
+                ? 'Uploading...' 
+                : createMutation.isPending 
+                  ? 'Creating...' 
+                  : 'Create Review Note'}
             </Button>
           </div>
         </form>

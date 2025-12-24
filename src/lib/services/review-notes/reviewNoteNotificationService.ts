@@ -44,19 +44,12 @@ export async function notifyReviewNoteAssigned(
     const htmlBody = generateReviewNoteAssignedHtml(reviewNote, raiser, assignee, task);
     const textBody = generateReviewNoteAssignedText(reviewNote, raiser, assignee, task);
 
-    await emailService.sendEmail({
-      to: assignee.email,
-      recipientUserId: assignee.id,
+    await emailService.sendEmail(
+      assignee.email,
       subject,
       htmlBody,
-      textBody,
-      emailType: 'review_note_assigned',
-      metadata: {
-        reviewNoteId: reviewNote.id,
-        taskId: reviewNote.taskId,
-        priority: reviewNote.priority,
-      },
-    });
+      textBody
+    );
 
     logger.info('Review note assignment notification sent', {
       reviewNoteId: reviewNote.id,
@@ -101,19 +94,12 @@ export async function notifyReviewNoteAddressed(
     const htmlBody = generateReviewNoteAddressedHtml(reviewNote, raiser, addressedBy, task);
     const textBody = generateReviewNoteAddressedText(reviewNote, raiser, addressedBy, task);
 
-    await emailService.sendEmail({
-      to: raiser.email,
-      recipientUserId: raiser.id,
+    await emailService.sendEmail(
+      raiser.email,
       subject,
       htmlBody,
-      textBody,
-      emailType: 'review_note_addressed',
-      metadata: {
-        reviewNoteId: reviewNote.id,
-        taskId: reviewNote.taskId,
-        addressedBy: addressedBy.id,
-      },
-    });
+      textBody
+    );
 
     logger.info('Review note addressed notification sent', {
       reviewNoteId: reviewNote.id,
@@ -162,19 +148,12 @@ export async function notifyReviewNoteCleared(
     const htmlBody = generateReviewNoteClearedHtml(reviewNote, assignee, clearedBy, task);
     const textBody = generateReviewNoteClearedText(reviewNote, assignee, clearedBy, task);
 
-    await emailService.sendEmail({
-      to: assignee.email,
-      recipientUserId: assignee.id,
+    await emailService.sendEmail(
+      assignee.email,
       subject,
       htmlBody,
-      textBody,
-      emailType: 'review_note_cleared',
-      metadata: {
-        reviewNoteId: reviewNote.id,
-        taskId: reviewNote.taskId,
-        clearedBy: clearedBy.id,
-      },
-    });
+      textBody
+    );
 
     logger.info('Review note cleared notification sent', {
       reviewNoteId: reviewNote.id,
@@ -219,19 +198,12 @@ export async function notifyReviewNoteRejected(
     const htmlBody = generateReviewNoteRejectedHtml(reviewNote, assignee, raiser, task);
     const textBody = generateReviewNoteRejectedText(reviewNote, assignee, raiser, task);
 
-    await emailService.sendEmail({
-      to: assignee.email,
-      recipientUserId: assignee.id,
+    await emailService.sendEmail(
+      assignee.email,
       subject,
       htmlBody,
-      textBody,
-      emailType: 'review_note_rejected',
-      metadata: {
-        reviewNoteId: reviewNote.id,
-        taskId: reviewNote.taskId,
-        reason: reviewNote.rejectionReason,
-      },
-    });
+      textBody
+    );
 
     logger.info('Review note rejected notification sent', {
       reviewNoteId: reviewNote.id,
@@ -320,19 +292,12 @@ export async function notifyReviewNoteCommentAdded(
         commentText
       );
 
-      await emailService.sendEmail({
-        to: recipient.email,
-        recipientUserId: recipient.id,
+      await emailService.sendEmail(
+        recipient.email,
         subject,
         htmlBody,
-        textBody,
-        emailType: 'review_note_comment',
-        metadata: {
-          reviewNoteId: reviewNote.id,
-          taskId: reviewNote.taskId,
-          commentAuthorId: commentAuthor.id,
-        },
-      });
+        textBody
+      );
     }
 
     logger.info('Review note comment notifications sent', {
@@ -399,21 +364,12 @@ export async function notifyOverdueReviewNotes(): Promise<void> {
           const htmlBody = generateOverdueReviewNoteHtml(note, assignee);
           const textBody = generateOverdueReviewNoteText(note, assignee);
 
-          await emailService.sendEmail({
-            to: assignee.email,
-            recipientUserId: assignee.id,
+          await emailService.sendEmail(
+            assignee.email,
             subject,
             htmlBody,
-            textBody,
-            emailType: 'review_note_overdue',
-            metadata: {
-              reviewNoteId: note.id,
-              taskId: note.taskId,
-              daysOverdue: Math.floor(
-                (now.getTime() - (note.dueDate?.getTime() || 0)) / (1000 * 60 * 60 * 24)
-              ),
-            },
-          });
+            textBody
+          );
         }
       }
 
@@ -431,21 +387,12 @@ export async function notifyOverdueReviewNotes(): Promise<void> {
           const htmlBody = generateOverdueReviewNoteHtml(note, raiser);
           const textBody = generateOverdueReviewNoteText(note, raiser);
 
-          await emailService.sendEmail({
-            to: raiser.email,
-            recipientUserId: raiser.id,
+          await emailService.sendEmail(
+            raiser.email,
             subject,
             htmlBody,
-            textBody,
-            emailType: 'review_note_overdue',
-            metadata: {
-              reviewNoteId: note.id,
-              taskId: note.taskId,
-              daysOverdue: Math.floor(
-                (now.getTime() - (note.dueDate?.getTime() || 0)) / (1000 * 60 * 60 * 24)
-              ),
-            },
-          });
+            textBody
+          );
         }
       }
     }

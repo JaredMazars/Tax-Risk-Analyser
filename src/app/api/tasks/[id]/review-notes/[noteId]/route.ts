@@ -13,7 +13,8 @@ import {
   updateReviewNote,
   deleteReviewNote,
 } from '@/lib/services/review-notes/reviewNoteService';
-import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * GET /api/tasks/[taskId]/review-notes/[noteId]
@@ -21,16 +22,10 @@ import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
  */
 export const GET = secureRoute.queryWithParams({
   taskIdParam: 'id',
+  feature: Feature.ACCESS_TASKS,
   handler: async (request, { user, params }) => {
     const taskId = parseTaskId(params.id);
-    const noteId = Number(params.noteId);
-
-    if (isNaN(noteId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid note ID' },
-        { status: 400 }
-      );
-    }
+    const noteId = parseNumericId(params.noteId, 'Review note ID');
 
     // Get query parameters for includes
     const { searchParams } = new URL(request.url);
@@ -40,15 +35,14 @@ export const GET = secureRoute.queryWithParams({
     // Get review note
     const reviewNote = await getReviewNoteById(noteId, includeComments, includeAttachments);
 
-    // Verify task matches
+    // Verify task matches (IDOR protection)
     if (reviewNote.taskId !== taskId) {
-      return NextResponse.json(
-        { success: false, error: 'Review note does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
-    return NextResponse.json(successResponse(reviewNote));
+    const response = NextResponse.json(successResponse(reviewNote));
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
   },
 });
 
@@ -62,24 +56,14 @@ export const PUT = secureRoute.mutationWithParams({
   schema: UpdateReviewNoteSchema,
   handler: async (request, { user, data, params }) => {
     const taskId = parseTaskId(params.id);
-    const noteId = Number(params.noteId);
+    const noteId = parseNumericId(params.noteId, 'Review note ID');
 
-    if (isNaN(noteId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid note ID' },
-        { status: 400 }
-      );
-    }
+    // Update the review note (type assertion needed for Zod schema compatibility)
+    const updatedNote = await updateReviewNote(noteId, data as any, user.id);
 
-    // Update the review note
-    const updatedNote = await updateReviewNote(noteId, data, user.id);
-
-    // Verify task matches
+    // Verify task matches (IDOR protection)
     if (updatedNote.taskId !== taskId) {
-      return NextResponse.json(
-        { success: false, error: 'Review note does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
     return NextResponse.json(successResponse(updatedNote));
@@ -95,23 +79,13 @@ export const DELETE = secureRoute.mutationWithParams({
   feature: Feature.MANAGE_TASKS,
   handler: async (request, { user, params }) => {
     const taskId = parseTaskId(params.id);
-    const noteId = Number(params.noteId);
+    const noteId = parseNumericId(params.noteId, 'Review note ID');
 
-    if (isNaN(noteId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid note ID' },
-        { status: 400 }
-      );
-    }
-
-    // Get note to verify task
+    // Get note to verify task (IDOR protection)
     const reviewNote = await getReviewNoteById(noteId);
 
     if (reviewNote.taskId !== taskId) {
-      return NextResponse.json(
-        { success: false, error: 'Review note does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
     // Delete the review note

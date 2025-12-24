@@ -11,7 +11,8 @@ import {
   getReviewNoteById,
 } from '@/lib/services/review-notes/reviewNoteService';
 import { notifyReviewNoteAssigned } from '@/lib/services/review-notes/reviewNoteNotificationService';
-import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * POST /api/tasks/[taskId]/review-notes/[noteId]/assign
@@ -23,22 +24,12 @@ export const POST = secureRoute.mutationWithParams({
   schema: AssignReviewNoteSchema,
   handler: async (request, { user, data, params }) => {
     const taskId = parseTaskId(params.id);
-    const noteId = Number(params.noteId);
+    const noteId = parseNumericId(params.noteId, 'Review note ID');
 
-    if (isNaN(noteId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid note ID' },
-        { status: 400 }
-      );
-    }
-
-    // Verify note belongs to this task
+    // Verify note belongs to this task (IDOR protection)
     const existingNote = await getReviewNoteById(noteId);
     if (existingNote.taskId !== taskId) {
-      return NextResponse.json(
-        { success: false, error: 'Review note does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
     // Assign the review note

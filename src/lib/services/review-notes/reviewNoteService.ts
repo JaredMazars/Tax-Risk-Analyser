@@ -58,6 +58,9 @@ const reviewNoteSelect = {
   dueDate: true,
   raisedBy: true,
   assignedTo: true,
+  currentOwner: true,
+  lastRespondedBy: true,
+  lastRespondedAt: true,
   addressedAt: true,
   addressedBy: true,
   addressedComment: true,
@@ -96,6 +99,20 @@ const reviewNoteSelect = {
       email: true,
     },
   },
+  User_ReviewNote_currentOwnerToUser: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  User_ReviewNote_lastRespondedByToUser: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
   User_ReviewNote_addressedByToUser: {
     select: {
       id: true,
@@ -114,6 +131,7 @@ const reviewNoteSelect = {
     select: {
       ReviewNoteComment: true,
       ReviewNoteAttachment: true,
+      ReviewNoteAssignee: true,
     },
   },
 };
@@ -180,23 +198,43 @@ export async function createReviewNote(
       }
     }
 
-    // Create the review note
-    const reviewNote = await prisma.reviewNote.create({
-      data: {
-        ...data,
-        raisedBy,
-        dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-      },
-      select: reviewNoteSelect,
+    // Create the review note and assignees in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the review note
+      const reviewNote = await tx.reviewNote.create({
+        data: {
+          ...data,
+          raisedBy,
+          dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+        },
+        select: reviewNoteSelect,
+      });
+
+      // Create assignee records for the new workflow system
+      const assigneesList = data.assignees || (data.assignedTo ? [data.assignedTo] : []);
+      
+      if (assigneesList.length > 0) {
+        await tx.reviewNoteAssignee.createMany({
+          data: assigneesList.map(userId => ({
+            reviewNoteId: reviewNote.id,
+            userId: userId,
+            assignedBy: raisedBy,
+            isForwarded: false,
+          })),
+        });
+      }
+
+      return reviewNote;
     });
 
     logger.info('Review note created', {
-      reviewNoteId: reviewNote.id,
+      reviewNoteId: result.id,
       taskId: data.taskId,
       raisedBy,
+      assigneesCount: (data.assignees || (data.assignedTo ? [data.assignedTo] : [])).length,
     });
 
-    return reviewNote as ReviewNoteWithRelations;
+    return result as ReviewNoteWithRelations;
   } catch (error) {
     if (error instanceof AppError) throw error;
     logger.error('Failed to create review note', error);
@@ -269,7 +307,7 @@ export async function getReviewNoteById(
       throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
-    return reviewNote as ReviewNoteWithRelations;
+    return reviewNote as unknown as ReviewNoteWithRelations;
   } catch (error) {
     if (error instanceof AppError) throw error;
     logger.error('Failed to get review note', error);

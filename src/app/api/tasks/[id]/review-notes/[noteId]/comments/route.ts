@@ -9,7 +9,8 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { CreateReviewNoteCommentSchema } from '@/lib/validation/schemas';
 import { getReviewNoteById } from '@/lib/services/review-notes/reviewNoteService';
 import { notifyReviewNoteCommentAdded } from '@/lib/services/review-notes/reviewNoteNotificationService';
-import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
+import { successResponse, parseTaskId, parseNumericId } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { prisma } from '@/lib/db/prisma';
 
 /**
@@ -18,24 +19,15 @@ import { prisma } from '@/lib/db/prisma';
  */
 export const GET = secureRoute.queryWithParams({
   taskIdParam: 'id',
+  feature: Feature.ACCESS_TASKS,
   handler: async (request, { user, params }) => {
     const taskId = parseTaskId(params.id);
-    const noteId = Number(params.noteId);
+    const noteId = parseNumericId(params.noteId, 'Review note ID');
 
-    if (isNaN(noteId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid note ID' },
-        { status: 400 }
-      );
-    }
-
-    // Verify note belongs to this task
+    // Verify note belongs to this task (IDOR protection)
     const reviewNote = await getReviewNoteById(noteId);
     if (reviewNote.taskId !== taskId) {
-      return NextResponse.json(
-        { success: false, error: 'Review note does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
     // Get comments
@@ -57,16 +49,19 @@ export const GET = secureRoute.queryWithParams({
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 500,
     });
 
-    // Filter internal comments if user is not the raiser
+    // Filter internal comments if user is not the raiser (business logic authorization)
     const filteredComments = comments.filter((comment) => {
       if (!comment.isInternal) return true;
       return user.id === reviewNote.raisedBy || user.role === 'SYSTEM_ADMIN';
     });
 
-    return NextResponse.json(successResponse(filteredComments));
+    const response = NextResponse.json(successResponse(filteredComments));
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
   },
 });
 
@@ -80,22 +75,12 @@ export const POST = secureRoute.mutationWithParams({
   schema: CreateReviewNoteCommentSchema,
   handler: async (request, { user, data, params }) => {
     const taskId = parseTaskId(params.id);
-    const noteId = Number(params.noteId);
+    const noteId = parseNumericId(params.noteId, 'Review note ID');
 
-    if (isNaN(noteId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid note ID' },
-        { status: 400 }
-      );
-    }
-
-    // Verify note belongs to this task
+    // Verify note belongs to this task (IDOR protection)
     const reviewNote = await getReviewNoteById(noteId);
     if (reviewNote.taskId !== taskId) {
-      return NextResponse.json(
-        { success: false, error: 'Review note does not belong to this task' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Review note not found', ErrorCodes.NOT_FOUND);
     }
 
     // Create the comment
@@ -123,6 +108,38 @@ export const POST = secureRoute.mutationWithParams({
         },
       },
     });
+
+    // Auto-update status based on who responded (workflow automation)
+    const isOriginator = user.id === reviewNote.raisedBy;
+    const isAssignee = await prisma.reviewNoteAssignee.findFirst({
+      where: { reviewNoteId: noteId, userId: user.id },
+    });
+
+    if (isAssignee && !isOriginator) {
+      // Assignee responded - move to ADDRESSED, sits with originator
+      await prisma.reviewNote.update({
+        where: { id: noteId },
+        data: {
+          status: 'ADDRESSED',
+          currentOwner: reviewNote.raisedBy,
+          lastRespondedBy: user.id,
+          lastRespondedAt: new Date(),
+          addressedAt: new Date(),
+          addressedBy: user.id,
+        },
+      });
+    } else if (isOriginator) {
+      // Originator responded - move to IN_PROGRESS, sits with assignees
+      await prisma.reviewNote.update({
+        where: { id: noteId },
+        data: {
+          status: 'IN_PROGRESS',
+          currentOwner: null, // Sits with all assignees
+          lastRespondedBy: user.id,
+          lastRespondedAt: new Date(),
+        },
+      });
+    }
 
     // Send notification (not for internal comments)
     if (!comment.isInternal) {

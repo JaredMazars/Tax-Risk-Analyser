@@ -3,7 +3,7 @@
  * Type definitions for the Review Notebook tool
  */
 
-import type { ReviewNote, ReviewNoteComment, ReviewNoteAttachment, ReviewCategory, User } from '@prisma/client';
+import type { ReviewNote, ReviewNoteComment, ReviewNoteAttachment, ReviewNoteAssignee, ReviewCategory, User } from '@prisma/client';
 
 // ============================================================================
 // Enums
@@ -51,6 +51,16 @@ export type ReviewNoteWithRelations = ReviewNote & {
     name: string | null;
     email: string;
   } | null;
+  User_ReviewNote_currentOwnerToUser?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  User_ReviewNote_lastRespondedByToUser?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
   User_ReviewNote_addressedByToUser?: {
     id: string;
     name: string | null;
@@ -63,9 +73,11 @@ export type ReviewNoteWithRelations = ReviewNote & {
   } | null;
   ReviewNoteComment?: ReviewNoteCommentWithUser[];
   ReviewNoteAttachment?: ReviewNoteAttachmentWithUser[];
+  ReviewNoteAssignee?: ReviewNoteAssigneeWithUser[];
   _count?: {
     ReviewNoteComment: number;
     ReviewNoteAttachment: number;
+    ReviewNoteAssignee: number;
   };
 };
 
@@ -79,6 +91,19 @@ export type ReviewNoteCommentWithUser = ReviewNoteComment & {
 
 export type ReviewNoteAttachmentWithUser = ReviewNoteAttachment & {
   User: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+};
+
+export type ReviewNoteAssigneeWithUser = ReviewNoteAssignee & {
+  User_ReviewNoteAssignee_userId: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  User_ReviewNoteAssignee_assignedBy: {
     id: string;
     name: string | null;
     email: string;
@@ -100,7 +125,17 @@ export interface CreateReviewNoteDTO {
   priority: ReviewNotePriority;
   categoryId?: number;
   dueDate?: Date | string;
-  assignedTo?: string;
+  assignedTo?: string; // Deprecated - use assignees array
+  assignees?: string[]; // Array of user IDs to assign
+}
+
+export interface AddReviewNoteAssigneeDTO {
+  userId: string;
+  isForwarded?: boolean;
+}
+
+export interface RemoveReviewNoteAssigneeDTO {
+  userId: string;
 }
 
 export interface CreateReviewNoteCommentDTO {

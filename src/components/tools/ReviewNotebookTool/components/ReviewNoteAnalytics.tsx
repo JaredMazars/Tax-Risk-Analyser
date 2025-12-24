@@ -130,7 +130,7 @@ export default function ReviewNoteAnalytics({ taskId }: ReviewNoteAnalyticsProps
         <div className="bg-white rounded-lg shadow-corporate p-6">
           <h4 className="text-lg font-semibold text-forvis-gray-900 mb-4">Notes by Category</h4>
           <div className="space-y-2">
-            {byCategory.map((category) => (
+            {byCategory.map((category: { categoryId: number | null; categoryName: string; count: number }) => (
               <div key={category.categoryId || 'uncategorized'} className="flex justify-between items-center">
                 <span className="text-sm text-forvis-gray-700">{category.categoryName}</span>
                 <span className="text-sm font-medium text-forvis-blue-600">{category.count}</span>
@@ -163,7 +163,7 @@ export default function ReviewNoteAnalytics({ taskId }: ReviewNoteAnalyticsProps
                 </tr>
               </thead>
               <tbody className="divide-y divide-forvis-gray-200">
-                {byAssignee.map((assignee) => (
+                {byAssignee.map((assignee: { userId: string; userName: string; open: number; inProgress: number; addressed: number; cleared: number; total: number }) => (
                   <tr key={assignee.userId} className="hover:bg-forvis-gray-50">
                     <td className="px-4 py-2 text-sm text-forvis-gray-900">{assignee.userName}</td>
                     <td className="px-4 py-2 text-sm text-center text-forvis-gray-700">

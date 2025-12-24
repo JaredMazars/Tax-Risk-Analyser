@@ -182,6 +182,18 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
                     )}
                     
                     <div className="flex items-center space-x-4 mt-3 text-xs text-forvis-gray-500">
+                      {/* Sitting With Indicator */}
+                      {note.User_ReviewNote_currentOwnerToUser ? (
+                        <span className="flex items-center space-x-1 font-medium text-forvis-blue-700">
+                          <User className="w-3 h-3" />
+                          <span>Sitting with: {note.User_ReviewNote_currentOwnerToUser.name || note.User_ReviewNote_currentOwnerToUser.email}</span>
+                        </span>
+                      ) : note._count && note._count.ReviewNoteAssignee > 0 && (
+                        <span className="flex items-center space-x-1 font-medium text-forvis-blue-700">
+                          <Users className="w-3 h-3" />
+                          <span>Sitting with: All Assignees ({note._count.ReviewNoteAssignee})</span>
+                        </span>
+                      )}
                       {note.User_ReviewNote_assignedToToUser && (
                         <span className="flex items-center space-x-1">
                           <User className="w-3 h-3" />

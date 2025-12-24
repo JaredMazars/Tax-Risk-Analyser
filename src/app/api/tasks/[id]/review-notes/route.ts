@@ -95,8 +95,8 @@ export const GET = secureRoute.queryWithParams({
     // Validate filters
     const validatedFilters = ReviewNoteFilterSchema.parse(filters);
 
-    // Get review notes
-    const result = await listReviewNotes(validatedFilters);
+    // Get review notes (type assertion needed for Zod schema compatibility)
+    const result = await listReviewNotes(validatedFilters as any);
 
     return NextResponse.json(successResponse(result));
   },
@@ -121,8 +121,8 @@ export const POST = secureRoute.mutationWithParams({
       );
     }
 
-    // Create the review note
-    const reviewNote = await createReviewNote(data, user.id);
+    // Create the review note (type assertion needed for Zod schema compatibility)
+    const reviewNote = await createReviewNote(data as any, user.id);
 
     // Send notification if assigned
     if (reviewNote.assignedTo) {
