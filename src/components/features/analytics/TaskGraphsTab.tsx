@@ -91,7 +91,7 @@ function SummaryCard({ label, value, icon, color }: SummaryCardProps) {
 
   return (
     <div
-      className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+      className="rounded-lg p-3 shadow-corporate border border-forvis-blue-100"
       style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
     >
       <div className="flex items-center justify-between">
@@ -99,12 +99,12 @@ function SummaryCard({ label, value, icon, color }: SummaryCardProps) {
           <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">
             {label}
           </p>
-          <p className="text-2xl font-bold mt-2" style={{ color }}>
+          <p className="text-xl font-bold mt-1" style={{ color }}>
             {formatCurrency(value)}
           </p>
         </div>
         <div
-          className="rounded-full p-2.5"
+          className="rounded-full p-2"
           style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
         >
           {icon}
@@ -174,37 +174,37 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
         <SummaryCard
           label="Total Production"
           value={graphData.summary.totalProduction}
-          icon={<TrendingUp className="w-5 h-5 text-white" />}
+          icon={<TrendingUp className="w-4 h-4 text-white" />}
           color="#2E5AAC"
         />
         <SummaryCard
           label="Total Adjustments"
           value={graphData.summary.totalAdjustments}
-          icon={<TrendingDown className="w-5 h-5 text-white" />}
+          icon={<TrendingDown className="w-4 h-4 text-white" />}
           color="#F97316"
         />
         <SummaryCard
           label="Total Disbursements"
           value={graphData.summary.totalDisbursements}
-          icon={<DollarSign className="w-5 h-5 text-white" />}
+          icon={<DollarSign className="w-4 h-4 text-white" />}
           color="#10B981"
         />
         <SummaryCard
           label="Total Billing"
           value={graphData.summary.totalBilling}
-          icon={<DollarSign className="w-5 h-5 text-white" />}
+          icon={<DollarSign className="w-4 h-4 text-white" />}
           color="#8B5CF6"
         />
         <SummaryCard
           label="Total Provisions"
           value={graphData.summary.totalProvisions || 0}
-          icon={<DollarSign className="w-5 h-5 text-white" />}
+          icon={<DollarSign className="w-4 h-4 text-white" />}
           color="#6366F1"
         />
         <SummaryCard
           label="Current WIP Balance"
           value={graphData.summary.currentWipBalance}
-          icon={<DollarSign className="w-5 h-5 text-white" />}
+          icon={<DollarSign className="w-4 h-4 text-white" />}
           color="#EC4899"
         />
       </div>
@@ -213,7 +213,7 @@ export function TaskGraphsTab({ taskId }: TaskGraphsTabProps) {
       <div className="rounded-lg bg-white shadow-corporate border border-forvis-gray-200 p-6">
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-forvis-gray-900">
-            24-Month Transaction Trends
+            12-Month Transaction Trends
           </h3>
           <p className="text-sm text-forvis-gray-600 mt-1">
             Daily transaction metrics from {format(parseISO(data.startDate), 'dd MMM yyyy')} to{' '}

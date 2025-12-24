@@ -97,11 +97,15 @@ function calculateProfitabilityMetrics(data: {
  * Get aggregated Work in Progress and Profitability data for a group
  * 
  * Returns:
- * - Overall profitability metrics for all clients in the group
+ * - Overall profitability metrics for all clients in the group (lifetime/all transactions)
  * - Profitability metrics grouped by Master Service Line
  * - Master Service Line information
  * - Task count contributing to WIP
  * - Latest update timestamp
+ * - Time period: All-time (cumulative balances across all transactions)
+ * 
+ * Note: WIP Balance (balWIP) represents current outstanding balance and must include
+ * all historical transactions to be accurate. This is used in group headers.
  */
 export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
   feature: Feature.VIEW_WIP_DATA,

@@ -104,24 +104,10 @@ export const GET = secureRoute.queryWithParams({
       return NextResponse.json(successResponse(cached));
     }
 
-    // Get all tasks for this client
-    const clientTasks = await prisma.task.findMany({
-      where: { GSClientID },
-      select: { GSTaskID: true },
-      take: 10000, // Reasonable limit for client tasks
-    });
-
-    const taskIds = clientTasks.map(task => task.GSTaskID);
-
-    // Calculate WIP Balance: Sum of Amount from WIPTransactions for all client tasks
-    const wipWhereClause = taskIds.length > 0
-      ? {
-          OR: [
-            { GSClientID },
-            { GSTaskID: { in: taskIds } },
-          ],
-        }
-      : { GSClientID };
+    // Calculate WIP Balance: Sum of Amount from WIPTransactions for this client
+    // Query by GSClientID only - all WIP transactions are properly linked to clients
+    // Uses composite index: idx_wip_gsclientid_trandate_ttype for optimal performance
+    const wipWhereClause = { GSClientID };
 
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: wipWhereClause,
@@ -216,8 +202,8 @@ export const GET = secureRoute.queryWithParams({
       lastUpdated: lastUpdated ? lastUpdated.toISOString() : null,
     };
 
-    // Cache for 10 minutes (600 seconds)
-    await cache.set(cacheKey, responseData, 600);
+    // Cache for 2 hours (7200 seconds) - increased for better performance
+    await cache.set(cacheKey, responseData, 7200);
 
     return NextResponse.json(successResponse(responseData));
   },

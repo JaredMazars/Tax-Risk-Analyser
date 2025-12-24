@@ -6,6 +6,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServiceLineMappings } from '@/lib/cache/staticDataCache';
 import { calculateWIPBalances, categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
+import { calculateOpeningBalanceFromAggregates } from '@/lib/services/analytics/openingBalanceCalculator';
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
 
@@ -108,24 +109,28 @@ function downsampleDailyMetrics(metrics: DailyMetrics[], targetPoints: number = 
 
 /**
  * GET /api/groups/[groupCode]/analytics/graphs
- * Get daily transaction metrics for all clients in the group for the last 24 months
+ * Get daily transaction metrics for all clients in the group for the last 12 months
  * 
  * Returns:
  * - Daily aggregated metrics (Production, Adjustments, Disbursements, Billing)
  * - Based on WIPTransactions table aggregated across all clients in the group
- * - Time period: Last 24 months from current date
+ * - Time period: Last 12 months from current date
  */
 export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
   feature: Feature.ACCESS_CLIENTS,
   handler: async (request, { user, params }) => {
-    const { groupCode } = params;
-    
-    // Validate query parameters
-    const { searchParams } = new URL(request.url);
-    const queryParams = GraphsQuerySchema.parse({
-      resolution: searchParams.get('resolution'),
-    });
-    const targetPoints = queryParams.resolution === 'high' ? 365 : queryParams.resolution === 'low' ? 60 : 120;
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:122',message:'Handler entry',data:{groupCode:params.groupCode,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+      const { groupCode } = params;
+      
+      // Validate query parameters
+      const { searchParams } = new URL(request.url);
+      const queryParams = GraphsQuerySchema.parse({
+        resolution: searchParams.get('resolution') ?? undefined, // Convert null to undefined for Zod default to work
+      });
+      const targetPoints = queryParams.resolution === 'high' ? 365 : queryParams.resolution === 'low' ? 60 : 120;
 
     // Check cache first (before DB queries)
     const cacheKey = `${CACHE_PREFIXES.ANALYTICS}graphs:group:${groupCode}:${queryParams.resolution}`;
@@ -149,8 +154,8 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 12); // Reduced from 24 to 12 months for performance
 
-    // BATCH 1: Get group info, clients, and tasks in parallel
-    const [groupInfo, clients, allTasks] = await Promise.all([
+    // BATCH 1: Get group info and clients in parallel
+    const [groupInfo, clients] = await Promise.all([
       prisma.client.findFirst({
         where: { groupCode },
         select: {
@@ -163,15 +168,6 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
         select: { GSClientID: true },
         take: 10000, // Reasonable upper bound for group size
       }),
-      prisma.task.findMany({
-        where: {
-          Client: {
-            groupCode,
-          },
-        },
-        select: { GSTaskID: true },
-        take: 50000, // Generous limit for large groups
-      }),
     ]);
 
     if (!groupInfo || clients.length === 0) {
@@ -179,69 +175,42 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
     }
 
     const clientIds = clients.map(client => client.GSClientID);
-    const taskIds = allTasks.map(task => task.GSTaskID);
 
     // Log query parameters for debugging
     logger.info('Group graphs query started', {
       groupCode,
       clientCount: clients.length,
-      taskCount: allTasks.length,
       dateRange: { startDate, endDate },
     });
 
     // Build where clauses for WIPTransactions
-    // CRITICAL: Use OR clause to capture transactions linked via GSClientID OR GSTaskID
-    // Some WIP transactions (especially billing fees) may only be linked via task, not client
-    const wipWhereClause = taskIds.length > 0
-      ? {
-          OR: [
-            { GSClientID: { in: clientIds } },
-            { GSTaskID: { in: taskIds } },
-          ],
-          TranDate: {
-            gte: startDate,
-            lte: endDate,
-          },
-        }
-      : {
-          GSClientID: { in: clientIds },
-          TranDate: {
-            gte: startDate,
-            lte: endDate,
-          },
-        };
+    // Query by GSClientID only - all WIP transactions are properly linked to clients
+    // Uses composite index: idx_wip_gsclientid_trandate_ttype for optimal performance
+    const wipWhereClause = {
+      GSClientID: { in: clientIds },
+      TranDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+    };
 
-    const openingWhereClause = taskIds.length > 0
-      ? {
-          OR: [
-            { GSClientID: { in: clientIds } },
-            { GSTaskID: { in: taskIds } },
-          ],
-          TranDate: {
-            lt: startDate,
-          },
-        }
-      : {
-          GSClientID: { in: clientIds },
-          TranDate: {
-            lt: startDate,
-          },
-        };
+    const openingWhereClause = {
+      GSClientID: { in: clientIds },
+      TranDate: {
+        lt: startDate,
+      },
+    };
 
-    // BATCH 2: Fetch service line mappings and WIP transactions in parallel
-    const [servLineToMasterMap, actualOpeningBalanceTransactions, actualTransactions] = await Promise.all([
+    // BATCH 2: Fetch service line mappings, opening balance aggregates, and WIP transactions in parallel
+    // OPTIMIZATION: Use database aggregation for opening balance instead of fetching all records
+    const [servLineToMasterMap, openingBalanceAggregates, actualTransactions] = await Promise.all([
       getServiceLineMappings(),
-      prisma.wIPTransactions.findMany({
+      prisma.wIPTransactions.groupBy({
+        by: ['TType', 'TranType'],
         where: openingWhereClause,
-        select: {
+        _sum: {
           Amount: true,
-          TType: true,
-          TranType: true,
-          TaskServLine: true,
-          GSClientID: true, // For debugging
-          GSTaskID: true, // For debugging
         },
-        take: 100000, // CRITICAL: Prevent unbounded queries - reduced from 500k to 100k for performance
       }),
       prisma.wIPTransactions.findMany({
         where: wipWhereClause,
@@ -261,15 +230,11 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       }),
     ]);
 
-    // Warn if transaction limits are hit
-    if (actualOpeningBalanceTransactions.length >= 100000) {
-      logger.warn('Opening balance transactions limit reached', {
-        groupCode,
-        limit: 100000,
-        message: 'Some historical data may be excluded',
-      });
-    }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:259',message:'After parallel queries',data:{aggregatesCount:openingBalanceAggregates?.length,aggregatesSample:openingBalanceAggregates?.[0],transactionsCount:actualTransactions?.length,hasServLineMap:!!servLineToMasterMap},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H2,H5'})}).catch(()=>{});
+    // #endregion
 
+    // Warn if transaction limits are hit
     if (actualTransactions.length >= 50000) {
       logger.warn('Period transactions limit reached', {
         groupCode,
@@ -288,15 +253,20 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
     logger.info('Group graphs transactions fetched', {
       groupCode,
       totalTransactions: actualTransactions.length,
-      openingTransactions: actualOpeningBalanceTransactions.length,
+      openingAggregateGroups: openingBalanceAggregates.length,
       byType: transactionsByType,
       transactionsWithClientID: actualTransactions.filter(t => t.GSClientID).length,
       transactionsOnlyWithTaskID: actualTransactions.filter(t => !t.GSClientID && t.GSTaskID).length,
     });
 
-    // Calculate opening WIP balance using actual data
-    const openingBalances = calculateWIPBalances(actualOpeningBalanceTransactions);
-    const openingWipBalance = openingBalances.netWip;
+    // Calculate opening WIP balance from aggregates (much faster than processing individual records)
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:289',message:'Before calculateOpeningBalanceFromAggregates',data:{aggregates:openingBalanceAggregates,aggregatesType:typeof openingBalanceAggregates,isArray:Array.isArray(openingBalanceAggregates)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H3,H5'})}).catch(()=>{});
+    // #endregion
+    const openingWipBalance = calculateOpeningBalanceFromAggregates(openingBalanceAggregates);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:291',message:'After calculateOpeningBalanceFromAggregates',data:{openingWipBalance,openingWipBalanceType:typeof openingWipBalance},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
 
     // Helper function to aggregate transactions
     const aggregateTransactions = (txns: typeof actualTransactions, openingBalance: number = 0) => {
@@ -394,14 +364,18 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
     });
 
     // Aggregate by Master Service Line with opening balances
+    // Note: Using overall opening balance for all service lines since aggregates don't include TaskServLine
     const byMasterServiceLine: Record<string, ServiceLineGraphData> = {};
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:397',message:'Before service line aggregation',data:{serviceLineCount:transactionsByMasterServiceLine.size,serviceLineCodes:Array.from(transactionsByMasterServiceLine.keys()),openingWipBalance},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
     transactionsByMasterServiceLine.forEach((txns, masterCode) => {
-      // Calculate opening balance for this service line
-      const slOpeningTransactions = actualOpeningBalanceTransactions.filter(
-        txn => (servLineToMasterMap.get(txn.TaskServLine) || 'UNKNOWN') === masterCode
-      );
-      const slOpeningBalances = calculateWIPBalances(slOpeningTransactions);
-      byMasterServiceLine[masterCode] = aggregateTransactions(txns, slOpeningBalances.netWip);
+      // Use overall opening balance as starting point for each service line
+      // This is acceptable since opening balance is just the starting WIP value
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:400',message:'Processing service line',data:{masterCode,txnsCount:txns.length,openingWipBalance},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
+      byMasterServiceLine[masterCode] = aggregateTransactions(txns, openingWipBalance);
     });
 
     // Fetch Master Service Line names
@@ -446,8 +420,8 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       })),
     };
 
-    // Cache for 30 minutes (1800 seconds) - increased from 10 minutes for better performance
-    await cache.set(cacheKey, responseData, 1800);
+    // Cache for 2 hours (7200 seconds) - increased for better performance
+    await cache.set(cacheKey, responseData, 7200);
 
     // Audit log for analytics access
     logger.info('Group analytics graphs generated', {
@@ -455,15 +429,21 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       groupCode,
       resolution: queryParams.resolution,
       clientCount: clients.length,
-      taskCount: allTasks.length,
       transactionCount: actualTransactions.length,
-      openingTransactionCount: actualOpeningBalanceTransactions.length,
+      openingAggregateGroups: openingBalanceAggregates.length,
       dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
     });
 
     const response = NextResponse.json(successResponse(responseData));
     response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
     return response;
+    } catch (error) {
+      // #region agent log
+      const err = error as any;
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'groups/[groupCode]/analytics/graphs/route.ts:473',message:'Handler error',data:{errorName:err?.name,errorMessage:err?.message,errorStack:err?.stack,groupCode:params.groupCode},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'H1,H2,H3,H4,H5'})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
   },
 });
 

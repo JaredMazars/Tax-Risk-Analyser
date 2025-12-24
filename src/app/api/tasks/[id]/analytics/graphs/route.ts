@@ -5,6 +5,7 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { calculateWIPBalances, categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
+import { calculateOpeningBalanceFromAggregates } from '@/lib/services/analytics/openingBalanceCalculator';
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
 
@@ -42,7 +43,7 @@ interface GraphDataResponse {
 
 // Query parameter validation schema
 const GraphsQuerySchema = z.object({
-  resolution: z.enum(['high', 'standard', 'low']).optional().default('standard'),
+  resolution: z.enum(['high', 'standard', 'low']).optional().default('low'), // Changed to 'low' for better performance
 });
 
 /**
@@ -77,12 +78,12 @@ function downsampleDailyMetrics(metrics: DailyMetrics[], targetPoints: number = 
 
 /**
  * GET /api/tasks/[id]/analytics/graphs
- * Get daily transaction metrics for the last 24 months for a specific task
+ * Get daily transaction metrics for the last 12 months for a specific task
  * 
  * Returns:
  * - Daily aggregated metrics (Production, Adjustments, Disbursements, Billing, Provisions)
  * - Based on WIPTransactions table filtered by GSTaskID
- * - Time period: Last 24 months from current date
+ * - Time period: Last 12 months from current date
  */
 export const GET = secureRoute.queryWithParams({
   feature: Feature.ACCESS_TASKS,
@@ -94,7 +95,7 @@ export const GET = secureRoute.queryWithParams({
     // Validate query parameters
     const { searchParams } = new URL(request.url);
     const queryParams = GraphsQuerySchema.parse({
-      resolution: searchParams.get('resolution'),
+      resolution: searchParams.get('resolution') ?? undefined, // Convert null to undefined for Zod default to work
     });
     const targetPoints = queryParams.resolution === 'high' ? 365 : queryParams.resolution === 'low' ? 60 : 120;
 
@@ -115,10 +116,10 @@ export const GET = secureRoute.queryWithParams({
       return response;
     }
 
-    // Calculate date range - last 24 months
+    // Calculate date range - last 12 months (reduced from 24 for better performance)
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 24);
+    startDate.setMonth(startDate.getMonth() - 12);
 
     // Fetch task info first to get GSTaskID
     const task = await prisma.task.findUnique({
@@ -135,21 +136,20 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
-    // PARALLEL QUERY BATCH: Fetch opening balance and current period transactions simultaneously
-    const [openingBalanceTransactions, transactions] = await Promise.all([
-      prisma.wIPTransactions.findMany({
+    // PARALLEL QUERY BATCH: Fetch opening balance aggregates and current period transactions simultaneously
+    // OPTIMIZATION: Use database aggregation for opening balance instead of fetching all records
+    const [openingBalanceAggregates, transactions] = await Promise.all([
+      prisma.wIPTransactions.groupBy({
+        by: ['TType', 'TranType'],
         where: {
           GSTaskID: task.GSTaskID,
           TranDate: {
             lt: startDate,
           },
         },
-        select: {
+        _sum: {
           Amount: true,
-          TType: true,
-          TranType: true,
         },
-        take: 50000, // Reasonable upper bound for opening balance calculation
       }),
       prisma.wIPTransactions.findMany({
         where: {
@@ -168,13 +168,23 @@ export const GET = secureRoute.queryWithParams({
         orderBy: {
           TranDate: 'asc',
         },
-        take: 50000, // Prevent unbounded queries - reasonable limit for 24 months of data
+        take: 50000, // Prevent unbounded queries - reasonable limit for 12 months of data
       }),
     ]);
 
-    // Calculate opening WIP balance
-    const openingBalances = calculateWIPBalances(openingBalanceTransactions);
-    const openingWipBalance = openingBalances.netWip;
+    // Warn if transaction limits are hit
+    if (transactions.length >= 50000) {
+      logger.warn('Period transactions limit reached', {
+        taskId: task.id,
+        taskCode: task.TaskCode,
+        limit: 50000,
+        dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+        message: 'Some transaction data may be excluded',
+      });
+    }
+
+    // Calculate opening WIP balance from aggregates (much faster than processing individual records)
+    const openingWipBalance = calculateOpeningBalanceFromAggregates(openingBalanceAggregates);
 
     // Helper function to aggregate transactions by date
     const aggregateTransactions = (txns: typeof transactions, openingBalance: number = 0): TaskGraphData => {
@@ -288,8 +298,8 @@ export const GET = secureRoute.queryWithParams({
       data: graphData,
     };
 
-    // Cache for 30 minutes (analytics TTL)
-    await cache.set(cacheKey, responseData, 30 * 60);
+    // Cache for 30 minutes (1800 seconds) - matches group analytics cache duration
+    await cache.set(cacheKey, responseData, 1800);
 
     // Audit log for analytics access
     logger.info('Task analytics graphs generated', {
@@ -299,7 +309,7 @@ export const GET = secureRoute.queryWithParams({
       taskCode: task.TaskCode,
       resolution: queryParams.resolution,
       transactionCount: transactions.length,
-      openingTransactionCount: openingBalanceTransactions.length,
+      openingAggregateGroups: openingBalanceAggregates.length,
       dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
     });
 
