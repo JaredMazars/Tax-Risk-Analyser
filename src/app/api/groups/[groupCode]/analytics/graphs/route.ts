@@ -7,6 +7,7 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServiceLineMappings } from '@/lib/cache/staticDataCache';
 import { calculateWIPBalances, categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 import { logger } from '@/lib/utils/logger';
+import { z } from 'zod';
 
 interface DailyMetrics {
   date: string; // YYYY-MM-DD format
@@ -45,6 +46,11 @@ interface GraphDataResponse {
   byMasterServiceLine: Record<string, ServiceLineGraphData>;
   masterServiceLines: MasterServiceLineInfo[];
 }
+
+// Query parameter validation schema
+const GraphsQuerySchema = z.object({
+  resolution: z.enum(['high', 'standard', 'low']).optional().default('low'), // Changed to 'low' for better performance
+});
 
 /**
  * Downsample daily metrics to reduce payload size while maintaining visual fidelity
@@ -87,7 +93,10 @@ function downsampleDailyMetrics(metrics: DailyMetrics[], targetPoints: number = 
     // Sample zero metrics evenly to fill remaining slots
     const step = Math.ceil(zeroMetrics.length / remainingSlots);
     for (let i = 0; i < zeroMetrics.length; i += step) {
-      result.push(zeroMetrics[i].metric);
+      const zeroMetric = zeroMetrics[i];
+      if (zeroMetric) {
+        result.push(zeroMetric.metric);
+      }
     }
   }
   
@@ -111,22 +120,34 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
   handler: async (request, { user, params }) => {
     const { groupCode } = params;
     
-    // Get resolution parameter (default: standard, options: high, standard, low)
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
-    const resolution = searchParams.get('resolution') || 'standard';
-    const targetPoints = resolution === 'high' ? 365 : resolution === 'low' ? 60 : 120;
+    const queryParams = GraphsQuerySchema.parse({
+      resolution: searchParams.get('resolution'),
+    });
+    const targetPoints = queryParams.resolution === 'high' ? 365 : queryParams.resolution === 'low' ? 60 : 120;
 
-    // Check cache first
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}graphs:group:${groupCode}`;
+    // Check cache first (before DB queries)
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}graphs:group:${groupCode}:${queryParams.resolution}`;
     const cached = await cache.get<GraphDataResponse>(cacheKey);
     if (cached) {
-      return NextResponse.json(successResponse(cached));
+      // Audit log for analytics access
+      logger.info('Group analytics graphs accessed (cached)', {
+        userId: user.id,
+        groupCode,
+        resolution: queryParams.resolution,
+        clientCount: cached.clientCount,
+      });
+      
+      const response = NextResponse.json(successResponse(cached));
+      response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
+      return response;
     }
 
     // Calculate date range first (no DB query needed)
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 24);
+    startDate.setMonth(startDate.getMonth() - 12); // Reduced from 24 to 12 months for performance
 
     // BATCH 1: Get group info, clients, and tasks in parallel
     const [groupInfo, clients, allTasks] = await Promise.all([
@@ -220,7 +241,7 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
           GSClientID: true, // For debugging
           GSTaskID: true, // For debugging
         },
-        // Removed take limit - groups may have many transactions
+        take: 100000, // CRITICAL: Prevent unbounded queries - reduced from 500k to 100k for performance
       }),
       prisma.wIPTransactions.findMany({
         where: wipWhereClause,
@@ -236,9 +257,27 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
         orderBy: {
           TranDate: 'asc',
         },
-        // Removed take limit - groups may have many transactions
+        take: 50000, // CRITICAL: Prevent unbounded queries - reduced from 250k to 50k for performance
       }),
     ]);
+
+    // Warn if transaction limits are hit
+    if (actualOpeningBalanceTransactions.length >= 100000) {
+      logger.warn('Opening balance transactions limit reached', {
+        groupCode,
+        limit: 100000,
+        message: 'Some historical data may be excluded',
+      });
+    }
+
+    if (actualTransactions.length >= 50000) {
+      logger.warn('Period transactions limit reached', {
+        groupCode,
+        limit: 50000,
+        dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+        message: 'Some transaction data may be excluded',
+      });
+    }
 
     // Log transaction counts by type for debugging
     const transactionsByType = actualTransactions.reduce((acc, txn) => {
@@ -270,7 +309,7 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
 
       txns.forEach((txn, idx) => {
         const amount = txn.Amount || 0;
-        const dateKey = txn.TranDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dateKey = txn.TranDate.toISOString().split('T')[0] as string; // YYYY-MM-DD (always defined)
         
         // Get or create daily entry
         let daily = dailyMap.get(dateKey);
@@ -407,10 +446,24 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       })),
     };
 
-    // Cache for 10 minutes (600 seconds)
-    await cache.set(cacheKey, responseData, 600);
+    // Cache for 30 minutes (1800 seconds) - increased from 10 minutes for better performance
+    await cache.set(cacheKey, responseData, 1800);
 
-    return NextResponse.json(successResponse(responseData));
+    // Audit log for analytics access
+    logger.info('Group analytics graphs generated', {
+      userId: user.id,
+      groupCode,
+      resolution: queryParams.resolution,
+      clientCount: clients.length,
+      taskCount: allTasks.length,
+      transactionCount: actualTransactions.length,
+      openingTransactionCount: actualOpeningBalanceTransactions.length,
+      dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+    });
+
+    const response = NextResponse.json(successResponse(responseData));
+    response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
+    return response;
   },
 });
 

@@ -6,6 +6,8 @@ import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServiceLineMappings } from '@/lib/cache/staticDataCache';
 import { calculateWIPBalances, categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
+import { logger } from '@/lib/utils/logger';
+import { z } from 'zod';
 
 interface DailyMetrics {
   date: string; // YYYY-MM-DD format
@@ -44,6 +46,11 @@ interface GraphDataResponse {
   byMasterServiceLine: Record<string, ServiceLineGraphData>;
   masterServiceLines: MasterServiceLineInfo[];
 }
+
+// Query parameter validation schema
+const GraphsQuerySchema = z.object({
+  resolution: z.enum(['high', 'standard', 'low']).optional().default('low'), // Changed to 'low' for better performance
+});
 
 /**
  * Downsample daily metrics to reduce payload size while maintaining visual fidelity
@@ -114,44 +121,56 @@ export const GET = secureRoute.queryWithParams({
     // Parse and validate GSClientID
     const GSClientID = parseGSClientID(params.id);
     
-    // Get resolution parameter (default: standard, options: high, standard, low)
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
-    const resolution = searchParams.get('resolution') || 'standard';
-    const targetPoints = resolution === 'high' ? 365 : resolution === 'low' ? 60 : 120;
-
-    // Verify client exists
-    const client = await prisma.client.findUnique({
-      where: { GSClientID },
-      select: {
-        id: true,
-        GSClientID: true,
-        clientCode: true,
-        clientNameFull: true,
-      },
+    const queryParams = GraphsQuerySchema.parse({
+      resolution: searchParams.get('resolution'),
     });
+    const targetPoints = queryParams.resolution === 'high' ? 365 : queryParams.resolution === 'low' ? 60 : 120;
+
+    // Check cache first (before DB queries)
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}graphs:${GSClientID}:${queryParams.resolution}`;
+    const cached = await cache.get<GraphDataResponse>(cacheKey);
+    if (cached) {
+      // Audit log for analytics access
+      logger.info('Client analytics graphs accessed (cached)', {
+        userId: user.id,
+        GSClientID,
+        resolution: queryParams.resolution,
+      });
+      
+      const response = NextResponse.json(successResponse(cached));
+      response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
+      return response;
+    }
+
+    // Calculate date range - last 12 months (reduced from 24 for performance)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 12);
+
+    // PARALLEL QUERY BATCH: Fetch client, tasks, and service line mappings simultaneously
+    const [client, clientTasks, servLineToMasterMap] = await Promise.all([
+      prisma.client.findUnique({
+        where: { GSClientID },
+        select: {
+          id: true,
+          GSClientID: true,
+          clientCode: true,
+          clientNameFull: true,
+        },
+      }),
+      prisma.task.findMany({
+        where: { GSClientID },
+        select: { GSTaskID: true },
+        take: 10000,
+      }),
+      getServiceLineMappings(),
+    ]);
 
     if (!client) {
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
-
-    // Check cache first
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}graphs:${GSClientID}`;
-    const cached = await cache.get<GraphDataResponse>(cacheKey);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
-    }
-
-    // Calculate date range - last 24 months
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 24);
-
-    // Get all client tasks
-    const clientTasks = await prisma.task.findMany({
-      where: { GSClientID },
-      select: { GSTaskID: true },
-      take: 10000,
-    });
 
     const taskIds = clientTasks.map(task => task.GSTaskID);
 
@@ -193,40 +212,57 @@ export const GET = secureRoute.queryWithParams({
           },
         };
 
-    const openingBalanceTransactions = await prisma.wIPTransactions.findMany({
-      where: openingWhereClause,
-      select: {
-        Amount: true,
-        TType: true,
-        TranType: true,
-        TaskServLine: true,
-      },
-      take: 100000, // Reasonable upper bound for opening balance calculation
-    });
+    // PARALLEL QUERY BATCH: Fetch opening balance and current period transactions simultaneously
+    const [openingBalanceTransactions, transactions] = await Promise.all([
+      prisma.wIPTransactions.findMany({
+        where: openingWhereClause,
+        select: {
+          Amount: true,
+          TType: true,
+          TranType: true,
+          TaskServLine: true,
+        },
+        take: 100000, // Reasonable upper bound for opening balance calculation
+      }),
+      prisma.wIPTransactions.findMany({
+        where: wipWhereClause,
+        select: {
+          TranDate: true,
+          TType: true,
+          TranType: true, // Needed for transaction categorization
+          Amount: true,
+          TaskServLine: true,
+        },
+        orderBy: {
+          TranDate: 'asc',
+        },
+        take: 50000, // Prevent unbounded queries - reasonable limit for 24 months of data
+      }),
+    ]);
+
+    // Warn if transaction limits are hit
+    if (openingBalanceTransactions.length >= 100000) {
+      logger.warn('Opening balance transactions limit reached', {
+        GSClientID,
+        clientCode: client.clientCode,
+        limit: 100000,
+        message: 'Some historical data may be excluded',
+      });
+    }
+
+    if (transactions.length >= 50000) {
+      logger.warn('Period transactions limit reached', {
+        GSClientID,
+        clientCode: client.clientCode,
+        limit: 50000,
+        dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+        message: 'Some transaction data may be excluded',
+      });
+    }
 
     // Calculate opening WIP balance
     const openingBalances = calculateWIPBalances(openingBalanceTransactions);
     const openingWipBalance = openingBalances.netWip;
-
-    // Fetch all transactions within the date range
-    const transactions = await prisma.wIPTransactions.findMany({
-      where: wipWhereClause,
-      select: {
-        TranDate: true,
-        TType: true,
-        TranType: true, // Needed for transaction categorization
-        Amount: true,
-        TaskServLine: true,
-      },
-      orderBy: {
-        TranDate: 'asc',
-      },
-      take: 50000, // Prevent unbounded queries - reasonable limit for 24 months of data
-    });
-
-
-    // Get service line mappings
-    const servLineToMasterMap = await getServiceLineMappings();
 
     // Helper function to aggregate transactions
     const aggregateTransactions = (txns: typeof transactions, openingBalance: number = 0) => {
@@ -378,9 +414,21 @@ export const GET = secureRoute.queryWithParams({
       })),
     };
 
-    // Cache for 10 minutes (600 seconds)
-    await cache.set(cacheKey, responseData, 600);
+    // Cache for 30 minutes (1800 seconds) - increased from 10 minutes for better performance
+    await cache.set(cacheKey, responseData, 1800);
 
-    return NextResponse.json(successResponse(responseData));
+    // Audit log for analytics access
+    logger.info('Client analytics graphs generated', {
+      userId: user.id,
+      GSClientID: client.GSClientID,
+      clientCode: client.clientCode,
+      resolution: queryParams.resolution,
+      transactionCount: transactions.length,
+      dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+    });
+
+    const response = NextResponse.json(successResponse(responseData));
+    response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
+    return response;
   },
 });

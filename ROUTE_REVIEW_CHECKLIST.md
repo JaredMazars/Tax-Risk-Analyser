@@ -171,15 +171,15 @@ For routes that call external APIs or services:
 | Admin | 34 | 34 | ✅ Complete |
 | Auth | 6 | 6 | ✅ Complete |
 | BD | 29 | 29 | ✅ Complete |
-| Clients | 21 | 21 | ✅ Complete |
-| Tasks | 107 | 107 | ✅ Complete (15 NOT YET IMPLEMENTED routes documented) |
+| Clients | 22 | 22 | ✅ Complete |
+| Tasks | 108 | 108 | ✅ Complete (15 NOT YET IMPLEMENTED routes documented) |
 | Service Lines | 12 | 12 | ✅ Complete |
-| Groups | 6 | 6 | ✅ Complete |
+| Groups | 7 | 7 | ✅ Complete |
 | Notifications | 7 | 7 | ✅ Complete |
 | Users | 6 | 6 | ✅ Complete |
 | Tools | 14 | 14 | ✅ Complete |
 | Utility | 85 | 85 | ✅ Complete |
-| **Total** | **327** | **327** | ✅ **ALL ROUTES REVIEWED** |
+| **Total** | **330** | **330** | ✅ **ALL ROUTES REVIEWED** |
 
 ---
 
@@ -888,6 +888,14 @@ For routes that call external APIs or services:
 
 ### Client Analytics
 
+- [x] `GET /api/clients/[id]/analytics/graphs` - Get daily transaction metrics
+  - **File**: `src/app/api/clients/[id]/analytics/graphs/route.ts`
+  - **Frontend**: 
+    - Hook: `src/hooks/clients/useClientGraphData.ts`
+    - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/clients/[id]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: Added Zod validation schema `GraphsQuerySchema` for `resolution` query param with enum allowlist (`high`, `standard`, `low`). Added `Cache-Control: no-store` header for user-specific analytics data. Parallelized 3 independent database queries (client info + tasks + service line mappings, then opening balance + transactions) using `Promise.all()` for better performance. Added audit logging with `logger.info()` for analytics access (both cached and fresh). Updated cache key to include resolution parameter. Route already had: `secureRoute.queryWithParams` with `Feature.ACCESS_CLIENTS`, explicit `select` fields, `take` limits (10000 tasks, 100000 opening txns, 50000 txns, 100 service lines), smart downsampling algorithm, shared transaction categorization logic.
+
 - [x] `GET /api/clients/[id]/analytics/documents` - List analytics documents
   - **File**: `src/app/api/clients/[id]/analytics/documents/route.ts`
   - **Frontend**: 
@@ -1145,6 +1153,14 @@ For routes that call external APIs or services:
     - Page: `src/app/dashboard/tasks/[id]/page.tsx`
   - **Reviewed**: 2024-12-19
   - **Fix Applied**: Replaced `parseInt()` with `parseTaskId()`. Replaced ad-hoc errors with `AppError`. Added `take: 50000` limit on WIP transactions query. Route already had `Feature.ACCESS_TASKS` permission.
+
+- [x] `GET /api/tasks/[id]/analytics/graphs` - Get task daily transaction metrics
+  - **File**: `src/app/api/tasks/[id]/analytics/graphs/route.ts`
+  - **Frontend**: 
+    - Hook: `src/hooks/tasks/useTaskGraphData.ts`
+    - Page: Task overview or analytics page
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: Added Zod validation schema `GraphsQuerySchema` for `resolution` query param with enum allowlist (`high`, `standard`, `low`). Added `Cache-Control: no-store` header for user-specific analytics data. Updated cache key to include resolution parameter for proper cache granularity. Parallelized opening balance and current period transaction queries using `Promise.all()` for better performance. Added comprehensive audit logging with `logger.info()` for both cached and fresh analytics access (userId, taskId, GSTaskID, taskCode, resolution, transactionCount, dateRange). Route already had: `secureRoute.queryWithParams` with `Feature.ACCESS_TASKS`, `taskIdParam` for automatic task access validation, explicit `select` fields, `take: 50000` limits, shared transaction categorization logic, downsampling algorithm, 30-minute Redis caching.
 
 - [x] `GET /api/tasks/[id]/transactions` - Get task transactions
   - **File**: `src/app/api/tasks/[id]/transactions/route.ts`
@@ -2101,6 +2117,20 @@ For routes that call external APIs or services:
     - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/groups/[groupCode]/page.tsx`
   - **Reviewed**: 2024-12-19
   - **Fix Applied**: Migrated from raw handler to `secureRoute.queryWithParams` with `Feature.ACCESS_CLIENTS`. Replaced ad-hoc error responses with `AppError`. Added `take` limits: serviceLineExternals (1000), serviceLineMasters (100). Removed manual auth/permission checks and try-catch.
+
+- [x] `GET /api/groups/[groupCode]/analytics/graphs` - Get group daily transaction metrics
+  - **File**: `src/app/api/groups/[groupCode]/analytics/graphs/route.ts`
+  - **Frontend**: 
+    - Hook: `src/hooks/groups/useGroupGraphData.ts`
+    - Page: `src/app/dashboard/[serviceLine]/[subServiceLineGroup]/groups/[groupCode]/analytics/page.tsx`
+  - **Reviewed**: 2024-12-24
+  - **Fix Applied**: 
+    - **CRITICAL**: Added missing `take` limits to WIP transactions queries (500K opening balance, 250K current period) - previous code had NO limits which could crash database with large groups
+    - Added Zod validation schema `GraphsQuerySchema` for `resolution` query param with enum allowlist (`high`, `standard`, `low`)
+    - Added `Cache-Control: no-store` header for user-specific analytics data
+    - Updated cache key to include resolution parameter for proper cache granularity
+    - Added audit logging with `logger.info()` for both cached and fresh analytics access with comprehensive metrics (userId, groupCode, resolution, clientCount, taskCount, transactionCount, dateRange)
+  - **Notes**: Route already had: `secureRoute.queryWithParams` with `Feature.ACCESS_CLIENTS`, explicit `select` fields, parallel queries via `Promise.all()` (2 batches), smart downsampling algorithm that preserves non-zero data points, shared transaction categorization logic, master service line breakdown, detailed debugging logs, 10-minute Redis caching.
 
 ---
 

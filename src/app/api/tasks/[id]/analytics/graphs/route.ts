@@ -5,6 +5,8 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { calculateWIPBalances, categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
+import { logger } from '@/lib/utils/logger';
+import { z } from 'zod';
 
 interface DailyMetrics {
   date: string; // YYYY-MM-DD format
@@ -37,6 +39,11 @@ interface GraphDataResponse {
   endDate: string;
   data: TaskGraphData;
 }
+
+// Query parameter validation schema
+const GraphsQuerySchema = z.object({
+  resolution: z.enum(['high', 'standard', 'low']).optional().default('standard'),
+});
 
 /**
  * Downsample daily metrics to reduce payload size while maintaining visual fidelity
@@ -84,12 +91,36 @@ export const GET = secureRoute.queryWithParams({
     // Parse and validate taskId
     const taskId = parseTaskId(params.id);
     
-    // Get resolution parameter (default: standard, options: high, standard, low)
+    // Validate query parameters
     const { searchParams } = new URL(request.url);
-    const resolution = searchParams.get('resolution') || 'standard';
-    const targetPoints = resolution === 'high' ? 365 : resolution === 'low' ? 60 : 120;
+    const queryParams = GraphsQuerySchema.parse({
+      resolution: searchParams.get('resolution'),
+    });
+    const targetPoints = queryParams.resolution === 'high' ? 365 : queryParams.resolution === 'low' ? 60 : 120;
 
-    // Verify task exists
+    // Check cache first (before DB queries)
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-graphs:${taskId}:${queryParams.resolution}`;
+    const cached = await cache.get<GraphDataResponse>(cacheKey);
+    if (cached) {
+      // Audit log for analytics access
+      logger.info('Task analytics graphs accessed (cached)', {
+        userId: user.id,
+        taskId,
+        taskCode: cached.taskCode,
+        resolution: queryParams.resolution,
+      });
+      
+      const response = NextResponse.json(successResponse(cached));
+      response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
+      return response;
+    }
+
+    // Calculate date range - last 24 months
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 24);
+
+    // Fetch task info first to get GSTaskID
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
@@ -104,58 +135,46 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Check cache first
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-graphs:${taskId}`;
-    const cached = await cache.get<GraphDataResponse>(cacheKey);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
-    }
-
-    // Calculate date range - last 24 months
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 24);
-
-    // Fetch opening balance transactions (before the 24-month period)
-    const openingBalanceTransactions = await prisma.wIPTransactions.findMany({
-      where: {
-        GSTaskID: task.GSTaskID,
-        TranDate: {
-          lt: startDate,
+    // PARALLEL QUERY BATCH: Fetch opening balance and current period transactions simultaneously
+    const [openingBalanceTransactions, transactions] = await Promise.all([
+      prisma.wIPTransactions.findMany({
+        where: {
+          GSTaskID: task.GSTaskID,
+          TranDate: {
+            lt: startDate,
+          },
         },
-      },
-      select: {
-        Amount: true,
-        TType: true,
-        TranType: true,
-      },
-      take: 50000, // Reasonable upper bound for opening balance calculation
-    });
+        select: {
+          Amount: true,
+          TType: true,
+          TranType: true,
+        },
+        take: 50000, // Reasonable upper bound for opening balance calculation
+      }),
+      prisma.wIPTransactions.findMany({
+        where: {
+          GSTaskID: task.GSTaskID,
+          TranDate: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        select: {
+          TranDate: true,
+          TType: true,
+          TranType: true, // Needed for transaction categorization
+          Amount: true,
+        },
+        orderBy: {
+          TranDate: 'asc',
+        },
+        take: 50000, // Prevent unbounded queries - reasonable limit for 24 months of data
+      }),
+    ]);
 
     // Calculate opening WIP balance
     const openingBalances = calculateWIPBalances(openingBalanceTransactions);
     const openingWipBalance = openingBalances.netWip;
-
-    // Fetch all transactions within the date range
-    const transactions = await prisma.wIPTransactions.findMany({
-      where: {
-        GSTaskID: task.GSTaskID,
-        TranDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      select: {
-        TranDate: true,
-        TType: true,
-        TranType: true, // Needed for transaction categorization
-        Amount: true,
-      },
-      orderBy: {
-        TranDate: 'asc',
-      },
-      take: 50000, // Prevent unbounded queries - reasonable limit for 24 months of data
-    });
 
     // Helper function to aggregate transactions by date
     const aggregateTransactions = (txns: typeof transactions, openingBalance: number = 0): TaskGraphData => {
@@ -272,7 +291,21 @@ export const GET = secureRoute.queryWithParams({
     // Cache for 30 minutes (analytics TTL)
     await cache.set(cacheKey, responseData, 30 * 60);
 
-    return NextResponse.json(successResponse(responseData));
+    // Audit log for analytics access
+    logger.info('Task analytics graphs generated', {
+      userId: user.id,
+      taskId: task.id,
+      GSTaskID: task.GSTaskID,
+      taskCode: task.TaskCode,
+      resolution: queryParams.resolution,
+      transactionCount: transactions.length,
+      openingTransactionCount: openingBalanceTransactions.length,
+      dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+    });
+
+    const response = NextResponse.json(successResponse(responseData));
+    response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
+    return response;
   },
 });
 
