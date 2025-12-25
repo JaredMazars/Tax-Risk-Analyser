@@ -273,6 +273,16 @@ export const GET = secureRoute.query({
               clientCode: true,
             },
           },
+          TaskAcceptance: {
+            select: {
+              acceptanceApproved: true,
+            },
+          },
+          TaskEngagementLetter: {
+            select: {
+              uploaded: true,
+            },
+          },
           ...(myTasksOnly && {
             TaskTeam: {
               where: { userId: user.id },
@@ -362,6 +372,9 @@ export const GET = secureRoute.query({
         wip: wipData,
         latestStage: stageByTaskId.get(task.id) || 'ENGAGE',
         canAccess: true,
+        acceptanceApproved: task.TaskAcceptance?.acceptanceApproved ?? null,
+        engagementLetterUploaded: task.TaskEngagementLetter?.uploaded ?? null,
+        isClientTask: !!task.Client,
       };
     });
     

@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Users, Calendar, Folder } from 'lucide-react';
 import { KanbanCardProps } from './types';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
 
 // Memoized to prevent re-renders when sibling cards change
 export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardProps) {
@@ -88,6 +89,16 @@ export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, ca
       }`}>
         {task.name}
       </h4>
+
+      {/* A&C and EL Status Indicators */}
+      <div className={displayMode === 'compact' ? 'mb-0.5' : 'mb-2'}>
+        <TaskWorkflowStatus
+          acceptanceApproved={task.acceptanceApproved}
+          engagementLetterUploaded={task.engagementLetterUploaded}
+          isClientTask={task.isClientTask}
+          displayMode={displayMode}
+        />
+      </div>
 
       {/* Partner & Manager */}
       {displayMode === 'detailed' ? (
@@ -189,7 +200,11 @@ export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, ca
     prevProps.displayMode === nextProps.displayMode &&
     prevProps.canDrag === nextProps.canDrag &&
     // Deep comparison of WIP data if it exists
-    (prevProps.task.wip?.netWip ?? 0) === (nextProps.task.wip?.netWip ?? 0)
+    (prevProps.task.wip?.netWip ?? 0) === (nextProps.task.wip?.netWip ?? 0) &&
+    // Comparison of A&C and EL status
+    prevProps.task.acceptanceApproved === nextProps.task.acceptanceApproved &&
+    prevProps.task.engagementLetterUploaded === nextProps.task.engagementLetterUploaded &&
+    prevProps.task.isClientTask === nextProps.task.isClientTask
   );
 });
 

@@ -30,6 +30,9 @@ export interface KanbanTask {
   } | null;
   createdAt: Date | string;
   updatedAt: Date | string;
+  acceptanceApproved?: boolean | null; // A&C approval status
+  engagementLetterUploaded?: boolean | null; // EL upload status
+  isClientTask: boolean; // Whether this is a client task (determines A&C/EL visibility)
 }
 
 export interface KanbanColumn {

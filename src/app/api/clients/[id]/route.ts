@@ -94,6 +94,8 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
           TaskDateOpen: true, TaskDateTerminate: true, TaskPartner: true, TaskPartnerName: true,
           TaskManager: true, TaskManagerName: true,
           _count: { select: { MappedAccount: true, TaxAdjustment: true } },
+          TaskAcceptance: { select: { acceptanceApproved: true } },
+          TaskEngagementLetter: { select: { uploaded: true } },
         },
       }),
       prisma.task.count({ where: taskWhere }),
@@ -157,6 +159,8 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
         subServiceLineGroupDesc: subGroupDescMapping[task.ServLineCode] || null,
         ServLineDesc: servLineDescMapping[task.ServLineCode] || null,
         wip: taskWip || { balWIP: 0, balTime: 0, balDisb: 0, netWip: 0, grossWip: 0, time: 0, adjustments: 0, disbursements: 0, fees: 0, provision: 0 },
+        acceptanceApproved: task.TaskAcceptance?.acceptanceApproved ?? null,
+        engagementLetterUploaded: task.TaskEngagementLetter?.uploaded ?? null,
       };
     });
 

@@ -38,6 +38,7 @@ import { ClientPlannerList } from '@/components/features/planning/ClientPlannerL
 import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
 import { useEmployeePlanner } from '@/hooks/planning/useEmployeePlanner';
+import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner';
 import { ServiceLineRole, NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
@@ -1297,12 +1298,13 @@ export default function SubServiceLineWorkspacePage() {
                 <div className="overflow-x-auto">
                   <table className="w-full" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
-                      <col style={{ width: activeTab === 'my-tasks' ? '25%' : '30%' }} />
+                      <col style={{ width: activeTab === 'my-tasks' ? '23%' : '28%' }} />
+                      <col style={{ width: '10%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: activeTab === 'my-tasks' ? '16%' : '18%' }} />
                       <col style={{ width: '12%' }} />
-                      <col style={{ width: activeTab === 'my-tasks' ? '18%' : '20%' }} />
-                      <col style={{ width: '13%' }} />
-                      <col style={{ width: '13%' }} />
-                      {activeTab === 'my-tasks' && <col style={{ width: '12%' }} />}
+                      <col style={{ width: '12%' }} />
+                      {activeTab === 'my-tasks' && <col style={{ width: '11%' }} />}
                       <col style={{ width: activeTab === 'my-tasks' ? '8%' : '10%' }} />
                     </colgroup>
                     <thead>
@@ -1312,6 +1314,9 @@ export default function SubServiceLineWorkspacePage() {
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Stage
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
+                          A&C / EL
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Client
@@ -1357,6 +1362,16 @@ export default function SubServiceLineWorkspacePage() {
                               <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-md border ${getTaskStageColor(task.latestStage || 'ENGAGE')}`}>
                                 {formatTaskStage(task.latestStage || 'ENGAGE')}
                               </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex justify-center">
+                                <TaskWorkflowStatus
+                                  acceptanceApproved={task.acceptanceApproved}
+                                  engagementLetterUploaded={task.engagementLetterUploaded}
+                                  isClientTask={task.isClientTask}
+                                  displayMode="detailed"
+                                />
+                              </div>
                             </td>
                             <td className="px-6 py-4">
                               {task.client && (

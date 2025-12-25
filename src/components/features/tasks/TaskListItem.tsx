@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { AlertModal } from '@/components/shared/AlertModal';
+import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
 
 interface TaskListItemProps {
   task: {
@@ -41,6 +42,8 @@ interface TaskListItemProps {
       fees?: number;
       provision?: number;
     };
+    acceptanceApproved?: boolean | null; // A&C approval status
+    engagementLetterUploaded?: boolean | null; // EL upload status
   };
   currentSubServiceLineGroup: string;
   serviceLine: string;
@@ -177,7 +180,16 @@ export function TaskListItem({
             {formatDate(task.updatedAt)}
           </span>
         </div>
-        {additionalBadge}
+        <div className="flex items-center gap-2">
+          {/* A&C and EL Status Indicators */}
+          <TaskWorkflowStatus
+            acceptanceApproved={task.acceptanceApproved}
+            engagementLetterUploaded={task.engagementLetterUploaded}
+            isClientTask={!!task.Client}
+            displayMode="detailed"
+          />
+          {additionalBadge}
+        </div>
       </div>
       
       {/* WIP Balances - Detailed Breakdown */}

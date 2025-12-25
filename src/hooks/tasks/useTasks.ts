@@ -39,6 +39,9 @@ export interface TaskListItem {
   wip?: {
     netWip: number;
   } | null; // WIP balance (only present in myTasksOnly mode)
+  acceptanceApproved?: boolean | null; // A&C approval status
+  engagementLetterUploaded?: boolean | null; // EL upload status
+  isClientTask: boolean; // Whether this is a client task (determines A&C/EL visibility)
 }
 
 export interface TasksResponse {
