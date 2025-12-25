@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
   Search,
@@ -18,6 +18,7 @@ import {
   Minimize2,
   Maximize2,
   Filter,
+  FileBarChart,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -28,6 +29,7 @@ import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLine
 import { useClientGroups } from '@/hooks/clients/useClientGroups';
 import { useWorkspaceCounts } from '@/hooks/workspace/useWorkspaceCounts';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
+import { SubServiceLineQuickNav } from '@/components/features/service-lines/SubServiceLineQuickNav';
 import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
 import { MyPlanningView, PlannerFilters } from '@/components/features/planning';
 import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
@@ -46,6 +48,7 @@ import { TasksFilters, TasksFiltersType } from '@/components/features/tasks/Task
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
   const subServiceLineGroup = params.subServiceLineGroup as string;
@@ -54,7 +57,7 @@ export default function SubServiceLineWorkspacePage() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserSubGroupRole, setCurrentUserSubGroupRole] = useState<string>('VIEWER');
   
-  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning'>('groups');
+  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning' | 'my-reports'>('groups');
   const [searchTerm, setSearchTerm] = useState(''); // Only used for tasks tab
   const [debouncedSearch, setDebouncedSearch] = useState(''); // Only used for tasks tab
   const [currentPage, setCurrentPage] = useState(1);
@@ -160,6 +163,14 @@ export default function SubServiceLineWorkspacePage() {
       }
     }
   }, [serviceLine, subServiceLineGroup]);
+
+  // Handle tab query parameter for navigation from Quick Nav
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && (tab === 'groups' || tab === 'clients' || tab === 'tasks' || tab === 'planner' || tab === 'my-tasks' || tab === 'my-planning' || tab === 'my-reports')) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // Save view mode preference to localStorage
   const handleViewModeChange = (mode: 'list' | 'kanban') => {
@@ -731,6 +742,24 @@ export default function SubServiceLineWorkspacePage() {
                       <span>My Planning</span>
                     </div>
                   </button>
+                  <button
+                    onClick={() => setActiveTab('my-reports')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'my-reports'
+                        ? 'shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                    style={activeTab === 'my-reports' ? { 
+                      background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                      color: 'white'
+                    } : {}}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <FileBarChart className="h-4 w-4" />
+                      <span>My Reports</span>
+                    </div>
+                  </button>
+                  <SubServiceLineQuickNav />
                 </nav>
               </div>
             </div>
@@ -876,6 +905,29 @@ export default function SubServiceLineWorkspacePage() {
           ) : activeTab === 'my-planning' ? (
             /* My Planning View */
             <MyPlanningView />
+          ) : activeTab === 'my-reports' ? (
+            /* My Reports View - Coming Soon */
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center max-w-md">
+                <div
+                  className="inline-flex rounded-full p-4 mb-4"
+                  style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                >
+                  <FileBarChart className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
+                  My Reports Coming Soon
+                </h3>
+                <p className="text-sm text-forvis-gray-700 mb-4">
+                  Access all your reports and analytics from one centralized location. This feature is currently under development.
+                </p>
+                <div className="rounded-lg p-4 border border-forvis-blue-100" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+                  <p className="text-xs text-forvis-gray-600">
+                    Expected features: Task Reports, Client Analytics, Group Analytics, and Executive Reporting
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : activeTab === 'groups' ? (
             /* Groups List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
