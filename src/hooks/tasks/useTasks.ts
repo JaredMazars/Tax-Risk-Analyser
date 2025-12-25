@@ -27,6 +27,7 @@ export interface TaskListItem {
   taskPartnerName: string | null;
   taskManager: string | null;
   taskManagerName: string | null;
+  latestStage?: string; // Current stage of the task
   client?: {
     id: number;
     GSClientID: string;  // External ID

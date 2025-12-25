@@ -18,7 +18,7 @@ export interface FilterMetadata {
 
 export interface TaskFilterOptions {
   clients: Array<{ id: number; code: string; name: string }>;
-  taskNames: string[];
+  taskNames: Array<{ name: string; code: string }>;
   partners: Array<{ id: string; name: string }>;
   managers: Array<{ id: string; name: string }>;
   serviceLines: string[];

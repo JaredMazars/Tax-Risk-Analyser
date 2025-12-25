@@ -97,9 +97,9 @@ export function TasksFilters({
     label: `${client.code} - ${client.name}`,
   }));
 
-  const taskNameOptions: SearchMultiComboboxOption[] = (filterOptions?.taskNames || []).map(taskName => ({
-    id: taskName,
-    label: taskName,
+  const taskNameOptions: SearchMultiComboboxOption[] = (filterOptions?.taskNames || []).map(task => ({
+    id: task.name,
+    label: task.code ? `${task.code} - ${task.name}` : task.name,
   }));
 
 
@@ -244,10 +244,10 @@ export function TasksFilters({
             onSearchChange={setTaskNameSearch}
             options={taskNameOptions}
             placeholder="All Task Names"
-            searchPlaceholder="Search task names..."
+            searchPlaceholder="Search by code or name..."
             minimumSearchChars={2}
             isLoading={isLoading}
-            emptyMessage={taskNameSearch.length < 2 ? "Type 2+ characters to search task names" : "No task names found"}
+            emptyMessage={taskNameSearch.length < 2 ? "Type 2+ characters to search tasks" : "No tasks found"}
             metadata={filterOptions?.metadata?.taskNames}
           />
 

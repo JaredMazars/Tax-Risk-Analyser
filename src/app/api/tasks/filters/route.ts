@@ -105,7 +105,10 @@ export const GET = secureRoute.query({
 
     const taskNameWhere: Record<string, unknown> = { ...baseWhere, TaskDesc: { not: '' } };
     if (taskNameSearch) {
-      taskNameWhere.TaskDesc = { contains: taskNameSearch };
+      taskNameWhere.OR = [
+        { TaskDesc: { contains: taskNameSearch } },
+        { TaskCode: { contains: taskNameSearch } },
+      ];
     }
 
     let partnerEmployeeCodes: string[] = [];
@@ -150,7 +153,13 @@ export const GET = secureRoute.query({
         orderBy: { Client: { clientCode: 'asc' } },
         take: FILTER_LIMIT,
       }),
-      prisma.task.groupBy({ by: ['TaskDesc'], where: taskNameWhere, orderBy: { TaskDesc: 'asc' }, take: FILTER_LIMIT }),
+      prisma.task.findMany({
+        where: taskNameWhere,
+        select: { TaskDesc: true, TaskCode: true },
+        distinct: ['TaskDesc'],
+        orderBy: { TaskDesc: 'asc' },
+        take: FILTER_LIMIT,
+      }),
       prisma.task.findMany({
         where: partnerWhere,
         select: { TaskPartner: true, TaskPartnerName: true },
@@ -182,7 +191,12 @@ export const GET = secureRoute.query({
       .filter(task => task.Client !== null)
       .map(task => ({ id: task.Client!.id, code: task.Client!.clientCode || '', name: task.Client!.clientNameFull || task.Client!.clientCode || 'Unknown' }));
 
-    const taskNames = taskNamesData.map(item => item.TaskDesc).filter((name): name is string => !!name);
+    const taskNames = taskNamesData
+      .filter(task => task.TaskDesc)
+      .map(task => ({ 
+        name: task.TaskDesc!, 
+        code: task.TaskCode || '' 
+      }));
 
     const partnersMap = new Map<string, { id: string; name: string }>();
     partnersData.filter(task => task.TaskPartner !== null).forEach(task => {

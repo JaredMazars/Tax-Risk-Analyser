@@ -294,6 +294,28 @@ export const GET = secureRoute.query({
       }
     }
     
+    // Fetch latest stage for each task
+    let stageByTaskId = new Map<number, string>();
+    if (tasks.length > 0) {
+      const taskIds = tasks.map(t => t.id);
+      
+      const tasksWithLatestStage = await prisma.$queryRaw<Array<{ taskId: number; latestStage: string | null }>>`
+        WITH LatestStages AS (
+          SELECT taskId, stage as latestStage, 
+            ROW_NUMBER() OVER (PARTITION BY taskId ORDER BY createdAt DESC) as rn
+          FROM TaskStage
+          WHERE taskId IN (${Prisma.join(taskIds)})
+        )
+        SELECT taskId, latestStage
+        FROM LatestStages 
+        WHERE rn = 1
+      `;
+      
+      stageByTaskId = new Map(
+        tasksWithLatestStage.map(t => [t.taskId, t.latestStage || 'ENGAGE'])
+      );
+    }
+    
     const uniquePartnerCodes = [...new Set(tasks.map(t => t.TaskPartner).filter(Boolean))];
     const uniqueManagerCodes = [...new Set(tasks.map(t => t.TaskManager).filter(Boolean))];
     const allEmployeeCodes = [...new Set([...uniquePartnerCodes, ...uniqueManagerCodes])];
@@ -338,6 +360,7 @@ export const GET = secureRoute.query({
         } : null,
         userRole: myTasksOnly && 'TaskTeam' in task ? (task.TaskTeam as Array<{role: string}>)[0]?.role || null : null,
         wip: wipData,
+        latestStage: stageByTaskId.get(task.id) || 'ENGAGE',
         canAccess: true,
       };
     });

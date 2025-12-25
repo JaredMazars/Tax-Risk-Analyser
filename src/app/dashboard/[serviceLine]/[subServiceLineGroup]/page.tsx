@@ -21,6 +21,7 @@ import {
   FileBarChart,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
+import { formatTaskStage, getTaskStageColor } from '@/lib/utils/taskStages';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { useClients, type Client } from '@/hooks/clients/useClients';
@@ -57,7 +58,7 @@ export default function SubServiceLineWorkspacePage() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserSubGroupRole, setCurrentUserSubGroupRole] = useState<string>('VIEWER');
   
-  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning' | 'my-reports'>('groups');
+  const [activeTab, setActiveTab] = useState<'groups' | 'clients' | 'tasks' | 'planner' | 'my-tasks' | 'my-planning' | 'my-reports'>('clients');
   const [searchTerm, setSearchTerm] = useState(''); // Only used for tasks tab
   const [debouncedSearch, setDebouncedSearch] = useState(''); // Only used for tasks tab
   const [currentPage, setCurrentPage] = useState(1);
@@ -604,28 +605,6 @@ export default function SubServiceLineWorkspacePage() {
                 </h3>
                 <nav className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setActiveTab('groups')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
-                      activeTab === 'groups'
-                        ? 'bg-white text-forvis-blue-600 shadow-sm'
-                        : 'text-white hover:bg-white/20'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-4 w-4" />
-                      <span>Groups</span>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          activeTab === 'groups'
-                            ? 'bg-forvis-blue-100 text-forvis-blue-700'
-                            : 'bg-white/20 text-white'
-                        }`}
-                      >
-                        {isLoadingCounts ? '...' : (counts?.groups ?? 0)}
-                      </span>
-                    </div>
-                  </button>
-                  <button
                     onClick={() => setActiveTab('clients')}
                     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
                       activeTab === 'clients'
@@ -644,6 +623,28 @@ export default function SubServiceLineWorkspacePage() {
                         }`}
                       >
                         {isLoadingCounts ? '...' : (counts?.clients ?? 0)}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('groups')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 ${
+                      activeTab === 'groups'
+                        ? 'bg-white text-forvis-blue-600 shadow-sm'
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4" />
+                      <span>Groups</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          activeTab === 'groups'
+                            ? 'bg-forvis-blue-100 text-forvis-blue-700'
+                            : 'bg-white/20 text-white'
+                        }`}
+                      >
+                        {isLoadingCounts ? '...' : (counts?.groups ?? 0)}
                       </span>
                     </div>
                   </button>
@@ -1296,10 +1297,11 @@ export default function SubServiceLineWorkspacePage() {
                 <div className="overflow-x-auto">
                   <table className="w-full" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
-                      <col style={{ width: activeTab === 'my-tasks' ? '30%' : '35%' }} />
-                      <col style={{ width: activeTab === 'my-tasks' ? '20%' : '25%' }} />
-                      <col style={{ width: '15%' }} />
-                      <col style={{ width: '15%' }} />
+                      <col style={{ width: activeTab === 'my-tasks' ? '25%' : '30%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: activeTab === 'my-tasks' ? '18%' : '20%' }} />
+                      <col style={{ width: '13%' }} />
+                      <col style={{ width: '13%' }} />
                       {activeTab === 'my-tasks' && <col style={{ width: '12%' }} />}
                       <col style={{ width: activeTab === 'my-tasks' ? '8%' : '10%' }} />
                     </colgroup>
@@ -1307,6 +1309,9 @@ export default function SubServiceLineWorkspacePage() {
                       <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Task Name
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                          Stage
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Client
@@ -1347,6 +1352,11 @@ export default function SubServiceLineWorkspacePage() {
                                   )}
                                 </div>
                               </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-md border ${getTaskStageColor(task.latestStage || 'ENGAGE')}`}>
+                                {formatTaskStage(task.latestStage || 'ENGAGE')}
+                              </span>
                             </td>
                             <td className="px-6 py-4">
                               {task.client && (
