@@ -119,7 +119,7 @@ export async function getWipBreakdownByTaskId(gsTaskId: string): Promise<WIPResu
     FROM WIPAggregated
   `;
   
-  return results.length > 0 ? results[0] : null;
+  return results.length > 0 && results[0] ? results[0] : null;
 }
 
 /**

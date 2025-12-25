@@ -35,6 +35,9 @@ export interface TaskListItem {
   } | null;
   canAccess?: boolean; // Whether user can access task details
   userRole?: string | null; // User's role on task (if team member)
+  wip?: {
+    netWip: number;
+  } | null; // WIP balance (only present in myTasksOnly mode)
 }
 
 export interface TasksResponse {
