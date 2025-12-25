@@ -15,6 +15,7 @@ import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useFeature } from '@/hooks/permissions/useFeature';
 import { Feature } from '@/lib/permissions/features';
+import { useExternalLinks, useRefreshExternalLinks } from '@/hooks/admin/useExternalLinks';
 
 interface NavItem {
   label: string;
@@ -22,16 +23,8 @@ interface NavItem {
   items?: { label: string; href: string; description?: string }[];
 }
 
-interface ExternalLink {
-  id: number;
-  name: string;
-  url: string;
-  icon: string;
-}
-
 export default function DashboardNav() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [externalLinks, setExternalLinks] = useState<ExternalLink[]>([]);
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
   const { currentServiceLine } = useServiceLine();
@@ -45,25 +38,14 @@ export default function DashboardNav() {
   const { hasFeature: hasExternalLinksAccess } = useFeature(Feature.MANAGE_EXTERNAL_LINKS);
   const { hasFeature: hasToolsAccess } = useFeature(Feature.MANAGE_TOOLS);
 
-  // Fetch external links on mount and when pathname changes
+  // Fetch external links with React Query caching
+  const { data: externalLinks = [] } = useExternalLinks();
+  const refreshExternalLinks = useRefreshExternalLinks();
+
+  // Listen for custom event to refresh links (for manual invalidation after edits)
   useEffect(() => {
-    const fetchExternalLinks = async () => {
-      try {
-        const response = await fetch('/api/admin/external-links?activeOnly=true');
-        const data = await response.json();
-        if (data.success) {
-          setExternalLinks(data.data);
-        }
-      } catch (error) {
-        // Silently fail - links just won't show
-      }
-    };
-
-    fetchExternalLinks();
-
-    // Listen for custom event to refresh links
     const handleRefreshLinks = () => {
-      fetchExternalLinks();
+      refreshExternalLinks();
     };
 
     window.addEventListener('refreshExternalLinks', handleRefreshLinks);
@@ -71,7 +53,7 @@ export default function DashboardNav() {
     return () => {
       window.removeEventListener('refreshExternalLinks', handleRefreshLinks);
     };
-  }, [pathname]); // Refetch when pathname changes
+  }, [refreshExternalLinks]);
 
   // Base nav items - always visible
   const baseNavItems: NavItem[] = [

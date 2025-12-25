@@ -1,11 +1,11 @@
 /**
  * React Hook for Feature Permissions
- * Client-side permission checking using feature flags
+ * Client-side permission checking using feature flags with React Query caching
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Feature } from '@/lib/permissions/features';
 
 interface FeatureCheckResult {
@@ -15,8 +15,18 @@ interface FeatureCheckResult {
 }
 
 /**
+ * Query keys for feature permissions
+ */
+export const featureKeys = {
+  feature: (feature: Feature, serviceLine?: string) => 
+    ['feature', feature, serviceLine] as const,
+  features: (features: Feature[], mode: 'any' | 'all', serviceLine?: string) => 
+    ['features', mode, features.join(','), serviceLine] as const,
+};
+
+/**
  * Check if the current user has a specific feature
- * Makes an API call to check user's permissions
+ * Uses React Query for automatic caching and deduplication
  * 
  * @param feature - The feature to check
  * @param serviceLine - Optional service line context
@@ -26,59 +36,41 @@ export function useFeature(
   feature: Feature,
   serviceLine?: string
 ): FeatureCheckResult {
-  const [hasFeature, setHasFeature] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function checkFeature() {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const params = new URLSearchParams({ feature });
-        if (serviceLine) {
-          params.append('serviceLine', serviceLine);
-        }
-
-        const response = await fetch(`/api/permissions/check?${params.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to check feature permission');
-        }
-
-        const result = await response.json();
-        
-        if (isMounted) {
-          // successResponse wraps data in { success: true, data: { hasFeature: ... } }
-          setHasFeature(result.data?.hasFeature || false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error('Unknown error'));
-          setHasFeature(false);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+  const { data, isLoading, error } = useQuery({
+    queryKey: featureKeys.feature(feature, serviceLine),
+    queryFn: async (): Promise<boolean> => {
+      const params = new URLSearchParams({ feature });
+      if (serviceLine) {
+        params.append('serviceLine', serviceLine);
       }
-    }
 
-    checkFeature();
+      const response = await fetch(`/api/permissions/check?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to check feature permission');
+      }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [feature, serviceLine]);
+      const result = await response.json();
+      // successResponse wraps data in { success: true, data: { hasFeature: ... } }
+      return result.data?.hasFeature || false;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes - matches Redis cache TTL
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false, // Don't refetch on focus - permissions rarely change
+    refetchOnMount: false, // Don't refetch if data is fresh
+  });
 
-  return { hasFeature, isLoading, error };
+  return { 
+    hasFeature: data ?? false, 
+    isLoading, 
+    error: error as Error | null 
+  };
 }
 
 /**
  * Check if user has ANY of the specified features
+ * Uses React Query for automatic caching and deduplication
+ * 
  * @param features - Array of features to check
  * @param serviceLine - Optional service line context
  * @returns Object with hasFeature (true if any feature exists), isLoading, and error
@@ -87,67 +79,49 @@ export function useAnyFeature(
   features: Feature[],
   serviceLine?: string
 ): FeatureCheckResult {
-  const [hasFeature, setHasFeature] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function checkFeatures() {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const params = new URLSearchParams({
-          features: features.join(','),
-          mode: 'any',
-        });
-        if (serviceLine) {
-          params.append('serviceLine', serviceLine);
-        }
-
-        const response = await fetch(`/api/permissions/check?${params.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to check feature permissions');
-        }
-
-        const result = await response.json();
-        
-        if (isMounted) {
-          // successResponse wraps data in { success: true, data: { hasFeature: ... } }
-          setHasFeature(result.data?.hasFeature || false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error('Unknown error'));
-          setHasFeature(false);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+  const { data, isLoading, error } = useQuery({
+    queryKey: featureKeys.features(features, 'any', serviceLine),
+    queryFn: async (): Promise<boolean> => {
+      if (features.length === 0) {
+        return false;
       }
-    }
 
-    if (features.length > 0) {
-      checkFeatures();
-    } else {
-      setIsLoading(false);
-      setHasFeature(false);
-    }
+      const params = new URLSearchParams({
+        features: features.join(','),
+        mode: 'any',
+      });
+      if (serviceLine) {
+        params.append('serviceLine', serviceLine);
+      }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [features.join(','), serviceLine]);
+      const response = await fetch(`/api/permissions/check?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to check feature permissions');
+      }
 
-  return { hasFeature, isLoading, error };
+      const result = await response.json();
+      // successResponse wraps data in { success: true, data: { hasFeature: ... } }
+      return result.data?.hasFeature || false;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    enabled: features.length > 0,
+  });
+
+  return { 
+    hasFeature: data ?? false, 
+    isLoading, 
+    error: error as Error | null 
+  };
 }
 
 /**
  * Check if user has ALL of the specified features
+ * Uses React Query for automatic caching and deduplication
+ * 
  * @param features - Array of features to check
  * @param serviceLine - Optional service line context
  * @returns Object with hasFeature (true if all features exist), isLoading, and error
@@ -156,63 +130,43 @@ export function useAllFeatures(
   features: Feature[],
   serviceLine?: string
 ): FeatureCheckResult {
-  const [hasFeature, setHasFeature] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function checkFeatures() {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const params = new URLSearchParams({
-          features: features.join(','),
-          mode: 'all',
-        });
-        if (serviceLine) {
-          params.append('serviceLine', serviceLine);
-        }
-
-        const response = await fetch(`/api/permissions/check?${params.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to check feature permissions');
-        }
-
-        const result = await response.json();
-        
-        if (isMounted) {
-          // successResponse wraps data in { success: true, data: { hasFeature: ... } }
-          setHasFeature(result.data?.hasFeature || false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error('Unknown error'));
-          setHasFeature(false);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+  const { data, isLoading, error } = useQuery({
+    queryKey: featureKeys.features(features, 'all', serviceLine),
+    queryFn: async (): Promise<boolean> => {
+      if (features.length === 0) {
+        return false;
       }
-    }
 
-    if (features.length > 0) {
-      checkFeatures();
-    } else {
-      setIsLoading(false);
-      setHasFeature(false);
-    }
+      const params = new URLSearchParams({
+        features: features.join(','),
+        mode: 'all',
+      });
+      if (serviceLine) {
+        params.append('serviceLine', serviceLine);
+      }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [features.join(','), serviceLine]);
+      const response = await fetch(`/api/permissions/check?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to check feature permissions');
+      }
 
-  return { hasFeature, isLoading, error };
+      const result = await response.json();
+      // successResponse wraps data in { success: true, data: { hasFeature: ... } }
+      return result.data?.hasFeature || false;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    enabled: features.length > 0,
+  });
+
+  return { 
+    hasFeature: data ?? false, 
+    isLoading, 
+    error: error as Error | null 
+  };
 }
 
 

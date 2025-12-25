@@ -55,8 +55,9 @@ export const RateLimitPresets = {
   },
   
   // Lenient limit for read operations
+  // Increased to 300 to accommodate legitimate navigation patterns with multiple permission checks
   READ_ONLY: {
-    maxRequests: 100,
+    maxRequests: 300,
     windowMs: 60000, // 1 minute
     keyPrefix: 'read',
   },
