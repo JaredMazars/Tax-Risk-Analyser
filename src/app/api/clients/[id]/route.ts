@@ -95,7 +95,8 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
           TaskManager: true, TaskManagerName: true,
           _count: { select: { MappedAccount: true, TaxAdjustment: true } },
           TaskAcceptance: { select: { acceptanceApproved: true } },
-          TaskEngagementLetter: { select: { uploaded: true } },
+          TaskEngagementLetter: { select: { uploaded: true, dpaUploaded: true } },
+          Client: { select: { id: true, GSClientID: true, clientNameFull: true, clientCode: true } },
         },
       }),
       prisma.task.count({ where: taskWhere }),
@@ -161,6 +162,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
         wip: taskWip || { balWIP: 0, balTime: 0, balDisb: 0, netWip: 0, grossWip: 0, time: 0, adjustments: 0, disbursements: 0, fees: 0, provision: 0 },
         acceptanceApproved: task.TaskAcceptance?.acceptanceApproved ?? null,
         engagementLetterUploaded: task.TaskEngagementLetter?.uploaded ?? null,
+        dpaUploaded: task.TaskEngagementLetter?.dpaUploaded ?? null,
       };
     });
 
@@ -191,6 +193,13 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       taskPagination: { page: taskPage, limit: taskLimit, total: totalTasks, totalPages: Math.ceil(totalTasks / taskLimit) },
       taskCountsByServiceLine,
     };
+
+    // #region agent log
+    const task479954FromResponse = enrichedTasks.find((t: any) => t.id === 479954);
+    if (task479954FromResponse) {
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'clients/[id]/route.ts:responseData479954',message:'Task 479954 in API response',data:{task479954:task479954FromResponse,hasDpaUploaded:'dpaUploaded' in task479954FromResponse,dpaUploadedValue:task479954FromResponse.dpaUploaded},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+    }
+    // #endregion
 
     await setCachedClient(GSClientID, responseData, serviceLine, includeArchived);
 

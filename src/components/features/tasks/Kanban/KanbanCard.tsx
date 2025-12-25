@@ -90,11 +90,12 @@ export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, ca
         {task.name}
       </h4>
 
-      {/* A&C and EL Status Indicators */}
+      {/* A&C, EL, and DPA Status Indicators */}
       <div className={displayMode === 'compact' ? 'mb-0.5' : 'mb-2'}>
         <TaskWorkflowStatus
           acceptanceApproved={task.acceptanceApproved}
           engagementLetterUploaded={task.engagementLetterUploaded}
+          dpaUploaded={task.dpaUploaded}
           isClientTask={task.isClientTask}
           displayMode={displayMode}
         />

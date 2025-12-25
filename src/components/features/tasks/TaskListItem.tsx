@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import React, { useState, ReactNode } from 'react';
 import Link from 'next/link';
 import { Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
@@ -44,6 +44,7 @@ interface TaskListItemProps {
     };
     acceptanceApproved?: boolean | null; // A&C approval status
     engagementLetterUploaded?: boolean | null; // EL upload status
+    dpaUploaded?: boolean | null; // DPA upload status
   };
   currentSubServiceLineGroup: string;
   serviceLine: string;
@@ -181,10 +182,11 @@ export function TaskListItem({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {/* A&C and EL Status Indicators */}
+          {/* A&C, EL, and DPA Status Indicators */}
           <TaskWorkflowStatus
             acceptanceApproved={task.acceptanceApproved}
             engagementLetterUploaded={task.engagementLetterUploaded}
+            dpaUploaded={task.dpaUploaded}
             isClientTask={!!task.Client}
             displayMode="detailed"
           />

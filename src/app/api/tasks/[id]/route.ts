@@ -111,6 +111,10 @@ export const GET = secureRoute.queryWithParams({
             generatedBy: true,
             uploadedAt: true,
             uploadedBy: true,
+            dpaUploaded: true,
+            dpaFilePath: true,
+            dpaUploadedAt: true,
+            dpaUploadedBy: true,
           },
         },
         _count: {
@@ -196,6 +200,10 @@ export const GET = secureRoute.queryWithParams({
       engagementLetterPath: TaskEngagementLetter?.filePath || null,
       engagementLetterUploadedBy: TaskEngagementLetter?.uploadedBy || null,
       engagementLetterUploadedAt: TaskEngagementLetter?.uploadedAt || null,
+      dpaUploaded: TaskEngagementLetter?.dpaUploaded || false,
+      dpaPath: TaskEngagementLetter?.dpaFilePath || null,
+      dpaUploadedBy: TaskEngagementLetter?.dpaUploadedBy || null,
+      dpaUploadedAt: TaskEngagementLetter?.dpaUploadedAt || null,
       _count: {
         mappings: enrichedTask._count.MappedAccount,
         taxAdjustments: enrichedTask._count.TaxAdjustment,
@@ -318,6 +326,10 @@ export const PUT = secureRoute.mutationWithParams({
             generatedBy: true,
             uploadedAt: true,
             uploadedBy: true,
+            dpaUploaded: true,
+            dpaFilePath: true,
+            dpaUploadedAt: true,
+            dpaUploadedBy: true,
           },
         },
         _count: {
@@ -361,6 +373,10 @@ export const PUT = secureRoute.mutationWithParams({
       engagementLetterPath: TaskEngagementLetter?.filePath || null,
       engagementLetterUploadedBy: TaskEngagementLetter?.uploadedBy || null,
       engagementLetterUploadedAt: TaskEngagementLetter?.uploadedAt || null,
+      dpaUploaded: TaskEngagementLetter?.dpaUploaded || false,
+      dpaPath: TaskEngagementLetter?.dpaFilePath || null,
+      dpaUploadedBy: TaskEngagementLetter?.dpaUploadedBy || null,
+      dpaUploadedAt: TaskEngagementLetter?.dpaUploadedAt || null,
       _count: task._count ? {
         mappings: task._count.MappedAccount,
         taxAdjustments: task._count.TaxAdjustment,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { CheckCircle, Clock } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { QuestionField } from './QuestionField';
 import { DocumentUpload } from './DocumentUpload';
 import { useQuestionnaire, useSaveAnswers, useSubmitQuestionnaire } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
@@ -24,6 +24,8 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
   const [activeTab, setActiveTab] = useState(0);
   const [answers, setAnswers] = useState<AnswerState>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [isSavingBeforeSubmit, setIsSavingBeforeSubmit] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Modal state
@@ -77,7 +79,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
 
   // Autosave functionality (debounced)
   useEffect(() => {
-    if (!hasChanges) return;
+    if (!hasChanges || isSavingBeforeSubmit) return; // Don't autosave if we're saving before submit
 
     const timer = setTimeout(() => {
       const answersArray = Object.entries(answers).map(([questionKey, data]) => ({
@@ -96,7 +98,7 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answers, hasChanges]); // Removed saveAnswersMutation from deps to prevent re-triggers
+  }, [answers, hasChanges, isSavingBeforeSubmit]); // Added isSavingBeforeSubmit to prevent conflicts
 
   const handleTabChange = useCallback((index: number) => {
     setActiveTab(index);
@@ -119,6 +121,33 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
   }, []);
 
   const handleSubmit = async () => {
+    setSaveError(null); // Clear any previous errors
+    
+    try {
+      // Force save any pending changes before submission
+      if (hasChanges) {
+        setIsSavingBeforeSubmit(true);
+        
+        const answersArray = Object.entries(answers).map(([questionKey, data]) => ({
+          questionKey,
+          answer: data.answer,
+          comment: data.comment,
+        }));
+
+        // Wait for save to complete
+        await saveAnswersMutation.mutateAsync(answersArray);
+        setHasChanges(false);
+      }
+    } catch (error) {
+      console.error('Failed to save changes before submission:', error);
+      setSaveError('Failed to save your changes. Please try again.');
+      // Show error to user but don't proceed with submission
+      return;
+    } finally {
+      setIsSavingBeforeSubmit(false);
+    }
+
+    // Now show confirmation modal
     setConfirmModal({
       isOpen: true,
       title: 'Submit Questionnaire',
@@ -235,17 +264,31 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
         </div>
 
         {/* Autosave Indicator */}
-        {hasChanges && (
+        {isSavingBeforeSubmit && (
+          <div className="mt-3 text-xs text-forvis-blue-600 flex items-center gap-2">
+            <Clock className="h-3 w-3 animate-spin" />
+            <span>Saving changes before submission...</span>
+          </div>
+        )}
+
+        {hasChanges && !isSavingBeforeSubmit && (
           <div className="mt-3 text-xs text-forvis-gray-600 flex items-center gap-2">
             <Clock className="h-3 w-3" />
             <span>Saving...</span>
           </div>
         )}
 
-        {saveAnswersMutation.isSuccess && !hasChanges && (
+        {saveAnswersMutation.isSuccess && !hasChanges && !isSavingBeforeSubmit && (
           <div className="mt-3 text-xs text-green-600 flex items-center gap-2">
             <CheckCircle className="h-3 w-3" />
             <span>All changes saved</span>
+          </div>
+        )}
+
+        {saveError && (
+          <div className="mt-3 text-xs text-red-600 flex items-center gap-2">
+            <AlertCircle className="h-3 w-3" />
+            <span>{saveError}</span>
           </div>
         )}
       </div>
@@ -393,11 +436,11 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={isReadOnly || overallCompletion < 100 || submitMutation.isPending}
+              disabled={isReadOnly || overallCompletion < 100 || submitMutation.isPending || isSavingBeforeSubmit}
               className="inline-flex items-center px-6 py-3 rounded-lg text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              {submitMutation.isPending ? 'Submitting...' : 'Submit for Review'}
+              {isSavingBeforeSubmit ? 'Saving changes...' : submitMutation.isPending ? 'Submitting...' : 'Submit for Review'}
             </button>
           )}
         </div>

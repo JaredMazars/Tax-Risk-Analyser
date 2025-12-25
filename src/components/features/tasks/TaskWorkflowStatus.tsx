@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Shield, FileText } from 'lucide-react';
+import { Shield, FileText, FileSignature } from 'lucide-react';
 
 interface TaskWorkflowStatusProps {
   acceptanceApproved?: boolean | null;
   engagementLetterUploaded?: boolean | null;
+  dpaUploaded?: boolean | null;
   isClientTask: boolean;
   displayMode?: 'compact' | 'detailed';
 }
@@ -13,8 +14,8 @@ interface TaskWorkflowStatusProps {
 /**
  * TaskWorkflowStatus Component
  * 
- * Displays icon-based indicators for Acceptance & Continuance (A&C) and 
- * Engagement Letter (EL) status for client tasks.
+ * Displays icon-based indicators for Acceptance & Continuance (A&C), 
+ * Engagement Letter (EL), and Data Processing Agreement (DPA) status for client tasks.
  * 
  * - Green icons indicate completion
  * - Gray icons indicate pending status
@@ -23,6 +24,7 @@ interface TaskWorkflowStatusProps {
 export function TaskWorkflowStatus({
   acceptanceApproved,
   engagementLetterUploaded,
+  dpaUploaded,
   isClientTask,
   displayMode = 'detailed',
 }: TaskWorkflowStatusProps) {
@@ -68,6 +70,25 @@ export function TaskWorkflowStatus({
         <FileText
           className={`${iconSize} ${
             engagementLetterUploaded
+              ? 'text-green-600'
+              : 'text-forvis-gray-400'
+          }`}
+          strokeWidth={2}
+        />
+      </div>
+
+      {/* Data Processing Agreement Indicator */}
+      <div
+        className="flex items-center"
+        title={
+          dpaUploaded
+            ? 'Data Processing Agreement (DPA) Uploaded'
+            : 'Data Processing Agreement (DPA) Pending'
+        }
+      >
+        <FileSignature
+          className={`${iconSize} ${
+            dpaUploaded
               ? 'text-green-600'
               : 'text-forvis-gray-400'
           }`}

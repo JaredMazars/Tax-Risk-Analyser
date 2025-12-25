@@ -80,11 +80,25 @@ export const POST = secureRoute.mutationWithParams({
     const validation = validateRequiredQuestions(questionDefs, answerData);
 
     if (!validation.isValid) {
+      // Map missing question keys to human-readable text for better UX
+      const missingQuestionDetails = validation.missingQuestions.map((key) => {
+        const question = questionDefs.find((q) => q.questionKey === key);
+        return {
+          questionKey: key,
+          questionText: question?.questionText || key,
+          sectionKey: question?.sectionKey || 'unknown',
+        };
+      });
+
       throw new AppError(
         400,
         'Not all required questions have been answered',
         AcceptanceErrorCodes.INCOMPLETE_QUESTIONNAIRE,
-        { missingQuestions: validation.missingQuestions }
+        { 
+          missingQuestions: validation.missingQuestions,
+          missingQuestionDetails,
+          count: validation.missingQuestions.length,
+        }
       );
     }
 

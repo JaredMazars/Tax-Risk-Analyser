@@ -8,8 +8,9 @@ export interface TaskWorkflowStatus {
   isClientTask: boolean;
   acceptanceApproved: boolean;
   engagementLetterComplete: boolean;
+  dpaComplete: boolean;
   canAccessWorkTabs: boolean;
-  currentStep: 'acceptance' | 'engagement' | 'complete';
+  currentStep: 'acceptance' | 'engagement' | 'dpa' | 'complete';
   nextStep: string;
 }
 
@@ -23,6 +24,10 @@ export interface TaskWorkflowData {
   engagementLetterPath?: string | null;
   engagementLetterUploadedBy?: string | null;
   engagementLetterUploadedAt?: Date | string | null;
+  dpaUploaded?: boolean;
+  dpaPath?: string | null;
+  dpaUploadedBy?: string | null;
+  dpaUploadedAt?: Date | string | null;
 }
 
 /**
@@ -34,7 +39,7 @@ export function isClientTask(task: TaskWorkflowData | null | undefined): boolean
 }
 
 /**
- * Check if work tabs can be accessed (acceptance approved AND engagement letter uploaded)
+ * Check if work tabs can be accessed (acceptance approved AND engagement letter uploaded AND DPA uploaded)
  */
 export function canAccessWorkTabs(task: TaskWorkflowData | null | undefined): boolean {
   if (!task) return false;
@@ -44,8 +49,8 @@ export function canAccessWorkTabs(task: TaskWorkflowData | null | undefined): bo
     return true;
   }
   
-  // Client tasks need both acceptance and engagement letter complete
-  return Boolean(task.acceptanceApproved && task.engagementLetterUploaded);
+  // Client tasks need acceptance, engagement letter, and DPA complete
+  return Boolean(task.acceptanceApproved && task.engagementLetterUploaded && task.dpaUploaded);
 }
 
 /**
@@ -59,6 +64,7 @@ export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): Ta
       isClientTask: false,
       acceptanceApproved: true,
       engagementLetterComplete: true,
+      dpaComplete: true,
       canAccessWorkTabs: true,
       currentStep: 'complete',
       nextStep: 'No workflow required',
@@ -67,8 +73,9 @@ export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): Ta
   
   const acceptanceApproved = Boolean(task?.acceptanceApproved);
   const engagementLetterComplete = Boolean(task?.engagementLetterUploaded);
+  const dpaComplete = Boolean(task?.dpaUploaded);
   
-  let currentStep: 'acceptance' | 'engagement' | 'complete';
+  let currentStep: 'acceptance' | 'engagement' | 'dpa' | 'complete';
   let nextStep: string;
   
   if (!acceptanceApproved) {
@@ -76,7 +83,10 @@ export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): Ta
     nextStep = 'Complete client acceptance and continuance';
   } else if (!engagementLetterComplete) {
     currentStep = 'engagement';
-    nextStep = 'Generate and upload signed engagement letter';
+    nextStep = 'Upload signed engagement letter';
+  } else if (!dpaComplete) {
+    currentStep = 'dpa';
+    nextStep = 'Upload Data Processing Agreement (DPA)';
   } else {
     currentStep = 'complete';
     nextStep = 'Workflow complete';
@@ -86,7 +96,8 @@ export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): Ta
     isClientTask: true,
     acceptanceApproved,
     engagementLetterComplete,
-    canAccessWorkTabs: acceptanceApproved && engagementLetterComplete,
+    dpaComplete,
+    canAccessWorkTabs: acceptanceApproved && engagementLetterComplete && dpaComplete,
     currentStep,
     nextStep,
   };
@@ -108,6 +119,10 @@ export function getBlockedTabMessage(task: TaskWorkflowData | null | undefined):
   
   if (!status.engagementLetterComplete) {
     return 'Upload signed engagement letter to access this tab';
+  }
+  
+  if (!status.dpaComplete) {
+    return 'Upload Data Processing Agreement (DPA) to access this tab';
   }
   
   return '';
@@ -133,16 +148,21 @@ export function getWorkflowProgress(task: TaskWorkflowData | null | undefined): 
   }
   
   let progress = 0;
+  const stepValue = 100 / 3; // Three steps: A&C, EL, DPA
   
   if (task.acceptanceApproved) {
-    progress += 50;
+    progress += stepValue;
   }
   
   if (task.engagementLetterUploaded) {
-    progress += 50;
+    progress += stepValue;
   }
   
-  return progress;
+  if (task.dpaUploaded) {
+    progress += stepValue;
+  }
+  
+  return Math.round(progress);
 }
 
 

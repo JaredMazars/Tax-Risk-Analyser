@@ -124,18 +124,26 @@ export async function checkPageAccess(
     // Determine service line context from pathname
     const serviceLine = extractServiceLineFromPath(pathname);
 
-    // Get user's highest role for this service line
-    const serviceLineRole = await getUserHighestServiceLineRole(userId, serviceLine);
-
-    if (!serviceLineRole) {
-      // User has no access to this service line
-      return {
-        canAccess: false,
-        accessLevel: PageAccessLevel.NONE,
-      };
+    // Determine the appropriate role to use for permission checks
+    let role: SystemRole | ServiceLineRole;
+    
+    if (serviceLine) {
+      // Service line page - requires service line role assignment
+      const serviceLineRole = await getUserHighestServiceLineRole(userId, serviceLine);
+      
+      if (!serviceLineRole) {
+        // User has no access to this service line
+        return {
+          canAccess: false,
+          accessLevel: PageAccessLevel.NONE,
+        };
+      }
+      
+      role = serviceLineRole;
+    } else {
+      // System page (e.g., /dashboard/notifications, /dashboard/admin/*) - use SystemRole
+      role = systemRole;
     }
-
-    const role = serviceLineRole;
 
     // 1. Check Redis cache
     const cached = await getCachedPagePermission(pathname, role);

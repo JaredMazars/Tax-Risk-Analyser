@@ -186,6 +186,11 @@ export interface Task {
   engagementLetterPath?: string | null;
   engagementLetterUploadedBy?: string | null;
   engagementLetterUploadedAt?: Date | null;
+  // DPA fields
+  dpaUploaded?: boolean;
+  dpaPath?: string | null;
+  dpaUploadedBy?: string | null;
+  dpaUploadedAt?: Date | null;
   _count?: {
     mappings: number;
     taxAdjustments: number;
@@ -366,6 +371,10 @@ export interface TaskEngagementLetter {
   generatedBy?: string | null;
   uploadedAt?: Date | null;
   uploadedBy?: string | null;
+  dpaUploaded: boolean;
+  dpaFilePath?: string | null;
+  dpaUploadedAt?: Date | null;
+  dpaUploadedBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

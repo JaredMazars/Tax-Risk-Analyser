@@ -1011,20 +1011,24 @@ model TaskDocument {
 }
 
 model TaskEngagementLetter {
-  id          Int       @id @default(autoincrement())
-  taskId      Int       @unique
-  generated   Boolean   @default(false)
-  uploaded    Boolean   @default(false)
-  filePath    String?
-  content     String?   @db.NVarChar(Max)
-  templateId  Int?
-  generatedAt DateTime?
-  generatedBy String?
-  uploadedAt  DateTime?
-  uploadedBy  String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  Task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id           Int       @id @default(autoincrement())
+  taskId       Int       @unique
+  generated    Boolean   @default(false)
+  uploaded     Boolean   @default(false)
+  filePath     String?
+  content      String?   @db.NVarChar(Max)
+  templateId   Int?
+  generatedAt  DateTime?
+  generatedBy  String?
+  uploadedAt   DateTime?
+  uploadedBy   String?
+  dpaUploaded  Boolean   @default(false)
+  dpaFilePath  String?
+  dpaUploadedAt DateTime?
+  dpaUploadedBy String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  Task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
 }

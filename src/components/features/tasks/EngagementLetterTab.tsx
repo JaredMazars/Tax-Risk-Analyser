@@ -13,6 +13,8 @@ import { Task } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { useQueryClient } from '@tanstack/react-query';
 import { taskKeys } from '@/hooks/tasks/useTaskData';
+import { taskListKeys } from '@/hooks/tasks/useTasks';
+import { kanbanKeys } from '@/hooks/tasks/useKanbanBoard';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { TemplateSelector } from '@/components/features/templates/TemplateSelector';
 
@@ -34,14 +36,19 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingDpa, setIsUploadingDpa] = useState(false);
   const [letterContent, setLetterContent] = useState<string | null>(null);
   const [sectionsUsed, setSectionsUsed] = useState<SectionUsed[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [dpaError, setDpaError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedDpaFile, setSelectedDpaFile] = useState<File | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [useAiAdaptation, setUseAiAdaptation] = useState(true);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
+  const [showDpaReplaceConfirm, setShowDpaReplaceConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dpaFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   // Load saved engagement letter content on mount
@@ -62,7 +69,15 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
   const { data: canManage = false, isLoading: isCheckingPermission } = useCanApproveAcceptance(task);
   const isGenerated = task.engagementLetterGenerated || letterContent !== null;
   const isUploaded = task.engagementLetterUploaded;
+  const isDpaUploaded = task.dpaUploaded;
+  const isFullyComplete = isUploaded && isDpaUploaded; // Both EL and DPA uploaded
   const acceptanceApproved = task.acceptanceApproved;
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:stateCheck',message:'Component state',data:{isUploaded,isDpaUploaded,isFullyComplete,taskDpaUploaded:task.dpaUploaded,taskDpaPath:task.dpaPath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+  }, [isUploaded, isDpaUploaded, isFullyComplete, task.dpaUploaded, task.dpaPath]);
+  // #endregion
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -139,9 +154,20 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
       }
 
       // Invalidate and refetch the task data
-      await queryClient.invalidateQueries({ 
-        queryKey: taskKeys.detail(task.id.toString()) 
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ 
+          queryKey: taskKeys.detail(task.id.toString()),
+          refetchType: 'active' // Force immediate refetch of active queries
+        }),
+        // Invalidate task list queries (workspace list view)
+        queryClient.invalidateQueries({ 
+          queryKey: taskListKeys.lists() 
+        }),
+        // Invalidate kanban board queries (kanban view)
+        queryClient.invalidateQueries({ 
+          queryKey: kanbanKeys.boards() 
+        }),
+      ]);
 
       setSelectedFile(null);
       if (fileInputRef.current) {
@@ -152,6 +178,106 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
       setError(err instanceof Error ? err.message : 'Failed to upload engagement letter');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDpaFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(file.type)) {
+        setDpaError('Only PDF and DOCX files are allowed');
+        return;
+      }
+      setSelectedDpaFile(file);
+      setDpaError(null);
+    }
+  };
+
+  const handleDpaUpload = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:entry',message:'DPA upload started',data:{hasFile:!!selectedDpaFile,fileName:selectedDpaFile?.name,taskId:task.id,isDpaUploaded},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    
+    if (!selectedDpaFile) {
+      setDpaError('Please select a file to upload');
+      return;
+    }
+
+    // If already uploaded, show confirmation modal
+    if (isDpaUploaded && !showDpaReplaceConfirm) {
+      setShowDpaReplaceConfirm(true);
+      return;
+    }
+
+    setIsUploadingDpa(true);
+    setDpaError(null);
+    setShowDpaReplaceConfirm(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedDpaFile);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:beforeFetch',message:'About to POST to API',data:{url:`/api/tasks/${task.id}/dpa`,fileSize:selectedDpaFile.size},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      const response = await fetch(`/api/tasks/${task.id}/dpa`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:afterFetch',message:'API response received',data:{status:response.status,ok:response.ok,responseData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+      // #endregion
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upload DPA');
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:beforeInvalidate',message:'About to invalidate queries',data:{taskId:task.id.toString(),detailKey:taskKeys.detail(task.id.toString())},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
+      // Invalidate and refetch the task data
+      await Promise.all([
+        queryClient.invalidateQueries({ 
+          queryKey: taskKeys.detail(task.id.toString()),
+          refetchType: 'active' // Force immediate refetch of active queries
+        }),
+        // Invalidate task list queries (workspace list view)
+        queryClient.invalidateQueries({ 
+          queryKey: taskListKeys.lists() 
+        }),
+        // Invalidate kanban board queries (kanban view)
+        queryClient.invalidateQueries({ 
+          queryKey: kanbanKeys.boards() 
+        }),
+      ]);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:afterInvalidateAll',message:'All queries invalidated',data:{queryCacheSize:queryClient.getQueryCache().getAll().length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C,D'})}).catch(()=>{});
+      // #endregion
+
+      setSelectedDpaFile(null);
+      if (dpaFileInputRef.current) {
+        dpaFileInputRef.current.value = '';
+      }
+      onUploadComplete();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:success',message:'Upload complete',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EngagementLetterTab.tsx:handleDpaUpload:error',message:'Upload failed',data:{error:err instanceof Error ? err.message : String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      setDpaError(err instanceof Error ? err.message : 'Failed to upload DPA');
+    } finally {
+      setIsUploadingDpa(false);
     }
   };
 
@@ -230,14 +356,14 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-forvis-gray-900 mb-2">
-                Engagement Letter
+                Engagement Documentation
               </h2>
               <p className="text-sm text-forvis-gray-600">
-                Upload an existing engagement letter or generate a new one from a template.
+                Upload engagement letter and Data Processing Agreement (DPA) for POPIA compliance.
               </p>
             </div>
             
-            {isUploaded && (
+            {isFullyComplete && (
               <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 border-2 border-green-200 rounded-lg">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-sm font-semibold text-green-700">Complete</span>
@@ -396,12 +522,138 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           )}
                         </dl>
                         <p className="text-sm text-green-700 mt-3">
-                          You can now access all task work tabs and begin the engagement.
+                          Engagement letter uploaded. Next, upload the Data Processing Agreement below.
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
+
+                {/* DPA Upload Section */}
+                <div className="border-t-2 border-forvis-gray-200 pt-6 mt-6">
+                  {!isDpaUploaded ? (
+                    <>
+                      <div>
+                        <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">
+                          Upload Data Processing Agreement (DPA)
+                        </h3>
+                        <p className="text-sm text-forvis-gray-700">
+                          Upload the signed Data Processing Agreement (DPA) for POPIA compliance (PDF or DOCX format).
+                        </p>
+                        {!isUploaded && (
+                          <p className="text-sm text-yellow-700 mt-2">
+                            ⚠️ Please upload the Engagement Letter first before uploading the DPA.
+                          </p>
+                        )}
+                      </div>
+
+                      {dpaError && (
+                        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                          <p className="text-sm text-red-700">{dpaError}</p>
+                        </div>
+                      )}
+
+                      {canManage && isUploaded ? (
+                        <div className="space-y-4">
+                          <div>
+                            <input
+                              ref={dpaFileInputRef}
+                              type="file"
+                              accept=".pdf,.docx"
+                              onChange={handleDpaFileSelect}
+                              className="block w-full text-sm text-forvis-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border file:border-forvis-gray-300 file:text-sm file:font-medium file:bg-white file:text-forvis-gray-700 hover:file:bg-forvis-gray-50"
+                            />
+                            <p className="mt-2 text-xs text-forvis-gray-600">
+                              Accepted formats: PDF, DOCX (Max size: 10MB)
+                            </p>
+                          </div>
+                          
+                          {selectedDpaFile && (
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-sm text-blue-800">
+                                Selected: <strong>{selectedDpaFile.name}</strong> ({(selectedDpaFile.size / 1024).toFixed(2)} KB)
+                              </p>
+                            </div>
+                          )}
+                          
+                          <button
+                            onClick={handleDpaUpload}
+                            disabled={!selectedDpaFile || isUploadingDpa}
+                            className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                          >
+                            <Upload className="h-5 w-5 mr-2" />
+                            {isUploadingDpa ? 'Uploading...' : 'Upload DPA'}
+                          </button>
+                        </div>
+                      ) : !canManage ? (
+                        <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            Only Partners and System Administrators can upload Data Processing Agreements.
+                          </p>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <div className="bg-green-50 rounded-lg border-2 border-green-200 p-6">
+                      <div className="flex items-start">
+                        <CheckCircle className="h-6 w-6 text-green-600 mt-1 mr-3 flex-shrink-0" />
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-green-900 mb-2">
+                            Data Processing Agreement (DPA) Uploaded
+                          </h3>
+                          <dl className="space-y-2">
+                            {task.dpaUploadedAt && (
+                              <div>
+                                <dt className="text-sm font-medium text-green-800 inline">Uploaded on: </dt>
+                                <dd className="text-sm text-green-700 inline">
+                                  {new Date(task.dpaUploadedAt).toLocaleString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </dd>
+                              </div>
+                            )}
+                            {task.dpaPath && (
+                              <div className="flex items-center gap-3">
+                                <dt className="text-sm font-medium text-green-800">File: </dt>
+                                <dd className="text-sm text-green-700">
+                                  {task.dpaPath.split('/').pop()}
+                                </dd>
+                                <button
+                                  onClick={async () => {
+                                    const response = await fetch(`/api/tasks/${task.id}/dpa/download`);
+                                    if (response.ok) {
+                                      const blob = await response.blob();
+                                      const url = window.URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      a.download = task.dpaPath?.split('/').pop() || 'dpa';
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      window.URL.revokeObjectURL(url);
+                                      document.body.removeChild(a);
+                                    }
+                                  }}
+                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 border border-green-700 rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                  <Download className="h-4 w-4 mr-1" />
+                                  Download
+                                </button>
+                              </div>
+                            )}
+                          </dl>
+                          <p className="text-sm text-green-700 mt-3">
+                            ✓ All engagement documentation complete. You can now access all task work tabs.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -552,6 +804,51 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                   style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                 >
                   Replace Letter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DPA Replace Confirmation Modal */}
+        {showDpaReplaceConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-corporate-lg max-w-md w-full p-6">
+              <div className="flex items-start mb-4">
+                <AlertTriangle className="h-6 w-6 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-lg font-semibold text-forvis-gray-900 mb-2">
+                    Replace Existing DPA?
+                  </h3>
+                  <p className="text-sm text-forvis-gray-700">
+                    A Data Processing Agreement has already been uploaded for this task. Are you sure you want to replace it with the new file?
+                  </p>
+                  {task.dpaPath && (
+                    <p className="text-xs text-forvis-gray-600 mt-2">
+                      Current file: <strong>{task.dpaPath.split('/').pop()}</strong>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDpaReplaceConfirm(false);
+                    setSelectedDpaFile(null);
+                    if (dpaFileInputRef.current) {
+                      dpaFileInputRef.current.value = '';
+                    }
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDpaUpload}
+                  className="px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md"
+                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                >
+                  Replace DPA
                 </button>
               </div>
             </div>

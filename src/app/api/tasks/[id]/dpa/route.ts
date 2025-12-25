@@ -12,8 +12,8 @@ import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 
 /**
- * POST /api/tasks/[id]/engagement-letter
- * Upload signed engagement letter
+ * POST /api/tasks/[id]/dpa
+ * Upload Data Processing Agreement (DPA)
  */
 export async function POST(
   request: NextRequest,
@@ -28,13 +28,13 @@ export async function POST(
     const { id } = await context.params;
     const taskId = toTaskId(id);
 
-    // Check if user can approve/upload engagement letter
+    // Check if user can approve/upload DPA (same permissions as engagement letter)
     // Rules: SYSTEM_ADMIN OR Partner/Administrator (ServiceLineUser.role = ADMINISTRATOR or PARTNER for project's service line)
     const hasApprovalPermission = await canApproveEngagementLetter(user.id, taskId);
 
     if (!hasApprovalPermission) {
       return NextResponse.json(
-        { error: 'Only Partners and System Administrators can upload engagement letters' },
+        { error: 'Only Partners and System Administrators can upload Data Processing Agreements' },
         { status: 403 }
       );
     }
@@ -49,6 +49,11 @@ export async function POST(
             acceptanceApproved: true,
           },
         },
+        TaskEngagementLetter: {
+          select: {
+            uploaded: true,
+          },
+        },
       },
     });
 
@@ -58,14 +63,21 @@ export async function POST(
 
     if (!task.GSClientID) {
       return NextResponse.json(
-        { error: 'Engagement letter is only available for client tasks' },
+        { error: 'Data Processing Agreement is only available for client tasks' },
         { status: 400 }
       );
     }
 
     if (!task.TaskAcceptance?.acceptanceApproved) {
       return NextResponse.json(
-        { error: 'Client acceptance must be approved before uploading engagement letter' },
+        { error: 'Client acceptance must be approved before uploading DPA' },
+        { status: 400 }
+      );
+    }
+
+    if (!task.TaskEngagementLetter?.uploaded) {
+      return NextResponse.json(
+        { error: 'Engagement letter must be uploaded before uploading DPA' },
         { status: 400 }
       );
     }
@@ -88,13 +100,13 @@ export async function POST(
     }
 
     // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'uploads', 'engagement-letters', taskId.toString());
+    const uploadDir = path.join(process.cwd(), 'uploads', 'dpa', taskId.toString());
     await mkdir(uploadDir, { recursive: true });
 
     // Generate unique filename
     const timestamp = Date.now();
     const ext = file.name.split('.').pop();
-    const filename = `engagement-letter-${timestamp}.${ext}`;
+    const filename = `dpa-${timestamp}.${ext}`;
     const filePath = path.join(uploadDir, filename);
 
     // Save file
@@ -103,33 +115,33 @@ export async function POST(
     await writeFile(filePath, buffer);
 
     // Store relative path
-    const relativePath = path.join('uploads', 'engagement-letters', taskId.toString(), filename);
+    const relativePath = path.join('uploads', 'dpa', taskId.toString(), filename);
 
-    // Update or create TaskEngagementLetter
+    // Update or create TaskEngagementLetter (add DPA fields)
     const updatedEngagementLetter = await prisma.taskEngagementLetter.upsert({
       where: { taskId },
       create: {
         taskId,
-        uploaded: true,
-        filePath: relativePath,
-        uploadedBy: user.id,
-        uploadedAt: new Date(),
+        dpaUploaded: true,
+        dpaFilePath: relativePath,
+        dpaUploadedBy: user.id,
+        dpaUploadedAt: new Date(),
       },
       update: {
-        uploaded: true,
-        filePath: relativePath,
-        uploadedBy: user.id,
-        uploadedAt: new Date(),
+        dpaUploaded: true,
+        dpaFilePath: relativePath,
+        dpaUploadedBy: user.id,
+        dpaUploadedAt: new Date(),
       },
       select: {
-        uploaded: true,
-        filePath: true,
-        uploadedBy: true,
-        uploadedAt: true,
+        dpaUploaded: true,
+        dpaFilePath: true,
+        dpaUploadedBy: true,
+        dpaUploadedAt: true,
       },
     });
 
-    // Invalidate caches to ensure fresh data on next fetch
+    // Invalidate task cache to ensure fresh data on next fetch
     await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
     await invalidateTaskListCache(taskId);
     
@@ -139,21 +151,21 @@ export async function POST(
 
     return NextResponse.json(
       successResponse({
-        uploaded: updatedEngagementLetter.uploaded,
-        filePath: updatedEngagementLetter.filePath,
-        uploadedBy: updatedEngagementLetter.uploadedBy,
-        uploadedAt: updatedEngagementLetter.uploadedAt,
+        dpaUploaded: updatedEngagementLetter.dpaUploaded,
+        dpaFilePath: updatedEngagementLetter.dpaFilePath,
+        dpaUploadedBy: updatedEngagementLetter.dpaUploadedBy,
+        dpaUploadedAt: updatedEngagementLetter.dpaUploadedAt,
       }),
       { status: 200 }
     );
   } catch (error) {
-    return handleApiError(error, 'POST /api/tasks/[id]/engagement-letter');
+    return handleApiError(error, 'POST /api/tasks/[id]/dpa');
   }
 }
 
 /**
- * GET /api/tasks/[id]/engagement-letter
- * Get engagement letter status
+ * GET /api/tasks/[id]/dpa
+ * Get DPA status
  */
 export async function GET(
   request: NextRequest,
@@ -168,17 +180,16 @@ export async function GET(
     const { id } = await context.params;
     const taskId = toTaskId(id);
 
-    // Get task engagement letter
+    // Get task DPA info
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
         TaskEngagementLetter: {
           select: {
-            generated: true,
-            uploaded: true,
-            filePath: true,
-            uploadedBy: true,
-            uploadedAt: true,
+            dpaUploaded: true,
+            dpaFilePath: true,
+            dpaUploadedBy: true,
+            dpaUploadedAt: true,
           },
         },
       },
@@ -191,17 +202,15 @@ export async function GET(
     const engagementLetter = task.TaskEngagementLetter;
     return NextResponse.json(
       successResponse({
-        engagementLetterGenerated: engagementLetter?.generated || false,
-        engagementLetterUploaded: engagementLetter?.uploaded || false,
-        engagementLetterPath: engagementLetter?.filePath || null,
-        engagementLetterUploadedBy: engagementLetter?.uploadedBy || null,
-        engagementLetterUploadedAt: engagementLetter?.uploadedAt || null,
+        dpaUploaded: engagementLetter?.dpaUploaded || false,
+        dpaFilePath: engagementLetter?.dpaFilePath || null,
+        dpaUploadedBy: engagementLetter?.dpaUploadedBy || null,
+        dpaUploadedAt: engagementLetter?.dpaUploadedAt || null,
       }),
       { status: 200 }
     );
   } catch (error) {
-    return handleApiError(error, 'GET /api/tasks/[id]/engagement-letter');
+    return handleApiError(error, 'GET /api/tasks/[id]/dpa');
   }
 }
-
 

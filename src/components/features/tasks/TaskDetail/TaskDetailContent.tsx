@@ -332,6 +332,14 @@ export function TaskDetailContent({
   const searchParams = useSearchParams();
   const { data: task, isLoading, refetch: fetchTask } = useTask(taskId);
 
+  // #region agent log
+  useEffect(() => {
+    if (task) {
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskDetailContent.tsx:taskUpdate',message:'Task data updated',data:{taskId,dpaUploaded:task.dpaUploaded,dpaPath:task.dpaPath,engagementLetterUploaded:task.engagementLetterUploaded},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    }
+  }, [task?.dpaUploaded, task?.dpaPath, taskId]);
+  // #endregion
+
   const getDefaultTab = () => {
     if (!task) return 'acceptance';
     
@@ -339,7 +347,7 @@ export function TaskDetailContent({
       if (!task.acceptanceApproved) {
         return 'acceptance';
       }
-      if (!task.engagementLetterUploaded) {
+      if (!task.engagementLetterUploaded || !task.dpaUploaded) {
         return 'engagement-letter';
       }
     }
@@ -411,7 +419,13 @@ export function TaskDetailContent({
   }, [taskId]);
 
   const handleUpdate = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskDetailContent.tsx:handleUpdate',message:'handleUpdate called, about to fetchTask',data:{taskId,currentDpaUploaded:task?.dpaUploaded},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+    // #endregion
     fetchTask();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskDetailContent.tsx:handleUpdate:afterFetch',message:'fetchTask called',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     if (onUpdate) {
       onUpdate();
     }
@@ -741,7 +755,7 @@ export function TaskDetailContent({
                       disabled={!task.acceptanceApproved}
                       tooltip={!task.acceptanceApproved ? 'Complete client acceptance first' : undefined}
                     >
-                      Engagement Letter
+                      Engagement Documentation
                     </Tab>
                     <Tab
                       onClick={() => setActiveTab('team')}

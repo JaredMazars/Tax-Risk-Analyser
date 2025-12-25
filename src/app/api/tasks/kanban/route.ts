@@ -357,7 +357,7 @@ export const GET = secureRoute.query({
           TaskTeam: { select: { userId: true, role: true, User: { select: { id: true, name: true, email: true } } } },
           TaskStage: { orderBy: { createdAt: 'desc' }, take: 1, select: { stage: true, createdAt: true } },
           TaskAcceptance: { select: { acceptanceApproved: true } },
-          TaskEngagementLetter: { select: { uploaded: true } },
+          TaskEngagementLetter: { select: { uploaded: true, dpaUploaded: true } },
         },
         orderBy: { updatedAt: 'desc' },
       });
@@ -423,6 +423,7 @@ export const GET = secureRoute.query({
           updatedAt: task.updatedAt,
           acceptanceApproved: task.TaskAcceptance?.acceptanceApproved ?? null,
           engagementLetterUploaded: task.TaskEngagementLetter?.uploaded ?? null,
+          dpaUploaded: task.TaskEngagementLetter?.dpaUploaded ?? null,
           isClientTask: !!task.Client,
         };
       });

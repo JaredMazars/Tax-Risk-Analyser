@@ -1368,6 +1368,7 @@ export default function SubServiceLineWorkspacePage() {
                                 <TaskWorkflowStatus
                                   acceptanceApproved={task.acceptanceApproved}
                                   engagementLetterUploaded={task.engagementLetterUploaded}
+                                  dpaUploaded={task.dpaUploaded}
                                   isClientTask={task.isClientTask}
                                   displayMode="detailed"
                                 />
