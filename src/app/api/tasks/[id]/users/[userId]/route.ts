@@ -289,6 +289,7 @@ export const DELETE = secureRoute.mutationWithParams({
       select: {
         TaskPartner: true,
         TaskManager: true,
+        TaskDesc: true,
       },
     });
 
@@ -340,12 +341,6 @@ export const DELETE = secureRoute.mutationWithParams({
         throw new AppError(400, 'Cannot remove the last administrator/partner from the project', ErrorCodes.VALIDATION_ERROR);
       }
     }
-
-    // Get project details for email before deletion
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { TaskDesc: true },
-    });
 
     // Remove ALL allocations for this user from project
     await prisma.taskTeam.deleteMany({

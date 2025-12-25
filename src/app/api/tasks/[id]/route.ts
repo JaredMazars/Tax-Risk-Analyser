@@ -151,6 +151,10 @@ export const GET = secureRoute.queryWithParams({
       { codeField: 'TaskManager', nameField: 'TaskManagerName' },
     ]);
 
+    if (!enrichedTask) {
+      throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
+    }
+
     // Get service line mapping for URL construction
     let serviceLineMapping = null;
     if (enrichedTask.ServLineCode) {

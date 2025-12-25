@@ -50,10 +50,6 @@ export const GET = secureRoute.queryWithParams({
       },
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:52',message:'Task fetched',data:{taskId,taskPartner:task?.TaskPartner,taskManager:task?.TaskManager,taskPartnerName:task?.TaskPartnerName,taskManagerName:task?.TaskManagerName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
 
     // Get all users on this project with Employee data
     let taskTeams = await prisma.taskTeam.findMany({
@@ -282,10 +278,6 @@ export const GET = secureRoute.queryWithParams({
     if (task) {
       const employeeCodesToAdd: Array<{ code: string; role: 'PARTNER' | 'MANAGER' }> = [];
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:279',message:'Checking for missing partner/manager',data:{taskId,existingTeamCount:taskTeams.length,employeeMapSize:employeeMap.size,taskPartner:task.TaskPartner,taskManager:task.TaskManager},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,D'})}).catch(()=>{});
-      // #endregion
-      
       // Check if partner is in the team
       if (task.TaskPartner) {
         const partnerInTeam = taskTeams.some(tt => {
@@ -294,13 +286,9 @@ export const GET = secureRoute.queryWithParams({
                            (emailPrefix ? employeeMap.get(emailPrefix.toLowerCase()) : undefined);
           return employee?.WinLogon && (
             employee.WinLogon.toLowerCase() === tt.User.email.toLowerCase() ||
-            employee.WinLogon.split('@')[0].toLowerCase() === emailPrefix?.toLowerCase()
+            employee.WinLogon.split('@')[0]?.toLowerCase() === emailPrefix?.toLowerCase()
           );
         });
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:293',message:'Partner check result',data:{taskId,taskPartner:task.TaskPartner,partnerInTeam,willAdd:!partnerInTeam},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         
         if (!partnerInTeam) {
           employeeCodesToAdd.push({ code: task.TaskPartner, role: 'PARTNER' });
@@ -315,22 +303,14 @@ export const GET = secureRoute.queryWithParams({
                            (emailPrefix ? employeeMap.get(emailPrefix.toLowerCase()) : undefined);
           return employee?.WinLogon && (
             employee.WinLogon.toLowerCase() === tt.User.email.toLowerCase() ||
-            employee.WinLogon.split('@')[0].toLowerCase() === emailPrefix?.toLowerCase()
+            employee.WinLogon.split('@')[0]?.toLowerCase() === emailPrefix?.toLowerCase()
           );
         });
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:310',message:'Manager check result',data:{taskId,taskManager:task.TaskManager,managerInTeam,willAdd:!managerInTeam},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         
         if (!managerInTeam) {
           employeeCodesToAdd.push({ code: task.TaskManager, role: 'MANAGER' });
         }
       }
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:316',message:'Codes to add',data:{taskId,employeeCodesToAdd:employeeCodesToAdd.map(e=>({code:e.code,role:e.role}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,D'})}).catch(()=>{});
-      // #endregion
       
       // Fetch employee details for partners/managers without accounts
       if (employeeCodesToAdd.length > 0) {
@@ -349,10 +329,6 @@ export const GET = secureRoute.queryWithParams({
               Active: true,
             },
           });
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:332',message:'Missing employees fetched',data:{taskId,requestedCodes:employeeCodesToAdd.map(e=>e.code),foundCount:missingEmployees.length,employees:missingEmployees.map(e=>({code:e.EmpCode,name:e.EmpName,active:e.Active,hasWinLogon:!!e.WinLogon}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           
           const empCodeToRole = new Map(employeeCodesToAdd.map(e => [e.code, e.role]));
           
@@ -386,23 +362,12 @@ export const GET = secureRoute.queryWithParams({
                 officeLocation: emp.OfficeCode || null,
               },
             });
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:367',message:'Added to finalTeams',data:{taskId,empCode:emp.EmpCode,role,name:emp.EmpNameFull||emp.EmpName,hasAccount:false},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
           }
         } catch (error) {
           logger.error('Error fetching missing partner/manager employees', { error, taskId });
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:371',message:'Error fetching missing employees',data:{taskId,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
-          // #endregion
         }
       }
     }
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/route:379',message:'Final response',data:{taskId,finalTeamsCount:finalTeams.length,teams:finalTeams.map(t=>({role:t.role,hasAccount:t.hasAccount,userId:t.userId,name:t.User?.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
-    // #endregion
     
     return NextResponse.json(successResponse(finalTeams));
   },

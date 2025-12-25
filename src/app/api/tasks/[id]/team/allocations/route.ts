@@ -70,10 +70,6 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'allocations/route:70',message:'Task fetched for allocations',data:{taskId,taskPartner:task.TaskPartner,taskManager:task.TaskManager,teamCount:task.TaskTeam.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     // 5. Fetch all other allocations for these team members
     const userIds = task.TaskTeam.map(member => member.userId);
     
@@ -206,10 +202,6 @@ export const GET = secureRoute.queryWithParams({
         }
       }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'allocations/route:200',message:'Checking for missing partner/manager',data:{taskId,employeeCodesToAdd:employeeCodesToAdd.map(e=>({code:e.code,role:e.role}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
-      // #endregion
-      
       if (employeeCodesToAdd.length > 0) {
         try {
           const missingEmployees = await prisma.employee.findMany({
@@ -224,10 +216,6 @@ export const GET = secureRoute.queryWithParams({
               EmpCatCode: true,
             },
           });
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'allocations/route:225',message:'Missing employees fetched',data:{taskId,foundCount:missingEmployees.length,employees:missingEmployees.map(e=>({code:e.EmpCode,name:e.EmpName}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           
           const empCodeToRole = new Map(employeeCodesToAdd.map(e => [e.code, e.role]));
           
@@ -250,15 +238,9 @@ export const GET = secureRoute.queryWithParams({
               allocations: [],
               hasAccount: false,
             });
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'allocations/route:253',message:'Added missing member',data:{taskId,empCode:emp.EmpCode,role,name:emp.EmpNameFull||emp.EmpName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
           }
         } catch (error) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'allocations/route:260',message:'Error fetching missing employees',data:{taskId,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
+          // Log error but don't fail the request
         }
       }
     }
@@ -344,10 +326,6 @@ export const GET = secureRoute.queryWithParams({
 
     // Combine regular team members with additional members (partner/manager without accounts)
     const allMembers = [...additionalMembers, ...teamMembersWithAllocations];
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'allocations/route:327',message:'Final response',data:{taskId,totalMembers:allMembers.length,regularMembers:teamMembersWithAllocations.length,additionalMembers:additionalMembers.length,members:allMembers.map(m=>({role:m.role,hasAccount:m.hasAccount,name:m.user.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
-    // #endregion
 
     return NextResponse.json(successResponse({ teamMembers: allMembers }));
   },
