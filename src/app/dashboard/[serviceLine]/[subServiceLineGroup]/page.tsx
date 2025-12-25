@@ -126,12 +126,12 @@ export default function SubServiceLineWorkspacePage() {
   const currentSubGroup = subGroups?.find(sg => sg.code === subServiceLineGroup);
   const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
 
-  // Debounce search input
+  // Debounce search input (500ms to reduce unnecessary API calls)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
       setCurrentPage(1); // Reset to first page on search
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
   

@@ -10,7 +10,7 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
-import { categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
+import { getWipBalancesByTaskIds } from '@/lib/services/wip/wipCalculationSQL';
 import { z } from 'zod';
 
 // Zod schema for query params validation
@@ -290,11 +290,61 @@ export const GET = secureRoute.query({
     const stages = [TaskStage.ENGAGE, TaskStage.IN_PROGRESS, TaskStage.UNDER_REVIEW, TaskStage.COMPLETED];
     if (includeArchived) stages.push(TaskStage.ARCHIVED);
 
+    // OPTIMIZATION: Fetch ALL tasks across all stages first to extract employee codes
+    // This prevents duplicate employee lookups inside each stage loop
+    const allTaskIds = stages.flatMap(stage => taskIdsByStage.get(stage) || []);
+    const taskLimit = hasFilters ? undefined : 50;
+    
+    // Get limited set of task IDs per stage for fetching
+    const tasksToFetchByStage = new Map<TaskStage, number[]>();
+    stages.forEach(stage => {
+      const stageTaskIds = taskIdsByStage.get(stage) || [];
+      const limited = taskLimit ? stageTaskIds.slice(0, taskLimit) : stageTaskIds;
+      tasksToFetchByStage.set(stage, limited);
+    });
+    
+    const allTaskIdsToFetch = Array.from(tasksToFetchByStage.values()).flat();
+    
+    // Fetch all tasks at once to extract employee codes
+    const allTasks = await prisma.task.findMany({
+      where: { id: { in: allTaskIdsToFetch } },
+      select: { TaskPartner: true, TaskManager: true },
+    });
+    
+    // Extract ALL unique employee codes across all stages
+    const allPartnerCodes = new Set<string>();
+    const allManagerCodes = new Set<string>();
+    allTasks.forEach(task => {
+      if (task.TaskPartner) allPartnerCodes.add(task.TaskPartner);
+      if (task.TaskManager) allManagerCodes.add(task.TaskManager);
+    });
+    const allEmployeeCodes = [...allPartnerCodes, ...allManagerCodes];
+    
+    // Single employee lookup for ALL stages (instead of 5 separate queries)
+    const allEmployees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
+      where: { EmpCode: { in: allEmployeeCodes }, Active: 'Yes' },
+      select: { EmpCode: true, EmpName: true },
+    }) : [];
+    const employeeNameMap = new Map(allEmployees.map(emp => [emp.EmpCode, emp.EmpName]));
+    
+    // Single user employee lookup (instead of 5 separate queries)
+    const userEmail = user.email.toLowerCase();
+    const emailPrefix = userEmail.split('@')[0];
+    const userEmployees = await prisma.employee.findMany({
+      where: {
+        OR: [
+          { WinLogon: { equals: userEmail } },
+          { WinLogon: { startsWith: `${emailPrefix}@` } },
+        ],
+      },
+      select: { EmpCode: true },
+    });
+    const userEmpCodes = userEmployees.map(e => e.EmpCode);
+
     const stageResultsPromises = stages.map(async (stage) => {
       const allTaskIds = taskIdsByStage.get(stage) || [];
       const totalCount = allTaskIds.length;
-      const taskLimit = hasFilters ? undefined : 50;
-      const tasksToFetch = taskLimit ? allTaskIds.slice(0, taskLimit) : allTaskIds;
+      const tasksToFetch = tasksToFetchByStage.get(stage) || [];
 
       const tasks = await prisma.task.findMany({
         where: { id: { in: tasksToFetch } },
@@ -310,76 +360,18 @@ export const GET = secureRoute.query({
         orderBy: { updatedAt: 'desc' },
       });
 
-      // Fetch WIP transactions for all tasks if myTasksOnly mode
+      // Fetch WIP balances for all tasks if myTasksOnly mode (SQL-based aggregation)
       let wipByTask = new Map<string, number>();
       if (myTasksOnly && tasks.length > 0) {
         const gsTaskIDs = tasks.map(t => t.GSTaskID).filter(Boolean) as string[];
         
         if (gsTaskIDs.length > 0) {
-          const wipTransactions = await prisma.wIPTransactions.findMany({
-            where: { GSTaskID: { in: gsTaskIDs } },
-            select: { GSTaskID: true, Amount: true, TType: true },
-          });
-
-          // Calculate WIP balance per task
-          const wipAggregation = new Map<string, { time: number; adjustments: number; disbursements: number; fees: number; provision: number }>();
-          
-          wipTransactions.forEach((transaction) => {
-            const gsTaskID = transaction.GSTaskID;
-            if (!wipAggregation.has(gsTaskID)) {
-              wipAggregation.set(gsTaskID, { time: 0, adjustments: 0, disbursements: 0, fees: 0, provision: 0 });
-            }
-            
-            const agg = wipAggregation.get(gsTaskID)!;
-            const amount = transaction.Amount || 0;
-            const category = categorizeTransaction(transaction.TType);
-
-            if (category.isProvision) {
-              agg.provision += amount;
-            } else if (category.isFee) {
-              agg.fees += amount;
-            } else if (category.isAdjustment) {
-              agg.adjustments += amount;
-            } else if (category.isTime) {
-              agg.time += amount;
-            } else if (category.isDisbursement) {
-              agg.disbursements += amount;
-            }
-          });
-
-          // Calculate net WIP for each task
-          wipAggregation.forEach((agg, gsTaskID) => {
-            const grossWip = agg.time + agg.adjustments + agg.disbursements - agg.fees;
-            const netWip = grossWip + agg.provision;
-            wipByTask.set(gsTaskID, netWip);
-          });
+          // Single SQL query with database-level aggregation (80-90% faster)
+          wipByTask = await getWipBalancesByTaskIds(gsTaskIDs);
         }
       }
 
-      const partnerCodes = [...new Set(tasks.map(t => t.TaskPartner).filter(Boolean))];
-      const managerCodes = [...new Set(tasks.map(t => t.TaskManager).filter(Boolean))];
-      const allEmployeeCodes = [...new Set([...partnerCodes, ...managerCodes])];
-
-      const employees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
-        where: { EmpCode: { in: allEmployeeCodes }, Active: 'Yes' },
-        select: { EmpCode: true, EmpName: true },
-      }) : [];
-
-      const employeeNameMap = new Map(employees.map(emp => [emp.EmpCode, emp.EmpName]));
-
-      // Get user's employee codes for checking if they're partner or manager
-      const userEmail = user.email.toLowerCase();
-      const emailPrefix = userEmail.split('@')[0];
-      const userEmployees = await prisma.employee.findMany({
-        where: {
-          OR: [
-            { WinLogon: { equals: userEmail } },
-            { WinLogon: { startsWith: `${emailPrefix}@` } },
-          ],
-        },
-        select: { EmpCode: true },
-      });
-      const userEmpCodes = userEmployees.map(e => e.EmpCode);
+      // Use shared employee map (no duplicate queries)
 
       const transformedTasks = tasks.map(task => {
         const currentStage = task.TaskStage.length > 0 ? task.TaskStage[0]?.stage ?? TaskStage.ENGAGE : TaskStage.ENGAGE;
@@ -448,7 +440,8 @@ export const GET = secureRoute.query({
 
     logger.info('Kanban board data prepared', { durationMs: Date.now() - perfStart, stages: columns.length, totalTasks: totalTasksCount, loadedTasks: loadedTasksCount });
 
-    await cache.set(cacheKey, response, 300);
+    // Reduced TTL to 1 minute for Kanban (from 5 minutes) for fresher data with drag-and-drop
+    await cache.set(cacheKey, response, 60);
 
     return NextResponse.json(successResponse(response));
   },

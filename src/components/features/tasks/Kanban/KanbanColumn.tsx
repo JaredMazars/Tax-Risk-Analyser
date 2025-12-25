@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -21,6 +22,24 @@ export function KanbanColumn({
   const { setNodeRef } = useDroppable({
     id: column.stage,
   });
+
+  // Pre-compute task permissions to avoid recalculation on every render
+  const taskPermissions = useMemo(() => {
+    const map = new Map<number, boolean>();
+    column.tasks.forEach(task => {
+      // Calculate per-task drag permission
+      const taskCanDrag = Boolean(canDrag && (() => {
+        // In My Tasks view, allow drag if user is involved with the task
+        if (myTasksOnly && task.isUserInvolved) {
+          return true;
+        }
+        // Otherwise, require SUPERVISOR role or higher
+        return task.userRole && hasServiceLineRole(task.userRole, 'SUPERVISOR');
+      })());
+      map.set(task.id, taskCanDrag);
+    });
+    return map;
+  }, [column.tasks, canDrag, myTasksOnly]);
 
   // Get color based on stage
   const getStageGradient = (stage: string) => {
@@ -81,27 +100,15 @@ export function KanbanColumn({
                   No tasks in this stage
                 </div>
               ) : (
-                column.tasks.map(task => {
-                  // Calculate per-task drag permission
-                  const taskCanDrag = Boolean(canDrag && (() => {
-                    // In My Tasks view, allow drag if user is involved with the task
-                    if (myTasksOnly && task.isUserInvolved) {
-                      return true;
-                    }
-                    // Otherwise, require SUPERVISOR role or higher
-                    return task.userRole && hasServiceLineRole(task.userRole, 'SUPERVISOR');
-                  })());
-
-                  return (
-                    <KanbanCard
-                      key={task.id}
-                      task={task}
-                      displayMode={displayMode}
-                      canDrag={taskCanDrag}
-                      onClick={() => onTaskClick?.(task.id)}
-                    />
-                  );
-                })
+                column.tasks.map(task => (
+                  <KanbanCard
+                    key={task.id}
+                    task={task}
+                    displayMode={displayMode}
+                    canDrag={taskPermissions.get(task.id) ?? false}
+                    onClick={() => onTaskClick?.(task.id)}
+                  />
+                ))
               )}
             </div>
           </SortableContext>

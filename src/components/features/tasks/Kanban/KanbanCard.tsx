@@ -1,12 +1,14 @@
 'use client';
 
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Users, Calendar, Folder } from 'lucide-react';
 import { KanbanCardProps } from './types';
 import { formatDate } from '@/lib/utils/taskUtils';
 
-export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardProps) {
+// Memoized to prevent re-renders when sibling cards change
+export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardProps) {
   const isArchived = task.stage === 'ARCHIVED';
   
   const {
@@ -179,7 +181,17 @@ export function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardPr
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if these props actually changed
+  return (
+    prevProps.task.id === nextProps.task.id &&
+    prevProps.task.updatedAt === nextProps.task.updatedAt &&
+    prevProps.displayMode === nextProps.displayMode &&
+    prevProps.canDrag === nextProps.canDrag &&
+    // Deep comparison of WIP data if it exists
+    (prevProps.task.wip?.netWip ?? 0) === (nextProps.task.wip?.netWip ?? 0)
+  );
+});
 
 
 
