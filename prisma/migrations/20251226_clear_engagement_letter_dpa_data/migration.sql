@@ -16,3 +16,4 @@ SET
 -- Log the migration
 PRINT 'Cleared all engagement letter and DPA data for blob storage migration';
 
+

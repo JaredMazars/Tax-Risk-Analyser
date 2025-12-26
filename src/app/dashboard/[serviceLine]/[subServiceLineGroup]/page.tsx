@@ -35,6 +35,7 @@ import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
 import { MyPlanningView, PlannerFilters } from '@/components/features/planning';
 import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
+import { MyReportsView } from '@/components/features/reports/MyReportsView';
 import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
@@ -911,28 +912,8 @@ export default function SubServiceLineWorkspacePage() {
             /* My Planning View */
             <MyPlanningView />
           ) : activeTab === 'my-reports' ? (
-            /* My Reports View - Coming Soon */
-            <div className="flex items-center justify-center py-16">
-              <div className="text-center max-w-md">
-                <div
-                  className="inline-flex rounded-full p-4 mb-4"
-                  style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
-                >
-                  <FileBarChart className="h-8 w-8 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
-                  My Reports Coming Soon
-                </h3>
-                <p className="text-sm text-forvis-gray-700 mb-4">
-                  Access all your reports and analytics from one centralized location. This feature is currently under development.
-                </p>
-                <div className="rounded-lg p-4 border border-forvis-blue-100" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
-                  <p className="text-xs text-forvis-gray-600">
-                    Expected features: Task Reports, Client Analytics, Group Analytics, and Executive Reporting
-                  </p>
-                </div>
-              </div>
-            </div>
+            /* My Reports View with Sub-tabs */
+            <MyReportsView />
           ) : activeTab === 'groups' ? (
             /* Groups List */
             <div className="bg-forvis-gray-50 rounded-lg border border-forvis-gray-200 shadow-sm p-4">
