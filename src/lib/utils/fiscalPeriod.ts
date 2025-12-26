@@ -284,13 +284,13 @@ export function parseFiscalPeriod(periodStr: string): FiscalPeriodFilter {
   const fyMatch = periodStr.match(/FY(\d{4})/);
   const quarterMatch = periodStr.match(/Q(\d)/);
   
-  if (!fyMatch) {
+  if (!fyMatch || !fyMatch[1]) {
     throw new Error(`Invalid fiscal period string: ${periodStr}`);
   }
   
   return {
     fiscalYear: parseInt(fyMatch[1], 10),
-    fiscalQuarter: quarterMatch ? parseInt(quarterMatch[1], 10) : undefined,
+    fiscalQuarter: quarterMatch && quarterMatch[1] ? parseInt(quarterMatch[1], 10) : undefined,
   };
 }
 

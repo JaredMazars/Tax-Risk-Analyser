@@ -450,7 +450,7 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       if (!empStatus) {
         const extractedEmpCode = extractEmpCodeFromUserId(allocation.userId);
         if (extractedEmpCode) {
-          empStatus = await getEmployeeStatus(extractedEmpCode);
+          empStatus = (await getEmployeeStatus(extractedEmpCode)) ?? undefined;
         }
       }
 
@@ -509,7 +509,7 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         
         // Fallback: Direct lookup if not in map
         if (!empStatus && emp.EmpCode) {
-          empStatus = await getEmployeeStatus(emp.EmpCode);
+          empStatus = (await getEmployeeStatus(emp.EmpCode)) ?? undefined;
         }
         
         return {

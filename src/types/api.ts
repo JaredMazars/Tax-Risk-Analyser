@@ -133,6 +133,17 @@ export interface TaskWithWIP {
   TaskManager: string;
   TaskManagerName: string;
   netWip: number;
+  // Profitability metrics
+  ltdHours: number;
+  ltdTime: number;
+  ltdDisb: number;
+  ltdAdj: number;
+  ltdCost: number;
+  grossProduction: number;
+  netRevenue: number;
+  adjustmentPercentage: number;
+  grossProfit: number;
+  grossProfitPercentage: number;
 }
 
 export interface TaskWithWIPAndServiceLine extends TaskWithWIP {

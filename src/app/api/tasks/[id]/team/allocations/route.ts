@@ -243,7 +243,7 @@ export const GET = secureRoute.queryWithParams({
             
             // Fallback: Direct lookup if not in map
             if (!empStatus && emp.EmpCode) {
-              empStatus = await getEmployeeStatus(emp.EmpCode);
+              empStatus = (await getEmployeeStatus(emp.EmpCode)) ?? undefined;
             }
             
             additionalMembers.push({

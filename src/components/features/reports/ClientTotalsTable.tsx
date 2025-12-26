@@ -17,6 +17,12 @@ interface ClientTotal {
   clientNameFull: string | null;
   taskCount: number;
   totalWIP: number;
+  ltdHours: number;
+  grossProduction: number;
+  ltdAdj: number;
+  netRevenue: number;
+  ltdCost: number;
+  grossProfit: number;
 }
 
 interface ClientTotalsTableProps {
@@ -30,6 +36,17 @@ const formatCurrency = (amount: number) => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+};
+
+const formatNumber = (num: number) => {
+  return new Intl.NumberFormat('en-ZA', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(num);
+};
+
+const formatPercentage = (percent: number) => {
+  return `${percent.toFixed(2)}%`;
 };
 
 export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
@@ -46,12 +63,24 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
         clientNameFull: task.clientNameFull,
         taskCount: 0,
         totalWIP: 0,
+        ltdHours: 0,
+        grossProduction: 0,
+        ltdAdj: 0,
+        netRevenue: 0,
+        ltdCost: 0,
+        grossProfit: 0,
       });
     }
 
     const client = clientTotals.get(task.GSClientID)!;
     client.taskCount += 1;
     client.totalWIP += task.netWip;
+    client.ltdHours += task.ltdHours;
+    client.grossProduction += task.grossProduction;
+    client.ltdAdj += task.ltdAdj;
+    client.netRevenue += task.netRevenue;
+    client.ltdCost += task.ltdCost;
+    client.grossProfit += task.grossProfit;
   });
 
   // Convert to array and sort by group then client code
@@ -90,48 +119,87 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
       <div className="inline-block min-w-full align-middle">
         {/* Table Header */}
         <div
-          className="grid gap-4 py-3 px-4 text-sm font-semibold text-white shadow-corporate"
+          className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: 'minmax(150px, 1fr) 2fr auto auto',
+            gridTemplateColumns: '1fr 1.5fr 70px 90px 110px 110px 110px 90px 110px 110px 110px',
           }}
         >
-          <div>Group Name</div>
+          <div>Group</div>
           <div>Client</div>
-          <div className="text-right min-w-[100px]">Total Tasks</div>
-          <div className="text-right min-w-[150px]">Net WIP Balance</div>
+          <div className="text-right">Tasks</div>
+          <div className="text-right">Hours</div>
+          <div className="text-right">Production</div>
+          <div className="text-right">Adjustments</div>
+          <div className="text-right">Net Revenue</div>
+          <div className="text-right">Adj %</div>
+          <div className="text-right">Cost</div>
+          <div className="text-right">Gross Profit</div>
+          <div className="text-right">GP %</div>
         </div>
 
         {/* Table Body */}
         <div className="bg-white">
-          {sortedClients.map((client, index) => (
-            <div
-              key={client.GSClientID}
-              className={`grid gap-4 py-3 px-4 text-sm transition-colors duration-200 hover:bg-forvis-blue-50 ${
-                index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
-              }`}
-              style={{ gridTemplateColumns: 'minmax(150px, 1fr) 2fr auto auto' }}
-            >
-              <div className="text-forvis-gray-700">{client.groupDesc}</div>
-              <div className="text-forvis-gray-900">
-                <span className="font-medium">{client.clientCode}</span>
-                {' - '}
-                {client.clientNameFull || 'Unnamed Client'}
+          {sortedClients.map((client, index) => {
+            const adjustmentPercentage = client.grossProduction !== 0 ? (client.ltdAdj / client.grossProduction) * 100 : 0;
+            const grossProfitPercentage = client.netRevenue !== 0 ? (client.grossProfit / client.netRevenue) * 100 : 0;
+            
+            return (
+              <div
+                key={client.GSClientID}
+                className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
+                  index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
+                }`}
+                style={{ gridTemplateColumns: '1fr 1.5fr 70px 90px 110px 110px 110px 90px 110px 110px 110px' }}
+              >
+                <div className="text-forvis-gray-700">{client.groupDesc}</div>
+                <div className="text-forvis-gray-900">
+                  <span className="font-medium">{client.clientCode}</span>
+                  {' - '}
+                  {client.clientNameFull || 'Unnamed Client'}
+                </div>
+                <div className="text-right text-forvis-gray-700 tabular-nums">
+                  {client.taskCount}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatNumber(client.ltdHours)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(client.grossProduction)}
+                </div>
+                <div className={`text-right tabular-nums font-medium ${
+                  client.ltdAdj < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                }`}>
+                  {formatCurrency(client.ltdAdj)}
+                </div>
+                <div className={`text-right tabular-nums font-semibold ${
+                  client.netRevenue < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+                }`}>
+                  {formatCurrency(client.netRevenue)}
+                </div>
+                <div className={`text-right tabular-nums ${
+                  adjustmentPercentage < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                }`}>
+                  {formatPercentage(adjustmentPercentage)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(client.ltdCost)}
+                </div>
+                <div className={`text-right tabular-nums font-semibold ${
+                  client.grossProfit < 0 ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {formatCurrency(client.grossProfit)}
+                </div>
+                <div className={`text-right tabular-nums font-bold ${
+                  grossProfitPercentage >= 60 ? 'text-green-600' : 
+                  grossProfitPercentage >= 50 ? 'text-yellow-600' : 
+                  'text-red-600'
+                }`}>
+                  {formatPercentage(grossProfitPercentage)}
+                </div>
               </div>
-              <div className="text-right min-w-[100px] text-forvis-gray-700 tabular-nums">
-                {client.taskCount}
-              </div>
-              <div className="text-right min-w-[150px]">
-                <span
-                  className={`font-semibold tabular-nums ${
-                    client.totalWIP < 0 ? 'text-red-600' : 'text-forvis-blue-600'
-                  }`}
-                >
-                  {formatCurrency(client.totalWIP)}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

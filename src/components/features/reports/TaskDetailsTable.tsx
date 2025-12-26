@@ -23,6 +23,17 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const formatNumber = (num: number) => {
+  return new Intl.NumberFormat('en-ZA', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(num);
+};
+
+const formatPercentage = (percent: number) => {
+  return `${percent.toFixed(2)}%`;
+};
+
 // Helper to get badge color based on service line code
 const getServiceLineBadgeColor = (servLineCode: string): 'blue' | 'purple' | 'green' | 'orange' | 'gray' => {
   const code = servLineCode.toUpperCase();
@@ -74,16 +85,23 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
       <div className="inline-block min-w-full align-middle">
         {/* Table Header */}
         <div
-          className="grid gap-4 py-3 px-4 text-sm font-semibold text-white shadow-corporate"
+          className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '2fr 3fr 160px 180px',
+            gridTemplateColumns: '1.5fr 2fr 140px 100px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
           <div>Client</div>
           <div>Task</div>
           <div className="min-w-[120px]">Service Line</div>
-          <div className="text-right min-w-[150px]">Net WIP Balance</div>
+          <div className="text-right">Hours</div>
+          <div className="text-right">Production</div>
+          <div className="text-right">Adjustments</div>
+          <div className="text-right">Net Revenue</div>
+          <div className="text-right">Adj %</div>
+          <div className="text-right">Cost</div>
+          <div className="text-right">Gross Profit</div>
+          <div className="text-right">GP %</div>
         </div>
 
         {/* Table Body */}
@@ -91,10 +109,10 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
           {sortedTasks.map((task, index) => (
             <div
               key={task.id}
-              className={`grid gap-4 py-3 px-4 text-sm transition-colors duration-200 hover:bg-forvis-blue-50 ${
+              className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                 index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
               }`}
-              style={{ gridTemplateColumns: '2fr 3fr 160px 180px' }}
+              style={{ gridTemplateColumns: '1.5fr 2fr 140px 100px 120px 120px 120px 100px 120px 120px 120px' }}
             >
               <div className="text-forvis-gray-900">
                 <span className="font-medium">{task.clientCode}</span>
@@ -111,14 +129,41 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
                   {task.serviceLineName}
                 </Badge>
               </div>
-              <div className="text-right min-w-[150px]">
-                <span
-                  className={`font-semibold tabular-nums ${
-                    task.netWip < 0 ? 'text-red-600' : 'text-forvis-blue-600'
-                  }`}
-                >
-                  {formatCurrency(task.netWip)}
-                </span>
+              <div className="text-right tabular-nums text-forvis-gray-700">
+                {formatNumber(task.ltdHours)}
+              </div>
+              <div className="text-right tabular-nums text-forvis-gray-700">
+                {formatCurrency(task.grossProduction)}
+              </div>
+              <div className={`text-right tabular-nums font-medium ${
+                task.ltdAdj < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+              }`}>
+                {formatCurrency(task.ltdAdj)}
+              </div>
+              <div className={`text-right tabular-nums font-semibold ${
+                task.netRevenue < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+              }`}>
+                {formatCurrency(task.netRevenue)}
+              </div>
+              <div className={`text-right tabular-nums ${
+                task.adjustmentPercentage < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+              }`}>
+                {formatPercentage(task.adjustmentPercentage)}
+              </div>
+              <div className="text-right tabular-nums text-forvis-gray-700">
+                {formatCurrency(task.ltdCost)}
+              </div>
+              <div className={`text-right tabular-nums font-semibold ${
+                task.grossProfit < 0 ? 'text-red-600' : 'text-green-600'
+              }`}>
+                {formatCurrency(task.grossProfit)}
+              </div>
+              <div className={`text-right tabular-nums font-bold ${
+                task.grossProfitPercentage >= 60 ? 'text-green-600' : 
+                task.grossProfitPercentage >= 50 ? 'text-yellow-600' : 
+                'text-red-600'
+              }`}>
+                {formatPercentage(task.grossProfitPercentage)}
               </div>
             </div>
           ))}

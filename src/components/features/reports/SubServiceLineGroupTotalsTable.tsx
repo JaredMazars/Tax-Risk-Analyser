@@ -14,6 +14,12 @@ interface SubServiceLineGroupTotal {
   name: string;
   taskCount: number;
   totalWIP: number;
+  ltdHours: number;
+  grossProduction: number;
+  ltdAdj: number;
+  netRevenue: number;
+  ltdCost: number;
+  grossProfit: number;
 }
 
 interface SubServiceLineGroupTotalsTableProps {
@@ -27,6 +33,17 @@ const formatCurrency = (amount: number) => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+};
+
+const formatNumber = (num: number) => {
+  return new Intl.NumberFormat('en-ZA', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(num);
+};
+
+const formatPercentage = (percent: number) => {
+  return `${percent.toFixed(2)}%`;
 };
 
 export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTotalsTableProps) {
@@ -43,12 +60,24 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
         name,
         taskCount: 0,
         totalWIP: 0,
+        ltdHours: 0,
+        grossProduction: 0,
+        ltdAdj: 0,
+        netRevenue: 0,
+        ltdCost: 0,
+        grossProfit: 0,
       });
     }
 
     const sslg = subServiceLineGroupTotals.get(code)!;
     sslg.taskCount += 1;
     sslg.totalWIP += task.netWip;
+    sslg.ltdHours += task.ltdHours;
+    sslg.grossProduction += task.grossProduction;
+    sslg.ltdAdj += task.ltdAdj;
+    sslg.netRevenue += task.netRevenue;
+    sslg.ltdCost += task.ltdCost;
+    sslg.grossProfit += task.grossProfit;
   });
 
   // Convert to array and sort by name
@@ -85,42 +114,81 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
       <div className="inline-block min-w-full align-middle">
         {/* Table Header */}
         <div
-          className="grid gap-4 py-3 px-4 text-sm font-semibold text-white shadow-corporate"
+          className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '1fr auto auto',
+            gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
           <div>Sub Service Line Group</div>
-          <div className="text-right min-w-[120px]">Total Tasks</div>
-          <div className="text-right min-w-[150px]">Net WIP Balance</div>
+          <div className="text-right">Tasks</div>
+          <div className="text-right">Hours</div>
+          <div className="text-right">Production</div>
+          <div className="text-right">Adjustments</div>
+          <div className="text-right">Net Revenue</div>
+          <div className="text-right">Adj %</div>
+          <div className="text-right">Cost</div>
+          <div className="text-right">Gross Profit</div>
+          <div className="text-right">GP %</div>
         </div>
 
         {/* Table Body */}
         <div className="bg-white">
-          {sortedSubServiceLineGroups.map((sslg, index) => (
-            <div
-              key={sslg.code}
-              className={`grid gap-4 py-3 px-4 text-sm transition-colors duration-200 hover:bg-forvis-blue-50 ${
-                index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
-              }`}
-              style={{ gridTemplateColumns: '1fr auto auto' }}
-            >
-              <div className="font-semibold text-forvis-gray-900">{sslg.name}</div>
-              <div className="text-right min-w-[120px] text-forvis-gray-700 tabular-nums">
-                {sslg.taskCount}
+          {sortedSubServiceLineGroups.map((sslg, index) => {
+            const adjustmentPercentage = sslg.grossProduction !== 0 ? (sslg.ltdAdj / sslg.grossProduction) * 100 : 0;
+            const grossProfitPercentage = sslg.netRevenue !== 0 ? (sslg.grossProfit / sslg.netRevenue) * 100 : 0;
+            
+            return (
+              <div
+                key={sslg.code}
+                className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
+                  index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
+                }`}
+                style={{ gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px' }}
+              >
+                <div className="font-semibold text-forvis-gray-900">{sslg.name}</div>
+                <div className="text-right text-forvis-gray-700 tabular-nums">
+                  {sslg.taskCount}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatNumber(sslg.ltdHours)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(sslg.grossProduction)}
+                </div>
+                <div className={`text-right tabular-nums font-medium ${
+                  sslg.ltdAdj < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                }`}>
+                  {formatCurrency(sslg.ltdAdj)}
+                </div>
+                <div className={`text-right tabular-nums font-semibold ${
+                  sslg.netRevenue < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+                }`}>
+                  {formatCurrency(sslg.netRevenue)}
+                </div>
+                <div className={`text-right tabular-nums ${
+                  adjustmentPercentage < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                }`}>
+                  {formatPercentage(adjustmentPercentage)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(sslg.ltdCost)}
+                </div>
+                <div className={`text-right tabular-nums font-semibold ${
+                  sslg.grossProfit < 0 ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {formatCurrency(sslg.grossProfit)}
+                </div>
+                <div className={`text-right tabular-nums font-bold ${
+                  grossProfitPercentage >= 60 ? 'text-green-600' : 
+                  grossProfitPercentage >= 50 ? 'text-yellow-600' : 
+                  'text-red-600'
+                }`}>
+                  {formatPercentage(grossProfitPercentage)}
+                </div>
               </div>
-              <div className="text-right min-w-[150px]">
-                <span
-                  className={`font-semibold tabular-nums ${
-                    sslg.totalWIP < 0 ? 'text-red-600' : 'text-forvis-blue-600'
-                  }`}
-                >
-                  {formatCurrency(sslg.totalWIP)}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

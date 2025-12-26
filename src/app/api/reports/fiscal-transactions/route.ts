@@ -140,33 +140,23 @@ export const GET = secureRoute.query({
 });
 
 /**
- * GET /api/reports/fiscal-transactions/periods
+ * Example: Additional endpoint for getting available fiscal periods
  * 
- * Returns available fiscal periods
- * Useful for populating dropdowns and filters in the UI
+ * To add this functionality, create a separate route:
+ * src/app/api/reports/fiscal-periods/route.ts
  * 
- * Query Parameters:
- * - fiscalYear: Optional filter by fiscal year
- * - groupBy: 'year' | 'quarter' | 'month' (default: 'year')
+ * export const GET = secureRoute.query({
+ *   feature: Feature.ACCESS_TASKS,
+ *   handler: async (request) => {
+ *     const { searchParams } = new URL(request.url);
+ *     const fiscalYear = searchParams.get('fiscalYear')
+ *       ? parseInt(searchParams.get('fiscalYear')!)
+ *       : undefined;
+ *     const groupBy = (searchParams.get('groupBy') || 'year') as 'year' | 'quarter' | 'month';
+ *     
+ *     const periods = await getFiscalPeriods({ fiscalYear, groupBy, orderBy: 'desc' });
+ *     return NextResponse.json(successResponse({ periods }));
+ *   },
+ * });
  */
-export async function GET_PERIODS(request: Request) {
-  const { searchParams } = new URL(request.url);
-  
-  const fiscalYear = searchParams.get('fiscalYear')
-    ? parseInt(searchParams.get('fiscalYear')!)
-    : undefined;
-  
-  const groupBy = (searchParams.get('groupBy') || 'year') as
-    | 'year'
-    | 'quarter'
-    | 'month';
-  
-  const periods = await getFiscalPeriods({
-    fiscalYear,
-    groupBy,
-    orderBy: 'desc',
-  });
-  
-  return NextResponse.json(successResponse({ periods }));
-}
 

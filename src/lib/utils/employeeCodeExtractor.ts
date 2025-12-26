@@ -20,7 +20,7 @@ export function extractEmpCodeFromUserId(userId: string): string | null {
     const parts = userId.split('_');
     if (parts.length >= 2) {
       const empCode = parts[1];
-      return empCode.length > 0 ? empCode : null;
+      return empCode && empCode.length > 0 ? empCode : null;
     }
   }
 
@@ -45,7 +45,7 @@ export function extractEmpCodeFromUserId(userId: string): string | null {
 export function extractEmailPrefix(email: string): string | null {
   if (!email || !email.includes('@')) return null;
   const prefix = email.split('@')[0];
-  return prefix.length > 0 ? prefix.toLowerCase() : null;
+  return prefix && prefix.length > 0 ? prefix.toLowerCase() : null;
 }
 
 /**
