@@ -8,6 +8,7 @@ import { getTaskCountsByServiceLine } from '@/lib/services/tasks/taskAggregation
 import { getCachedClient, setCachedClient, invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 import { calculateWIPByTask, calculateWIPBalances } from '@/lib/services/clients/clientBalanceCalculation';
 import { secureRoute } from '@/lib/api/secureRoute';
 
@@ -172,6 +173,19 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       { codeField: 'TaskManager', nameField: 'TaskManagerName' },
     ]);
 
+    // Fetch employee status for all task partners and managers
+    const allTaskEmployeeCodes = [...new Set(
+      enrichedTasks.flatMap(t => [t.TaskPartner, t.TaskManager]).filter(Boolean) as string[]
+    )];
+    const taskEmployeeStatusMap = await enrichEmployeesWithStatus(allTaskEmployeeCodes);
+
+    // Add status to each task
+    const enrichedTasksWithStatus = enrichedTasks.map(task => ({
+      ...task,
+      TaskPartnerStatus: task.TaskPartner ? taskEmployeeStatusMap.get(task.TaskPartner) : undefined,
+      TaskManagerStatus: task.TaskManager ? taskEmployeeStatusMap.get(task.TaskManager) : undefined,
+    }));
+
     const [enrichedClient] = await enrichRecordsWithEmployeeNames([client], [
       { codeField: 'clientPartner', nameField: 'clientPartnerName' },
       { codeField: 'clientManager', nameField: 'clientManagerName' },
@@ -187,7 +201,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 
     const responseData = {
       ...enrichedClient,
-      tasks: enrichedTasks,
+      tasks: enrichedTasksWithStatus,
       balances: { ...clientWipBalances, debtorBalance: debtorAggregation._sum.Total || 0 },
       _count: { Task: totalAcrossAllServiceLines },
       taskPagination: { page: taskPage, limit: taskLimit, total: totalTasks, totalPages: Math.ceil(totalTasks / taskLimit) },

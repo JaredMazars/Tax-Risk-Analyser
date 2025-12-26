@@ -14,6 +14,7 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { toTaskId } from '@/types/branded';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 
 export const GET = secureRoute.queryWithParams({
   feature: Feature.ACCESS_TASKS,
@@ -370,7 +371,76 @@ export const GET = secureRoute.queryWithParams({
       }
     }
     
-    return NextResponse.json(successResponse(finalTeams));
+    // Enrich team members with employee status
+    // Build mapping of email -> employee code for team members
+    const allEmployeesForStatus = await prisma.employee.findMany({
+      where: {
+        OR: [
+          { WinLogon: { in: fullEmails } },
+          { WinLogon: { in: emailPrefixes } },
+          { EmpCode: { in: employeeCodesToAdd.map(e => e.code) } },
+        ],
+      },
+      select: {
+        EmpCode: true,
+        WinLogon: true,
+        Active: true,
+      },
+    });
+
+    // Create email -> empCode lookup
+    const emailToEmpCode = new Map<string, string>();
+    for (const emp of allEmployeesForStatus) {
+      if (emp.WinLogon) {
+        emailToEmpCode.set(emp.WinLogon.toLowerCase(), emp.EmpCode);
+        const prefix = emp.WinLogon.split('@')[0];
+        if (prefix) {
+          emailToEmpCode.set(prefix.toLowerCase(), emp.EmpCode);
+        }
+      }
+    }
+
+    // Get all employee codes
+    const empCodes = new Set<string>();
+    for (const team of finalTeams) {
+      const email = team.User.email.toLowerCase();
+      const emailPrefix = email.split('@')[0];
+      const empCode = emailToEmpCode.get(email) || (emailPrefix ? emailToEmpCode.get(emailPrefix) : undefined);
+      if (empCode) {
+        empCodes.add(empCode);
+      }
+      // For pending users, extract emp code from userId
+      if (team.userId?.startsWith('pending-')) {
+        const pendingEmpCode = team.userId.replace('pending-', '');
+        if (pendingEmpCode) {
+          empCodes.add(pendingEmpCode);
+        }
+      }
+    }
+
+    // Batch fetch employee statuses
+    const statusMap = await enrichEmployeesWithStatus([...empCodes]);
+
+    // Add employee status to each team member
+    const finalTeamsWithStatus = finalTeams.map(team => {
+      const email = team.User.email.toLowerCase();
+      const emailPrefix = email.split('@')[0];
+      let empCode = emailToEmpCode.get(email) || (emailPrefix ? emailToEmpCode.get(emailPrefix) : undefined);
+      
+      // For pending users, extract emp code from userId
+      if (!empCode && team.userId?.startsWith('pending-')) {
+        empCode = team.userId.replace('pending-', '');
+      }
+
+      const employeeStatus = empCode ? statusMap.get(empCode) : undefined;
+
+      return {
+        ...team,
+        employeeStatus,
+      };
+    });
+    
+    return NextResponse.json(successResponse(finalTeamsWithStatus));
   },
 });
 

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db/prisma';
 import { withRetry, RetryPresets } from '@/lib/utils/retryUtils';
 import { TaskId } from '@/types/branded';
+import { enrichObjectsWithEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
 
 export interface TaskFilters {
   userId: string;
@@ -418,7 +419,7 @@ export async function getTaskById(taskId: TaskId) {
 
       if (!rawTask) return null;
 
-      return {
+      const task = {
         id: rawTask.id,
         GSClientID: rawTask.GSClientID,
         name: rawTask.TaskDesc,
@@ -443,6 +444,14 @@ export async function getTaskById(taskId: TaskId) {
         updatedAt: rawTask.updatedAt,
         Client: rawTask.Client,
       };
+
+      // Enrich with employee status
+      await enrichObjectsWithEmployeeStatus([task], [
+        { codeField: 'TaskPartner', statusField: 'TaskPartnerStatus' },
+        { codeField: 'TaskManager', statusField: 'TaskManagerStatus' },
+      ]);
+
+      return task;
     },
     RetryPresets.AZURE_SQL_COLD_START,
     'Get task by ID'

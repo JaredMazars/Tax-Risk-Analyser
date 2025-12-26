@@ -11,6 +11,7 @@ import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 import { z } from 'zod';
 
 // Zod schema for PUT request body
@@ -159,6 +160,14 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Task not found', ErrorCodes.NOT_FOUND);
     }
 
+    // Fetch employee status for partner and manager
+    const employeeCodes = [
+      enrichedTask.TaskPartner,
+      enrichedTask.TaskManager
+    ].filter(Boolean) as string[];
+
+    const employeeStatusMap = await enrichEmployeesWithStatus(employeeCodes);
+
     // Get service line mapping for URL construction
     let serviceLineMapping = null;
     if (enrichedTask.ServLineCode) {
@@ -177,6 +186,8 @@ export const GET = secureRoute.queryWithParams({
     
     const transformedTask = {
       ...taskData,
+      TaskPartnerStatus: enrichedTask.TaskPartner ? employeeStatusMap.get(enrichedTask.TaskPartner) : undefined,
+      TaskManagerStatus: enrichedTask.TaskManager ? employeeStatusMap.get(enrichedTask.TaskManager) : undefined,
       name: enrichedTask.TaskDesc,
       description: enrichedTask.TaskDesc,
       client: Client,

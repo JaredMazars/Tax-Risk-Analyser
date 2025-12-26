@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db/prisma';
 import { withRetry, RetryPresets } from '@/lib/utils/retryUtils';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
+import { enrichObjectsWithEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
 
 export interface ClientFilters {
   search?: string;
@@ -133,6 +134,13 @@ export async function getClientsWithPagination(
         { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
       ]);
 
+      // Enrich clients with employee status
+      await enrichObjectsWithEmployeeStatus(enrichedClients, [
+        { codeField: 'clientPartner', statusField: 'clientPartnerStatus' },
+        { codeField: 'clientManager', statusField: 'clientManagerStatus' },
+        { codeField: 'clientIncharge', statusField: 'clientInchargeStatus' },
+      ]);
+
       return {
         clients: enrichedClients,
         pagination: {
@@ -204,6 +212,13 @@ export async function getClientWithProjects(
         { codeField: 'clientPartner', nameField: 'clientPartnerName' },
         { codeField: 'clientManager', nameField: 'clientManagerName' },
         { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+      ]);
+
+      // Enrich client with employee status
+      await enrichObjectsWithEmployeeStatus([enrichedClient], [
+        { codeField: 'clientPartner', statusField: 'clientPartnerStatus' },
+        { codeField: 'clientManager', statusField: 'clientManagerStatus' },
+        { codeField: 'clientIncharge', statusField: 'clientInchargeStatus' },
       ]);
 
       // Build task where clause using GSClientID

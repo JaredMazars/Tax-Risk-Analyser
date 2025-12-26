@@ -36,6 +36,7 @@ import { MyPlanningView, PlannerFilters } from '@/components/features/planning';
 import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
 import type { EmployeePlannerFilters as EmployeePlannerFiltersType, ClientPlannerFilters as ClientPlannerFiltersType } from '@/components/features/planning';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { useSubServiceLineUsers } from '@/hooks/service-lines/useSubServiceLineUsers';
 import { useEmployeePlanner } from '@/hooks/planning/useEmployeePlanner';
 import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
@@ -1155,13 +1156,25 @@ export default function SubServiceLineWorkspacePage() {
                             </div>
                           </td>
                           <td className="px-3 py-3">
-                            <div className="text-sm font-normal text-forvis-gray-800 text-center truncate" title={client.clientPartnerName || client.clientPartner}>
-                              {client.clientPartnerName || client.clientPartner}
+                            <div className="text-center">
+                              <EmployeeStatusBadge
+                                name={client.clientPartnerName || '-'}
+                                isActive={client.clientPartnerStatus?.isActive ?? false}
+                                hasUserAccount={client.clientPartnerStatus?.hasUserAccount ?? false}
+                                variant="text"
+                                iconSize="sm"
+                              />
                             </div>
                           </td>
                           <td className="px-3 py-3">
-                            <div className="text-sm font-normal text-forvis-gray-800 text-center truncate" title={client.clientManagerName || client.clientManager}>
-                              {client.clientManagerName || client.clientManager}
+                            <div className="text-center">
+                              <EmployeeStatusBadge
+                                name={client.clientManagerName || '-'}
+                                isActive={client.clientManagerStatus?.isActive ?? false}
+                                hasUserAccount={client.clientManagerStatus?.hasUserAccount ?? false}
+                                variant="text"
+                                iconSize="sm"
+                              />
                             </div>
                           </td>
                           <td className="px-3 py-3 text-center">
@@ -1388,14 +1401,30 @@ export default function SubServiceLineWorkspacePage() {
                               )}
                             </td>
                             <td className="px-6 py-4">
-                              <div className="text-sm font-normal text-forvis-gray-800 truncate" title={task.taskPartnerName || task.taskPartner || ''}>
-                                {task.taskPartnerName || task.taskPartner || '-'}
-                              </div>
+                              {task.taskPartnerName || task.taskPartner ? (
+                                <EmployeeStatusBadge
+                                  name={task.taskPartnerName || task.taskPartner}
+                                  isActive={task.taskPartnerStatus?.isActive ?? false}
+                                  hasUserAccount={task.taskPartnerStatus?.hasUserAccount ?? false}
+                                  variant="text"
+                                  iconSize="sm"
+                                />
+                              ) : (
+                                <span className="text-sm font-normal text-forvis-gray-800">-</span>
+                              )}
                             </td>
                             <td className="px-6 py-4">
-                              <div className="text-sm font-normal text-forvis-gray-800 truncate" title={task.taskManagerName || task.taskManager || ''}>
-                                {task.taskManagerName || task.taskManager || '-'}
-                              </div>
+                              {task.taskManagerName || task.taskManager ? (
+                                <EmployeeStatusBadge
+                                  name={task.taskManagerName || task.taskManager}
+                                  isActive={task.taskManagerStatus?.isActive ?? false}
+                                  hasUserAccount={task.taskManagerStatus?.hasUserAccount ?? false}
+                                  variant="text"
+                                  iconSize="sm"
+                                />
+                              ) : (
+                                <span className="text-sm font-normal text-forvis-gray-800">-</span>
+                              )}
                             </td>
                             {activeTab === 'my-tasks' && (
                               <td className="px-6 py-4 text-right">

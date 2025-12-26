@@ -12,6 +12,7 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
 import { getWipBalancesByTaskIds } from '@/lib/services/wip/wipCalculationSQL';
 import { z } from 'zod';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 
 // Zod schema for query params validation
 const KanbanQuerySchema = z.object({
@@ -328,6 +329,9 @@ export const GET = secureRoute.query({
     }) : [];
     const employeeNameMap = new Map(allEmployees.map(emp => [emp.EmpCode, emp.EmpName]));
     
+    // Fetch employee status for all partners and managers (single batch query)
+    const employeeStatusMap = await enrichEmployeesWithStatus(allEmployeeCodes);
+    
     // Single user employee lookup (instead of 5 separate queries)
     const userEmail = user.email.toLowerCase();
     const emailPrefix = userEmail.split('@')[0];
@@ -413,6 +417,8 @@ export const GET = secureRoute.query({
           stage: currentStage,
           partner: employeeNameMap.get(task.TaskPartner) || task.TaskPartnerName || task.TaskPartner,
           manager: employeeNameMap.get(task.TaskManager) || task.TaskManagerName || task.TaskManager,
+          partnerStatus: task.TaskPartner ? employeeStatusMap.get(task.TaskPartner) : undefined,
+          managerStatus: task.TaskManager ? employeeStatusMap.get(task.TaskManager) : undefined,
           dateOpen: task.TaskDateOpen,
           dateTerminate: task.TaskDateTerminate,
           client: task.Client ? { id: task.Client.id, GSClientID: task.Client.GSClientID, code: task.Client.clientCode, name: task.Client.clientNameFull } : null,

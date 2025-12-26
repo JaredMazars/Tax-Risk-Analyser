@@ -2,6 +2,7 @@
 
 import { Building2, HandCoins, FileClock } from 'lucide-react';
 import { Client } from '@/types';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 
 interface ClientHeaderProps {
   client: Client & { 

@@ -9,6 +9,13 @@ export interface MappedData {
   sarsItem: string;
 }
 
+// Employee Status (for UI status indicators)
+export interface EmployeeStatus {
+  empCode: string;
+  isActive: boolean;
+  hasUserAccount: boolean;
+}
+
 // Enums matching Prisma schema
 export enum ServiceLine {
   TAX = 'TAX',
@@ -109,10 +116,13 @@ export interface Client {
   groupDesc: string;
   clientPartner: string;
   clientPartnerName?: string; // Enriched from Employee table
+  clientPartnerStatus?: EmployeeStatus; // Employee status indicator
   clientManager: string;
   clientManagerName?: string; // Enriched from Employee table
+  clientManagerStatus?: EmployeeStatus; // Employee status indicator
   clientIncharge: string;
   clientInchargeName?: string; // Enriched from Employee table
+  clientInchargeStatus?: EmployeeStatus; // Employee status indicator
   active: string;
   clientOCFlag: boolean;
   rolePlayer: boolean;
@@ -143,8 +153,10 @@ export interface Task {
   TaskDesc: string;
   TaskPartner: string;
   TaskPartnerName: string;
+  TaskPartnerStatus?: EmployeeStatus; // Employee status indicator
   TaskManager: string;
   TaskManagerName: string;
+  TaskManagerStatus?: EmployeeStatus; // Employee status indicator
   OfficeCode: string;
   SLGroup: string;
   ServLineCode: string;
@@ -258,6 +270,8 @@ export interface TaskTeam {
   clientCode?: string | null;
   // Indicates if the user has an account (false for pending accounts)
   hasAccount?: boolean;
+  // Employee status for status indicators
+  employeeStatus?: EmployeeStatus;
 }
 
 // Allocation Period (for grouping multiple allocations by user)

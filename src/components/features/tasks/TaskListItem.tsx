@@ -6,6 +6,8 @@ import { Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { AlertModal } from '@/components/shared/AlertModal';
 import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
+import { EmployeeStatus } from '@/types';
 
 interface TaskListItemProps {
   task: {
@@ -23,8 +25,10 @@ interface TaskListItemProps {
     updatedAt: string | Date;
     TaskPartner?: string;
     TaskPartnerName?: string;
+    TaskPartnerStatus?: EmployeeStatus;
     TaskManager?: string;
     TaskManagerName?: string;
+    TaskManagerStatus?: EmployeeStatus;
     Client?: {
       GSClientID: string;
       clientCode: string;
@@ -167,13 +171,27 @@ export function TaskListItem({
           {showPartnerManager && (
             <>
               {task.TaskPartnerName && (
-                <span title="Partner">
-                  Partner: {task.TaskPartnerName || task.TaskPartner}
+                <span title="Partner" className="flex items-center gap-1">
+                  <span>Partner:</span>
+                  <EmployeeStatusBadge
+                    name={task.TaskPartnerName || task.TaskPartner}
+                    isActive={task.TaskPartnerStatus?.isActive ?? false}
+                    hasUserAccount={task.TaskPartnerStatus?.hasUserAccount ?? false}
+                    variant="text"
+                    iconSize="sm"
+                  />
                 </span>
               )}
               {task.TaskManagerName && (
-                <span title="Manager">
-                  Manager: {task.TaskManagerName || task.TaskManager}
+                <span title="Manager" className="flex items-center gap-1">
+                  <span>Manager:</span>
+                  <EmployeeStatusBadge
+                    name={task.TaskManagerName || task.TaskManager}
+                    isActive={task.TaskManagerStatus?.isActive ?? false}
+                    hasUserAccount={task.TaskManagerStatus?.hasUserAccount ?? false}
+                    variant="text"
+                    iconSize="sm"
+                  />
                 </span>
               )}
             </>

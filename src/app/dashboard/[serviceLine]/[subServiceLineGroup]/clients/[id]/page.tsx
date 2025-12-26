@@ -32,6 +32,7 @@ import { TaskListItem } from '@/components/features/tasks/TaskListItem';
 import { clientWipKeys } from '@/hooks/clients/useClientWip';
 import { clientDebtorsKeys } from '@/hooks/clients/useClientDebtors';
 import { clientGraphDataKeys } from '@/hooks/clients/useClientGraphData';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -420,15 +421,39 @@ export default function ServiceLineClientDetailPage() {
                     <div className="space-y-2 ml-2">
                       <div>
                         <dt className="text-xs font-medium text-forvis-gray-500">Partner</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientPartnerName || client.clientPartner}</dd>
+                        <dd className="mt-0.5 text-sm">
+                          <EmployeeStatusBadge
+                            name={client.clientPartnerName || client.clientPartner}
+                            isActive={client.clientPartnerStatus?.isActive}
+                            hasUserAccount={client.clientPartnerStatus?.hasUserAccount}
+                            variant="text"
+                            iconSize="sm"
+                          />
+                        </dd>
                       </div>
                       <div>
                         <dt className="text-xs font-medium text-forvis-gray-500">Manager</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientManagerName || client.clientManager}</dd>
+                        <dd className="mt-0.5 text-sm">
+                          <EmployeeStatusBadge
+                            name={client.clientManagerName || client.clientManager}
+                            isActive={client.clientManagerStatus?.isActive}
+                            hasUserAccount={client.clientManagerStatus?.hasUserAccount}
+                            variant="text"
+                            iconSize="sm"
+                          />
+                        </dd>
                       </div>
                       <div>
                         <dt className="text-xs font-medium text-forvis-gray-500">In-Charge</dt>
-                        <dd className="mt-0.5 text-sm text-forvis-gray-900">{client.clientInchargeName || client.clientIncharge}</dd>
+                        <dd className="mt-0.5 text-sm">
+                          <EmployeeStatusBadge
+                            name={client.clientInchargeName || client.clientIncharge}
+                            isActive={client.clientInchargeStatus?.isActive}
+                            hasUserAccount={client.clientInchargeStatus?.hasUserAccount}
+                            variant="text"
+                            iconSize="sm"
+                          />
+                        </dd>
                       </div>
                     </div>
                   </div>

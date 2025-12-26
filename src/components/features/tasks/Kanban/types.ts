@@ -1,4 +1,5 @@
 import { TaskStage } from '@/types/task-stages';
+import { EmployeeStatus } from '@/types';
 
 export interface KanbanTask {
   id: number;
@@ -9,6 +10,8 @@ export interface KanbanTask {
   stage: TaskStage;
   partner: string;
   manager: string;
+  partnerStatus?: EmployeeStatus; // Employee status for partner
+  managerStatus?: EmployeeStatus; // Employee status for manager
   dateOpen: Date | string;
   dateTerminate: Date | string | null;
   client: {
@@ -22,6 +25,7 @@ export interface KanbanTask {
     role: string;
     name: string | null;
     email: string;
+    employeeStatus?: EmployeeStatus; // Employee status for team member
   }[];
   userRole: string | null;
   isUserInvolved: boolean; // True if user is partner, manager, or team member

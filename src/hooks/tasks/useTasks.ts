@@ -25,8 +25,10 @@ export interface TaskListItem {
   taskCode: string | null;
   taskPartner: string | null;
   taskPartnerName: string | null;
+  taskPartnerStatus?: { isActive: boolean; hasUserAccount: boolean };
   taskManager: string | null;
   taskManagerName: string | null;
+  taskManagerStatus?: { isActive: boolean; hasUserAccount: boolean };
   latestStage?: string; // Current stage of the task
   client?: {
     id: number;

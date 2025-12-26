@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
@@ -170,8 +171,22 @@ export const GET = secureRoute.query({
       { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
     ]);
 
+    // Fetch employee status for all client partners, managers, and in-charges
+    const allEmployeeCodes = [...new Set(
+      enrichedClients.flatMap(c => [c.clientPartner, c.clientManager, c.clientIncharge]).filter(Boolean) as string[]
+    )];
+    const employeeStatusMap = await enrichEmployeesWithStatus(allEmployeeCodes);
+
+    // Add status to each client
+    const enrichedClientsWithStatus = enrichedClients.map(client => ({
+      ...client,
+      clientPartnerStatus: client.clientPartner ? employeeStatusMap.get(client.clientPartner) : undefined,
+      clientManagerStatus: client.clientManager ? employeeStatusMap.get(client.clientManager) : undefined,
+      clientInchargeStatus: client.clientIncharge ? employeeStatusMap.get(client.clientIncharge) : undefined,
+    }));
+
     const responseData = {
-      clients: enrichedClients,
+      clients: enrichedClientsWithStatus,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
 

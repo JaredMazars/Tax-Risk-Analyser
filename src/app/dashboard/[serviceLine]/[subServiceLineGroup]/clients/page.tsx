@@ -18,6 +18,7 @@ import { useClients, type Client, clientKeys } from '@/hooks/clients/useClients'
 import { useTasks, type TaskListItem, taskListKeys } from '@/hooks/tasks/useTasks';
 import { useSubServiceLineGroups } from '@/hooks/service-lines/useSubServiceLineGroups';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { LoadingSpinner } from '@/components/ui';
 
@@ -445,8 +446,14 @@ export default function ServiceLineClientsPage() {
                             </div>
                           </td>
                           <td className="px-3 py-2">
-                            <div className="text-sm text-forvis-gray-600 text-center truncate" title={client.clientPartnerName || client.clientPartner}>
-                              {client.clientPartnerName || client.clientPartner}
+                            <div className="text-center">
+                              <EmployeeStatusBadge
+                                name={client.clientPartnerName || '-'}
+                                isActive={client.clientPartnerStatus?.isActive ?? false}
+                                hasUserAccount={client.clientPartnerStatus?.hasUserAccount ?? false}
+                                variant="text"
+                                iconSize="sm"
+                              />
                             </div>
                           </td>
                           <td className="px-3 py-2 text-center">

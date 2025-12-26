@@ -15,6 +15,7 @@ import { logger } from '@/lib/utils/logger';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { TaskStage } from '@/types/task-stages';
 import { getWipBalancesByTaskIds } from '@/lib/services/wip/wipCalculationSQL';
+import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 
 // Zod schema for GET query params validation
 const TaskListQuerySchema = z.object({
@@ -345,6 +346,9 @@ export const GET = secureRoute.query({
     
     const employeeNameMap = new Map(employees.map(emp => [emp.EmpCode, emp.EmpName]));
     
+    // Fetch employee status for all partners and managers
+    const employeeStatusMap = await enrichEmployeesWithStatus(allEmployeeCodes);
+    
     const tasksWithCounts = tasks.map(task => {
       // Get Net WIP from calculated wipByTask map (myTasksOnly mode)
       let wipData = null;
@@ -372,8 +376,10 @@ export const GET = secureRoute.query({
         taxYear: null,
         taskPartner: task.TaskPartner,
         taskPartnerName: employeeNameMap.get(task.TaskPartner) || task.TaskPartnerName,
+        taskPartnerStatus: task.TaskPartner ? employeeStatusMap.get(task.TaskPartner) : undefined,
         taskManager: task.TaskManager,
         taskManagerName: employeeNameMap.get(task.TaskManager) || task.TaskManagerName,
+        taskManagerStatus: task.TaskManager ? employeeStatusMap.get(task.TaskManager) : undefined,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),
         client: task.Client ? {

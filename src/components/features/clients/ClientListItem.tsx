@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useClientBalances } from '@/hooks/clients/useClientBalances';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 
 interface ClientListItemProps {
   client: {
@@ -11,8 +12,10 @@ interface ClientListItemProps {
     clientNameFull: string | null;
     clientPartner: string;
     clientPartnerName?: string;
+    clientPartnerStatus?: { isActive: boolean; hasUserAccount: boolean };
     clientManager: string;
     clientManagerName?: string;
+    clientManagerStatus?: { isActive: boolean; hasUserAccount: boolean };
     industry: string | null;
     active: string;
     _count?: { Task: number };
@@ -58,11 +61,25 @@ export function ClientListItem({ client, serviceLine, subServiceLineGroup }: Cli
       </div>
       
       <div className="flex items-center space-x-3 text-xs text-forvis-gray-500">
-        <span title="Partner">
-          Partner: {client.clientPartnerName || client.clientPartner}
+        <span title="Partner" className="flex items-center gap-1">
+          <span>Partner:</span>
+          <EmployeeStatusBadge
+            name={client.clientPartnerName || '-'}
+            isActive={client.clientPartnerStatus?.isActive ?? false}
+            hasUserAccount={client.clientPartnerStatus?.hasUserAccount ?? false}
+            variant="text"
+            iconSize="sm"
+          />
         </span>
-        <span title="Manager">
-          Manager: {client.clientManagerName || client.clientManager}
+        <span title="Manager" className="flex items-center gap-1">
+          <span>Manager:</span>
+          <EmployeeStatusBadge
+            name={client.clientManagerName || '-'}
+            isActive={client.clientManagerStatus?.isActive ?? false}
+            hasUserAccount={client.clientManagerStatus?.hasUserAccount ?? false}
+            variant="text"
+            iconSize="sm"
+          />
         </span>
         {client.industry && (
           <span title="Industry">

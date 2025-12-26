@@ -44,6 +44,7 @@ import { TaskWorkspaceTab } from '@/components/features/tasks/TaskWorkspaceTab';
 import { TaskFinanceTab } from '@/components/features/tasks/TaskFinanceTab';
 import { canAccessWorkTabs, isClientTask, getBlockedTabMessage } from '@/lib/utils/taskWorkflow';
 import { DollarSign, Briefcase, FolderOpen, FileClock } from 'lucide-react';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 
 interface TabProps {
   selected: boolean;
@@ -670,15 +671,27 @@ export function TaskDetailContent({
                       </div>
                     )}
                     {task.TaskPartnerName && (
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-1">
                         <span className="font-medium text-forvis-gray-700">Partner:</span>
-                        <span className="ml-1">{task.TaskPartnerName || task.TaskPartner}</span>
+                        <EmployeeStatusBadge
+                          name={task.TaskPartnerName || task.TaskPartner}
+                          isActive={task.TaskPartnerStatus?.isActive ?? false}
+                          hasUserAccount={task.TaskPartnerStatus?.hasUserAccount ?? false}
+                          variant="text"
+                          iconSize="sm"
+                        />
                       </div>
                     )}
                     {task.TaskManagerName && (
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-1">
                         <span className="font-medium text-forvis-gray-700">Manager:</span>
-                        <span className="ml-1">{task.TaskManagerName || task.TaskManager}</span>
+                        <EmployeeStatusBadge
+                          name={task.TaskManagerName || task.TaskManager}
+                          isActive={task.TaskManagerStatus?.isActive ?? false}
+                          hasUserAccount={task.TaskManagerStatus?.hasUserAccount ?? false}
+                          variant="text"
+                          iconSize="sm"
+                        />
                       </div>
                     )}
                     {task.users && (

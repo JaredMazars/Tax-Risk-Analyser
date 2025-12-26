@@ -7,6 +7,7 @@ import { Users, Calendar, Folder } from 'lucide-react';
 import { KanbanCardProps } from './types';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
+import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 
 // Memoized to prevent re-renders when sibling cards change
 export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, canDrag, onClick }: KanbanCardProps) {
@@ -107,23 +108,57 @@ export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, ca
           {task.partner && (
             <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
               <span className="font-medium">Partner:</span>
-              <span className="truncate">{task.partner}</span>
+              <EmployeeStatusBadge
+                name={task.partner}
+                isActive={task.partnerStatus?.isActive}
+                hasUserAccount={task.partnerStatus?.hasUserAccount}
+                variant="text"
+                iconSize="sm"
+              />
             </div>
           )}
           {task.manager && (
             <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
               <span className="font-medium">Manager:</span>
-              <span className="truncate">{task.manager}</span>
+              <EmployeeStatusBadge
+                name={task.manager}
+                isActive={task.managerStatus?.isActive}
+                hasUserAccount={task.managerStatus?.hasUserAccount}
+                variant="text"
+                iconSize="sm"
+              />
             </div>
           )}
         </div>
       ) : (
         /* Compact mode - single line with abbreviations */
         (task.partner || task.manager) && (
-          <div className="text-[9px] text-forvis-gray-600 truncate mb-0.5">
-            {task.partner && <span>P: {task.partner}</span>}
+          <div className="text-[9px] text-forvis-gray-600 truncate mb-0.5 flex items-center">
+            {task.partner && (
+              <span className="flex items-center gap-0.5">
+                P:
+                <EmployeeStatusBadge
+                  name={task.partner}
+                  isActive={task.partnerStatus?.isActive}
+                  hasUserAccount={task.partnerStatus?.hasUserAccount}
+                  variant="icon-only"
+                  iconSize="sm"
+                />
+              </span>
+            )}
             {task.partner && task.manager && <span className="mx-1">|</span>}
-            {task.manager && <span>M: {task.manager}</span>}
+            {task.manager && (
+              <span className="flex items-center gap-0.5">
+                M:
+                <EmployeeStatusBadge
+                  name={task.manager}
+                  isActive={task.managerStatus?.isActive}
+                  hasUserAccount={task.managerStatus?.hasUserAccount}
+                  variant="icon-only"
+                  iconSize="sm"
+                />
+              </span>
+            )}
           </div>
         )
       )}
@@ -136,19 +171,25 @@ export const KanbanCard = React.memo(function KanbanCard({ task, displayMode, ca
           }`} />
           <div className="flex items-center -space-x-1.5">
             {task.team.slice(0, displayMode === 'compact' ? 2 : 5).map((member, idx) => (
-              <div
+              <EmployeeStatusBadge
                 key={member.userId}
-                className={`rounded-full flex items-center justify-center font-medium text-white border-2 border-white ${
-                  displayMode === 'compact' ? 'w-4 h-4 text-[8px]' : 'w-6 h-6 text-xs'
-                }`}
-                style={{
-                  background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)',
-                  zIndex: task.team.length - idx,
-                }}
-                title={member.name || member.email}
+                isActive={member.employeeStatus?.isActive}
+                hasUserAccount={member.employeeStatus?.hasUserAccount}
+                variant="border"
               >
-                {(member.name || member.email).charAt(0).toUpperCase()}
-              </div>
+                <div
+                  className={`rounded-full flex items-center justify-center font-medium text-white ${
+                    displayMode === 'compact' ? 'w-4 h-4 text-[8px]' : 'w-6 h-6 text-xs'
+                  }`}
+                  style={{
+                    background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)',
+                    zIndex: task.team.length - idx,
+                  }}
+                  title={member.name || member.email}
+                >
+                  {(member.name || member.email).charAt(0).toUpperCase()}
+                </div>
+              </EmployeeStatusBadge>
             ))}
             {task.team.length > (displayMode === 'compact' ? 2 : 5) && (
               <div
