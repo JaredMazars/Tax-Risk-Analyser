@@ -18,7 +18,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 import { logger } from '@/lib/utils/logger';
-import type { TasksByGroupReport, TaskWithWIPAndServiceLine } from '@/types/api';
+import type { TasksByGroupReport } from '@/types/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -238,7 +238,7 @@ export const GET = secureRoute.query({
       });
 
       // 8. Build flat list with all relations
-      const flatTasks: TaskWithWIPAndServiceLine[] = tasksWithClients.map((task) => {
+      const flatTasks: TasksByGroupReport['tasks'] = tasksWithClients.map((task) => {
         const servLineDetails = servLineDetailsMap.get(task.ServLineCode);
         const masterCode = servLineDetails?.masterCode || '';
         

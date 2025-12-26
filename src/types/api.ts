@@ -161,6 +161,35 @@ export interface TaskWithWIPAndServiceLine extends TaskWithWIP {
 }
 
 /**
+ * My Reports - Tasks by Group types
+ */
+export interface TasksByGroupReport {
+  tasks: Array<{
+    id: number;
+    TaskCode: string;
+    TaskDesc: string;
+    TaskPartner: string;
+    TaskPartnerName: string;
+    TaskManager: string;
+    TaskManagerName: string;
+    netWip: number;
+    groupCode: string;
+    groupDesc: string;
+    clientCode: string;
+    clientNameFull: string | null;
+    GSClientID: string;
+    servLineCode: string;
+    subServlineGroupCode: string;
+    subServlineGroupDesc: string;
+    serviceLineName: string;
+    masterServiceLineCode: string;
+    masterServiceLineName: string;
+  }>;
+  filterMode: 'PARTNER' | 'MANAGER';
+  employeeCode: string;
+}
+
+/**
  * My Reports - Overview types
  */
 export interface MonthlyMetrics {

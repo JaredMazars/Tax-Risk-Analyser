@@ -63,7 +63,7 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
     }).format(amount);
   };
 
-  const data = payload[0].payload;
+  const data = payload[0]?.payload;
 
   return (
     <div className="bg-white p-3 border border-forvis-gray-200 rounded-lg shadow-lg max-w-xs">
@@ -83,7 +83,7 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
           </div>
           
           {/* Show calculation breakdown */}
-          {showCalculation === 'wip' && data.wipBalance !== undefined && data.trailing12Revenue !== undefined && (
+          {showCalculation === 'wip' && data && data.wipBalance !== undefined && data.trailing12Revenue !== undefined && (
             <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
               <div className="font-medium mb-1">Calculation:</div>
               <div>WIP Balance: {formatCurrency(data.wipBalance)}</div>
@@ -92,7 +92,7 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
             </div>
           )}
           
-          {showCalculation === 'debtors' && data.debtorsBalance !== undefined && data.trailing12Billings !== undefined && (
+          {showCalculation === 'debtors' && data && data.debtorsBalance !== undefined && data.trailing12Billings !== undefined && (
             <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
               <div className="font-medium mb-1">Calculation:</div>
               <div>Debtors Balance: {formatCurrency(data.debtorsBalance)}</div>
@@ -101,7 +101,7 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
             </div>
           )}
           
-          {showCalculation === 'writeoff' && data.negativeAdj !== undefined && data.provisions !== undefined && data.grossTime !== undefined && (
+          {showCalculation === 'writeoff' && data && data.negativeAdj !== undefined && data.provisions !== undefined && data.grossTime !== undefined && (
             <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
               <div className="font-medium mb-1">Calculation:</div>
               <div>Negative Adjustments: {formatCurrency(data.negativeAdj)}</div>

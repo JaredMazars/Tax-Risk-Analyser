@@ -1070,7 +1070,7 @@ export default function SubServiceLineWorkspacePage() {
                   <Building2 className="mx-auto h-12 w-12 text-forvis-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No clients</h3>
                   <p className="mt-1 text-sm text-forvis-gray-600">
-                    {(clientsFilters.clients.length > 0 || clientsFilters.industries.length > 0 || clientsFilters.groups.length > 0) 
+                    {(clientsFilters.clients.length > 0 || clientsFilters.partners.length > 0 || clientsFilters.managers.length > 0 || clientsFilters.groups.length > 0) 
                       ? 'No clients match your filters.' 
                       : 'No clients available in the system.'}
                   </p>
