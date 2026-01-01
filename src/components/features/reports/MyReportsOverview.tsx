@@ -15,7 +15,7 @@
  * - Debtors Balance
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -49,14 +49,26 @@ interface CustomTooltipProps {
     value: number;
     name: string;
     dataKey: string;
-    payload?: MonthlyMetrics;
+    payload?: MonthlyMetrics & { value?: number };
   }>;
   label?: string;
   valueFormatter: (value: number) => string;
   showCalculation?: 'wip' | 'debtors' | 'writeoff';
+  onValueChange?: (value: number | null) => void;
 }
 
-function CustomTooltip({ active, payload, label, valueFormatter, showCalculation }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, valueFormatter, showCalculation, onValueChange }: CustomTooltipProps) {
+  // Update gauge value when tooltip is active
+  const currentValue = active && payload?.[0]?.payload?.value;
+  
+  // Use useEffect-like behavior with ref to avoid infinite loops
+  if (onValueChange) {
+    if (active && typeof currentValue === 'number') {
+      // Schedule state update to avoid render-during-render
+      setTimeout(() => onValueChange(currentValue), 0);
+    }
+  }
+  
   if (!active || !payload || !payload.length) {
     return null;
   }
@@ -123,6 +135,132 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
   );
 }
 
+// Gauge Chart Component - Semi-circular speedometer style
+interface GaugeChartProps {
+  value: number;
+  maxValue: number;
+  targetValue: number;
+  label?: string;
+  size?: number;
+}
+
+function GaugeChart({ value, maxValue, targetValue, label, size = 100 }: GaugeChartProps) {
+  // Dynamic max - use at least maxValue, but extend if value exceeds it
+  const effectiveMax = Math.max(maxValue, value * 1.1);
+  
+  // Clamp value for display
+  const clampedValue = Math.max(0, value);
+  const displayValue = Math.min(clampedValue, effectiveMax);
+  
+  // Calculate angle (180 = left, 0 = right for horizontal gauge)
+  // Map 0 -> 180° (left), max -> 0° (right)
+  const valueAngle = 180 - (displayValue / effectiveMax) * 180;
+  
+  // Color zone boundaries as angles (180° to 0°)
+  const targetAngle = 180 - (targetValue / effectiveMax) * 180;
+  const warningAngle = 180 - ((targetValue * 1.5) / effectiveMax) * 180;
+  
+  // SVG dimensions - horizontal semi-circle
+  const width = size;
+  const height = size * 0.55;
+  const cx = width / 2;
+  const cy = height - 4; // Position center near bottom
+  const radius = size * 0.38;
+  const strokeWidth = size * 0.1;
+  
+  // Arc path helper - angles in degrees, 180=left, 0=right
+  const describeArc = (startAngle: number, endAngle: number) => {
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+    const start = {
+      x: cx + radius * Math.cos(startRad),
+      y: cy - radius * Math.sin(startRad)
+    };
+    const end = {
+      x: cx + radius * Math.cos(endRad),
+      y: cy - radius * Math.sin(endRad)
+    };
+    const largeArc = Math.abs(endAngle - startAngle) > 180 ? 1 : 0;
+    const sweep = startAngle > endAngle ? 1 : 0;
+    return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} ${sweep} ${end.x} ${end.y}`;
+  };
+  
+  // Needle position
+  const needleLength = radius * 0.85;
+  const needleRad = (valueAngle * Math.PI) / 180;
+  const needleX = cx + needleLength * Math.cos(needleRad);
+  const needleY = cy - needleLength * Math.sin(needleRad);
+  
+  // Determine value color
+  const getValueColor = () => {
+    if (clampedValue <= targetValue) return '#22C55E'; // Green
+    if (clampedValue <= targetValue * 1.5) return '#EAB308'; // Yellow
+    return '#DC2626'; // Red
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        {/* Green arc (0 to target) - left portion */}
+        <path
+          d={describeArc(180, Math.max(targetAngle, 0))}
+          fill="none"
+          stroke="#22C55E"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+        {/* Yellow arc (target to 1.5x target) */}
+        {targetAngle > 0 && (
+          <path
+            d={describeArc(targetAngle, Math.max(warningAngle, 0))}
+            fill="none"
+            stroke="#EAB308"
+            strokeWidth={strokeWidth}
+            strokeLinecap="butt"
+          />
+        )}
+        {/* Red arc (1.5x target to max) - right portion */}
+        {warningAngle > 0 && (
+          <path
+            d={describeArc(warningAngle, 0)}
+            fill="none"
+            stroke="#DC2626"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+        )}
+        {/* Target line marker */}
+        <line
+          x1={cx + (radius - strokeWidth/2 - 2) * Math.cos((targetAngle * Math.PI) / 180)}
+          y1={cy - (radius - strokeWidth/2 - 2) * Math.sin((targetAngle * Math.PI) / 180)}
+          x2={cx + (radius + strokeWidth/2 + 2) * Math.cos((targetAngle * Math.PI) / 180)}
+          y2={cy - (radius + strokeWidth/2 + 2) * Math.sin((targetAngle * Math.PI) / 180)}
+          stroke="#1C3667"
+          strokeWidth={2}
+        />
+        {/* Needle */}
+        <line
+          x1={cx}
+          y1={cy}
+          x2={needleX}
+          y2={needleY}
+          stroke="#374151"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        />
+        {/* Center dot */}
+        <circle cx={cx} cy={cy} r={4} fill="#374151" />
+      </svg>
+      <div className="text-center -mt-2">
+        <span className="text-base font-bold" style={{ color: getValueColor() }}>
+          {Math.round(clampedValue)}
+        </span>
+        {label && <span className="text-xs text-forvis-gray-500 ml-0.5">{label}</span>}
+      </div>
+    </div>
+  );
+}
+
 interface ChartCardProps {
   title: string;
   description: string;
@@ -138,6 +276,11 @@ interface ChartCardProps {
     label: string;
     color?: string;
   };
+  gauge?: {
+    maxValue: number;
+    targetValue: number;
+    label?: string;
+  };
 }
 
 function ChartCard({
@@ -151,7 +294,11 @@ function ChartCard({
   color,
   showCalculation,
   targetLine,
+  gauge,
 }: ChartCardProps) {
+  // Track hovered value for gauge - null means show latest
+  const [hoveredValue, setHoveredValue] = useState<number | null>(null);
+  
   const formatXAxis = (monthStr: string) => {
     try {
       const date = parse(monthStr, 'yyyy-MM', new Date());
@@ -160,6 +307,13 @@ function ChartCard({
       return monthStr;
     }
   };
+
+  // Get latest value for gauge (used when not hovering)
+  const lastDataPoint = data[data.length - 1];
+  const latestValue = lastDataPoint?.value ?? 0;
+  
+  // Use hovered value if available, otherwise latest
+  const gaugeValue = hoveredValue !== null ? hoveredValue : latestValue;
 
   return (
     <div className="rounded-lg bg-white shadow-corporate border border-forvis-gray-200 p-6">
@@ -174,12 +328,24 @@ function ChartCard({
           <h3 className="text-lg font-semibold text-forvis-gray-900">{title}</h3>
           <p className="text-sm text-forvis-gray-600 mt-1">{description}</p>
         </div>
+        {gauge && (
+          <div className="flex-shrink-0">
+            <GaugeChart
+              value={gaugeValue}
+              maxValue={gauge.maxValue}
+              targetValue={gauge.targetValue}
+              label={gauge.label}
+              size={80}
+            />
+          </div>
+        )}
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
         <LineChart
           data={data}
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          onMouseLeave={() => setHoveredValue(null)}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
           <XAxis
@@ -197,7 +363,13 @@ function ChartCard({
             width={80}
           />
           <Tooltip
-            content={<CustomTooltip valueFormatter={valueFormatter} showCalculation={showCalculation} />}
+            content={
+              <CustomTooltip 
+                valueFormatter={valueFormatter} 
+                showCalculation={showCalculation} 
+                onValueChange={gauge ? setHoveredValue : undefined}
+              />
+            }
           />
           <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="line" />
           <Line
@@ -413,6 +585,7 @@ export function MyReportsOverview() {
           color="#2E5AAC"
           showCalculation="wip"
           targetLine={{ value: 45, label: 'Target: 45 days' }}
+          gauge={{ maxValue: 90, targetValue: 45, label: 'days' }}
         />
 
         {/* Debtors Lockup Days */}
@@ -427,6 +600,7 @@ export function MyReportsOverview() {
           color="#2E5AAC"
           showCalculation="debtors"
           targetLine={{ value: 45, label: 'Target: 45 days' }}
+          gauge={{ maxValue: 90, targetValue: 45, label: 'days' }}
         />
 
         {/* Writeoff % */}
@@ -441,6 +615,7 @@ export function MyReportsOverview() {
           color="#2E5AAC"
           showCalculation="writeoff"
           targetLine={{ value: 25, label: 'Target: 25%' }}
+          gauge={{ maxValue: 50, targetValue: 25, label: '%' }}
         />
 
         {/* Total Lockup Days */}
@@ -454,6 +629,7 @@ export function MyReportsOverview() {
           dataKey="value"
           color="#2E5AAC"
           targetLine={{ value: 90, label: 'Target: 90 days' }}
+          gauge={{ maxValue: 180, targetValue: 90, label: 'days' }}
         />
 
         {/* WIP Balance */}
