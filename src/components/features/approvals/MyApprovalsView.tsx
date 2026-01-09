@@ -35,6 +35,7 @@ export function MyApprovalsView() {
     serviceLine?: string;
     subServiceLineGroup?: string;
     clientId?: string;
+    noteId?: number;
   } | null>(null);
   
   const { data: approvalsData, isLoading: isLoadingApprovals, refetch } = useApprovals(showArchived);
@@ -78,6 +79,7 @@ export function MyApprovalsView() {
     serviceLine?: string;
     subServiceLineGroup?: string;
     clientId?: string;
+    noteId?: number;
   }) => {
     setSelectedTask(taskData);
   };
@@ -373,7 +375,12 @@ export function MyApprovalsView() {
                           )}
                           <div className="space-y-3">
                             {approvalsData.reviewNotes.map((note) => (
-                              <ReviewNoteApprovalItem key={note.id} note={note} showArchived={showArchived} />
+                              <ReviewNoteApprovalItem 
+                                key={note.id} 
+                                note={note} 
+                                onOpenTaskModal={handleOpenTaskModal}
+                                showArchived={showArchived} 
+                              />
                             ))}
                           </div>
                         </div>
@@ -663,6 +670,7 @@ export function MyApprovalsView() {
           serviceLine={selectedTask.serviceLine}
           subServiceLineGroup={selectedTask.subServiceLineGroup}
           clientId={selectedTask.clientId}
+          initialNoteId={selectedTask.noteId}
         />
       )}
     </div>

@@ -13,7 +13,7 @@ import ReviewNoteList from './components/ReviewNoteList';
 import ReviewNoteAnalytics from './components/ReviewNoteAnalytics';
 import { ReviewNoteStatus } from '@/types/review-notes';
 
-export function ReviewNotebookTool({ taskId }: ToolComponentProps) {
+export function ReviewNotebookTool({ taskId, initialNoteId }: ToolComponentProps) {
   const [activeTab, setActiveTab] = useState<'active' | 'resolved' | 'analytics'>('active');
 
   const tabs = [
@@ -60,10 +60,18 @@ export function ReviewNotebookTool({ taskId }: ToolComponentProps) {
       {/* Tab Content */}
       <div>
         {activeTab === 'active' && (
-          <ReviewNoteList taskId={Number(taskId)} statusFilter={[ReviewNoteStatus.OPEN, ReviewNoteStatus.IN_PROGRESS, ReviewNoteStatus.ADDRESSED]} />
+          <ReviewNoteList 
+            taskId={Number(taskId)} 
+            statusFilter={[ReviewNoteStatus.OPEN, ReviewNoteStatus.IN_PROGRESS, ReviewNoteStatus.ADDRESSED]}
+            initialNoteId={initialNoteId}
+          />
         )}
         {activeTab === 'resolved' && (
-          <ReviewNoteList taskId={Number(taskId)} statusFilter={[ReviewNoteStatus.CLEARED, ReviewNoteStatus.REJECTED]} />
+          <ReviewNoteList 
+            taskId={Number(taskId)} 
+            statusFilter={[ReviewNoteStatus.CLEARED, ReviewNoteStatus.REJECTED]}
+            initialNoteId={initialNoteId}
+          />
         )}
         {activeTab === 'analytics' && <ReviewNoteAnalytics taskId={Number(taskId)} />}
       </div>

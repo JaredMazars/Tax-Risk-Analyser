@@ -98,12 +98,12 @@ export type ReviewNoteAttachmentWithUser = ReviewNoteAttachment & {
 };
 
 export type ReviewNoteAssigneeWithUser = ReviewNoteAssignee & {
-  User_ReviewNoteAssignee_userId: {
+  User_ReviewNoteAssignee_userIdToUser: {
     id: string;
     name: string | null;
     email: string;
   };
-  User_ReviewNoteAssignee_assignedBy: {
+  User_ReviewNoteAssignee_assignedByToUser: {
     id: string;
     name: string | null;
     email: string;

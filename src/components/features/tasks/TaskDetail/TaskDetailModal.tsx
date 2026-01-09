@@ -12,6 +12,7 @@ export interface TaskDetailModalProps {
   subServiceLineGroup?: string;
   clientId?: string;
   onTaskUpdated?: () => void;
+  initialNoteId?: number;
 }
 
 export function TaskDetailModal({
@@ -22,6 +23,7 @@ export function TaskDetailModal({
   subServiceLineGroup,
   clientId,
   onTaskUpdated,
+  initialNoteId,
 }: TaskDetailModalProps) {
   // Handle ESC key to close modal
   useEffect(() => {
@@ -98,6 +100,7 @@ export function TaskDetailModal({
             showHeader={true}
             onUpdate={onTaskUpdated}
             onArchive={handleArchive}
+            initialNoteId={initialNoteId}
           />
         </div>
       </div>

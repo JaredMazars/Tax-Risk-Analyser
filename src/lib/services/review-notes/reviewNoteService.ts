@@ -142,14 +142,14 @@ const reviewNoteSelect = {
       assignedBy: true,
       assignedAt: true,
       isForwarded: true,
-      User_ReviewNoteAssignee_userId: {
+      User_ReviewNoteAssignee_userIdToUser: {
         select: {
           id: true,
           name: true,
           email: true,
         },
       },
-      User_ReviewNoteAssignee_assignedBy: {
+      User_ReviewNoteAssignee_assignedByToUser: {
         select: {
           id: true,
           name: true,

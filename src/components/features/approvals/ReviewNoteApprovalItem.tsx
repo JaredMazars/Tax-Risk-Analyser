@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { MessageSquare, Briefcase, Building2, Calendar, AlertCircle, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import type { ReviewNoteApproval } from '@/types/approvals';
@@ -9,15 +8,17 @@ import { WorkflowTimeline } from './WorkflowTimeline';
 
 interface ReviewNoteApprovalItemProps {
   note: ReviewNoteApproval;
+  onOpenTaskModal?: (taskData: {
+    taskId: string;
+    serviceLine?: string;
+    subServiceLineGroup?: string;
+    clientId?: string;
+    noteId?: number;
+  }) => void;
   showArchived?: boolean;
 }
 
-export function ReviewNoteApprovalItem({ note, showArchived = false }: ReviewNoteApprovalItemProps) {
-  const router = useRouter();
-  
-  const taskUrl = note.masterCode
-    ? `/dashboard/${note.masterCode.toLowerCase()}/${note.subServlineGroupCode}/clients/${note.clientGSID}/tasks/${note.taskId}?tab=review-notes`
-    : '#';
+export function ReviewNoteApprovalItem({ note, onOpenTaskModal, showArchived = false }: ReviewNoteApprovalItemProps) {
 
   const getButtonConfig = () => {
     if (showArchived) {
@@ -155,7 +156,17 @@ export function ReviewNoteApprovalItem({ note, showArchived = false }: ReviewNot
           <Button 
             variant={buttonConfig.variant}
             size="sm"
-            onClick={() => router.push(taskUrl)}
+            onClick={() => {
+              if (onOpenTaskModal) {
+                onOpenTaskModal({
+                  taskId: note.taskId.toString(),
+                  serviceLine: note.masterCode?.toLowerCase(),
+                  subServiceLineGroup: note.subServlineGroupCode || undefined,
+                  clientId: note.clientGSID,
+                  noteId: note.id,
+                });
+              }
+            }}
           >
             {ButtonIcon && <ButtonIcon className="h-4 w-4 mr-1.5" />}
             {buttonConfig.text}

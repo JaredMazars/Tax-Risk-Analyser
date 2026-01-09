@@ -319,6 +319,7 @@ export interface TaskDetailContentProps {
   showHeader?: boolean;
   onUpdate?: () => void;
   onArchive?: () => void;
+  initialNoteId?: number;
 }
 
 export function TaskDetailContent({
@@ -329,11 +330,15 @@ export function TaskDetailContent({
   showHeader = true,
   onUpdate,
   onArchive,
+  initialNoteId,
 }: TaskDetailContentProps) {
   const searchParams = useSearchParams();
   const { data: task, isLoading, refetch: fetchTask } = useTask(taskId);
 
   const getDefaultTab = () => {
+    // If initialNoteId is provided, open to workspace tab
+    if (initialNoteId) return 'workspace';
+    
     if (!task) return 'acceptance';
     
     if (isClientTask(task)) {
@@ -457,7 +462,8 @@ export function TaskDetailContent({
         return task ? (
           <WorkSpaceTab 
             taskId={taskId} 
-            subServiceLineGroup={(task as any).subServiceLineGroupCode || task.SLGroup || 'TAX'} 
+            subServiceLineGroup={(task as any).subServiceLineGroupCode || task.SLGroup || 'TAX'}
+            initialNoteId={initialNoteId}
           />
         ) : null;
       

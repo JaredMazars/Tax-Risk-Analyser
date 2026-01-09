@@ -20,9 +20,10 @@ import { ReviewNoteGroupedList } from './ReviewNoteGroupedList';
 interface ReviewNoteListProps {
   taskId: number;
   statusFilter?: ReviewNoteStatus[];
+  initialNoteId?: number;
 }
 
-export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListProps) {
+export default function ReviewNoteList({ taskId, statusFilter, initialNoteId }: ReviewNoteListProps) {
   const [page, setPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
@@ -65,6 +66,13 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
       fetchCurrentUser();
     }
   }, [taskId]);
+
+  // Auto-open note if initialNoteId is provided
+  useEffect(() => {
+    if (initialNoteId && initialNoteId > 0) {
+      setSelectedNoteId(initialNoteId);
+    }
+  }, [initialNoteId]);
   
   // Save view mode to localStorage
   useEffect(() => {
@@ -519,7 +527,7 @@ export default function ReviewNoteList({ taskId, statusFilter }: ReviewNoteListP
                           <span>Assigned:</span>
                           {note.ReviewNoteAssignee.map((assignee) => (
                             <span key={assignee.id} className="inline-flex items-center px-1.5 py-0.5 rounded bg-forvis-blue-100 text-forvis-blue-800 text-xs">
-                              {assignee.User_ReviewNoteAssignee_userId.name || assignee.User_ReviewNoteAssignee_userId.email}
+                              {assignee.User_ReviewNoteAssignee_userIdToUser.name || assignee.User_ReviewNoteAssignee_userIdToUser.email}
                             </span>
                           ))}
                         </div>

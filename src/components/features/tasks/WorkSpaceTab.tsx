@@ -33,9 +33,10 @@ interface TaskTool {
 interface WorkSpaceTabProps {
   taskId: string;
   subServiceLineGroup: string;
+  initialNoteId?: number;
 }
 
-export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps) {
+export function WorkSpaceTab({ taskId, subServiceLineGroup, initialNoteId }: WorkSpaceTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeToolId, setActiveToolId] = useState<number | null>(null);
   const [toolToRemove, setToolToRemove] = useState<{ id: number; name: string } | null>(null);
@@ -56,11 +57,26 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
   });
 
   // Initialize active tool to first tool when taskTools loads
+  // If initialNoteId is provided, auto-select Review Notebook tool
   useEffect(() => {
-    if (taskTools.length > 0 && activeToolId === null && taskTools[0]) {
-      setActiveToolId(taskTools[0].toolId);
+    if (taskTools.length > 0 && activeToolId === null) {
+      // If initialNoteId provided, find and select Review Notebook tool
+      if (initialNoteId) {
+        const reviewNotebookTool = taskTools.find(
+          (tt) => tt.tool.code === 'review-notebook'
+        );
+        if (reviewNotebookTool) {
+          setActiveToolId(reviewNotebookTool.toolId);
+          return;
+        }
+      }
+      
+      // Otherwise, select first tool
+      if (taskTools[0]) {
+        setActiveToolId(taskTools[0].toolId);
+      }
     }
-  }, [taskTools, activeToolId]);
+  }, [taskTools, activeToolId, initialNoteId]);
 
   // Fetch available tools for this sub-service line group
   const {
@@ -266,6 +282,7 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup }: WorkSpaceTabProps)
                   taskId={taskId}
                   toolId={activeTool.toolId}
                   subTabs={activeTool.tool.subTabs}
+                  initialNoteId={initialNoteId}
                 />
               ) : (
                 <Banner

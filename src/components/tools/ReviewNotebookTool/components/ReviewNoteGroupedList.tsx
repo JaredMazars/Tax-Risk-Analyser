@@ -229,7 +229,7 @@ export function ReviewNoteGroupedList({ notes, categories, onNoteClick }: Review
                                 <span>Assigned:</span>
                                 {note.ReviewNoteAssignee.map((assignee) => (
                                   <span key={assignee.id} className="inline-flex items-center px-1.5 py-0.5 rounded bg-forvis-blue-100 text-forvis-blue-800 text-xs">
-                                    {assignee.User_ReviewNoteAssignee_userId.name || assignee.User_ReviewNoteAssignee_userId.email}
+                                    {assignee.User_ReviewNoteAssignee_userIdToUser.name || assignee.User_ReviewNoteAssignee_userIdToUser.email}
                                   </span>
                                 ))}
                               </div>

@@ -13,6 +13,7 @@ export interface ToolComponentProps {
     icon?: string;
     sortOrder: number;
   }>;
+  initialNoteId?: number;
 }
 
 export type ToolComponent = React.ComponentType<ToolComponentProps>;
