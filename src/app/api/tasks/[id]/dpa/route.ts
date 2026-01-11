@@ -9,6 +9,8 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { uploadDpa } from '@/lib/services/documents/blobStorage';
+import { extractDpaMetadata } from '@/lib/services/documents/dpaExtraction';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * POST /api/tasks/[id]/dpa
@@ -89,11 +91,10 @@ export async function POST(
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file type (PDF or DOCX)
-    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
+    // Validate file type (PDF only for intelligent extraction)
+    if (file.type !== 'application/pdf') {
       return NextResponse.json(
-        { error: 'Only PDF and DOCX files are allowed' },
+        { error: 'Only PDF files are supported for intelligent extraction' },
         { status: 400 }
       );
     }
@@ -102,10 +103,73 @@ export async function POST(
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    // Extract and validate metadata from DPA PDF
+    let extractionResult;
+    try {
+      logger.info('Starting DPA extraction', { taskId, userId: user.id });
+      extractionResult = await extractDpaMetadata(buffer, taskId);
+      
+      if (!extractionResult.isValid) {
+        logger.warn('DPA validation failed', {
+          taskId,
+          errors: extractionResult.errors,
+        });
+        
+        return NextResponse.json(
+          {
+            error: 'DPA validation failed',
+            details: extractionResult.errors,
+            requirements: [
+              'Partner/firm signature on DPA',
+              'Client signature on DPA',
+              'Valid DPA date',
+              'Identifiable signing partner/representative',
+            ],
+          },
+          { status: 400 }
+        );
+      }
+    } catch (error) {
+      logger.error('DPA extraction error', { taskId, error });
+      
+      // Save extraction failure to database
+      await prisma.taskEngagementLetter.upsert({
+        where: { taskId },
+        create: {
+          taskId,
+          dpaUploaded: false,
+          dpaExtractionStatus: 'FAILED',
+          dpaExtractionError: error instanceof Error ? error.message : 'Unknown extraction error',
+        },
+        update: {
+          dpaExtractionStatus: 'FAILED',
+          dpaExtractionError: error instanceof Error ? error.message : 'Unknown extraction error',
+        },
+      });
+      
+      return NextResponse.json(
+        {
+          error: 'DPA document processing failed',
+          technicalError: error instanceof Error ? error.message : 'Unknown error',
+          details: [
+            'Document may be an image-based PDF (not searchable text)',
+            'Document may be corrupted',
+            'File may not be a valid PDF',
+          ],
+          suggestions: [
+            'Ensure the PDF contains searchable text (not just images)',
+            'Re-save the document as PDF from the original application',
+            'Contact support if the issue persists',
+          ],
+        },
+        { status: 400 }
+      );
+    }
+
     // Upload to Azure Blob Storage
     const blobPath = await uploadDpa(buffer, file.name, taskId);
 
-    // Update or create TaskEngagementLetter (add DPA fields)
+    // Update or create TaskEngagementLetter (add DPA fields with extracted metadata)
     const updatedEngagementLetter = await prisma.taskEngagementLetter.upsert({
       where: { taskId },
       create: {
@@ -114,23 +178,46 @@ export async function POST(
         dpaFilePath: blobPath,
         dpaUploadedBy: user.id,
         dpaUploadedAt: new Date(),
+        dpaExtractionStatus: 'SUCCESS',
+        dpaLetterDate: extractionResult.dpaDate,
+        dpaLetterAge: extractionResult.dpaAge,
+        dpaSigningPartner: extractionResult.signingPartner,
+        dpaSigningPartnerCode: extractionResult.partnerCode,
+        dpaHasPartnerSignature: extractionResult.hasPartnerSignature,
+        dpaHasClientSignature: extractionResult.hasClientSignature,
+        dpaExtractedText: extractionResult.extractedText,
       },
       update: {
         dpaUploaded: true,
         dpaFilePath: blobPath,
         dpaUploadedBy: user.id,
         dpaUploadedAt: new Date(),
+        dpaExtractionStatus: 'SUCCESS',
+        dpaLetterDate: extractionResult.dpaDate,
+        dpaLetterAge: extractionResult.dpaAge,
+        dpaSigningPartner: extractionResult.signingPartner,
+        dpaSigningPartnerCode: extractionResult.partnerCode,
+        dpaHasPartnerSignature: extractionResult.hasPartnerSignature,
+        dpaHasClientSignature: extractionResult.hasClientSignature,
+        dpaExtractedText: extractionResult.extractedText,
       },
       select: {
         dpaUploaded: true,
         dpaFilePath: true,
         dpaUploadedBy: true,
         dpaUploadedAt: true,
+        dpaExtractionStatus: true,
+        dpaLetterDate: true,
+        dpaLetterAge: true,
+        dpaSigningPartner: true,
+        dpaSigningPartnerCode: true,
+        dpaHasPartnerSignature: true,
+        dpaHasClientSignature: true,
       },
     });
 
     // Invalidate task cache to ensure fresh data on next fetch
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
+    await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
     await invalidateTaskListCache(taskId);
     
     if (task.GSClientID) {
@@ -143,8 +230,24 @@ export async function POST(
         dpaFilePath: updatedEngagementLetter.dpaFilePath,
         dpaUploadedBy: updatedEngagementLetter.dpaUploadedBy,
         dpaUploadedAt: updatedEngagementLetter.dpaUploadedAt,
+        extractionStatus: updatedEngagementLetter.dpaExtractionStatus,
+        extractedMetadata: {
+          dpaDate: updatedEngagementLetter.dpaLetterDate,
+          dpaAge: updatedEngagementLetter.dpaLetterAge,
+          signingPartner: updatedEngagementLetter.dpaSigningPartner,
+          partnerCode: updatedEngagementLetter.dpaSigningPartnerCode,
+          hasPartnerSignature: updatedEngagementLetter.dpaHasPartnerSignature,
+          hasClientSignature: updatedEngagementLetter.dpaHasClientSignature,
+        },
       }),
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     );
   } catch (error) {
     return handleApiError(error, 'POST /api/tasks/[id]/dpa');

@@ -187,7 +187,8 @@ export const CreateTaskSchema = z.object({
   taskYear: z.number().int().min(2000).max(2100, 'Year must be between 2000 and 2100'),
   TaskDesc: z.string().min(1, 'Task name is required').max(150, 'Task name must be 150 characters or less'),
   TaskCode: z.string().max(10).optional(), // Auto-generated if not provided
-  GSClientID: guidOrNull().optional(), // Optional client assignment
+  GSClientID: guidOrNull().optional(), // Optional client assignment (GUID)
+  clientId: z.number().int().positive().optional().nullable(), // Optional client assignment (internal ID - will be converted to GSClientID)
   
   // Team & Organization
   TaskPartner: z.string().min(1, 'Partner code is required').max(10),

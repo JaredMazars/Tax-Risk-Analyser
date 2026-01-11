@@ -172,12 +172,12 @@ export async function invalidateListCache(
  * Invalidate client lists when a client is updated
  */
 export async function invalidateClientListCache(GSClientID?: string): Promise<void> {
-  // Invalidate all client lists
-  await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:list`);
+  // Invalidate all client lists with wildcard pattern
+  await cache.invalidatePattern(`${CACHE_PREFIXES.CLIENT}:list:*`);
   
   // Also invalidate the specific client detail cache if provided
   if (GSClientID) {
-    await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:${GSClientID}`);
+    await cache.invalidatePattern(`${CACHE_PREFIXES.CLIENT}:${GSClientID}:*`);
   }
 }
 
@@ -185,12 +185,12 @@ export async function invalidateClientListCache(GSClientID?: string): Promise<vo
  * Invalidate task lists when a task is updated
  */
 export async function invalidateTaskListCache(taskId?: number): Promise<void> {
-  // Invalidate all task lists
-  await cache.invalidate(`${CACHE_PREFIXES.TASK}:list`);
+  // Invalidate all task lists with wildcard pattern
+  await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}:list:*`);
   
   // Also invalidate the specific task detail cache if provided
   if (taskId) {
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}:detail:${taskId}`);
+    await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}:detail:${taskId}:*`);
   }
 }
 
@@ -198,12 +198,12 @@ export async function invalidateTaskListCache(taskId?: number): Promise<void> {
  * Invalidate group lists when a client group is updated
  */
 export async function invalidateGroupListCache(groupCode?: string): Promise<void> {
-  // Invalidate all group lists
-  await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:groups`);
+  // Invalidate all group lists with wildcard pattern
+  await cache.invalidatePattern(`${CACHE_PREFIXES.CLIENT}:groups:*`);
   
   // Also invalidate the specific group detail cache if provided
   if (groupCode) {
-    await cache.invalidate(`${CACHE_PREFIXES.CLIENT}:groups:*:gc${groupCode}`);
+    await cache.invalidatePattern(`${CACHE_PREFIXES.CLIENT}:groups:*:gc${groupCode}*`);
   }
 }
 

@@ -9,6 +9,8 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { uploadEngagementLetter } from '@/lib/services/documents/blobStorage';
+import { extractEngagementLetterMetadata } from '@/lib/services/documents/engagementLetterExtraction';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * POST /api/tasks/[id]/engagement-letter
@@ -77,11 +79,10 @@ export async function POST(
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file type (PDF or DOCX)
-    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
+    // Validate file type (PDF only for intelligent extraction)
+    if (file.type !== 'application/pdf') {
       return NextResponse.json(
-        { error: 'Only PDF and DOCX files are allowed' },
+        { error: 'Only PDF files are supported for intelligent extraction' },
         { status: 400 }
       );
     }
@@ -90,10 +91,93 @@ export async function POST(
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    // Extract and validate metadata from PDF
+    let extractionResult;
+    try {
+      logger.info('Starting engagement letter extraction', { taskId, userId: user.id });
+      extractionResult = await extractEngagementLetterMetadata(buffer, taskId);
+      
+      if (!extractionResult.isValid) {
+        logger.warn('Engagement letter validation failed', {
+          taskId,
+          errors: extractionResult.errors,
+        });
+        
+        // Build detailed error message
+        const signatureErrors = extractionResult.errors.filter(e => 
+          e.includes('signature') || e.includes('Terms & Conditions')
+        );
+        const otherErrors = extractionResult.errors.filter(e => 
+          !e.includes('signature') && !e.includes('Terms & Conditions')
+        );
+        
+        return NextResponse.json(
+          {
+            error: 'Document validation failed - missing required information',
+            message: signatureErrors.length > 0 
+              ? 'The document must be signed by the partner and client on the main engagement letter, and by the client on the Terms & Conditions section (3 signatures minimum).'
+              : 'The document is missing required information.',
+            details: extractionResult.errors,
+            requirements: {
+              signatures: [
+                '✓ Partner signature on main engagement letter (page 1)',
+                '✓ Client signature on main engagement letter (page 2)',
+                '✓ Separate "Standard Terms and Conditions" section on its own pages',
+                '✓ Client signature at end of Terms & Conditions section (last page)',
+                '⚬ Partner signature on T&C is optional',
+              ],
+              other: [
+                '✓ Valid engagement letter date (within last 5 years)',
+                '✓ Identifiable signing partner name',
+                '✓ At least one service scope mentioned',
+              ]
+            },
+            help: 'Ensure your PDF contains: 1) Searchable text (not scanned images), 2) A main engagement letter with partner signature on page 1 and client signature on page 2, 3) A separate "Standard Terms and Conditions" section (often 2-5 pages) with client signature at the end.',
+          },
+          { status: 400 }
+        );
+      }
+    } catch (error) {
+      logger.error('Engagement letter extraction error', { taskId, error });
+      
+      // Save extraction failure to database
+      await prisma.taskEngagementLetter.upsert({
+        where: { taskId },
+        create: {
+          taskId,
+          uploaded: false,
+          elExtractionStatus: 'FAILED',
+          elExtractionError: error instanceof Error ? error.message : 'Unknown extraction error',
+        },
+        update: {
+          elExtractionStatus: 'FAILED',
+          elExtractionError: error instanceof Error ? error.message : 'Unknown extraction error',
+        },
+      });
+      
+      return NextResponse.json(
+        {
+          error: 'Document processing failed',
+          technicalError: error instanceof Error ? error.message : 'Unknown error',
+          details: [
+            'Document may be an image-based PDF (not searchable text)',
+            'Document may be corrupted',
+            'File may not be a valid PDF',
+          ],
+          suggestions: [
+            'Ensure the PDF contains searchable text (not just images)',
+            'Re-save the document as PDF from the original application',
+            'Contact support if the issue persists',
+          ],
+        },
+        { status: 400 }
+      );
+    }
+
     // Upload to Azure Blob Storage
     const blobPath = await uploadEngagementLetter(buffer, file.name, taskId);
 
-    // Update or create TaskEngagementLetter
+    // Update or create TaskEngagementLetter with extracted metadata
     const updatedEngagementLetter = await prisma.taskEngagementLetter.upsert({
       where: { taskId },
       create: {
@@ -102,23 +186,58 @@ export async function POST(
         filePath: blobPath,
         uploadedBy: user.id,
         uploadedAt: new Date(),
+        elExtractionStatus: 'SUCCESS',
+        elLetterDate: extractionResult.letterDate,
+        elLetterAge: extractionResult.letterAge,
+        elSigningPartner: extractionResult.signingPartner,
+        elSigningPartnerCode: extractionResult.partnerCode,
+        elServicesCovered: JSON.stringify(extractionResult.services),
+        elHasPartnerSignature: extractionResult.hasPartnerSignature,
+        elHasClientSignature: extractionResult.hasClientSignature,
+        elHasTermsConditions: extractionResult.hasTermsConditions,
+        elHasTcPartnerSignature: extractionResult.hasTcPartnerSignature,
+        elHasTcClientSignature: extractionResult.hasTcClientSignature,
+        elExtractedText: extractionResult.extractedText,
       },
       update: {
         uploaded: true,
         filePath: blobPath,
         uploadedBy: user.id,
         uploadedAt: new Date(),
+        elExtractionStatus: 'SUCCESS',
+        elLetterDate: extractionResult.letterDate,
+        elLetterAge: extractionResult.letterAge,
+        elSigningPartner: extractionResult.signingPartner,
+        elSigningPartnerCode: extractionResult.partnerCode,
+        elServicesCovered: JSON.stringify(extractionResult.services),
+        elHasPartnerSignature: extractionResult.hasPartnerSignature,
+        elHasClientSignature: extractionResult.hasClientSignature,
+        elHasTermsConditions: extractionResult.hasTermsConditions,
+        elHasTcPartnerSignature: extractionResult.hasTcPartnerSignature,
+        elHasTcClientSignature: extractionResult.hasTcClientSignature,
+        elExtractedText: extractionResult.extractedText,
       },
       select: {
         uploaded: true,
         filePath: true,
         uploadedBy: true,
         uploadedAt: true,
+        elExtractionStatus: true,
+        elLetterDate: true,
+        elLetterAge: true,
+        elSigningPartner: true,
+        elSigningPartnerCode: true,
+        elServicesCovered: true,
+        elHasPartnerSignature: true,
+        elHasClientSignature: true,
+        elHasTermsConditions: true,
+        elHasTcPartnerSignature: true,
+        elHasTcClientSignature: true,
       },
     });
 
     // Invalidate caches to ensure fresh data on next fetch
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
+    await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
     await invalidateTaskListCache(taskId);
     
     if (task.GSClientID) {
@@ -131,8 +250,30 @@ export async function POST(
         filePath: updatedEngagementLetter.filePath,
         uploadedBy: updatedEngagementLetter.uploadedBy,
         uploadedAt: updatedEngagementLetter.uploadedAt,
+        extractionStatus: updatedEngagementLetter.elExtractionStatus,
+        extractedMetadata: {
+          letterDate: updatedEngagementLetter.elLetterDate,
+          letterAge: updatedEngagementLetter.elLetterAge,
+          signingPartner: updatedEngagementLetter.elSigningPartner,
+          partnerCode: updatedEngagementLetter.elSigningPartnerCode,
+          servicesCovered: updatedEngagementLetter.elServicesCovered 
+            ? JSON.parse(updatedEngagementLetter.elServicesCovered)
+            : [],
+          hasPartnerSignature: updatedEngagementLetter.elHasPartnerSignature,
+          hasClientSignature: updatedEngagementLetter.elHasClientSignature,
+          hasTermsConditions: updatedEngagementLetter.elHasTermsConditions,
+          hasTcPartnerSignature: updatedEngagementLetter.elHasTcPartnerSignature,
+          hasTcClientSignature: updatedEngagementLetter.elHasTcClientSignature,
+        },
       }),
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     );
   } catch (error) {
     return handleApiError(error, 'POST /api/tasks/[id]/engagement-letter');

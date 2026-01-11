@@ -1065,11 +1065,39 @@ model TaskEngagementLetter {
   dpaFilePath  String?
   dpaUploadedAt DateTime?
   dpaUploadedBy String?
+  // Engagement Letter extraction fields
+  elExtractionStatus       String?
+  elExtractionError        String?   @db.NVarChar(Max)
+  elLetterDate             DateTime?
+  elLetterAge              Int?
+  elSigningPartner         String?   @db.NVarChar(100)
+  elSigningPartnerCode     String?   @db.NVarChar(10)
+  elServicesCovered        String?   @db.NVarChar(Max)
+  elHasPartnerSignature    Boolean?
+  elHasClientSignature     Boolean?
+  elHasTermsConditions     Boolean?
+  elHasTcPartnerSignature  Boolean?
+  elHasTcClientSignature   Boolean?
+  elExtractedText          String?   @db.NVarChar(Max)
+  // DPA extraction fields
+  dpaExtractionStatus      String?
+  dpaExtractionError       String?   @db.NVarChar(Max)
+  dpaLetterDate            DateTime?
+  dpaLetterAge             Int?
+  dpaSigningPartner        String?   @db.NVarChar(100)
+  dpaSigningPartnerCode    String?   @db.NVarChar(10)
+  dpaHasPartnerSignature   Boolean?
+  dpaHasClientSignature    Boolean?
+  dpaExtractedText         String?   @db.NVarChar(Max)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   Task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
+  @@index([elExtractionStatus])
+  @@index([dpaExtractionStatus])
+  @@index([elLetterDate])
+  @@index([dpaLetterDate])
 }
 
 model TaskTeam {

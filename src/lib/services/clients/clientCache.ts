@@ -95,8 +95,8 @@ export async function setCachedClient<T>(
  */
 export async function invalidateClientCache(GSClientID: string): Promise<void> {
   try {
-    const pattern = `${CACHE_PREFIXES.TASK}client:${GSClientID}`;
-    const count = await cache.invalidate(pattern);
+    const pattern = `${CACHE_PREFIXES.TASK}client:${GSClientID}*`;
+    const count = await cache.invalidatePattern(pattern);
     logger.info('Client cache invalidated', { GSClientID, count });
   } catch (error) {
     logger.error('Error invalidating client cache', { GSClientID, error });
@@ -111,8 +111,8 @@ export async function invalidateClientCache(GSClientID: string): Promise<void> {
  */
 export async function invalidateClientTaskCounts(GSClientID: string): Promise<void> {
   try {
-    const pattern = `${CACHE_PREFIXES.TASK}counts:client:${GSClientID}`;
-    const count = await cache.invalidate(pattern);
+    const pattern = `${CACHE_PREFIXES.TASK}counts:client:${GSClientID}*`;
+    const count = await cache.invalidatePattern(pattern);
     logger.debug('Client task counts cache invalidated', { GSClientID, count });
   } catch (error) {
     logger.error('Error invalidating client task counts cache', { GSClientID, error });
@@ -125,8 +125,8 @@ export async function invalidateClientTaskCounts(GSClientID: string): Promise<vo
  */
 export async function invalidateAllClientCaches(): Promise<void> {
   try {
-    const pattern = `${CACHE_PREFIXES.TASK}client`;
-    const count = await cache.invalidate(pattern);
+    const pattern = `${CACHE_PREFIXES.TASK}client*`;
+    const count = await cache.invalidatePattern(pattern);
     logger.info('All client caches invalidated', { count });
   } catch (error) {
     logger.error('Error invalidating all client caches', { error });

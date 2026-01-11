@@ -203,6 +203,28 @@ export interface Task {
   dpaPath?: string | null;
   dpaUploadedBy?: string | null;
   dpaUploadedAt?: Date | null;
+  // Engagement Letter Extraction fields
+  elExtractionStatus?: 'PENDING' | 'SUCCESS' | 'FAILED';
+  elExtractionError?: string | null;
+  elLetterDate?: Date | null;
+  elLetterAge?: number | null;
+  elSigningPartner?: string | null;
+  elSigningPartnerCode?: string | null;
+  elServicesCovered?: string | null; // JSON string
+  elHasPartnerSignature?: boolean;
+  elHasClientSignature?: boolean;
+  elHasTermsConditions?: boolean;
+  elHasTcPartnerSignature?: boolean;
+  elHasTcClientSignature?: boolean;
+  // DPA Extraction fields
+  dpaExtractionStatus?: 'PENDING' | 'SUCCESS' | 'FAILED';
+  dpaExtractionError?: string | null;
+  dpaLetterDate?: Date | null;
+  dpaLetterAge?: number | null;
+  dpaSigningPartner?: string | null;
+  dpaSigningPartnerCode?: string | null;
+  dpaHasPartnerSignature?: boolean;
+  dpaHasClientSignature?: boolean;
   _count?: {
     mappings: number;
     taxAdjustments: number;

@@ -7,6 +7,7 @@ import { getServLineCodesBySubGroup, getExternalServiceLinesByMaster } from '@/l
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { getCachedList, setCachedList, invalidateTaskListCache } from '@/lib/services/cache/listCache';
+import { invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
@@ -433,6 +434,18 @@ export const POST = secureRoute.mutation({
     let GSClientID: string | null = null;
     if (data.GSClientID) {
       GSClientID = data.GSClientID;
+    } else if (data.clientId) {
+      // Convert internal clientId to GSClientID
+      const client = await prisma.client.findUnique({
+        where: { id: data.clientId },
+        select: { GSClientID: true },
+      });
+      
+      if (!client) {
+        throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
+      }
+      
+      GSClientID = client.GSClientID;
     }
 
     const externalServiceLine = await prisma.serviceLineExternal.findFirst({
@@ -587,6 +600,11 @@ export const POST = secureRoute.mutation({
     });
 
     await invalidateTaskListCache();
+    
+    // Invalidate client detail cache so the task list updates immediately
+    if (GSClientID) {
+      await invalidateClientCache(GSClientID);
+    }
 
     logger.info('Task created successfully', { taskCode: result.task.TaskCode, teamMembersCreated: result.teamMemberSummary.created });
 
@@ -600,7 +618,14 @@ export const POST = secureRoute.mutation({
         updatedAt: result.task.updatedAt.toISOString(),
         client: result.task.Client,
         teamMemberSummary: result.teamMemberSummary,
-      })
+      }),
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     );
   },
 });

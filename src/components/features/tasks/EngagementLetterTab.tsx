@@ -7,7 +7,9 @@ import {
   Upload,
   CheckCircle,
   AlertTriangle,
-  Sparkles
+  Sparkles,
+  XCircle,
+  Loader2
 } from 'lucide-react';
 import { Task } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
@@ -33,6 +35,37 @@ interface SectionUsed {
 
 type TabType = 'upload' | 'generate';
 
+// Signature Indicator Component
+function SignatureIndicator({ label, present }: { label: string; present: boolean }) {
+  return (
+    <div className="flex items-center space-x-2 text-xs">
+      {present ? (
+        <CheckCircle className="h-4 w-4 text-green-600" />
+      ) : (
+        <XCircle className="h-4 w-4 text-red-600" />
+      )}
+      <span className={present ? 'text-green-700' : 'text-red-700'}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// Format date helper
+function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return 'N/A';
+  try {
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return 'Invalid date';
+  }
+}
+
 export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }: EngagementLetterTabProps) {
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -48,6 +81,8 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
   const [useAiAdaptation, setUseAiAdaptation] = useState(true);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
   const [showDpaReplaceConfirm, setShowDpaReplaceConfirm] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string[]>([]);
+  const [requirements, setRequirements] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dpaFileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -107,13 +142,16 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
     const file = event.target.files?.[0];
     if (file) {
       // Validate file type
-      const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!allowedTypes.includes(file.type)) {
-        setError('Only PDF and DOCX files are allowed');
+      if (file.type !== 'application/pdf') {
+        setError('Only PDF files are supported for intelligent extraction');
+        setErrorDetails([]);
+        setRequirements([]);
         return;
       }
       setSelectedFile(file);
       setError(null);
+      setErrorDetails([]);
+      setRequirements([]);
     }
   };
 
@@ -145,7 +183,24 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to upload engagement letter');
+        setError(data.message || data.error || 'Failed to upload engagement letter');
+        setErrorDetails(data.details || []);
+        
+        // Flatten requirements if it's an object with arrays
+        if (data.requirements) {
+          if (Array.isArray(data.requirements)) {
+            setRequirements(data.requirements);
+          } else if (typeof data.requirements === 'object') {
+            const allReqs = [
+              ...(data.requirements.signatures || []),
+              ...(data.requirements.other || [])
+            ];
+            setRequirements(allReqs);
+          }
+        } else {
+          setRequirements([]);
+        }
+        return;
       }
 
       // Invalidate and refetch the task data
@@ -187,13 +242,16 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
     const file = event.target.files?.[0];
     if (file) {
       // Validate file type
-      const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!allowedTypes.includes(file.type)) {
-        setDpaError('Only PDF and DOCX files are allowed');
+      if (file.type !== 'application/pdf') {
+        setDpaError('Only PDF files are supported for intelligent extraction');
+        setErrorDetails([]);
+        setRequirements([]);
         return;
       }
       setSelectedDpaFile(file);
       setDpaError(null);
+      setErrorDetails([]);
+      setRequirements([]);
     }
   };
 
@@ -225,7 +283,10 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to upload DPA');
+        setDpaError(data.error || 'Failed to upload DPA');
+        setErrorDetails(data.details || []);
+        setRequirements(data.requirements || []);
+        return;
       }
 
       // Invalidate and refetch the task data
@@ -403,7 +464,29 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
 
         {error && (
           <div className="m-6 bg-red-50 border-2 border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-700">{error}</p>
+            <div className="flex items-start">
+              <XCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-800">{error}</p>
+                {errorDetails.length > 0 && (
+                  <ul className="mt-2 text-xs text-red-700 list-disc list-inside space-y-1">
+                    {errorDetails.map((detail, i) => (
+                      <li key={i}>{detail}</li>
+                    ))}
+                  </ul>
+                )}
+                {requirements.length > 0 && (
+                  <div className="mt-3 p-2 bg-red-100 rounded">
+                    <p className="text-xs font-medium text-red-800 mb-1">Requirements:</p>
+                    <ul className="text-xs text-red-700 list-disc list-inside space-y-1">
+                      {requirements.map((req, i) => (
+                        <li key={i}>{req}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -446,6 +529,18 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           </div>
                         )}
                         
+                        {isUploading && (
+                          <div className="flex items-center space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-forvis-blue-700">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <div>
+                              <p className="font-medium">Processing document...</p>
+                              <p className="text-xs text-forvis-gray-600">
+                                Extracting text and verifying signatures (may take 10-30 seconds)
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        
                         <button
                           onClick={handleUpload}
                           disabled={!selectedFile || isUploading}
@@ -453,7 +548,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                         >
                           <Upload className="h-5 w-5 mr-2" />
-                          {isUploading ? 'Uploading...' : 'Upload Letter'}
+                          {isUploading ? 'Processing...' : 'Upload Letter'}
                         </button>
                       </div>
                     ) : (
@@ -506,6 +601,75 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                         <p className="text-sm text-green-700 mt-3">
                           Engagement letter uploaded. Next, upload the Data Processing Agreement below.
                         </p>
+                        
+                        {/* Extracted Metadata Section */}
+                        {task.elExtractionStatus === 'SUCCESS' && (
+                          <div className="mt-4 border-t-2 border-green-300 pt-4">
+                            <h4 className="text-sm font-semibold text-green-900 mb-3">
+                              Extracted Information
+                            </h4>
+                            <dl className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <dt className="font-medium text-green-800">Letter Date:</dt>
+                                <dd className="text-green-700">
+                                  {formatDate(task.elLetterDate)}
+                                  {task.elLetterAge !== null && task.elLetterAge !== undefined && (
+                                    <span className="ml-2 text-xs text-green-600">
+                                      ({task.elLetterAge} days old)
+                                    </span>
+                                  )}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="font-medium text-green-800">Signing Partner:</dt>
+                                <dd className="text-green-700">
+                                  {task.elSigningPartner || 'Not identified'}
+                                  {task.elSigningPartnerCode && (
+                                    <span className="ml-2 text-xs">({task.elSigningPartnerCode})</span>
+                                  )}
+                                </dd>
+                              </div>
+                              {task.elServicesCovered && (
+                                <div className="col-span-2">
+                                  <dt className="font-medium text-green-800">Services Covered:</dt>
+                                  <dd className="text-green-700">
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                      {JSON.parse(task.elServicesCovered || '[]').map((service: string, i: number) => (
+                                        <span
+                                          key={i}
+                                          className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs"
+                                        >
+                                          {service}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </dd>
+                                </div>
+                              )}
+                              <div className="col-span-2">
+                                <dt className="font-medium text-green-800 mb-2">Signature Verification:</dt>
+                                <dd className="grid grid-cols-2 gap-2">
+                                  <SignatureIndicator
+                                    label="Partner Signature (EL)"
+                                    present={task.elHasPartnerSignature || false}
+                                  />
+                                  <SignatureIndicator
+                                    label="Client Signature (EL)"
+                                    present={task.elHasClientSignature || false}
+                                  />
+                                  <SignatureIndicator
+                                    label="Partner Signature (T&C)"
+                                    present={task.elHasTcPartnerSignature || false}
+                                  />
+                                  <SignatureIndicator
+                                    label="Client Signature (T&C)"
+                                    present={task.elHasTcClientSignature || false}
+                                  />
+                                </dd>
+                              </div>
+                            </dl>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -531,7 +695,29 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
 
                       {dpaError && (
                         <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                          <p className="text-sm text-red-700">{dpaError}</p>
+                          <div className="flex items-start">
+                            <XCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-red-800">{dpaError}</p>
+                              {errorDetails.length > 0 && (
+                                <ul className="mt-2 text-xs text-red-700 list-disc list-inside space-y-1">
+                                  {errorDetails.map((detail, i) => (
+                                    <li key={i}>{detail}</li>
+                                  ))}
+                                </ul>
+                              )}
+                              {requirements.length > 0 && (
+                                <div className="mt-3 p-2 bg-red-100 rounded">
+                                  <p className="text-xs font-medium text-red-800 mb-1">Requirements:</p>
+                                  <ul className="text-xs text-red-700 list-disc list-inside space-y-1">
+                                    {requirements.map((req, i) => (
+                                      <li key={i}>{req}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       )}
 
@@ -558,6 +744,18 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                             </div>
                           )}
                           
+                          {isUploadingDpa && (
+                            <div className="flex items-center space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-forvis-blue-700">
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                              <div>
+                                <p className="font-medium">Processing DPA document...</p>
+                                <p className="text-xs text-forvis-gray-600">
+                                  Extracting text and verifying signatures (may take 10-30 seconds)
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
                           <button
                             onClick={handleDpaUpload}
                             disabled={!selectedDpaFile || isUploadingDpa}
@@ -565,7 +763,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                             style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
                           >
                             <Upload className="h-5 w-5 mr-2" />
-                            {isUploadingDpa ? 'Uploading...' : 'Upload DPA'}
+                            {isUploadingDpa ? 'Processing...' : 'Upload DPA'}
                           </button>
                         </div>
                       ) : !canManage ? (
@@ -631,6 +829,50 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           <p className="text-sm text-green-700 mt-3">
                             ✓ All engagement documentation complete. You can now access all task work tabs.
                           </p>
+                          
+                          {/* DPA Extracted Metadata Section */}
+                          {task.dpaExtractionStatus === 'SUCCESS' && (
+                            <div className="mt-4 border-t-2 border-green-300 pt-4">
+                              <h4 className="text-sm font-semibold text-green-900 mb-3">
+                                Extracted DPA Information
+                              </h4>
+                              <dl className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                  <dt className="font-medium text-green-800">DPA Date:</dt>
+                                  <dd className="text-green-700">
+                                    {formatDate(task.dpaLetterDate)}
+                                    {task.dpaLetterAge !== null && task.dpaLetterAge !== undefined && (
+                                      <span className="ml-2 text-xs text-green-600">
+                                        ({task.dpaLetterAge} days old)
+                                      </span>
+                                    )}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="font-medium text-green-800">Signing Partner:</dt>
+                                  <dd className="text-green-700">
+                                    {task.dpaSigningPartner || 'Not identified'}
+                                    {task.dpaSigningPartnerCode && (
+                                      <span className="ml-2 text-xs">({task.dpaSigningPartnerCode})</span>
+                                    )}
+                                  </dd>
+                                </div>
+                                <div className="col-span-2">
+                                  <dt className="font-medium text-green-800 mb-2">Signature Verification:</dt>
+                                  <dd className="grid grid-cols-2 gap-2">
+                                    <SignatureIndicator
+                                      label="Partner/Firm Signature"
+                                      present={task.dpaHasPartnerSignature || false}
+                                    />
+                                    <SignatureIndicator
+                                      label="Client Signature"
+                                      present={task.dpaHasClientSignature || false}
+                                    />
+                                  </dd>
+                                </div>
+                              </dl>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

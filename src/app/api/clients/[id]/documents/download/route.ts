@@ -5,8 +5,10 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { parseGSClientID, parseNumericId } from '@/lib/utils/apiUtils';
 import { DocumentType } from '@/types';
-import { readFile } from 'fs/promises';
-import path from 'node:path';
+import { 
+  downloadEngagementLetter,
+  downloadFile 
+} from '@/lib/services/documents/blobStorage';
 import { logger } from '@/lib/utils/logger';
 
 // Zod schema for query parameter validation
@@ -15,47 +17,6 @@ const DownloadQuerySchema = z.object({
   documentId: z.string().regex(/^\d+$/, 'Document ID must be a positive integer'),
   taskId: z.string().regex(/^\d+$/, 'Task ID must be a positive integer').optional(),
 });
-
-// Allowed base directories for document storage (prevents path traversal)
-const ALLOWED_BASE_DIRS = [
-  'uploads',
-  'documents',
-  'storage',
-];
-
-/**
- * Validate that a file path is within allowed directories
- * Prevents path traversal attacks
- */
-function validateFilePath(filePath: string): string {
-  // Normalize the path to resolve .. and . segments
-  const normalizedPath = path.normalize(filePath);
-  
-  // Check for path traversal attempts
-  if (normalizedPath.includes('..') || normalizedPath.startsWith('/') || normalizedPath.startsWith('\\')) {
-    throw new AppError(
-      403,
-      'Invalid document path',
-      ErrorCodes.FORBIDDEN,
-      { reason: 'Path traversal attempt detected' }
-    );
-  }
-  
-  // Verify the path starts with an allowed base directory
-  const pathParts = normalizedPath.split(/[/\\]/);
-  const baseDir = pathParts[0];
-  
-  if (!baseDir || !ALLOWED_BASE_DIRS.includes(baseDir)) {
-    throw new AppError(
-      403,
-      'Document not accessible',
-      ErrorCodes.FORBIDDEN,
-      { reason: 'Document is not in an allowed directory' }
-    );
-  }
-  
-  return normalizedPath;
-}
 
 /**
  * GET /api/clients/[id]/documents/download
@@ -251,19 +212,27 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Document file path not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Validate file path to prevent path traversal attacks
-    const validatedPath = validateFilePath(filePath);
-    const fullPath = path.join(process.cwd(), validatedPath);
-
-    // Read the file
+    // Download file from Azure Blob Storage
     let fileBuffer: Buffer;
     try {
-      fileBuffer = await readFile(fullPath);
-    } catch (fileError) {
-      logger.error('File read error', { path: validatedPath, error: fileError });
+      switch (documentType) {
+        case DocumentType.ENGAGEMENT_LETTER:
+          fileBuffer = await downloadEngagementLetter(filePath);
+          break;
+        case DocumentType.ADMINISTRATION:
+        case DocumentType.ADJUSTMENT:
+        case DocumentType.OPINION:
+        case DocumentType.SARS:
+          fileBuffer = await downloadFile(filePath);
+          break;
+        default:
+          throw new AppError(400, 'Invalid document type', ErrorCodes.VALIDATION_ERROR);
+      }
+    } catch (downloadError) {
+      logger.error('Blob download error', { path: filePath, error: downloadError });
       throw new AppError(
         404,
-        'Document file not found on server',
+        'Document file not found in storage',
         ErrorCodes.NOT_FOUND
       );
     }
@@ -278,7 +247,7 @@ export const GET = secureRoute.queryWithParams({
     });
 
     // Determine content type based on file extension
-    const ext = validatedPath.split('.').pop()?.toLowerCase();
+    const ext = filePath.split('.').pop()?.toLowerCase();
     let contentType = 'application/octet-stream';
     
     if (ext === 'pdf') {

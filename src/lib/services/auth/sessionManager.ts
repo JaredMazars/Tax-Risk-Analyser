@@ -77,10 +77,10 @@ export class SessionManager {
       await Promise.all(
         sessions.map(session => this.invalidateSession(session.sessionToken))
       );
-      
+
       // Also invalidate cache pattern
-      await cache.invalidate(`session:*:${userId}`);
-      
+      await cache.invalidatePattern(`session:*:${userId}`);
+
       logger.info('All user sessions invalidated', { userId, count: sessions.length });
     } catch (error) {
       logger.error('Error invalidating user sessions', { userId, error });

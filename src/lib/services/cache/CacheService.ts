@@ -134,6 +134,7 @@ export class CacheService {
   /**
    * Invalidate cache entries matching pattern
    * Note: Pattern is sanitized for security
+   * @deprecated Use invalidatePattern() for wildcard patterns
    */
   async invalidate(pattern: string): Promise<number> {
     const safePattern = this.sanitizeKey(pattern);
@@ -162,6 +163,68 @@ export class CacheService {
     }
     
     return count;
+  }
+
+  /**
+   * Invalidate cache entries matching pattern with wildcard support
+   * Supports Redis wildcard patterns: * ? [abc] etc.
+   * 
+   * Security: Pattern is validated but wildcards are preserved
+   */
+  async invalidatePattern(pattern: string): Promise<number> {
+    // Validate pattern but preserve wildcards
+    const safePattern = this.sanitizePattern(pattern);
+    const redis = getRedisClient();
+    let count = 0;
+
+    if (redis && isRedisAvailable()) {
+      try {
+        // Use SCAN instead of KEYS for better performance
+        const keys: string[] = [];
+        let cursor = '0';
+        
+        do {
+          const result = await redis.scan(cursor, 'MATCH', safePattern, 'COUNT', 100);
+          cursor = result[0];
+          keys.push(...result[1]);
+        } while (cursor !== '0');
+        
+        if (keys.length > 0) {
+          count = await redis.del(...keys);
+          logger.info('Redis pattern invalidation', { pattern: safePattern, count });
+        }
+        return count;
+      } catch (error) {
+        logError('Redis pattern invalidation error', error, { pattern: safePattern });
+        return 0;
+      }
+    }
+
+    // Fallback: Memory cache pattern matching
+    const regex = new RegExp(
+      '^' + safePattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$'
+    );
+    
+    for (const key of this.memoryCache.keys()) {
+      if (regex.test(key)) {
+        this.memoryCache.delete(key);
+        count++;
+      }
+    }
+    
+    return count;
+  }
+
+  /**
+   * Sanitize pattern while preserving wildcards
+   * Only removes truly dangerous characters
+   */
+  private sanitizePattern(pattern: string): string {
+    // Preserve wildcards (*, ?) and standard separators (:, -, _)
+    // Remove only dangerous injection characters
+    return pattern
+      .replace(/[^a-zA-Z0-9:_\-*?]/g, '_')  // Preserves * and ?
+      .substring(0, 200);
   }
 
   /**

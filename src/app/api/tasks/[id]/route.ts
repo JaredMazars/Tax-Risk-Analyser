@@ -112,10 +112,31 @@ export const GET = secureRoute.queryWithParams({
             generatedBy: true,
             uploadedAt: true,
             uploadedBy: true,
+            // Engagement Letter extraction metadata
+            elExtractionStatus: true,
+            elLetterDate: true,
+            elLetterAge: true,
+            elSigningPartner: true,
+            elSigningPartnerCode: true,
+            elServicesCovered: true,
+            elHasPartnerSignature: true,
+            elHasClientSignature: true,
+            elHasTermsConditions: true,
+            elHasTcPartnerSignature: true,
+            elHasTcClientSignature: true,
+            // DPA fields
             dpaUploaded: true,
             dpaFilePath: true,
             dpaUploadedAt: true,
             dpaUploadedBy: true,
+            // DPA extraction metadata
+            dpaExtractionStatus: true,
+            dpaLetterDate: true,
+            dpaLetterAge: true,
+            dpaSigningPartner: true,
+            dpaSigningPartnerCode: true,
+            dpaHasPartnerSignature: true,
+            dpaHasClientSignature: true,
           },
         },
         _count: {
@@ -211,10 +232,31 @@ export const GET = secureRoute.queryWithParams({
       engagementLetterPath: TaskEngagementLetter?.filePath || null,
       engagementLetterUploadedBy: TaskEngagementLetter?.uploadedBy || null,
       engagementLetterUploadedAt: TaskEngagementLetter?.uploadedAt || null,
+      // Engagement Letter extraction metadata
+      elExtractionStatus: TaskEngagementLetter?.elExtractionStatus || null,
+      elLetterDate: TaskEngagementLetter?.elLetterDate || null,
+      elLetterAge: TaskEngagementLetter?.elLetterAge || null,
+      elSigningPartner: TaskEngagementLetter?.elSigningPartner || null,
+      elSigningPartnerCode: TaskEngagementLetter?.elSigningPartnerCode || null,
+      elServicesCovered: TaskEngagementLetter?.elServicesCovered || null,
+      elHasPartnerSignature: TaskEngagementLetter?.elHasPartnerSignature || null,
+      elHasClientSignature: TaskEngagementLetter?.elHasClientSignature || null,
+      elHasTermsConditions: TaskEngagementLetter?.elHasTermsConditions || null,
+      elHasTcPartnerSignature: TaskEngagementLetter?.elHasTcPartnerSignature || null,
+      elHasTcClientSignature: TaskEngagementLetter?.elHasTcClientSignature || null,
+      // DPA fields
       dpaUploaded: TaskEngagementLetter?.dpaUploaded || false,
       dpaPath: TaskEngagementLetter?.dpaFilePath || null,
       dpaUploadedBy: TaskEngagementLetter?.dpaUploadedBy || null,
       dpaUploadedAt: TaskEngagementLetter?.dpaUploadedAt || null,
+      // DPA extraction metadata
+      dpaExtractionStatus: TaskEngagementLetter?.dpaExtractionStatus || null,
+      dpaLetterDate: TaskEngagementLetter?.dpaLetterDate || null,
+      dpaLetterAge: TaskEngagementLetter?.dpaLetterAge || null,
+      dpaSigningPartner: TaskEngagementLetter?.dpaSigningPartner || null,
+      dpaSigningPartnerCode: TaskEngagementLetter?.dpaSigningPartnerCode || null,
+      dpaHasPartnerSignature: TaskEngagementLetter?.dpaHasPartnerSignature || null,
+      dpaHasClientSignature: TaskEngagementLetter?.dpaHasClientSignature || null,
       _count: {
         mappings: enrichedTask._count.MappedAccount,
         taxAdjustments: enrichedTask._count.TaxAdjustment,
@@ -350,7 +392,7 @@ export const PUT = secureRoute.mutationWithParams({
     });
 
     // Invalidate cache after update
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
+    await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
     await invalidateTaskListCache(Number(taskId));
     
     if (task.GSClientID) {
@@ -430,7 +472,7 @@ export const PATCH = secureRoute.mutationWithParams({
         },
       });
 
-      await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
+      await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
       await invalidateTaskListCache(Number(taskId));
       if (task.GSClientID) {
         await invalidateClientCache(task.GSClientID);
@@ -475,7 +517,7 @@ export const DELETE = secureRoute.mutationWithParams({
       },
     });
 
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
+    await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
     await invalidateTaskListCache(Number(taskId));
     if (task.GSClientID) {
       await invalidateClientCache(task.GSClientID);

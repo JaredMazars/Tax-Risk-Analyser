@@ -7,9 +7,8 @@ import { parseTaskId } from '@/lib/utils/apiUtils';
 import { logAcceptanceApproved } from '@/lib/services/acceptance/auditLog';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { toTaskId } from '@/types/branded';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { invalidateOnTaskMutation } from '@/lib/services/cache/cacheInvalidation';
 import { invalidateClientCache } from '@/lib/services/clients/clientCache';
-import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 
 /**
  * POST /api/tasks/[id]/acceptance
@@ -153,6 +152,7 @@ export const POST = secureRoute.mutationWithParams({
         id: true,
         TaskDesc: true,
         Active: true,
+        ServLineCode: true,
         TaskAcceptance: {
           select: {
             acceptanceApproved: true,
@@ -180,9 +180,12 @@ export const POST = secureRoute.mutationWithParams({
       questionnaireResponse.overallRiskScore || undefined
     );
 
-    // Invalidate caches to ensure fresh data on next fetch
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
-    await invalidateTaskListCache(taskId);
+    // Invalidate caches comprehensively after acceptance approval
+    await invalidateOnTaskMutation(
+      taskId,
+      updatedTask?.ServLineCode,
+      undefined // subServiceLineGroup - not available in current query
+    );
 
     if (updatedTask?.Client?.GSClientID) {
       await invalidateClientCache(updatedTask.Client.GSClientID);
