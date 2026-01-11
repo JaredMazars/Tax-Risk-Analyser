@@ -18,9 +18,10 @@ interface AcceptanceTabProps {
   task: Task;
   currentUserRole: string;
   onApprovalComplete: () => void;
+  onNavigateToEngagementLetter?: () => void;
 }
 
-export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: AcceptanceTabProps) {
+export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNavigateToEngagementLetter }: AcceptanceTabProps) {
   const [isApproving, setIsApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'questionnaire' | 'review' | null>(null);
@@ -91,6 +92,11 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete }: Acc
       await new Promise(resolve => setTimeout(resolve, 500));
       
       onApprovalComplete();
+      
+      // Navigate to engagement letter tab after successful approval
+      if (onNavigateToEngagementLetter) {
+        onNavigateToEngagementLetter();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve acceptance');
     } finally {

@@ -111,41 +111,10 @@ export const GET = secureRoute.query({
       ];
     }
 
-    let partnerEmployeeCodes: string[] = [];
-    if (partnerSearch) {
-      const matchingPartners = await prisma.employee.findMany({
-        where: { Active: 'Yes', OR: [{ EmpCode: { contains: partnerSearch } }, { EmpName: { contains: partnerSearch } }] },
-        select: { EmpCode: true },
-        take: 100,
-      });
-      partnerEmployeeCodes = matchingPartners.map(e => e.EmpCode);
-    }
-    
-    let managerEmployeeCodes: string[] = [];
-    if (managerSearch) {
-      const matchingManagers = await prisma.employee.findMany({
-        where: { Active: 'Yes', OR: [{ EmpCode: { contains: managerSearch } }, { EmpName: { contains: managerSearch } }] },
-        select: { EmpCode: true },
-        take: 100,
-      });
-      managerEmployeeCodes = matchingManagers.map(e => e.EmpCode);
-    }
-    
-    const partnerWhere: Record<string, unknown> = { ...baseWhere, TaskPartner: { not: '' } };
-    if (partnerSearch && partnerEmployeeCodes.length > 0) {
-      partnerWhere.TaskPartner = { in: partnerEmployeeCodes };
-    } else if (partnerSearch && partnerEmployeeCodes.length === 0) {
-      partnerWhere.TaskPartner = { in: ['__NO_MATCH__'] };
-    }
-
-    const managerWhere: Record<string, unknown> = { ...baseWhere, TaskManager: { not: '' } };
-    if (managerSearch && managerEmployeeCodes.length > 0) {
-      managerWhere.TaskManager = { in: managerEmployeeCodes };
-    } else if (managerSearch && managerEmployeeCodes.length === 0) {
-      managerWhere.TaskManager = { in: ['__NO_MATCH__'] };
-    }
-
+    // Query employees directly for partners and managers (not through tasks)
+    // This ensures all active employees appear in the dropdown, not just those with tasks
     const [clientsData, taskNamesData, partnersData, managersData] = await Promise.all([
+      // Clients: Keep current logic (filter by service line through tasks)
       prisma.task.findMany({
         where: clientWhere,
         select: { GSClientID: true, Client: { select: { id: true, clientCode: true, clientNameFull: true } } },
@@ -153,6 +122,7 @@ export const GET = secureRoute.query({
         orderBy: { Client: { clientCode: 'asc' } },
         take: FILTER_LIMIT,
       }),
+      // Task Names: Keep current logic (filter by service line)
       prisma.task.findMany({
         where: taskNameWhere,
         select: { TaskDesc: true, TaskCode: true },
@@ -160,32 +130,33 @@ export const GET = secureRoute.query({
         orderBy: { TaskDesc: 'asc' },
         take: FILTER_LIMIT,
       }),
-      prisma.task.findMany({
-        where: partnerWhere,
-        select: { TaskPartner: true, TaskPartnerName: true },
-        distinct: ['TaskPartner'],
-        orderBy: { TaskPartnerName: 'asc' },
+      // Partners: Query Employee table directly
+      partnerSearch ? prisma.employee.findMany({
+        where: { 
+          Active: 'Yes', 
+          OR: [
+            { EmpCode: { contains: partnerSearch } }, 
+            { EmpName: { contains: partnerSearch } }
+          ] 
+        },
+        select: { EmpCode: true, EmpName: true },
+        orderBy: { EmpName: 'asc' },
         take: FILTER_LIMIT,
-      }),
-      prisma.task.findMany({
-        where: managerWhere,
-        select: { TaskManager: true, TaskManagerName: true },
-        distinct: ['TaskManager'],
-        orderBy: { TaskManagerName: 'asc' },
+      }) : Promise.resolve([]),
+      // Managers: Query Employee table directly
+      managerSearch ? prisma.employee.findMany({
+        where: { 
+          Active: 'Yes', 
+          OR: [
+            { EmpCode: { contains: managerSearch } }, 
+            { EmpName: { contains: managerSearch } }
+          ] 
+        },
+        select: { EmpCode: true, EmpName: true },
+        orderBy: { EmpName: 'asc' },
         take: FILTER_LIMIT,
-      }),
+      }) : Promise.resolve([]),
     ]);
-
-    const uniquePartnerCodes = [...new Set(partnersData.map(t => t.TaskPartner).filter(Boolean))];
-    const uniqueManagerCodes = [...new Set(managersData.map(t => t.TaskManager).filter(Boolean))];
-    const allEmployeeCodes = [...new Set([...uniquePartnerCodes, ...uniqueManagerCodes])];
-    
-    const employees = allEmployeeCodes.length > 0 ? await prisma.employee.findMany({
-      where: { EmpCode: { in: allEmployeeCodes }, Active: 'Yes' },
-      select: { EmpCode: true, EmpName: true },
-    }) : [];
-    
-    const employeeNameMap = new Map(employees.map(emp => [emp.EmpCode, emp.EmpName]));
 
     const clients = clientsData
       .filter(task => task.Client !== null)
@@ -198,23 +169,17 @@ export const GET = secureRoute.query({
         code: task.TaskCode || '' 
       }));
 
-    const partnersMap = new Map<string, { id: string; name: string }>();
-    partnersData.filter(task => task.TaskPartner !== null).forEach(task => {
-      const id = task.TaskPartner!;
-      if (!partnersMap.has(id)) {
-        partnersMap.set(id, { id, name: employeeNameMap.get(id) || task.TaskPartnerName || id });
-      }
-    });
-    const partners = Array.from(partnersMap.values());
+    // Partners: Use employee data directly
+    const partners = partnersData.map(emp => ({ 
+      id: emp.EmpCode, 
+      name: emp.EmpName 
+    }));
 
-    const managersMap = new Map<string, { id: string; name: string }>();
-    managersData.filter(task => task.TaskManager !== null).forEach(task => {
-      const id = task.TaskManager!;
-      if (!managersMap.has(id)) {
-        managersMap.set(id, { id, name: employeeNameMap.get(id) || task.TaskManagerName || id });
-      }
-    });
-    const managers = Array.from(managersMap.values());
+    // Managers: Use employee data directly
+    const managers = managersData.map(emp => ({ 
+      id: emp.EmpCode, 
+      name: emp.EmpName 
+    }));
 
     const responseData = {
       clients,
@@ -225,8 +190,8 @@ export const GET = secureRoute.query({
       metadata: {
         clients: { hasMore: clients.length >= FILTER_LIMIT, total: clients.length, returned: clients.length },
         taskNames: { hasMore: taskNames.length >= FILTER_LIMIT, total: taskNames.length, returned: taskNames.length },
-        partners: { hasMore: partners.length >= FILTER_LIMIT, total: partners.length, returned: partners.length },
-        managers: { hasMore: managers.length >= FILTER_LIMIT, total: managers.length, returned: managers.length },
+        partners: { hasMore: partnersData.length >= FILTER_LIMIT, total: partnersData.length, returned: partners.length },
+        managers: { hasMore: managersData.length >= FILTER_LIMIT, total: managersData.length, returned: managers.length },
         serviceLines: { hasMore: false, total: 0, returned: 0 },
       },
     };

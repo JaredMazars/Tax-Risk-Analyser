@@ -434,6 +434,11 @@ export function TaskDetailContent({
     }
   };
 
+  const handleNavigateToEngagementLetter = () => {
+    setActiveTab('engagement-letter');
+    setHasManuallySelectedTab(false); // Allow future auto-navigation
+  };
+
   const renderContent = () => {
     const childParams = { id: taskId };
     
@@ -444,6 +449,7 @@ export function TaskDetailContent({
             task={task} 
             currentUserRole={currentUserRole}
             onApprovalComplete={handleUpdate}
+            onNavigateToEngagementLetter={handleNavigateToEngagementLetter}
           />
         ) : null;
       case 'engagement-letter':

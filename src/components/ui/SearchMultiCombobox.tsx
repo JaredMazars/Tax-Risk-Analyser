@@ -65,14 +65,11 @@ export function SearchMultiCombobox({
     onSearchChange(searchTerm);
   }, [searchTerm, onSearchChange]);
 
-  // Close dropdown when clicking outside and commit changes
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        // Commit changes when closing
-        if (JSON.stringify(localValue.sort()) !== JSON.stringify(value.sort())) {
-          onChange(localValue);
-        }
+        // Just close the dropdown - changes are already committed via handleToggle
         setIsOpen(false);
         setSearchTerm('');
       }
@@ -85,7 +82,7 @@ export function SearchMultiCombobox({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen, localValue, value, onChange]);
+  }, [isOpen]);
 
   // Reset highlighted index when options change
   useEffect(() => {
@@ -134,20 +131,20 @@ export function SearchMultiCombobox({
           e.preventDefault();
           const newValue = localValue.slice(0, -1);
           setLocalValue(newValue);
-          onChange(newValue);
+          onChange(newValue); // Already calling onChange immediately
         }
         break;
     }
   };
 
   const handleToggle = (optionId: string | number) => {
-    // Update local value immediately for responsive UI
-    if (localValue.includes(optionId)) {
-      setLocalValue(localValue.filter((id) => id !== optionId));
-    } else {
-      setLocalValue([...localValue, optionId]);
-    }
-    // Don't call onChange here - wait until dropdown closes
+    // Update local value and notify parent immediately for instant filter application
+    const newValue = localValue.includes(optionId)
+      ? localValue.filter((id) => id !== optionId)
+      : [...localValue, optionId];
+    
+    setLocalValue(newValue);
+    onChange(newValue); // Call onChange immediately
   };
 
   const handleClear = (e: React.MouseEvent) => {
