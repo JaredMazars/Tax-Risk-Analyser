@@ -86,13 +86,18 @@ export const GET = secureRoute.query({
       }));
     }
 
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-filters:sl:${serviceLine}:subGroup:${subServiceLineGroup}:client:${clientSearch}:taskName:${taskNameSearch}:partner:${partnerSearch}:manager:${managerSearch}`;
+    // Only cache baseline results (no search terms) - skip cache for active searches to ensure fresh data
+    const hasSearchTerms = clientSearch || taskNameSearch || partnerSearch || managerSearch;
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-filters:sl:${serviceLine}:subGroup:${subServiceLineGroup}`;
     
-    const cached = await cache.get(cacheKey);
-    if (cached) {
-      cacheHit = true;
-      performanceMonitor.trackApiCall('/api/tasks/filters', startTime, true);
-      return NextResponse.json(successResponse(cached));
+    // Only check cache when there are no search terms
+    if (!hasSearchTerms) {
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        cacheHit = true;
+        performanceMonitor.trackApiCall('/api/tasks/filters', startTime, true);
+        return NextResponse.json(successResponse(cached));
+      }
     }
 
     const FILTER_LIMIT = 30;
@@ -196,7 +201,10 @@ export const GET = secureRoute.query({
       },
     };
 
-    await cache.set(cacheKey, responseData, 3600);
+    // Only cache baseline results (no search terms) - ensures fresh data for searches
+    if (!hasSearchTerms) {
+      await cache.set(cacheKey, responseData, 3600);
+    }
     performanceMonitor.trackApiCall('/api/tasks/filters', startTime, cacheHit);
 
     return NextResponse.json(successResponse(responseData));
