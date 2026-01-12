@@ -8,7 +8,7 @@ import { logAcceptanceApproved } from '@/lib/services/acceptance/auditLog';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { toTaskId } from '@/types/branded';
 import { invalidateOnTaskMutation } from '@/lib/services/cache/cacheInvalidation';
-import { invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateClientCache } from '@/lib/services/cache/cacheInvalidation';
 
 /**
  * POST /api/tasks/[id]/acceptance

@@ -4,7 +4,6 @@ import { parseTaskId, successResponse } from '@/lib/utils/apiUtils';
 import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { sanitizeText } from '@/lib/utils/sanitization';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { TaskStage } from '@/types/task-stages';
 import { normalizeTaskStage } from '@/lib/utils/taskStages';
@@ -30,12 +29,6 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
-    const cacheKey = `${CACHE_PREFIXES.TASK}stage:${taskId}`;
-    const cached = await cache.get(cacheKey);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
-    }
-
     const stages = await prisma.taskStage.findMany({
       where: { taskId },
       select: { id: true, stage: true, movedBy: true, notes: true, createdAt: true },
@@ -46,8 +39,6 @@ export const GET = secureRoute.queryWithParams({
     const currentStage = stages.length > 0 ? stages[0]?.stage ?? TaskStage.ENGAGE : TaskStage.ENGAGE;
 
     const response = { currentStage, history: stages };
-
-    await cache.set(cacheKey, response, 300);
 
     return NextResponse.json(successResponse(response));
   },
@@ -99,10 +90,7 @@ export const POST = secureRoute.mutationWithParams({
       select: { id: true, stage: true, movedBy: true, notes: true, createdAt: true },
     });
 
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}stage:${taskId}`);
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}detail:${taskId}`);
     await invalidateTaskListCache(taskId);
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}kanban`);
 
     return NextResponse.json(successResponse({
       stage: newStage,

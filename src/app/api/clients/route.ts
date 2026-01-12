@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCachedList, setCachedList } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
@@ -28,7 +27,6 @@ const ClientListQuerySchema = z.object({
 export const GET = secureRoute.query({
   handler: async (request, { user }) => {
     const startTime = Date.now();
-    let cacheHit = false;
 
     // Check permission
     const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
@@ -61,26 +59,6 @@ export const GET = secureRoute.query({
     const groups = searchParams.getAll('groups[]');
     
     const skip = (page - 1) * limit;
-
-    const hasFilters = clientCodes.length > 0 || partners.length > 0 || managers.length > 0 || groups.length > 0;
-    
-    const cacheParams = {
-      endpoint: 'clients' as const,
-      page,
-      limit,
-      search,
-      sortBy,
-      sortOrder,
-    };
-    
-    if (!hasFilters) {
-      const cached = await getCachedList(cacheParams);
-      if (cached) {
-        cacheHit = true;
-        performanceMonitor.trackApiCall('/api/clients', startTime, true);
-        return NextResponse.json(successResponse(cached));
-      }
-    }
 
     interface WhereClause {
       OR?: Array<Record<string, { contains: string }>>;
@@ -195,11 +173,7 @@ export const GET = secureRoute.query({
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
 
-    if (!hasFilters) {
-      await setCachedList(cacheParams, responseData);
-    }
-
-    performanceMonitor.trackApiCall('/api/clients', startTime, cacheHit);
+    performanceMonitor.trackApiCall('/api/clients', startTime, false);
 
     return NextResponse.json(successResponse(responseData));
   },

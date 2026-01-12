@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db/prisma';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { 
   aggregateWipTransactionsByServiceLine, 
   aggregateOverallWipData,
@@ -127,13 +126,6 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Check cache first
-    const cacheKey = `${CACHE_PREFIXES.CLIENT}wip:${GSClientID}`;
-    const cached = await cache.get<Record<string, unknown>>(cacheKey);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
-    }
-
     // Get CARL partner employee codes and WIP transactions in parallel
     const [carlPartnerCodes, wipTransactions] = await Promise.all([
       getCarlPartnerCodes(),
@@ -218,9 +210,6 @@ export const GET = secureRoute.queryWithParams({
       taskCount: taskCount,
       lastUpdated: latestWipTransaction?.updatedAt || null,
     };
-
-    // Cache for 10 minutes (600 seconds)
-    await cache.set(cacheKey, responseData, 600);
 
     return NextResponse.json(successResponse(responseData));
   },

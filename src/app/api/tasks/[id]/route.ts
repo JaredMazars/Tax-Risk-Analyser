@@ -5,8 +5,7 @@ import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { toTaskId } from '@/types/branded';
 import { Prisma } from '@prisma/client';
 import { sanitizeText } from '@/lib/utils/sanitization';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
-import { invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateClientCache } from '@/lib/services/cache/cacheInvalidation';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
@@ -49,13 +48,6 @@ export const GET = secureRoute.queryWithParams({
     // Check if team members should be included
     const { searchParams } = new URL(request.url);
     const includeTeam = searchParams.get('includeTeam') === 'true';
-
-    // Try to get cached task data
-    const cacheKey = `${CACHE_PREFIXES.TASK}detail:${taskId}:${includeTeam}:user:${user.id}`;
-    const cached = await cache.get(cacheKey);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
-    }
 
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -268,9 +260,6 @@ export const GET = secureRoute.queryWithParams({
       ...(includeTeam && { users: TaskTeam }),
     };
 
-    // Cache the response for 5 minutes
-    await cache.set(cacheKey, transformedTask, 300);
-
     return NextResponse.json(successResponse(transformedTask));
   },
 });
@@ -391,8 +380,7 @@ export const PUT = secureRoute.mutationWithParams({
       },
     });
 
-    // Invalidate cache after update
-    await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
+    // Invalidate list cache after update
     await invalidateTaskListCache(Number(taskId));
     
     if (task.GSClientID) {
@@ -472,7 +460,6 @@ export const PATCH = secureRoute.mutationWithParams({
         },
       });
 
-      await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
       await invalidateTaskListCache(Number(taskId));
       if (task.GSClientID) {
         await invalidateClientCache(task.GSClientID);
@@ -517,7 +504,6 @@ export const DELETE = secureRoute.mutationWithParams({
       },
     });
 
-    await cache.invalidatePattern(`${CACHE_PREFIXES.TASK}detail:${taskId}:*`);
     await invalidateTaskListCache(Number(taskId));
     if (task.GSClientID) {
       await invalidateClientCache(task.GSClientID);

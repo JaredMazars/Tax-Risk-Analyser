@@ -53,13 +53,14 @@ export async function GET(request: NextRequest) {
     
     const url = new URL(request.url);
     const rawCallbackUrl = url.searchParams.get('callbackUrl');
+    const prompt = url.searchParams.get('prompt');
     
     // Validate callback URL to prevent open redirect attacks
     const baseUrl = process.env.NEXTAUTH_URL || '';
     const callbackUrl = validateCallbackUrl(rawCallbackUrl, baseUrl);
     
     const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/callback`;
-    const authUrl = await getAuthUrl(redirectUri);
+    const authUrl = await getAuthUrl(redirectUri, prompt);
     
     // Store callback URL in cookie for after authentication
     const response = NextResponse.redirect(authUrl);

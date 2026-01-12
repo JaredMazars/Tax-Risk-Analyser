@@ -5,7 +5,7 @@ import { CreateChangeRequestSchema } from '@/lib/validation/schemas';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
 import { isSystemAdmin } from '@/lib/utils/systemAdmin';
-import { invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateClientCache } from '@/lib/services/cache/cacheInvalidation';
 import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 import {
   createChangeRequest,

@@ -263,7 +263,7 @@ mapper/
 
 ### Authentication
 - `POST /api/auth/signin` - Azure AD sign-in
-- `POST /api/auth/signout` - Sign out and invalidate session
+- `GET /api/auth/logout` - Sign out and invalidate session (redirects to Azure AD logout)
 - `GET /api/auth/session` - Get current user session
 
 ### Projects

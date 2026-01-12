@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db/prisma';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { 
   getInvoiceDetailsByBucket,
   InvoicesByBucket 
@@ -41,13 +40,6 @@ export const GET = secureRoute.queryWithParams({
 
     if (!client) {
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
-    }
-
-    // Check cache first
-    const cacheKey = `${CACHE_PREFIXES.CLIENT}debtors-details:${GSClientID}`;
-    const cached = await cache.get<Record<string, unknown>>(cacheKey);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
     }
 
     // Fetch debtor transactions and service line mappings in parallel
@@ -127,9 +119,6 @@ export const GET = secureRoute.queryWithParams({
         0
       ),
     };
-
-    // Cache for 10 minutes (600 seconds)
-    await cache.set(cacheKey, responseData, 600);
 
     return NextResponse.json(successResponse(responseData));
   },

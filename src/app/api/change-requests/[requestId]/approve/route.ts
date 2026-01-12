@@ -4,7 +4,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { ResolveChangeRequestSchema } from '@/lib/validation/schemas';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { approveChangeRequest } from '@/lib/services/clients/changeRequestService';
-import { invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateClientCache } from '@/lib/services/cache/cacheInvalidation';
 import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 import { invalidateApprovalsCache } from '@/lib/services/cache/cacheInvalidation';
 

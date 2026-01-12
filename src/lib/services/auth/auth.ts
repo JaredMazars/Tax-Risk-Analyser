@@ -78,12 +78,19 @@ function getClientIP(headers: { get: (name: string) => string | null }): string 
 
 /**
  * Generate authorization URL for Azure AD login
+ * @param redirectUri - Callback URL after authentication
+ * @param prompt - Optional prompt parameter ('login', 'select_account', 'consent', 'none')
  */
-export async function getAuthUrl(redirectUri: string): Promise<string> {
-  const authCodeUrlParameters = {
+export async function getAuthUrl(redirectUri: string, prompt?: string | null): Promise<string> {
+  const authCodeUrlParameters: any = {
     scopes: ['user.read', 'openid', 'profile', 'email'],
     redirectUri,
   };
+
+  // Add prompt parameter if provided (e.g., 'login' forces re-authentication)
+  if (prompt) {
+    authCodeUrlParameters.prompt = prompt;
+  }
 
   const authUrl = await pca.getAuthCodeUrl(authCodeUrlParameters);
   return authUrl;
@@ -92,6 +99,7 @@ export async function getAuthUrl(redirectUri: string): Promise<string> {
 /**
  * Generate Azure AD logout URL for full sign-out
  * Clears both application session and Azure AD session
+ * @param postLogoutRedirectUri - URL to redirect to after logout
  */
 export function getLogoutUrl(postLogoutRedirectUri: string): string {
   const tenantId = process.env.AZURE_AD_TENANT_ID;

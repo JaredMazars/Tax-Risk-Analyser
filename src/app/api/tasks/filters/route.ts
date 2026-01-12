@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
@@ -25,7 +24,6 @@ export const GET = secureRoute.query({
   feature: Feature.ACCESS_TASKS,
   handler: async (request, { user }) => {
     const startTime = Date.now();
-    let cacheHit = false;
 
     const { searchParams } = new URL(request.url);
     
@@ -84,20 +82,6 @@ export const GET = secureRoute.query({
         },
         message: 'Please enter at least 2 characters to search',
       }));
-    }
-
-    // Only cache baseline results (no search terms) - skip cache for active searches to ensure fresh data
-    const hasSearchTerms = clientSearch || taskNameSearch || partnerSearch || managerSearch;
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-filters:sl:${serviceLine}:subGroup:${subServiceLineGroup}`;
-    
-    // Only check cache when there are no search terms
-    if (!hasSearchTerms) {
-      const cached = await cache.get(cacheKey);
-      if (cached) {
-        cacheHit = true;
-        performanceMonitor.trackApiCall('/api/tasks/filters', startTime, true);
-        return NextResponse.json(successResponse(cached));
-      }
     }
 
     const FILTER_LIMIT = 30;
@@ -201,11 +185,7 @@ export const GET = secureRoute.query({
       },
     };
 
-    // Only cache baseline results (no search terms) - ensures fresh data for searches
-    if (!hasSearchTerms) {
-      await cache.set(cacheKey, responseData, 3600);
-    }
-    performanceMonitor.trackApiCall('/api/tasks/filters', startTime, cacheHit);
+    performanceMonitor.trackApiCall('/api/tasks/filters', startTime, false);
 
     return NextResponse.json(successResponse(responseData));
   },

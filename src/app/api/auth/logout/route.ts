@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteSession, deleteAllUserSessions, verifySession, getLogoutUrl } from '@/lib/services/auth/auth';
+import { deleteSession, deleteAllUserSessions, verifySession } from '@/lib/services/auth/auth';
 import { clearRateLimitsForIdentifier, getClientIdentifier, enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
 import { logInfo } from '@/lib/utils/logger';
 
@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
     } else {
       // Delete only this session
       const session = await verifySession(sessionToken);
-      await deleteSession(sessionToken);
       if (session?.user?.id) {
         logInfo('User logged out', { userId: session.user.id });
       }
+      await deleteSession(sessionToken);
     }
   }
   
@@ -40,11 +40,12 @@ export async function GET(request: NextRequest) {
   const clientIdentifier = getClientIdentifier(request);
   clearRateLimitsForIdentifier(clientIdentifier);
   
-  // Redirect to Azure AD logout, which will clear SSO session and redirect back to app root
-  // Middleware will then redirect unauthenticated users to Azure AD login
-  const postLogoutRedirectUri = process.env.NEXTAUTH_URL!;
-  const azureLogoutUrl = getLogoutUrl(postLogoutRedirectUri);
-  const response = NextResponse.redirect(azureLogoutUrl);
+  // Redirect directly to login with prompt=login to force re-authentication
+  // This skips the Azure AD logout account picker and provides a cleaner experience
+  const loginUrl = new URL('/api/auth/login', request.url);
+  loginUrl.searchParams.set('prompt', 'login');
+  loginUrl.searchParams.set('callbackUrl', '/dashboard');
+  const response = NextResponse.redirect(loginUrl);
   
   // Delete session cookie using direct Set-Cookie headers for reliability
   const nodeEnv = process.env.NODE_ENV;
@@ -76,24 +77,23 @@ export async function POST(request: NextRequest) {
   // Delete session from database
   if (sessionToken) {
     const session = await verifySession(sessionToken);
-    await deleteSession(sessionToken);
     if (session?.user?.id) {
       logInfo('User logged out via POST', { userId: session.user.id });
     }
+    await deleteSession(sessionToken);
   }
   
   // Clear rate limits for this IP
   const clientIdentifier = getClientIdentifier(request);
   clearRateLimitsForIdentifier(clientIdentifier);
   
-  // Return Azure AD logout URL which will clear SSO session and redirect back to app root
-  // Middleware will then redirect unauthenticated users to Azure AD login
-  const postLogoutRedirectUri = process.env.NEXTAUTH_URL!;
-  const azureLogoutUrl = getLogoutUrl(postLogoutRedirectUri);
+  // Return login URL with prompt=login to force re-authentication
+  // This skips the Azure AD logout account picker and provides a cleaner experience
+  const loginUrl = `${process.env.NEXTAUTH_URL}/api/auth/login?prompt=login&callbackUrl=${encodeURIComponent('/dashboard')}`;
   const response = NextResponse.json({ 
     success: true, 
     message: 'Logged out successfully',
-    logoutUrl: azureLogoutUrl
+    logoutUrl: loginUrl
   });
   
   // Delete session cookie using direct Set-Cookie headers for reliability

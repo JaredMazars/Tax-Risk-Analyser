@@ -45,6 +45,11 @@ const team = await prisma.taskTeam.findMany({ where: { taskId: task.id } });
 const clients = await prisma.client.findMany({ where: { clientCode: { contains: term } } });
 ```
 
+**SQL Server Case Sensitivity:**
+- **NEVER use `mode: 'insensitive'`** - not supported by SQL Server (PostgreSQL/MySQL only)
+- SQL Server uses collation-based case sensitivity (default: `SQL_Latin1_General_CP1_CI_AS` is case-insensitive)
+- Use `contains`, `startsWith`, `endsWith` without mode parameter for case-insensitive searches
+
 **Data Model Relationships (CRITICAL):**
 - **Clients are unique to Groups**: Each client belongs to exactly one group (`groupCode`). When creating/updating APIs that work with clients, always validate that the client belongs to the specified group.
 - **Tasks are unique to Clients**: Each task belongs to exactly one client (`GSClientID`). When creating/updating APIs that work with tasks, always validate that the task belongs to the specified client.

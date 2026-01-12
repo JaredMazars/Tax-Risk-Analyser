@@ -5,7 +5,6 @@ import { UpdateClientSchema, GSClientIDSchema } from '@/lib/validation/schemas';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { z } from 'zod';
 import { getTaskCountsByServiceLine } from '@/lib/services/tasks/taskAggregation';
-import { getCachedClient, setCachedClient, invalidateClientCache } from '@/lib/services/clients/clientCache';
 import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
@@ -49,11 +48,6 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     
     const { taskPage, taskLimit, serviceLine, includeArchived: includeArchivedStr } = queryResult.data;
     const includeArchived = includeArchivedStr === 'true';
-    
-    const cached = await getCachedClient(GSClientID, serviceLine, includeArchived);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
-    }
     
     const taskSkip = (taskPage - 1) * taskLimit;
 
@@ -215,8 +209,6 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     }
     // #endregion
 
-    await setCachedClient(GSClientID, responseData, serviceLine, includeArchived);
-
     return NextResponse.json(successResponse(responseData));
   },
 });
@@ -286,7 +278,6 @@ export const PUT = secureRoute.mutationWithParams<typeof UpdateClientSchema, { i
       },
     });
 
-    await invalidateClientCache(GSClientID);
     await invalidateClientListCache(GSClientID);
 
     return NextResponse.json(successResponse(client));
@@ -324,7 +315,6 @@ export const DELETE = secureRoute.mutationWithParams<z.ZodUndefined, { id: strin
 
     await prisma.client.delete({ where: { GSClientID: GSClientID } });
 
-    await invalidateClientCache(GSClientID);
     await invalidateClientListCache(GSClientID);
 
     return NextResponse.json(successResponse({ message: 'Client deleted successfully' }));

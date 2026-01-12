@@ -11,7 +11,6 @@ export const ROUTES = {
   },
   AUTH: {
     SIGNIN: '/auth/signin',
-    SIGNOUT: '/auth/signout',
     ERROR: '/auth/error',
   },
   PROJECTS: {

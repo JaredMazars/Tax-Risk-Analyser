@@ -6,7 +6,6 @@ import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineSer
 import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';
 import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { TaskStage } from '@/types/task-stages';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
@@ -71,13 +70,6 @@ export const GET = secureRoute.query({
       userServiceLineRole = 'ADMINISTRATOR';
     } else if (subServiceLineGroup) {
       userServiceLineRole = await getUserServiceLineRole(user.id, subServiceLineGroup);
-    }
-    
-    const cacheKey = `${CACHE_PREFIXES.TASK}kanban:${serviceLine}:${subServiceLineGroup}:${myTasksOnly}:${clientIds.join(',')}:${taskNames.join(',')}:${partnerCodes.join(',')}:${managerCodes.join(',')}:${serviceLineCodes.join(',')}:${includeArchived}:user:${user.id}`;
-    
-    const cached = await cache.get(cacheKey);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
     }
 
     let servLineCodes: string[] = [];
@@ -519,9 +511,6 @@ export const GET = secureRoute.query({
     const response = { columns, totalTasks: totalTasksCount, loadedTasks: loadedTasksCount };
 
     logger.info('Kanban board data prepared', { durationMs: Date.now() - perfStart, stages: columns.length, totalTasks: totalTasksCount, loadedTasks: loadedTasksCount });
-
-    // Reduced TTL to 1 minute for Kanban (from 5 minutes) for fresher data with drag-and-drop
-    await cache.set(cacheKey, response, 60);
 
     return NextResponse.json(successResponse(response));
   },

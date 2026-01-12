@@ -6,7 +6,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { handleApiError } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
-import { invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateClientCache } from '@/lib/services/cache/cacheInvalidation';
 import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
 import { uploadDpa } from '@/lib/services/documents/blobStorage';
 import { extractDpaMetadata } from '@/lib/services/documents/dpaExtraction';

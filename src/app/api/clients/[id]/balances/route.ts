@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db/prisma';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
 
 interface ClientBalances {
@@ -58,15 +57,6 @@ export const GET = secureRoute.queryWithParams({
 
     if (!client) {
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
-    }
-
-    // Generate cache key
-    const cacheKey = `${CACHE_PREFIXES.CLIENT}balances:${GSClientID}`;
-    
-    // Try cache first
-    const cached = await cache.get<ClientBalances>(cacheKey);
-    if (cached) {
-      return NextResponse.json(successResponse(cached));
     }
 
     // Calculate WIP Balance: Sum of Amount from WIPTransactions for this client
@@ -156,9 +146,6 @@ export const GET = secureRoute.queryWithParams({
       debtorBalance: debtorAggregation._sum.Total || 0,
       lastUpdated: lastUpdated ? lastUpdated.toISOString() : null,
     };
-
-    // Cache for 2 hours (7200 seconds) - increased for better performance
-    await cache.set(cacheKey, responseData, 7200);
 
     return NextResponse.json(successResponse(responseData));
   },

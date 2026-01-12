@@ -10,29 +10,25 @@ import { cache, CACHE_PREFIXES } from './CacheService';
 import { logger } from '@/lib/utils/logger';
 
 /**
- * Invalidate all caches related to a specific task
+ * @deprecated Task detail caches are now handled by React Query client-side.
+ * This function is kept for backwards compatibility but no longer invalidates Redis.
+ * Task mutations automatically invalidate React Query caches via query keys.
  */
 export async function invalidateTaskCache(taskId: number): Promise<void> {
-  try {
-    await Promise.all([
-      cache.invalidate(`${CACHE_PREFIXES.TASK}${taskId}`),
-    ]);
-    logger.debug('Task cache invalidated', { taskId });
-  } catch (error) {
-    // Silent fail - cache invalidation errors are not critical
-  }
+  // No-op: Task details are cached client-side by React Query
+  // React Query automatically invalidates on mutations via query keys
+  logger.debug('Task cache invalidation skipped (React Query handles this)', { taskId });
 }
 
 /**
- * Invalidate all caches related to a specific client
+ * @deprecated Client detail caches are now handled by React Query client-side.
+ * This function is kept for backwards compatibility but no longer invalidates Redis.
+ * Client mutations automatically invalidate React Query caches via query keys.
  */
 export async function invalidateClientCache(clientId: number | string): Promise<void> {
-  try {
-    await cache.invalidate(`${CACHE_PREFIXES.CLIENT}${clientId}`);
-    logger.debug('Client cache invalidated', { clientId });
-  } catch (error) {
-    // Silent fail - cache invalidation errors are not critical
-  }
+  // No-op: Client details are cached client-side by React Query
+  // React Query automatically invalidates on mutations via query keys
+  logger.debug('Client cache invalidation skipped (React Query handles this)', { clientId });
 }
 
 /**
@@ -151,6 +147,9 @@ export async function invalidateApprovalsCache(): Promise<void> {
 /**
  * Comprehensive invalidation after task creation/update
  * Use this when a task is created, updated, or deleted
+ * 
+ * Note: Task detail caches are handled by React Query client-side.
+ * This only invalidates shared/computed Redis caches.
  */
 export async function invalidateOnTaskMutation(
   taskId: number,
@@ -159,7 +158,7 @@ export async function invalidateOnTaskMutation(
 ): Promise<void> {
   try {
     await Promise.all([
-      invalidateTaskCache(taskId),
+      // Task details cached by React Query - no Redis invalidation needed
       invalidateWorkspaceCounts(serviceLine, subServiceLineGroup),
       invalidateApprovalsCache(), // Task changes can affect approvals (acceptance, engagement letters, review notes)
     ]);
@@ -172,13 +171,16 @@ export async function invalidateOnTaskMutation(
 /**
  * Comprehensive invalidation after client creation/update
  * Use this when a client is created, updated, or deleted
+ * 
+ * Note: Client detail caches are handled by React Query client-side.
+ * This only invalidates shared/computed Redis caches.
  */
 export async function invalidateOnClientMutation(
   clientId: number | string
 ): Promise<void> {
   try {
     await Promise.all([
-      invalidateClientCache(clientId),
+      // Client details cached by React Query - no Redis invalidation needed
       // Client changes can affect workspace counts (groups)
       invalidateWorkspaceCounts(),
       invalidateApprovalsCache(), // Client changes can affect change requests

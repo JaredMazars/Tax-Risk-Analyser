@@ -6,8 +6,8 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { getServLineCodesBySubGroup, getExternalServiceLinesByMaster } from '@/lib/utils/serviceLineExternal';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { getCachedList, setCachedList, invalidateTaskListCache } from '@/lib/services/cache/listCache';
-import { invalidateClientCache } from '@/lib/services/clients/clientCache';
+import { invalidateTaskListCache } from '@/lib/services/cache/listCache';
+import { invalidateClientCache } from '@/lib/services/cache/cacheInvalidation';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
@@ -47,7 +47,6 @@ const TaskListQuerySchema = z.object({
 export const GET = secureRoute.query({
   handler: async (request, { user }) => {
     const startTime = Date.now();
-    let cacheHit = false;
 
     // Check permission
     const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_TASKS);
@@ -97,47 +96,6 @@ export const GET = secureRoute.query({
     const serviceLineCodes = queryParams.serviceLineCodes?.split(',').filter(Boolean) || [];
 
     const skip = (page - 1) * limit;
-
-    // Check if any filters are active - only cache baseline results (no filters)
-    const hasFilters = 
-      clientIds.length > 0 || 
-      taskNames.length > 0 || 
-      partnerCodes.length > 0 || 
-      managerCodes.length > 0 || 
-      serviceLineCodes.length > 0 ||
-      search.length > 0;
-
-    const cacheParams = {
-      endpoint: 'tasks' as const,
-      page,
-      limit,
-      serviceLine,
-      subServiceLineGroup,
-      sortBy,
-      sortOrder,
-      includeArchived,
-      internalOnly,
-      clientTasksOnly,
-      myTasksOnly,
-      // User-specific cache key for My Tasks
-      userId: myTasksOnly ? user.id : undefined,
-    };
-    
-    // Only check cache when there are no filters - ensures fresh data for filtered queries
-    if (!hasFilters) {
-      const cached = await getCachedList(cacheParams);
-      if (cached) {
-        cacheHit = true;
-        // #region agent log
-        const task479954 = (cached as any)?.tasks?.find((t: any) => t.id === 479954);
-        if (task479954) {
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks/route.ts:cacheHit479954',message:'Returning cached task 479954',data:{cacheHit:true,task479954:task479954},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
-        }
-        // #endregion
-        performanceMonitor.trackApiCall('/api/tasks', startTime, true);
-        return NextResponse.json(successResponse(cached));
-      }
-    }
 
     const where: Prisma.TaskWhereInput = {};
 
@@ -408,12 +366,7 @@ export const GET = secureRoute.query({
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
 
-    // Only cache baseline results (no filters) - ensures fresh data for filtered queries
-    if (!hasFilters) {
-      await setCachedList(cacheParams, responseData);
-    }
-
-    performanceMonitor.trackApiCall('/api/tasks', startTime, cacheHit);
+    performanceMonitor.trackApiCall('/api/tasks', startTime, false);
 
     return NextResponse.json(successResponse(responseData));
   },

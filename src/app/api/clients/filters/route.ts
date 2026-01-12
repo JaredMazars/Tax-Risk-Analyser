@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { performanceMonitor } from '@/lib/utils/performanceMonitor';
 import { checkFeature } from '@/lib/permissions/checkFeature';
 import { Feature } from '@/lib/permissions/features';
@@ -24,7 +23,6 @@ const ClientFiltersQuerySchema = z.object({
 export const GET = secureRoute.query({
   handler: async (request, { user }) => {
     const startTime = Date.now();
-    let cacheHit = false;
 
     // Check Permission
     const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
@@ -68,37 +66,28 @@ export const GET = secureRoute.query({
       }));
     }
 
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-filters:partner:${partnerSearch}:manager:${managerSearch}:group:${groupSearch}:limit:30`;
-    
-    const cached = await cache.get(cacheKey);
-    if (cached) {
-      cacheHit = true;
-      performanceMonitor.trackApiCall('/api/clients/filters', startTime, true);
-      return NextResponse.json(successResponse(cached));
-    }
-
     const partnerWhere: Record<string, unknown> = {};
     const managerWhere: Record<string, unknown> = {};
     const groupWhere: Record<string, unknown> = {};
 
     if (partnerSearch) {
       partnerWhere.OR = [
-        { EmpCode: { contains: partnerSearch, mode: 'insensitive' } },
-        { EmpName: { contains: partnerSearch, mode: 'insensitive' } },
+        { EmpCode: { contains: partnerSearch } },
+        { EmpName: { contains: partnerSearch } },
       ];
     }
 
     if (managerSearch) {
       managerWhere.OR = [
-        { EmpCode: { contains: managerSearch, mode: 'insensitive' } },
-        { EmpName: { contains: managerSearch, mode: 'insensitive' } },
+        { EmpCode: { contains: managerSearch } },
+        { EmpName: { contains: managerSearch } },
       ];
     }
 
     if (groupSearch) {
       groupWhere.OR = [
-        { groupDesc: { contains: groupSearch, mode: 'insensitive' } },
-        { groupCode: { contains: groupSearch, mode: 'insensitive' } },
+        { groupDesc: { contains: groupSearch } },
+        { groupCode: { contains: groupSearch } },
       ];
     }
 
@@ -158,8 +147,7 @@ export const GET = secureRoute.query({
       },
     };
 
-    await cache.set(cacheKey, responseData, 3600);
-    performanceMonitor.trackApiCall('/api/clients/filters', startTime, cacheHit);
+    performanceMonitor.trackApiCall('/api/clients/filters', startTime, false);
 
     return NextResponse.json(successResponse(responseData));
   },
