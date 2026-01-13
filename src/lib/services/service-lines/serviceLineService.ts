@@ -9,6 +9,7 @@ import { ServiceLineWithStats } from '@/types/dto';
 import { logger } from '@/lib/utils/logger';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { getSubServiceLineGroupsByMaster, getServLineCodesBySubGroup } from '@/lib/utils/serviceLineExternal';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 export type AssignmentType = 'MAIN_SERVICE_LINE' | 'SPECIFIC_SUBGROUP' | 'NONE';
 
@@ -154,6 +155,7 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
 
     // Map sub-groups to master codes
     // CRITICAL FIX: Filter out rows where masterCode is NULL to ensure proper mapping
+    // NOTE: We need ALL mappings, not distinct, because sub-group codes can belong to multiple masters
     const subGroupMapping = await prisma.serviceLineExternal.findMany({
       where: {
         SubServlineGroupCode: { in: subGroupCodes },
@@ -164,22 +166,32 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
         masterCode: true,
         ServLineCode: true,
       },
-      distinct: ['SubServlineGroupCode'],
     });
 
-    // Create map: subGroup -> masterCode
-    const subGroupToMasterMap = new Map<string, string>();
+    // Create map: subGroup -> Set of masterCodes (one sub-group can map to multiple masters)
+    const subGroupToMasterMap = new Map<string, Set<string>>();
     for (const mapping of subGroupMapping) {
       if (mapping.SubServlineGroupCode && mapping.masterCode) {
-        subGroupToMasterMap.set(mapping.SubServlineGroupCode, mapping.masterCode);
+        if (!subGroupToMasterMap.has(mapping.SubServlineGroupCode)) {
+          subGroupToMasterMap.set(mapping.SubServlineGroupCode, new Set());
+        }
+        subGroupToMasterMap.get(mapping.SubServlineGroupCode)!.add(mapping.masterCode);
       }
     }
 
     // Group assignments by master code
     const masterCodeAssignments = new Map<string, typeof subGroupAssignments>();
     for (const assignment of subGroupAssignments) {
-      const masterCode = subGroupToMasterMap.get(assignment.subServiceLineGroup);
-      if (masterCode) {
+      const masterCodes = subGroupToMasterMap.get(assignment.subServiceLineGroup);
+      if (!masterCodes || masterCodes.size === 0) {
+        logger.warn('Sub-group has no master mapping', { 
+          subGroup: assignment.subServiceLineGroup 
+        });
+        continue; // Skip unmapped sub-groups
+      }
+      
+      // Add this assignment to all master codes it belongs to
+      for (const masterCode of masterCodes) {
         const existing = masterCodeAssignments.get(masterCode) || [];
         existing.push(assignment);
         masterCodeAssignments.set(masterCode, existing);
@@ -571,7 +583,11 @@ export async function grantServiceLineAccess(
       const subGroups = await getSubServiceLineGroupsByMaster(masterCode);
 
       if (subGroups.length === 0) {
-        throw new Error(`No sub-service line groups found for ${masterCode}`);
+        throw new AppError(
+          400,
+          `Service line ${masterCode} has no sub-groups configured in ServiceLineExternal`,
+          ErrorCodes.VALIDATION_ERROR
+        );
       }
 
       // Generate a parent assignment ID within SQL Server INT range (max: 2,147,483,647)
@@ -587,9 +603,10 @@ export async function grantServiceLineAccess(
         subGroups.map(sg =>
           prisma.serviceLineUser.upsert({
             where: {
-              userId_subServiceLineGroup: {
+              userId_subServiceLineGroup_masterCode: {
                 userId,
                 subServiceLineGroup: sg.code,
+                masterCode,
               },
             },
             update: {
@@ -600,6 +617,7 @@ export async function grantServiceLineAccess(
             create: {
               userId,
               subServiceLineGroup: sg.code,
+              masterCode,
               role: role as string,
               assignmentType: 'MAIN_SERVICE_LINE',
               parentAssignmentId: parentId,
@@ -615,30 +633,45 @@ export async function grantServiceLineAccess(
         ? serviceLineOrSubGroups 
         : [serviceLineOrSubGroups];
 
-      await prisma.$transaction(
-        subGroupCodes.map(subGroup =>
-          prisma.serviceLineUser.upsert({
-            where: {
-              userId_subServiceLineGroup: {
-                userId,
-                subServiceLineGroup: subGroup,
-              },
-            },
-            update: {
-              role: role as string,
-              assignmentType: 'SPECIFIC_SUBGROUP',
-              parentAssignmentId: null,
-            },
-            create: {
+      // For each sub-group, get its master code(s) from ServiceLineExternal
+      const mappings = await prisma.serviceLineExternal.findMany({
+        where: {
+          SubServlineGroupCode: { in: subGroupCodes },
+          masterCode: { not: null },
+        },
+        select: {
+          SubServlineGroupCode: true,
+          masterCode: true,
+        },
+      });
+
+      // Create assignments for each sub-group with its master code
+      const upserts = mappings.map(mapping =>
+        prisma.serviceLineUser.upsert({
+          where: {
+            userId_subServiceLineGroup_masterCode: {
               userId,
-              subServiceLineGroup: subGroup,
-              role: role as string,
-              assignmentType: 'SPECIFIC_SUBGROUP',
-              parentAssignmentId: null,
+              subServiceLineGroup: mapping.SubServlineGroupCode!,
+              masterCode: mapping.masterCode!,
             },
-          })
-        )
+          },
+          update: {
+            role: role as string,
+            assignmentType: 'SPECIFIC_SUBGROUP',
+            parentAssignmentId: null,
+          },
+          create: {
+            userId,
+            subServiceLineGroup: mapping.SubServlineGroupCode!,
+            masterCode: mapping.masterCode,
+            role: role as string,
+            assignmentType: 'SPECIFIC_SUBGROUP',
+            parentAssignmentId: null,
+          },
+        })
       );
+
+      await prisma.$transaction(upserts);
 
       logger.info('Granted specific sub-group access', { userId, subGroupCodes, role });
     }
@@ -663,9 +696,11 @@ export async function revokeServiceLineAccess(
       const subGroups = await getSubServiceLineGroupsByMaster(masterCode);
       const subGroupCodes = subGroups.map(sg => sg.code);
 
+      // Delete only assignments for this specific master code to avoid deleting shared sub-groups
       await prisma.serviceLineUser.deleteMany({
         where: {
           userId,
+          masterCode,
           subServiceLineGroup: { in: subGroupCodes },
         },
       });
@@ -703,20 +738,13 @@ export async function updateServiceLineRole(
 ): Promise<void> {
   try {
     if (isSubGroup) {
-      // Upsert role for specific sub-group
-      await prisma.serviceLineUser.upsert({
+      // Update role for all assignments of this specific sub-group (across all master codes)
+      await prisma.serviceLineUser.updateMany({
         where: {
-          userId_subServiceLineGroup: {
-            userId,
-            subServiceLineGroup: serviceLineOrSubGroup as string,
-          },
-        },
-        update: {
-          role: role as string,
-        },
-        create: {
           userId,
           subServiceLineGroup: serviceLineOrSubGroup as string,
+        },
+        data: {
           role: role as string,
         },
       });
@@ -727,29 +755,20 @@ export async function updateServiceLineRole(
       const subGroups = await getSubServiceLineGroupsByMaster(serviceLineOrSubGroup as string);
       const subGroupCodes = subGroups.map(sg => sg.code);
 
-      // Upsert each sub-group individually to handle both create and update
-      await Promise.all(
-        subGroupCodes.map(subGroupCode =>
-          prisma.serviceLineUser.upsert({
-            where: {
-              userId_subServiceLineGroup: {
-                userId,
-                subServiceLineGroup: subGroupCode,
-              },
-            },
-            update: {
-              role: role as string,
-            },
-            create: {
-              userId,
-              subServiceLineGroup: subGroupCode,
-              role: role as string,
-            },
-          })
-        )
-      );
+      // Update all assignments for this master code
+      const masterCode = serviceLineOrSubGroup as string;
+      await prisma.serviceLineUser.updateMany({
+        where: {
+          userId,
+          masterCode,
+          subServiceLineGroup: { in: subGroupCodes },
+        },
+        data: {
+          role: role as string,
+        },
+      });
 
-      logger.info('Updated service line role', { userId, serviceLine: serviceLineOrSubGroup, role, count: subGroupCodes.length });
+      logger.info('Updated service line role', { userId, masterCode, role, count: subGroupCodes.length });
     }
   } catch (error) {
     logger.error('Error updating service line role', { userId, serviceLineOrSubGroup, role, error });
@@ -980,6 +999,65 @@ export async function getServiceLineStats(serviceLine: ServiceLine | string) {
     };
   } catch (error) {
     logger.error('Error getting service line stats', { serviceLine, error });
+    throw error;
+  }
+}
+
+/**
+ * Ensure user has access to all shared services with USER role
+ * Called automatically when a new user account is created
+ * SYSTEM_ADMIN users are skipped (they already have full access)
+ * 
+ * @param userId - The user ID to grant shared services access to
+ * @throws Error if access cannot be granted
+ */
+export async function ensureSharedServiceAccess(userId: string): Promise<void> {
+  try {
+    // Check if user is SYSTEM_ADMIN - they already have full access
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (user?.role === 'SYSTEM_ADMIN') {
+      logger.info('Skipping shared service assignment for SYSTEM_ADMIN', { userId });
+      return;
+    }
+
+    // Define all shared services
+    const sharedServices = [
+      'QRM',
+      'BUSINESS_DEV',
+      'IT',
+      'FINANCE',
+      'HR',
+      'COUNTRY_MANAGEMENT',
+    ];
+
+    logger.info('Assigning shared services access to new user', { 
+      userId, 
+      sharedServices 
+    });
+
+    // Grant access to each shared service with USER role
+    // Use sequential processing to avoid overwhelming the database
+    for (const serviceLine of sharedServices) {
+      try {
+        await grantServiceLineAccess(userId, serviceLine, ServiceLineRole.USER, 'main');
+        logger.info('Granted shared service access', { userId, serviceLine });
+      } catch (error) {
+        // Log warning but continue with other services
+        logger.warn('Failed to grant access to shared service', { 
+          userId, 
+          serviceLine, 
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    logger.info('Completed shared services assignment', { userId });
+  } catch (error) {
+    logger.error('Error ensuring shared service access', { userId, error });
     throw error;
   }
 }

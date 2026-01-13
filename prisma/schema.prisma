@@ -917,6 +917,7 @@ model ServiceLineUser {
   id                  Int      @id @default(autoincrement())
   userId              String
   subServiceLineGroup String
+  masterCode          String?  @db.NVarChar(50)
   role                String   @default("USER")
   assignmentType      String   @default("SPECIFIC_SUBGROUP")
   parentAssignmentId  Int?
@@ -924,10 +925,11 @@ model ServiceLineUser {
   updatedAt           DateTime @updatedAt
   User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, subServiceLineGroup])
+  @@unique([userId, subServiceLineGroup, masterCode])
   @@index([assignmentType])
   @@index([parentAssignmentId])
   @@index([subServiceLineGroup])
+  @@index([masterCode])
   @@index([userId, assignmentType])
   @@index([userId])
 }

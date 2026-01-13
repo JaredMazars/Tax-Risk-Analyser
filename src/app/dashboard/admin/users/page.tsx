@@ -226,8 +226,19 @@ export default function UserManagementPage() {
       });
 
       if (response.ok) {
+        // Fetch updated service lines first
         const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
-        updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
+        
+        // Update both the modal state and main user list
+        setSelectedUser((current) => 
+          current ? { ...current, serviceLines: updatedServiceLines } : current
+        );
+        setSystemUsers((current) =>
+          current.map((user) =>
+            user.id === selectedUser.id ? { ...user, serviceLines: updatedServiceLines } : user
+          )
+        );
+        
         setAlertModal({
           isOpen: true,
           title: 'Success',
@@ -274,8 +285,18 @@ export default function UserManagementPage() {
           });
 
           if (response.ok) {
+            // Fetch updated service lines
             const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
-            updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
+            
+            // Update both the modal state and main user list
+            setSelectedUser((current) => 
+              current ? { ...current, serviceLines: updatedServiceLines } : current
+            );
+            setSystemUsers((current) =>
+              current.map((user) =>
+                user.id === selectedUser.id ? { ...user, serviceLines: updatedServiceLines } : user
+              )
+            );
           } else {
             const errorData = await response.json();
             console.error('Failed to remove service line:', errorData);
@@ -306,8 +327,18 @@ export default function UserManagementPage() {
       });
 
       if (response.ok) {
+        // Fetch updated service lines
         const updatedServiceLines = await fetchUserServiceLines(selectedUser.id);
-        updateUserServiceLinesState(selectedUser.id, updatedServiceLines);
+        
+        // Update both the modal state and main user list
+        setSelectedUser((current) => 
+          current ? { ...current, serviceLines: updatedServiceLines } : current
+        );
+        setSystemUsers((current) =>
+          current.map((user) =>
+            user.id === selectedUser.id ? { ...user, serviceLines: updatedServiceLines } : user
+          )
+        );
       } else {
         const errorData = await response.json();
         console.error('Failed to update role:', errorData);

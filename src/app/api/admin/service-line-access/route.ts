@@ -36,7 +36,7 @@ const VALID_SERVICE_LINES = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'B
 // Query parameter validation schema for GET
 const ServiceLineAccessQuerySchema = z.object({
   serviceLine: z.enum(VALID_SERVICE_LINES).optional(),
-  userId: z.string().uuid().optional(),
+  userId: z.string().min(1).optional(), // Azure AD user IDs aren't standard UUIDs, can contain dots
   assignmentType: z.enum(['true', 'false']).optional(),
 });
 

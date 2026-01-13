@@ -51,7 +51,9 @@ export function AddServiceLineModal({
   const fetchSubGroups = async (masterCode: string) => {
     setLoadingSubGroups(true);
     try {
-      const response = await fetch(`/api/service-lines/${masterCode}/sub-groups`);
+      // Use admin endpoint to get ALL sub-groups (not filtered by current user's access)
+      // This allows admins to assign any sub-group to users, even ones they don't personally have
+      const response = await fetch(`/api/admin/service-lines/${masterCode}/sub-groups`);
       if (response.ok) {
         const data = await response.json();
         setSubGroups(data.success ? data.data : []);

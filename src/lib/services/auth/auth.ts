@@ -7,6 +7,7 @@ import { withRetry, RetryPresets } from '../../utils/retryUtils';
 import type { Session, SessionUser } from './types';
 import { cache } from '@/lib/services/cache/CacheService';
 import type { NextRequest } from 'next/server';
+import { ensureSharedServiceAccess } from '@/lib/services/service-lines/serviceLineService';
 
 // Helper for conditional logging (avoid importing logger to prevent Edge Runtime issues)
 const log = {
@@ -209,6 +210,17 @@ export async function handleCallback(code: string, redirectUri: string) {
         userId: dbUser.id, 
         email: dbUser.email 
       });
+    }
+    
+    // Auto-assign shared services access for new users (non-SYSTEM_ADMIN)
+    if (dbUser.role !== 'SYSTEM_ADMIN') {
+      try {
+        await ensureSharedServiceAccess(dbUser.id);
+        log.info('Assigned shared services access to new user', { userId: dbUser.id });
+      } catch (error) {
+        // Log error but don't fail authentication
+        log.error('Failed to assign shared services access', error);
+      }
     }
   }
 
