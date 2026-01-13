@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
   
   // Redirect directly to login with prompt=login to force re-authentication
   // This skips the Azure AD logout account picker and provides a cleaner experience
-  const loginUrl = new URL('/api/auth/login', request.url);
+  // Use NEXTAUTH_URL for deployed environments (Azure App Service, behind proxies)
+  const baseUrl = process.env.NEXTAUTH_URL || request.url;
+  const loginUrl = new URL('/api/auth/login', baseUrl);
   loginUrl.searchParams.set('prompt', 'login');
   loginUrl.searchParams.set('callbackUrl', '/dashboard');
   const response = NextResponse.redirect(loginUrl);

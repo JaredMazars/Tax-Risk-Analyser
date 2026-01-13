@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { ServiceLine } from '@/types';
 import { ClientSelector } from '../../features/clients/ClientSelector';
 import { EmployeeAutocomplete } from '../../features/users/EmployeeAutocomplete';
-import { EmployeeMultiSelect, TeamMember } from '../../features/users/EmployeeMultiSelect';
+import { TeamMember } from '../../features/users/EmployeeMultiSelect';
 import { OfficeCodeSelector } from './OfficeCodeSelector';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { useCreateTask } from '@/hooks/tasks/useCreateTask';
@@ -256,7 +256,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     }
   };
 
-  const handlePartnerChange = async (code: string, name: string, nameFull: string, officeCode: string) => {
+  const handlePartnerChange = (code: string, name: string, nameFull: string, officeCode: string) => {
     // Get the previous partner code to remove from team
     const previousPartnerCode = formData.TaskPartner;
 
@@ -276,10 +276,8 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       setOfficeAutoPopulated(false);
     }
     
-    // Update team members - fetch role first - fetch role first
+    // Update team members - use PARTNER role directly
     if (code) {
-      const role = await fetchEmployeeRole(code);
-      
       setTeamMembers(prev => {
         // Remove previous partner if exists
         let filtered = prev;
@@ -291,19 +289,19 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
         const existingMember = filtered.find(m => m.empCode === code);
         
         if (existingMember) {
-          // Update existing member with fetched role and lock them
+          // Update existing member with PARTNER role and lock them
           return filtered.map(m => 
             m.empCode === code 
-              ? { ...m, role: role as TeamMember['role'], locked: true }
+              ? { ...m, role: 'PARTNER', locked: true }
               : m
           );
         } else {
-          // Add new member with fetched role
+          // Add new member with PARTNER role
           return [...filtered, {
             empCode: code,
             empName: name,
             empNameFull: nameFull,
-            role: role as TeamMember['role'],
+            role: 'PARTNER',
             locked: true,
           }];
         }
@@ -316,7 +314,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
     }
   };
 
-  const handleManagerChange = async (code: string, name: string, nameFull: string, officeCode: string) => {
+  const handleManagerChange = (code: string, name: string, nameFull: string, officeCode: string) => {
     // Get the previous manager code to remove from team
     const previousManagerCode = formData.TaskManager;
 
@@ -327,10 +325,8 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
       TaskManagerName: name,
     }));
     
-    // Update team members - fetch role first
+    // Update team members - use MANAGER role directly
     if (code) {
-      const role = await fetchEmployeeRole(code);
-      
       setTeamMembers(prev => {
         // Remove previous manager if exists
         let filtered = prev;
@@ -342,19 +338,19 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
         const existingMember = filtered.find(m => m.empCode === code);
         
         if (existingMember) {
-          // Update existing member with fetched role and lock them
+          // Update existing member with MANAGER role and lock them
           return filtered.map(m => 
             m.empCode === code 
-              ? { ...m, role: role as TeamMember['role'], locked: true }
+              ? { ...m, role: 'MANAGER', locked: true }
               : m
           );
         } else {
-          // Add new member with fetched role
+          // Add new member with MANAGER role
           return [...filtered, {
             empCode: code,
             empName: name,
             empNameFull: nameFull,
-            role: role as TeamMember['role'],
+            role: 'MANAGER',
             locked: true,
           }];
         }
@@ -365,10 +361,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
         previousManagerCode ? prev.filter(m => m.empCode !== previousManagerCode) : prev
       );
     }
-  };
-
-  const handleTeamMembersChange = (members: TeamMember[]) => {
-    setTeamMembers(members);
   };
 
   // Fetch standard tasks for the selected service line
@@ -824,15 +816,6 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                   required
                 />
               )}
-
-              <EmployeeMultiSelect
-                label="Additional Team Members"
-                selectedMembers={teamMembers}
-                onChange={handleTeamMembersChange}
-                lockedMemberCodes={[formData.TaskPartner, formData.TaskManager].filter(Boolean)}
-                subServiceLineGroup={formData.SLGroup}
-                placeholder="Search to add team members..."
-              />
             </div>
           )}
 

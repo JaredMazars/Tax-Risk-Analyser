@@ -43,7 +43,21 @@ export const GET = secureRoute.query({
       throw new AppError(400, 'Invalid subServiceLineGroup format', ErrorCodes.VALIDATION_ERROR);
     }
 
-    const excludeUserIds: string[] = [];
+    // Get taskId to exclude existing team members
+    const taskId = searchParams.get('taskId');
+    let excludeUserIds: string[] = [];
+
+    if (taskId) {
+      const taskIdNum = Number.parseInt(taskId, 10);
+      if (!Number.isNaN(taskIdNum)) {
+        // Fetch existing team members for this task
+        const existingTeamMembers = await prisma.taskTeam.findMany({
+          where: { taskId: taskIdNum },
+          select: { userId: true },
+        });
+        excludeUserIds = existingTeamMembers.map(tm => tm.userId);
+      }
+    }
 
     let serviceLineCodes: string[] = [];
     if (subServiceLineGroup) {
