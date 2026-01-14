@@ -7,7 +7,7 @@ import { toTaskId } from '@/types/branded';
 import { calculateBusinessDays } from '@/lib/utils/dateUtils';
 import { z } from 'zod';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { invalidatePlannerCachesForServiceLine } from '@/lib/services/cache/cacheInvalidation';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 const allocationUpdateSchema = z.object({
@@ -154,9 +154,23 @@ export const PUT = secureRoute.mutationWithParams({
       }
     });
 
-    // 9. Invalidate planner cache (client and employee planners)
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:clients`);
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:employees`);
+    // 9. Invalidate planner cache for specific service line (multi-user consistency)
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { ServLineCode: true }
+    });
+    if (task?.ServLineCode) {
+      const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+        where: { ServLineCode: task.ServLineCode },
+        select: { SubServlineGroupCode: true, masterCode: true }
+      });
+      if (serviceLineMapping?.masterCode && serviceLineMapping?.SubServlineGroupCode) {
+        await invalidatePlannerCachesForServiceLine(
+          serviceLineMapping.masterCode,
+          serviceLineMapping.SubServlineGroupCode
+        );
+      }
+    }
 
     return NextResponse.json(
       successResponse({ 
@@ -231,9 +245,23 @@ export const DELETE = secureRoute.mutationWithParams({
       }
     });
 
-    // 6. Invalidate planner cache (client and employee planners)
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:clients`);
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:employees`);
+    // 6. Invalidate planner cache for specific service line (multi-user consistency)
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { ServLineCode: true }
+    });
+    if (task?.ServLineCode) {
+      const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+        where: { ServLineCode: task.ServLineCode },
+        select: { SubServlineGroupCode: true, masterCode: true }
+      });
+      if (serviceLineMapping?.masterCode && serviceLineMapping?.SubServlineGroupCode) {
+        await invalidatePlannerCachesForServiceLine(
+          serviceLineMapping.masterCode,
+          serviceLineMapping.SubServlineGroupCode
+        );
+      }
+    }
 
     return NextResponse.json(
       successResponse({ 

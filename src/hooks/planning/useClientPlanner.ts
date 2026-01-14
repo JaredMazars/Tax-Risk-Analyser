@@ -67,7 +67,7 @@ export interface ClientPlannerResponse {
  * Performance optimizations:
  * - Server-side Redis caching (5min TTL)
  * - Array-based filters with OR logic
- * - Increased staleTime to match server cache (5 min)
+ * - Reduced staleTime (90s) for multi-user consistency
  */
 export function useClientPlanner({
   serviceLine,
@@ -130,7 +130,7 @@ export function useClientPlanner({
       };
     },
     enabled: enabled && !!serviceLine && !!subServiceLineGroup,
-    staleTime: 5 * 60 * 1000, // Match Redis TTL (5 minutes)
+    staleTime: 90 * 1000, // 90 seconds - reduced for multi-user consistency
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 }

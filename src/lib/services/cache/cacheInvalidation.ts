@@ -277,6 +277,55 @@ export async function invalidateOnGroupMutation(
   }
 }
 
+/**
+ * Invalidate planner caches for a specific service line
+ * Use this after task team mutations to ensure multi-user data consistency
+ * 
+ * Uses pattern matching to clear all cache variations (different filter/page combinations)
+ * This is more efficient than clearing all planner caches globally
+ * 
+ * @param serviceLine - The master service line code (e.g., 'TAX', 'AUDIT')
+ * @param subServiceLineGroup - The sub-service line group code (e.g., 'TAX_CORP', 'TAX_INDV')
+ * @returns Total count of invalidated cache keys
+ */
+export async function invalidatePlannerCachesForServiceLine(
+  serviceLine: string,
+  subServiceLineGroup: string
+): Promise<number> {
+  try {
+    // Use pattern matching to clear all variations of planner caches
+    // This clears caches regardless of filter combinations or pagination
+    const [clientCount, employeeCount, filterCount] = await Promise.all([
+      // Client planner caches: task:planner:clients:TAX:TAX_CORP:*
+      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}planner:clients:${serviceLine}:${subServiceLineGroup}:*`),
+      // Employee planner caches: task:planner:employees:TAX:TAX_CORP:*
+      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}planner:employees:${serviceLine}:${subServiceLineGroup}:*`),
+      // Filter caches: task:planner:*:filters:TAX:TAX_CORP
+      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}planner:*:filters:${serviceLine}:${subServiceLineGroup}`),
+    ]);
+
+    const totalCleared = clientCount + employeeCount + filterCount;
+    
+    logger.info('Invalidated planner caches for service line', {
+      serviceLine,
+      subServiceLineGroup,
+      clientCachesCleared: clientCount,
+      employeeCachesCleared: employeeCount,
+      filterCachesCleared: filterCount,
+      totalKeysCleared: totalCleared,
+    });
+
+    return totalCleared;
+  } catch (error) {
+    logger.error('Failed to invalidate planner caches', { 
+      serviceLine, 
+      subServiceLineGroup, 
+      error 
+    });
+    return 0;
+  }
+}
+
 
 
 

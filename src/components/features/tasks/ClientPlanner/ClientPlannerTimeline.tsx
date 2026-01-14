@@ -17,6 +17,7 @@ import { Calendar, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 import { ServiceLineRole } from '@/types';
 import { startOfDay, format, addDays, addWeeks } from 'date-fns';
 import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Re-export TimelineHeader from TeamPlanner since it's identical
 import { TimelineHeader } from '../TeamPlanner/TimelineHeader';
@@ -76,6 +77,7 @@ export function ClientPlannerTimeline({
   } | null>(null);
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   // Determine if user can edit based on ServiceLineRole
   const roleUpper = (currentUserRole || '').toUpperCase();
@@ -99,6 +101,13 @@ export function ClientPlannerTimeline({
     limit,
     enabled: true
   });
+
+  // Helper to invalidate all planner data for multi-user consistency
+  const invalidatePlannerData = useCallback(() => {
+    refetch(); // Refetch own data
+    queryClient.invalidateQueries({ queryKey: ['planner', 'employees'] });
+    queryClient.invalidateQueries({ queryKey: ['planner', 'filters'] });
+  }, [refetch, queryClient]);
 
   const rawTasks = data?.tasks || [];
   const pagination = data?.pagination;
@@ -365,7 +374,7 @@ export function ClientPlannerTimeline({
         return newMap;
       });
       
-      refetch(); // Non-blocking refetch
+      invalidatePlannerData(); // Invalidate all planner data for multi-user consistency
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
@@ -387,7 +396,7 @@ export function ClientPlannerTimeline({
     } finally {
       setIsSaving(false);
     }
-  }, [selectedAllocation, refetch]);
+  }, [selectedAllocation, invalidatePlannerData]);
 
   const handleClearAllocation = useCallback(async (allocationId: number) => {
     setIsSaving(true);
@@ -408,7 +417,7 @@ export function ClientPlannerTimeline({
         throw new Error(errorMessage);
       }
 
-      refetch(); // Non-blocking refetch
+      invalidatePlannerData(); // Invalidate all planner data for multi-user consistency
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
@@ -422,7 +431,7 @@ export function ClientPlannerTimeline({
     } finally {
       setIsSaving(false);
     }
-  }, [selectedAllocation, refetch]);
+  }, [selectedAllocation, invalidatePlannerData]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
     // Find the allocation to get its taskId
@@ -487,11 +496,11 @@ export function ClientPlannerTimeline({
   }, [rows]);
 
   const handleAddEmployeeSave = useCallback(() => {
-    refetch(); // Non-blocking refetch
+    invalidatePlannerData(); // Invalidate all planner data for multi-user consistency
     setIsAddEmployeeModalOpen(false);
     setSelectedTaskForAdd(null);
     setAddEmployeeDates(null);
-  }, [refetch]);
+  }, [invalidatePlannerData]);
 
   // Get client and task info for modal
   const modalTaskInfo = useMemo(() => {

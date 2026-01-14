@@ -10,6 +10,7 @@ import { createUserRemovedNotification, createUserRoleChangedNotification } from
 import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { invalidatePlannerCachesForServiceLine } from '@/lib/services/cache/cacheInvalidation';
 import { toTaskId } from '@/types/branded';
 
 export const GET = secureRoute.queryWithParams({
@@ -183,40 +184,43 @@ export const PUT = secureRoute.mutationWithParams({
 
     const taskTeam = updatedAllocations[0]; // Use first allocation for notification
 
-    // Create in-app notification (non-blocking)
-    try {
-      const taskForNotification = await prisma.task.findUnique({
-        where: { id: taskId },
-        select: { 
-          TaskDesc: true,
-          ServLineCode: true,
-          GSClientID: true,
-          Client: {
-            select: {
-              id: true,
-            },
+    // Get task and service line mapping for notification and cache invalidation
+    const taskForNotification = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { 
+        TaskDesc: true,
+        ServLineCode: true,
+        GSClientID: true,
+        Client: {
+          select: {
+            id: true,
           },
         },
+      },
+    });
+
+    let serviceLineMapping: { SubServlineGroupCode: string | null; masterCode: string | null } | null = null;
+    if (taskForNotification?.ServLineCode) {
+      serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+        where: { ServLineCode: taskForNotification.ServLineCode },
+        select: { 
+          SubServlineGroupCode: true,
+          masterCode: true,
+        },
       });
+    }
 
-      if (taskForNotification) {
-        // Get service line mapping for the notification URL
-        const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
-          where: { ServLineCode: taskForNotification.ServLineCode },
-          select: { 
-            SubServlineGroupCode: true,
-            masterCode: true,
-          },
-        });
-
+    // Create in-app notification (non-blocking)
+    try {
+      if (taskForNotification && serviceLineMapping) {
         const notification = createUserRoleChangedNotification(
           taskForNotification.TaskDesc,
           taskId,
           user.name || user.email,
           oldRole,
           validatedData.role,
-          serviceLineMapping?.masterCode ?? undefined,
-          serviceLineMapping?.SubServlineGroupCode ?? undefined,
+          serviceLineMapping.masterCode ?? undefined,
+          serviceLineMapping.SubServlineGroupCode ?? undefined,
           taskForNotification.Client?.id
         );
 
@@ -232,6 +236,14 @@ export const PUT = secureRoute.mutationWithParams({
       }
     } catch (notificationError) {
       logger.error('Failed to create project role changed notification:', notificationError);
+    }
+
+    // Invalidate planner cache for specific service line (multi-user consistency)
+    if (serviceLineMapping?.masterCode && serviceLineMapping?.SubServlineGroupCode) {
+      await invalidatePlannerCachesForServiceLine(
+        serviceLineMapping.masterCode,
+        serviceLineMapping.SubServlineGroupCode
+      );
     }
 
     return NextResponse.json(successResponse(taskTeam));
@@ -290,6 +302,7 @@ export const DELETE = secureRoute.mutationWithParams({
         TaskPartner: true,
         TaskManager: true,
         TaskDesc: true,
+        ServLineCode: true,
       },
     });
 
@@ -396,6 +409,20 @@ export const DELETE = secureRoute.mutationWithParams({
     } catch (notificationError) {
       // Log notification error but don't fail the request
       logger.error('Failed to create in-app notification:', notificationError);
+    }
+
+    // Invalidate planner cache for specific service line (multi-user consistency)
+    if (task?.ServLineCode) {
+      const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+        where: { ServLineCode: task.ServLineCode },
+        select: { SubServlineGroupCode: true, masterCode: true },
+      });
+      if (serviceLineMapping?.masterCode && serviceLineMapping?.SubServlineGroupCode) {
+        await invalidatePlannerCachesForServiceLine(
+          serviceLineMapping.masterCode,
+          serviceLineMapping.SubServlineGroupCode
+        );
+      }
     }
 
     logger.info('User removed from project', { taskId, targetUserId, removedBy: user.id });

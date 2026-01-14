@@ -6,6 +6,7 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { toTaskId } from '@/types/branded';
 import { z } from 'zod';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { invalidatePlannerCachesForServiceLine } from '@/lib/services/cache/cacheInvalidation';
 
 const transferSchema = z.object({
   targetUserId: z.string().min(1, 'Target user ID is required').max(255),
@@ -164,6 +165,24 @@ export const POST = secureRoute.mutationWithParams({
 
       return { source: clearedSource, target: updatedTarget };
     });
+
+    // Invalidate planner cache for specific service line (multi-user consistency)
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { ServLineCode: true }
+    });
+    if (task?.ServLineCode) {
+      const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+        where: { ServLineCode: task.ServLineCode },
+        select: { SubServlineGroupCode: true, masterCode: true }
+      });
+      if (serviceLineMapping?.masterCode && serviceLineMapping?.SubServlineGroupCode) {
+        await invalidatePlannerCachesForServiceLine(
+          serviceLineMapping.masterCode,
+          serviceLineMapping.SubServlineGroupCode
+        );
+      }
+    }
 
     return NextResponse.json(
       successResponse({

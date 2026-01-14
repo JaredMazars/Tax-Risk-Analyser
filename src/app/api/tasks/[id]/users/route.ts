@@ -10,7 +10,7 @@ import { createUserAddedNotification } from '@/lib/services/notifications/templa
 import { NotificationType } from '@/types/notification';
 import { logger } from '@/lib/utils/logger';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
-import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+import { invalidatePlannerCachesForServiceLine } from '@/lib/services/cache/cacheInvalidation';
 import { getUserServiceLineRole } from '@/lib/services/service-lines/getUserServiceLineRole';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { toTaskId } from '@/types/branded';
@@ -470,10 +470,10 @@ export const POST = secureRoute.mutationWithParams({
       },
     });
     // Check if user is service line admin
-    // First, map ServLineCode to SubServlineGroupCode
+    // First, map ServLineCode to SubServlineGroupCode and masterCode
     const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
       where: { ServLineCode: task.ServLineCode },
-      select: { SubServlineGroupCode: true },
+      select: { SubServlineGroupCode: true, masterCode: true },
     });
     let isServiceLineAdmin = false;
     if (serviceLineMapping?.SubServlineGroupCode) {
@@ -760,9 +760,13 @@ export const POST = secureRoute.mutationWithParams({
       logger.error('Failed to create in-app notification:', notificationError);
     }
 
-    // Invalidate planner cache (client and employee planners)
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:clients`);
-    await cache.invalidate(`${CACHE_PREFIXES.TASK}planner:employees`);
+    // Invalidate planner cache for specific service line (multi-user consistency)
+    if (serviceLineMapping?.masterCode && serviceLineMapping?.SubServlineGroupCode) {
+      await invalidatePlannerCachesForServiceLine(
+        serviceLineMapping.masterCode,
+        serviceLineMapping.SubServlineGroupCode
+      );
+    }
 
     return NextResponse.json(successResponse(taskTeam), { status: 201 });
   },

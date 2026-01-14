@@ -7,6 +7,7 @@ import { checkTaskAccess } from '@/lib/services/tasks/taskAuthorization';
 import { validateAllocation, AllocationValidationError } from '@/lib/validation/taskAllocation';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { toTaskId } from '@/types/branded';
+import { invalidatePlannerCachesForServiceLine } from '@/lib/services/cache/cacheInvalidation';
 
 /**
  * GET /api/tasks/[id]/users/[userId]/allocations
@@ -145,6 +146,24 @@ export const POST = secureRoute.mutationWithParams({
         },
       },
     });
+
+    // Invalidate planner cache for specific service line (multi-user consistency)
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { ServLineCode: true }
+    });
+    if (task?.ServLineCode) {
+      const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+        where: { ServLineCode: task.ServLineCode },
+        select: { SubServlineGroupCode: true, masterCode: true }
+      });
+      if (serviceLineMapping?.masterCode && serviceLineMapping?.SubServlineGroupCode) {
+        await invalidatePlannerCachesForServiceLine(
+          serviceLineMapping.masterCode,
+          serviceLineMapping.SubServlineGroupCode
+        );
+      }
+    }
 
     return NextResponse.json(
       successResponse({ allocation: newAllocation }),
