@@ -164,9 +164,7 @@ export const DELETE = secureRoute.mutationWithParams({
 
     await prisma.complianceChecklist.delete({
       where: { id: itemId },
-    });
-
-    return NextResponse.json(
+    });    return NextResponse.json(
       successResponse({ message: 'Checklist item deleted successfully' })
     );
   },

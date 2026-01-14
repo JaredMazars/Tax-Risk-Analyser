@@ -23,4 +23,3 @@ export interface PermissionCheckResult {
   allowed: boolean;
   reason?: string;
 }
-
