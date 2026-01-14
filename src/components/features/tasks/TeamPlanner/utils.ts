@@ -254,6 +254,9 @@ export function formatPercentage(percentage: number | null | undefined): string 
   return `${percentage}%`;
 }
 
+// Re-export text color helper from colorUtils
+export { getTextColorForGradient } from '@/lib/utils/colorUtils';
+
 /**
  * Calculate total allocated hours for a resource
  */
@@ -441,21 +444,15 @@ export function getUtilizationColor(utilizationPercentage: number): string {
 
 /**
  * Get solid utilization color for allocation tile fill
- * Returns solid darker colors based on utilization percentage
+ * Returns darkened version of role color based on utilization percentage
+ * @param roleGradient - CSS gradient string for the role color
  * @param utilizationPercentage - Utilization percentage (0-100+)
- * @returns CSS color string (solid, darker shades)
+ * @returns CSS color string (solid, darkened shade of role color)
  */
 export function getUtilizationBlendColor(roleGradient: string, utilizationPercentage: number): string {
-  if (utilizationPercentage < 80) {
-    // Darker green for under-utilized
-    return '#8FBC8F';
-  } else if (utilizationPercentage <= 100) {
-    // Darker yellow/amber for fully utilized
-    return '#F0C674';
-  } else {
-    // Darker red for over-utilized
-    return '#D98880';
-  }
+  // Import the darkening function from colorUtils
+  const { darkenGradientForUtilization } = require('@/lib/utils/colorUtils');
+  return darkenGradientForUtilization(roleGradient, utilizationPercentage);
 }
 
 

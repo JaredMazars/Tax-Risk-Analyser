@@ -754,20 +754,28 @@ export function ClientPlannerTimeline({
         className="px-6 py-3 border-t-2 border-forvis-gray-200 flex flex-col gap-3"
         style={{ background: 'linear-gradient(to right, #F8F9FA, #F0F7FD)' }}
       >
-        {/* Legend */}
+        {/* Legend - Service Line Roles */}
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #C084FC 0%, #9333EA 100%)' }} />
-              <span className="text-forvis-gray-700">Admin</span>
+              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)' }} />
+              <span className="text-forvis-gray-700">Administrator</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }} />
-              <span className="text-forvis-gray-700">Reviewer</span>
+              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)' }} />
+              <span className="text-forvis-gray-700">Partner</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #C084FC 0%, #9333EA 100%)' }} />
+              <span className="text-forvis-gray-700">Manager</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #4ADE80 0%, #16A34A 100%)' }} />
-              <span className="text-forvis-gray-700">Editor</span>
+              <span className="text-forvis-gray-700">Supervisor</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }} />
+              <span className="text-forvis-gray-700">User</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded" style={{ background: 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)' }} />

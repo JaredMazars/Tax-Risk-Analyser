@@ -212,26 +212,22 @@ export const getRoleGradient = importedGetRoleGradient;
 export const formatHours = importedFormatHours;
 export const formatPercentage = importedFormatPercentage;
 
+// Re-export text color helper from colorUtils
+export { getTextColorForGradient } from '@/lib/utils/colorUtils';
+
 /**
  * Get utilization color based on percentage
- * Returns a blend color for the utilization indicator
+ * Returns darkened version of role color based on utilization percentage
+ * @param roleGradient - CSS gradient string for the role color
+ * @param percentage - Utilization percentage (0-100+)
+ * @returns CSS color string (solid, darkened shade of role color)
  */
-export function getUtilizationBlendColor(percentage: number | null): string {
+export function getUtilizationBlendColor(roleGradient: string, percentage: number | null): string {
   if (percentage === null || percentage === 0) return 'transparent';
   
-  if (percentage <= 50) {
-    // Green for low utilization
-    return 'rgba(74, 222, 128, 0.3)';
-  } else if (percentage <= 80) {
-    // Yellow for medium utilization
-    return 'rgba(250, 204, 21, 0.3)';
-  } else if (percentage <= 100) {
-    // Orange for high utilization
-    return 'rgba(251, 146, 60, 0.3)';
-  } else {
-    // Red for over-utilization
-    return 'rgba(239, 68, 68, 0.4)';
-  }
+  // Import the darkening function from colorUtils
+  const { darkenGradientForUtilization } = require('@/lib/utils/colorUtils');
+  return darkenGradientForUtilization(roleGradient, percentage);
 }
 
 /**

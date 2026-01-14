@@ -430,17 +430,13 @@ export function AllocationTile({
       onMouseLeave={handleMouseLeave}
       title={utilizationPercentage > 0 ? `${utilizationPercentage.toFixed(0)}% allocated` : undefined}
     >
-      {/* Base tile background */}
+      {/* Base tile background - use role-based gradient */}
       <div 
         className="absolute inset-0 rounded-lg"
-        style={{ 
-          background: allocation.isNonClientEvent || allocation.isCurrentTask === false 
-            ? gradient 
-            : 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)' // Gold for client tasks
-        }}
+        style={{ background: gradient }}
       />
       
-      {/* Utilization fill layer (bottom-to-top, solid subtle colors) */}
+      {/* Utilization fill layer (bottom-to-top, darker version of role color) */}
       {!allocation.isNonClientEvent && utilizationPercentage > 0 && (
         <div 
           className="absolute bottom-0 left-0 right-0 rounded-lg"
@@ -459,7 +455,7 @@ export function AllocationTile({
           {allocation.isNonClientEvent ? (
             <>
               {/* Event Type Label - Always visible */}
-              <div className="text-white text-[10px] font-bold truncate min-w-0 flex-1 drop-shadow">
+              <div className="text-white text-[10px] font-semibold truncate min-w-0 flex-1 drop-shadow">
                 {allocation.nonClientEventType && NON_CLIENT_EVENT_LABELS[allocation.nonClientEventType]}
               </div>
               {/* Hours - Show when wide enough */}
@@ -478,29 +474,29 @@ export function AllocationTile({
               {/* Hours/Percentage - Shows first when tile is wide enough (>150px) */}
               {livePosition.width > 150 && (allocation.allocatedHours || allocation.allocatedPercentage) && (
                 <>
-                  <div className="text-forvis-gray-800 text-[9px] whitespace-nowrap flex-shrink-0">
+                  <div className="text-white text-[9px] whitespace-nowrap flex-shrink-0">
                     {allocation.allocatedHours 
                       ? formatHours(allocation.allocatedHours) 
                       : allocation.allocatedPercentage 
                         ? formatPercentage(allocation.allocatedPercentage) 
                         : ''}
                   </div>
-                  <div className="text-forvis-gray-700 text-[9px] flex-shrink-0">•</div>
+                  <div className="text-white/60 text-[9px] flex-shrink-0">•</div>
                 </>
               )}
               
               {/* Client Name - Always visible, never truncates */}
               {allocation.clientName && (
                 <>
-                  <div className="text-forvis-gray-900 text-[9px] font-medium whitespace-nowrap flex-shrink-0">
+                  <div className="text-white text-[9px] font-medium whitespace-nowrap flex-shrink-0">
                     {allocation.clientName}
                   </div>
-                  <div className="text-forvis-gray-700 text-[9px] flex-shrink-0">•</div>
+                  <div className="text-white/60 text-[9px] flex-shrink-0">•</div>
                 </>
               )}
               
               {/* Task Name - Always visible, can truncate if needed */}
-              <div className="text-forvis-gray-900 text-[10px] font-semibold truncate min-w-0 flex-1">
+              <div className="text-white text-[10px] font-semibold truncate min-w-0 flex-1">
                 {allocation.taskName}
               </div>
             </>

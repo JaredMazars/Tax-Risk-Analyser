@@ -3,12 +3,12 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { AllocationData, GanttPosition, TimeScale, RowMetadata } from './types';
-import { 
-  getRoleGradient, 
-  formatHours, 
-  formatPercentage, 
-  getDayPixelWidth, 
-  snapToDay, 
+import {
+  getRoleGradient,
+  formatHours,
+  formatPercentage,
+  getDayPixelWidth,
+  snapToDay,
   pixelsToDays,
   calculateBusinessDays,
   calculateAvailableHours,
@@ -344,24 +344,24 @@ export function AllocationTile({
         style={{ background: gradient }}
       />
       
-      {/* Utilization fill layer */}
+      {/* Utilization fill layer - darker version of role color */}
       {utilizationPercentage > 0 && (
         <div 
           className="absolute bottom-0 left-0 right-0 rounded-lg"
           style={{
             height: `${Math.min(utilizationPercentage, 100)}%`,
-            background: getUtilizationBlendColor(utilizationPercentage),
+            background: getUtilizationBlendColor(gradient, utilizationPercentage),
             transition: (isDragging || isResizing) ? 'none' : 'height 0.2s ease-in-out'
           }}
         />
       )}
 
       {/* Content layer */}
-      <div className="absolute inset-0 flex items-center px-2 text-white text-xs font-semibold truncate pointer-events-none z-10">
+      <div className="absolute inset-0 flex items-center px-2 text-white text-[10px] font-semibold truncate pointer-events-none z-10">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <span className="truncate">{employeeDisplayName}</span>
           {allocation.jobGradeCode && (
-            <span className="px-1 py-0.5 rounded bg-white/20 text-[10px] font-medium flex-shrink-0">
+            <span className="px-1 py-0.5 rounded bg-white/20 text-white text-[9px] font-medium flex-shrink-0">
               {allocation.jobGradeCode}
             </span>
           )}
