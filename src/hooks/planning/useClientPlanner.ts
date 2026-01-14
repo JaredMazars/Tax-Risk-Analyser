@@ -130,7 +130,7 @@ export function useClientPlanner({
       };
     },
     enabled: enabled && !!serviceLine && !!subServiceLineGroup,
-    staleTime: 90 * 1000, // 90 seconds - reduced for multi-user consistency
+    staleTime: 5 * 1000, // 5 seconds - ensures data freshness between views
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 }

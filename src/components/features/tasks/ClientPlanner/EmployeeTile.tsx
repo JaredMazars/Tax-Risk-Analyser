@@ -202,10 +202,16 @@ export function EmployeeTile({
 
     // Save the changes
     if (onUpdateDates) {
+      // Store lastAppliedDelta BEFORE clearing drag state (critical for livePosition during save)
+      lastAppliedDelta.current = currentDelta;
+      // Store which action was performed BEFORE clearing the states
+      // lastAction is already set in handleMouseDown, so it's already captured
+      
       setExpectedDates(previewDates);
       setIsSaving(true);
       setIsDragging(false);
       setIsResizing(null);
+      // Don't clear previewDates yet - keep for display during save
       
       onUpdateDates(
         allocation.id,
@@ -220,7 +226,7 @@ export function EmployeeTile({
       lastAppliedDelta.current = 0;
       lastAction.current = null;
     }
-  }, [isDragging, isResizing, previewDates, hasDragged, onUpdateDates, allocation.id]);
+  }, [isDragging, isResizing, previewDates, hasDragged, onUpdateDates, allocation.id, currentDelta]);
 
   // Global mouse event listeners
   useEffect(() => {
@@ -238,24 +244,56 @@ export function EmployeeTile({
 
   // Calculate live position with delta applied
   const livePosition = useMemo(() => {
-    let newLeft = originalLeft.current;
-    let newWidth = originalWidth.current;
-
-    if (isDragging && currentDelta !== 0) {
-      newLeft = originalLeft.current + currentDelta;
-    } else if (isResizing === 'left' && currentDelta !== 0) {
-      newLeft = originalLeft.current + currentDelta;
-      newWidth = originalWidth.current - currentDelta;
-    } else if (isResizing === 'right' && currentDelta !== 0) {
-      newWidth = originalWidth.current + currentDelta;
-    } else if (!isDragging && !isResizing) {
-      // Use server position when not dragging
-      newLeft = position.left;
-      newWidth = position.width;
+    // CRITICAL: While saving, hold the position with lastAppliedDelta applied
+    // This prevents jumping back to old server position
+    if (isSaving) {
+      const delta = lastAppliedDelta.current;
+      const action = lastAction.current;
+      
+      // Use stored action type to determine how to calculate position
+      if (action === 'resize-left') {
+        return {
+          left: originalLeft.current + delta,
+          width: Math.max(originalWidth.current - delta, dayPixelWidth)
+        };
+      } else if (action === 'resize-right') {
+        return {
+          left: originalLeft.current,
+          width: Math.max(originalWidth.current + delta, dayPixelWidth)
+        };
+      }
+      // Default to drag behavior
+      return {
+        left: originalLeft.current + delta,
+        width: originalWidth.current
+      };
     }
-
-    return { left: newLeft, width: newWidth };
-  }, [isDragging, isResizing, currentDelta, position.left, position.width]);
+    
+    // Not saving and not dragging/resizing: use server position
+    if (!isDragging && !isResizing) {
+      return position;
+    }
+    
+    // Active drag/resize: show live preview
+    if (isDragging) {
+      return {
+        left: originalLeft.current + currentDelta,
+        width: originalWidth.current
+      };
+    } else if (isResizing === 'left') {
+      return {
+        left: originalLeft.current + currentDelta,
+        width: Math.max(originalWidth.current - currentDelta, dayPixelWidth) // Minimum one day
+      };
+    } else if (isResizing === 'right') {
+      return {
+        left: originalLeft.current,
+        width: Math.max(originalWidth.current + currentDelta, dayPixelWidth) // Minimum one day
+      };
+    }
+    
+    return position;
+  }, [position, currentDelta, isDragging, isResizing, isSaving, dayPixelWidth]);
 
   // Tooltip handlers
   const handleMouseEnter = useCallback(() => {

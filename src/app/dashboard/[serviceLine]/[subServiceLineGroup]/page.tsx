@@ -972,6 +972,13 @@ export default function SubServiceLineWorkspacePage() {
                     subServiceLineGroup={subServiceLineGroup}
                     currentUserRole={currentUserServiceLineRole}
                     filters={clientPlannerFilters}
+                    onAllocationUpdate={() => {
+                      // Invalidate ALL planner queries to ensure both views stay in sync
+                      queryClient.invalidateQueries({ 
+                        queryKey: ['planner'],
+                        refetchType: 'all' // Force refetch for both active and inactive queries
+                      });
+                    }}
                   />
                 ) : (
                   /* Client List View */

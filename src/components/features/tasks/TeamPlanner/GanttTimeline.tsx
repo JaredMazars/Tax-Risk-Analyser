@@ -762,13 +762,10 @@ export function GanttTimeline({
         throw new Error(errorMessage);
       }
 
-      // DON'T refetch - the optimistic update already shows correct data
-      // The drag operation saved to DB, so we can trust the optimistic update
-      // Next natural refetch (modal save, page refresh, etc) will sync with server
-      
-      // Keep optimistic update indefinitely - it will be replaced by server data
-      // on next refetch or when component unmounts
-      // No need to clear since drag already saved the correct dates to DB
+      // Invalidate cache to ensure all views stay in sync
+      if (onAllocationUpdate) {
+        onAllocationUpdate();
+      }
     } catch (error) {
       // Revert optimistic update on error - FIXED: Use composite key
       const optimisticKey = getAllocationKeyById(allocationId, isNonClientEvent);

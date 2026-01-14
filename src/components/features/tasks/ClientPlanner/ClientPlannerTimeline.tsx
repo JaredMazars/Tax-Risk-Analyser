@@ -17,7 +17,6 @@ import { Calendar, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 import { ServiceLineRole } from '@/types';
 import { startOfDay, format, addDays, addWeeks } from 'date-fns';
 import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
-import { useQueryClient } from '@tanstack/react-query';
 
 // Re-export TimelineHeader from TeamPlanner since it's identical
 import { TimelineHeader } from '../TeamPlanner/TimelineHeader';
@@ -35,13 +34,15 @@ interface ClientPlannerTimelineProps {
     tasks: string[];
     managers: string[];
   };
+  onAllocationUpdate: () => void;
 }
 
 export function ClientPlannerTimeline({
   serviceLine,
   subServiceLineGroup,
   currentUserRole,
-  filters
+  filters,
+  onAllocationUpdate
 }: ClientPlannerTimelineProps) {
   const [scale, setScale] = useState<TimeScale>('week');
   const [referenceDate, setReferenceDate] = useState(new Date());
@@ -77,7 +78,6 @@ export function ClientPlannerTimeline({
   } | null>(null);
   
   const timelineContainerRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
 
   // Determine if user can edit based on ServiceLineRole
   const roleUpper = (currentUserRole || '').toUpperCase();
@@ -101,13 +101,6 @@ export function ClientPlannerTimeline({
     limit,
     enabled: true
   });
-
-  // Helper to invalidate all planner data for multi-user consistency
-  const invalidatePlannerData = useCallback(() => {
-    refetch(); // Refetch own data
-    queryClient.invalidateQueries({ queryKey: ['planner', 'employees'] });
-    queryClient.invalidateQueries({ queryKey: ['planner', 'filters'] });
-  }, [refetch, queryClient]);
 
   const rawTasks = data?.tasks || [];
   const pagination = data?.pagination;
@@ -374,7 +367,7 @@ export function ClientPlannerTimeline({
         return newMap;
       });
       
-      invalidatePlannerData(); // Invalidate all planner data for multi-user consistency
+      onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
@@ -396,7 +389,7 @@ export function ClientPlannerTimeline({
     } finally {
       setIsSaving(false);
     }
-  }, [selectedAllocation, invalidatePlannerData]);
+  }, [selectedAllocation, onAllocationUpdate]);
 
   const handleClearAllocation = useCallback(async (allocationId: number) => {
     setIsSaving(true);
@@ -417,7 +410,7 @@ export function ClientPlannerTimeline({
         throw new Error(errorMessage);
       }
 
-      invalidatePlannerData(); // Invalidate all planner data for multi-user consistency
+      onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
@@ -431,7 +424,7 @@ export function ClientPlannerTimeline({
     } finally {
       setIsSaving(false);
     }
-  }, [selectedAllocation, invalidatePlannerData]);
+  }, [selectedAllocation, onAllocationUpdate]);
 
   const handleUpdateDates = useCallback(async (allocationId: number, startDate: Date, endDate: Date) => {
     // Find the allocation to get its taskId
@@ -477,11 +470,8 @@ export function ClientPlannerTimeline({
         throw new Error(errorMessage);
       }
 
-      // DON'T refetch - the optimistic update already shows correct data
-      // The drag operation saved to DB, so we can trust the optimistic update
-      // Next natural refetch (modal save, page refresh, etc) will sync with server
-      // Keep optimistic update indefinitely - it will be replaced by server data
-      // on next refetch or when component unmounts
+      // Invalidate cache to ensure all views stay in sync
+      onAllocationUpdate();
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticUpdates(prev => {
@@ -493,14 +483,14 @@ export function ClientPlannerTimeline({
       const message = error instanceof Error ? error.message : 'Failed to update dates';
       setErrorModal({ isOpen: true, message, title: 'Update Failed' });
     }
-  }, [rows]);
+  }, [rows, onAllocationUpdate]);
 
   const handleAddEmployeeSave = useCallback(() => {
-    invalidatePlannerData(); // Invalidate all planner data for multi-user consistency
+    onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
     setIsAddEmployeeModalOpen(false);
     setSelectedTaskForAdd(null);
     setAddEmployeeDates(null);
-  }, [invalidatePlannerData]);
+  }, [onAllocationUpdate]);
 
   // Get client and task info for modal
   const modalTaskInfo = useMemo(() => {
