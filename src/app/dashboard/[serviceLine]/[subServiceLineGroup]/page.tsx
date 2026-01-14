@@ -918,10 +918,11 @@ export default function SubServiceLineWorkspacePage() {
                       teamMembers={transformedTimelineUsers}
                       currentUserRole={currentUserServiceLineRole}
                       onAllocationUpdate={() => {
-                        // Refetch all planner data after update (multi-user consistency)
-                        queryClient.invalidateQueries({ queryKey: ['planner', 'employees'] });
-                        queryClient.invalidateQueries({ queryKey: ['planner', 'tasks'] });
-                        queryClient.invalidateQueries({ queryKey: ['planner', 'filters'] });
+                        // Invalidate ALL planner queries to ensure both views stay in sync
+                        queryClient.invalidateQueries({ 
+                          queryKey: ['planner'],
+                          refetchType: 'all' // Force refetch for both active and inactive queries
+                        });
                       }}
                       serviceLine={serviceLine}
                       subServiceLineGroup={subServiceLineGroup}
