@@ -212,4 +212,3 @@ export function hasPartnerAccess(role?: string): boolean {
   // Partner and Administrator service line roles have partner access
   return role === ServiceLineRole.PARTNER || role === ServiceLineRole.ADMINISTRATOR;
 }
-

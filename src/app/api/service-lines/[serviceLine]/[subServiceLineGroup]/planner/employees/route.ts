@@ -188,18 +188,35 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       }
     };
 
-    // Employee filter (convert WinLogon to user email format)
+    // Employee filter (now using EmpCode from filter options)
     if (employees.length > 0) {
-      // Convert WinLogon values to email format for userId matching
-      const userIds = employees.map(emp => {
-        // If it already looks like an email, use as-is
-        if (emp.includes('@')) {
-          return emp.toLowerCase();
+      // employees array now contains EmpCode values (e.g., ["WALB001", "JOHD002"])
+      // 1. Look up Employee records by EmpCode
+      const employeeRecords = await prisma.employee.findMany({
+        where: { 
+          EmpCode: { in: employees },
+          Active: 'Yes'
+        },
+        select: {
+          id: true,
+          EmpCode: true,
+          WinLogon: true
         }
-        // Otherwise, convert WinLogon to email format
-        return `${emp}@forvismazars.us`.toLowerCase();
       });
-      taskTeamWhere.userId = { in: userIds };
+      
+      // 2. Map employees to users using existing helper function
+      const employeeUserMap = await mapEmployeesToUsers(employeeRecords);
+      
+      // 3. Extract User.id values (Azure AD GUIDs)
+      const actualUserIds = Array.from(employeeUserMap.values()).map(user => user.id);
+      
+      // 4. Filter TaskTeam by actual User.id values
+      if (actualUserIds.length > 0) {
+        taskTeamWhere.userId = { in: actualUserIds };
+      } else {
+        // No matching users found - return empty results
+        taskTeamWhere.userId = { in: ['__NO_MATCH__'] };
+      }
     }
 
     // Client filter - only show allocations for specific clients

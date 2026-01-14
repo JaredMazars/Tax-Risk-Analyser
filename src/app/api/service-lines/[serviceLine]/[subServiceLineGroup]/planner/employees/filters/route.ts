@@ -102,7 +102,8 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         WinLogon: true,
         EmpNameFull: true,
         EmpCatCode: true,
-        OfficeCode: true
+        OfficeCode: true,
+        EmpCode: true
       },
       orderBy: {
         EmpNameFull: 'asc'
@@ -132,17 +133,13 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
 
     // 9. Extract unique values for filters
     
-    // Employees (WinLogon as ID and name with email if available)
+    // Employees (EmpCode as ID and name for display)
     const employeesSet = new Map<string, string>();
     employees.forEach(emp => {
-      if (emp.WinLogon) {
-        const user = employeeUserMap.get(emp.id);
-        const email = user?.email || `${emp.WinLogon}@forvismazars.us`;
-        const label = emp.EmpNameFull 
-          ? `${emp.EmpNameFull} (${email})`
-          : email;
-        // Use WinLogon as the ID for filtering
-        employeesSet.set(emp.WinLogon, label);
+      if (emp.EmpCode && emp.EmpNameFull) {
+        // Use EmpCode as the ID for filtering (more reliable than WinLogon)
+        const label = `${emp.EmpNameFull} (${emp.EmpCode})`;
+        employeesSet.set(emp.EmpCode, label);
       }
     });
 
