@@ -12,7 +12,7 @@ import { logger } from '@/lib/utils/logger';
  * Generate secure download URL for document
  * Optional version query param to download specific version
  */
-export const GET = secureRoute.query({
+export const GET = secureRoute.queryWithParams<{ id: string }>({
   feature: Feature.ACCESS_DOCUMENT_VAULT,
   handler: async (request, { user, params }) => {
     const documentId = parseInt(params.id);

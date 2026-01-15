@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { Feature } from '@/lib/permissions/features';
 import { prisma } from '@/lib/db/prisma';
@@ -12,7 +13,7 @@ import { SystemRole } from '@/types';
  * PATCH /api/document-vault/admin/[id]/archive
  * Archive a document (service line admin or system admin)
  */
-export const PATCH = secureRoute.mutation({
+export const PATCH = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   handler: async (request, { user, params }) => {
     try {
@@ -86,7 +87,7 @@ export const PATCH = secureRoute.mutation({
       });
 
       // Invalidate cache
-      invalidateDocumentVaultCache();
+      await invalidateDocumentVaultCache(documentId, document.serviceLine || undefined);
 
       logger.info('Document archived by service line admin', {
         userId: user.id,

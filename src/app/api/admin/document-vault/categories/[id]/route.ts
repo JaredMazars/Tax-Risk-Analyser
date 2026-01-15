@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { Feature } from '@/lib/permissions/features';
 import { UpdateVaultCategorySchema } from '@/lib/validation/schemas';
@@ -11,7 +12,7 @@ import { invalidateCategoriesCache } from '@/lib/services/document-vault/documen
  * PATCH /api/admin/document-vault/categories/[id]
  * Update category (SYSTEM_ADMIN only)
  */
-export const PATCH = secureRoute.mutation({
+export const PATCH = secureRoute.mutationWithParams<typeof UpdateVaultCategorySchema, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   schema: UpdateVaultCategorySchema,
   handler: async (request, { user, params, data }) => {
@@ -87,9 +88,8 @@ export const PATCH = secureRoute.mutation({
  * Delete category (SYSTEM_ADMIN only)
  * Only allows deletion if no documents use this category
  */
-export const DELETE = secureRoute.mutation({
+export const DELETE = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
-  schema: undefined,
   handler: async (request, { user, params }) => {
     const categoryId = parseInt(params.id);
 

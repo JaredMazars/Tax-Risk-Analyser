@@ -268,8 +268,9 @@ export const POST = secureRoute.fileUpload({
       extractVaultDocumentMetadata(
         buffer,
         document.id,
-        1,
-        file.type
+        document.title,
+        document.documentType,
+        document.Category.name
       ).catch((err) => {
         logger.error('Background AI extraction failed', err, {
           documentId: document.id,
@@ -279,7 +280,7 @@ export const POST = secureRoute.fileUpload({
       // Create approval request
       const approval = await approvalService.createApproval({
         workflowType: 'VAULT_DOCUMENT',
-        workflowId: document.id.toString(),
+        workflowId: document.id,
         title: `Document Upload: ${document.title}`,
         requestedById: user.id,
         context: {
@@ -296,7 +297,7 @@ export const POST = secureRoute.fileUpload({
       });
 
       // Invalidate cache
-      invalidateDocumentVaultCache();
+      await invalidateDocumentVaultCache(document.id, document.serviceLine || undefined);
 
       logger.info('Document uploaded by service line admin', {
         userId: user.id,

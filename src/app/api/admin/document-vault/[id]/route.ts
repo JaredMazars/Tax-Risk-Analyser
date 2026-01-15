@@ -11,7 +11,7 @@ import { invalidateDocumentVaultCache } from '@/lib/services/document-vault/docu
  * PATCH /api/admin/document-vault/[id]
  * Update document metadata
  */
-export const PATCH = secureRoute.mutation({
+export const PATCH = secureRoute.mutationWithParams<typeof UpdateVaultDocumentSchema, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
   schema: UpdateVaultDocumentSchema,
   handler: async (request, { user, params, data }) => {

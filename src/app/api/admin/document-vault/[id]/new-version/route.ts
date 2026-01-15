@@ -16,8 +16,11 @@ import { logger } from '@/lib/utils/logger';
  */
 export const POST = secureRoute.fileUpload({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
-  handler: async (request, { user, params }) => {
-    const documentId = parseInt(params.id);
+  handler: async (request, { user }) => {
+    // Extract document ID from URL path
+    const pathParts = request.nextUrl.pathname.split('/');
+    const idIndex = pathParts.indexOf('document-vault') + 1;
+    const documentId = parseInt(pathParts[idIndex] || '0');
 
     if (isNaN(documentId)) {
       return NextResponse.json(

@@ -1,9 +1,12 @@
 'use client';
 
 import { FileText, FolderOpen, Calendar, Tag } from 'lucide-react';
-import type { UnifiedApprovalItemProps } from './UnifiedApprovalCard';
 
-export function VaultDocumentApprovalItem({ workflowData }: UnifiedApprovalItemProps) {
+interface VaultDocumentApprovalItemProps {
+  workflowData: any;
+}
+
+export function VaultDocumentApprovalItem({ workflowData }: VaultDocumentApprovalItemProps) {
   const document = workflowData as any;
 
   return (

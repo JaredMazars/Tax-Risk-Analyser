@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { Feature } from '@/lib/permissions/features';
 import { prisma } from '@/lib/db/prisma';
@@ -12,9 +13,8 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
  * Manually publish a document (after approval is complete)
  * This endpoint is called by the approval system webhook or can be triggered manually
  */
-export const POST = secureRoute.mutation({
+export const POST = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
-  schema: undefined,
   handler: async (request, { user, params }) => {
     const documentId = parseInt(params.id);
 

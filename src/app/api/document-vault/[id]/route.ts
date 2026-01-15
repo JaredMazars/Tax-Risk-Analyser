@@ -10,7 +10,7 @@ import { getCachedDocumentDetail, cacheDocumentDetail } from '@/lib/services/doc
  * GET /api/document-vault/[id]
  * Get document details including AI summary and version history
  */
-export const GET = secureRoute.query({
+export const GET = secureRoute.queryWithParams<{ id: string }>({
   feature: Feature.ACCESS_DOCUMENT_VAULT,
   handler: async (request, { user, params }) => {
     const documentId = parseInt(params.id);

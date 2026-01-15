@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { Feature } from '@/lib/permissions/features';
-import { ArchiveVaultDocumentSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { canArchiveDocument } from '@/lib/services/document-vault/documentVaultAuthorization';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { invalidateDocumentVaultCache } from '@/lib/services/document-vault/documentVaultCache';
 
 /**
  * PATCH /api/admin/document-vault/[id]/archive
  * Archive a document (soft delete)
  */
-export const PATCH = secureRoute.mutation({
+export const PATCH = secureRoute.mutationWithParams<z.ZodVoid, { id: string }>({
   feature: Feature.MANAGE_VAULT_DOCUMENTS,
-  schema: ArchiveVaultDocumentSchema,
-  handler: async (request, { user, params, data }) => {
+  handler: async (request, { user, params }) => {
     const documentId = parseInt(params.id);
 
     if (isNaN(documentId)) {
-      return NextResponse.json(
-        { error: 'Invalid document ID' },
-        { status: 400 }
+      throw new AppError(
+        400,
+        'Invalid document ID',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
@@ -37,30 +37,19 @@ export const PATCH = secureRoute.mutation({
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: 'Document not found' },
-        { status: 404 }
+      throw new AppError(
+        404,
+        'Document not found',
+        ErrorCodes.NOT_FOUND
       );
     }
 
     // Check if already archived
     if (document.status === 'ARCHIVED') {
-      return NextResponse.json(
-        { error: 'Document is already archived' },
-        { status: 400 }
-      );
-    }
-
-    // Check authorization
-    const canArchive = await canArchiveDocument(user.id, {
-      scope: document.scope as any,
-      serviceLine: document.serviceLine,
-    });
-
-    if (!canArchive) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions to archive this document' },
-        { status: 403 }
+      throw new AppError(
+        400,
+        'Document is already archived',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 

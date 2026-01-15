@@ -79,7 +79,7 @@ export function CategoriesPageClient() {
             <h2 className="text-lg font-semibold text-forvis-gray-900">{type} Categories</h2>
           </div>
           <div className="divide-y divide-forvis-gray-200">
-            {cats.map((cat) => (
+            {(cats as any[]).map((cat) => (
               <div key={cat.id} className="px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   {cat.color && (
