@@ -548,7 +548,9 @@ export function TaskDetailContent({
                   taskId={parseInt(taskId)}
                   teamMembers={teamMembers}
                   currentUserRole={currentUserRole}
-                  onAllocationUpdate={refetchTeam}
+                  onAllocationUpdate={async () => {
+                    await refetchTeam();
+                  }}
                 />
               )}
 
