@@ -295,23 +295,43 @@ export async function invalidatePlannerCachesForServiceLine(
   try {
     // Use pattern matching to clear all variations of planner caches
     // This clears caches regardless of filter combinations or pagination
-    const [clientCount, employeeCount, filterCount] = await Promise.all([
+    const [
+      clientCount, 
+      employeeCount, 
+      clientFilterCount,
+      employeeFilterCount,
+      globalClientCount,
+      globalEmployeeCount,
+      globalFilterCount,
+    ] = await Promise.all([
       // Client planner caches: task:planner:clients:TAX:TAX_CORP:*
       cache.invalidatePattern(`${CACHE_PREFIXES.TASK}planner:clients:${serviceLine}:${subServiceLineGroup}:*`),
       // Employee planner caches: task:planner:employees:TAX:TAX_CORP:*
       cache.invalidatePattern(`${CACHE_PREFIXES.TASK}planner:employees:${serviceLine}:${subServiceLineGroup}:*`),
-      // Filter caches: task:planner:*:filters:TAX:TAX_CORP
-      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}planner:*:filters:${serviceLine}:${subServiceLineGroup}`),
+      // Client filter caches: task:planner:filters:TAX:TAX_CORP:user:*
+      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}planner:filters:${serviceLine}:${subServiceLineGroup}:*`),
+      // Employee filter caches: task:planner:employees:filters:TAX:TAX_CORP
+      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}planner:employees:filters:${serviceLine}:${subServiceLineGroup}`),
+      // Global planner caches (used by Staff Planner / Country Management)
+      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}global-planner:clients:*`),
+      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}global-planner:employees:*`),
+      // Global filter caches
+      cache.invalidatePattern(`${CACHE_PREFIXES.TASK}global-planner:*:filters`),
     ]);
 
-    const totalCleared = clientCount + employeeCount + filterCount;
+    const totalCleared = clientCount + employeeCount + clientFilterCount + employeeFilterCount + 
+                         globalClientCount + globalEmployeeCount + globalFilterCount;
     
     logger.info('Invalidated planner caches for service line', {
       serviceLine,
       subServiceLineGroup,
       clientCachesCleared: clientCount,
       employeeCachesCleared: employeeCount,
-      filterCachesCleared: filterCount,
+      clientFilterCachesCleared: clientFilterCount,
+      employeeFilterCachesCleared: employeeFilterCount,
+      globalClientCachesCleared: globalClientCount,
+      globalEmployeeCachesCleared: globalEmployeeCount,
+      globalFilterCachesCleared: globalFilterCount,
       totalKeysCleared: totalCleared,
     });
 

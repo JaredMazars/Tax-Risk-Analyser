@@ -28,6 +28,20 @@ export interface EmployeeWithUser {
   } | null;
 }
 
+// SQL Server has a 2100 parameter limit - batch queries to stay under
+const SQL_PARAM_BATCH_SIZE = 500;
+
+/**
+ * Batch an array into chunks for SQL Server parameter limits
+ */
+function batchArray<T>(array: T[], batchSize: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < array.length; i += batchSize) {
+    batches.push(array.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
 /**
  * Finds users that match the given employees based on WinLogon/Email.
  * Returns a map of Employee ID -> User
@@ -42,28 +56,52 @@ export async function mapEmployeesToUsers(employees: { id: number; WinLogon: str
     return new Map<number, NonNullable<EmployeeWithUser['user']>>();
   }
 
-  // Try both full email and username prefix
-  const emailVariants = winLogons.flatMap(logon => {
+  // Try both full email and username prefix - use Set to dedupe
+  const emailVariantSet = new Set<string>();
+  winLogons.forEach(logon => {
     const lower = logon.toLowerCase();
     const prefix = lower.split('@')[0];
-    return [lower, prefix].filter((v): v is string => !!v);
+    emailVariantSet.add(lower);
+    if (prefix) emailVariantSet.add(prefix);
   });
+  const emailVariants = Array.from(emailVariantSet);
 
-  // 2. LEFT JOIN with User table to find registered users
-  const users = await prisma.user.findMany({
-    where: {
-      OR: [
-        { email: { in: emailVariants } },
-        { id: { in: winLogons } } // Sometimes ID matches WinLogon
-      ]
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      image: true
-    }
-  });
+  // 2. Batch queries to respect SQL Server's 2100 parameter limit
+  // We have 2 IN clauses (email and id), so split batch size accordingly
+  const emailBatches = batchArray(emailVariants, SQL_PARAM_BATCH_SIZE);
+  const winLogonBatches = batchArray(winLogons, SQL_PARAM_BATCH_SIZE);
+  
+  type UserRecord = { id: string; name: string | null; email: string; image: string | null };
+  const allUsers: UserRecord[] = [];
+  
+  // Query in batches - run email and winLogon batches in parallel
+  const batchPromises: Promise<UserRecord[]>[] = [];
+  
+  for (const batch of emailBatches) {
+    batchPromises.push(
+      prisma.user.findMany({
+        where: { email: { in: batch } },
+        select: { id: true, name: true, email: true, image: true }
+      })
+    );
+  }
+  
+  for (const batch of winLogonBatches) {
+    batchPromises.push(
+      prisma.user.findMany({
+        where: { id: { in: batch } },
+        select: { id: true, name: true, email: true, image: true }
+      })
+    );
+  }
+  
+  const batchResults = await Promise.all(batchPromises);
+  batchResults.forEach(users => allUsers.push(...users));
+  
+  // Dedupe users by id
+  const userById = new Map<string, UserRecord>();
+  allUsers.forEach(u => userById.set(u.id, u));
+  const users = Array.from(userById.values());
 
   // 3. Create user lookup map
   const userMap = new Map<string, typeof users[0]>();
@@ -123,14 +161,30 @@ export async function mapUsersToEmployees(userIds: string[]) {
     }
   }
 
-  // Fetch User records to get their emails
+  // Fetch User records to get their emails - batched for SQL Server limits
+  // Also build userIdToEmail map for later use
   let emailsFromUsers: string[] = [];
+  const userIdToEmail = new Map<string, string>();
+  
   if (potentialUserIds.length > 0) {
-    const users = await prisma.user.findMany({
-      where: { id: { in: potentialUserIds } },
-      select: { id: true, email: true }
+    const userBatches = batchArray(potentialUserIds, SQL_PARAM_BATCH_SIZE);
+    const userResults = await Promise.all(
+      userBatches.map(batch => 
+        prisma.user.findMany({
+          where: { id: { in: batch } },
+          select: { id: true, email: true }
+        })
+      )
+    );
+    const allUsers = userResults.flat();
+    emailsFromUsers = allUsers.map(u => u.email).filter(Boolean) as string[];
+    
+    // Build userIdToEmail map for Strategy 3 lookups later
+    allUsers.forEach(u => {
+      if (u.email) {
+        userIdToEmail.set(u.id.toLowerCase(), u.email.toLowerCase());
+      }
     });
-    emailsFromUsers = users.map(u => u.email).filter(Boolean) as string[];
   }
 
   // Generate email variants for better matching
@@ -140,41 +194,59 @@ export async function mapUsersToEmployees(userIds: string[]) {
   });
   const allEmailsToQuery = Array.from(allEmailVariants);
 
-  // Build query conditions
-  const whereConditions: any[] = [];
-  
-  // Email-based lookups
+  // Fetch employees using batched queries to respect SQL Server's parameter limit
+  type EmployeeRecord = {
+    id: number;
+    GSEmployeeID: string | null;
+    EmpCode: string;
+    EmpNameFull: string;
+    EmpCatCode: string | null;
+    OfficeCode: string | null;
+    WinLogon: string | null;
+  };
+  const allEmployees: EmployeeRecord[] = [];
+  const employeeSelect = {
+    id: true,
+    GSEmployeeID: true,
+    EmpCode: true,
+    EmpNameFull: true,
+    EmpCatCode: true,
+    OfficeCode: true,
+    WinLogon: true
+  } as const;
+
+  // Batch email lookups
   if (allEmailsToQuery.length > 0) {
-    whereConditions.push({ WinLogon: { in: allEmailsToQuery } });
-    // Also try email prefixes
-    allEmailsToQuery.forEach(email => {
-      const prefix = email.split('@')[0];
-      if (prefix) {
-        whereConditions.push({ WinLogon: { startsWith: `${prefix}@` } });
-      }
-    });
-  }
-  
-  // Employee code-based lookups
-  if (extractedEmpCodes.length > 0) {
-    whereConditions.push({ EmpCode: { in: extractedEmpCodes } });
+    const emailBatches = batchArray(allEmailsToQuery, SQL_PARAM_BATCH_SIZE);
+    const emailResults = await Promise.all(
+      emailBatches.map(batch =>
+        prisma.employee.findMany({
+          where: { WinLogon: { in: batch } },
+          select: employeeSelect
+        })
+      )
+    );
+    emailResults.flat().forEach(emp => allEmployees.push(emp));
   }
 
-  // Fetch employees (if we have any conditions)
-  const employees = whereConditions.length > 0 
-    ? await prisma.employee.findMany({
-        where: { OR: whereConditions },
-        select: {
-          id: true,
-          GSEmployeeID: true,
-          EmpCode: true,
-          EmpNameFull: true,
-          EmpCatCode: true,
-          OfficeCode: true,
-          WinLogon: true
-        }
-      })
-    : [];
+  // Batch employee code lookups
+  if (extractedEmpCodes.length > 0) {
+    const empCodeBatches = batchArray(extractedEmpCodes, SQL_PARAM_BATCH_SIZE);
+    const empCodeResults = await Promise.all(
+      empCodeBatches.map(batch =>
+        prisma.employee.findMany({
+          where: { EmpCode: { in: batch } },
+          select: employeeSelect
+        })
+      )
+    );
+    empCodeResults.flat().forEach(emp => allEmployees.push(emp));
+  }
+
+  // Dedupe employees by id
+  const employeeById = new Map<number, EmployeeRecord>();
+  allEmployees.forEach(emp => employeeById.set(emp.id, emp));
+  const employees = Array.from(employeeById.values());
 
   // Build map - key by both original userIds and emails
   const employeeMap = new Map<string, typeof employees[0]>();
@@ -202,17 +274,8 @@ export async function mapUsersToEmployees(userIds: string[]) {
     }
   });
 
-  // Fetch all users at once to get email mappings
-  const users = potentialUserIds.length > 0 
-    ? await prisma.user.findMany({
-        where: { id: { in: potentialUserIds } },
-        select: { id: true, email: true }
-      })
-    : [];
-  
-  const userIdToEmail = new Map(users.map(u => [u.id.toLowerCase(), u.email?.toLowerCase()]));
-
   // Now map all original userIds to employees
+  // (userIdToEmail was already built during the batched user fetch above)
   for (const userId of userIds) {
     const lowerUserId = userId.toLowerCase();
     let employee: typeof employees[0] | undefined;

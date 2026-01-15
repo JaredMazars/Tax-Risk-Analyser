@@ -349,6 +349,18 @@ export default function SubServiceLineWorkspacePage() {
     employeePlannerFilters.taskCategories
   ]);
 
+  // Refetch planner data when switching between Employee/Client views
+  // This ensures changes made in one view are visible in the other
+  React.useEffect(() => {
+    if (activeTab === 'planner') {
+      // Invalidate all planner queries to force fresh data fetch
+      queryClient.invalidateQueries({
+        queryKey: ['planner'],
+        refetchType: 'all'
+      });
+    }
+  }, [plannerView, queryClient, activeTab]);
+
   // Filter options are now fetched inside PlannerFilters component
 
  
@@ -925,6 +937,11 @@ export default function SubServiceLineWorkspacePage() {
                           queryKey: ['planner'],
                           refetchType: 'all' // Force refetch for both active and inactive queries
                         });
+                        // Also invalidate global planner for Staff Planner sync
+                        await queryClient.invalidateQueries({
+                          queryKey: ['global-planner'],
+                          refetchType: 'all'
+                        });
                         // Force immediate refetch of active queries for instant sync
                         await queryClient.refetchQueries({
                           queryKey: ['planner'],
@@ -985,6 +1002,11 @@ export default function SubServiceLineWorkspacePage() {
                       await queryClient.invalidateQueries({ 
                         queryKey: ['planner'],
                         refetchType: 'all' // Force refetch for both active and inactive queries
+                      });
+                      // Also invalidate global planner for Staff Planner sync
+                      await queryClient.invalidateQueries({
+                        queryKey: ['global-planner'],
+                        refetchType: 'all'
                       });
                       // Force immediate refetch of active queries for instant sync
                       await queryClient.refetchQueries({

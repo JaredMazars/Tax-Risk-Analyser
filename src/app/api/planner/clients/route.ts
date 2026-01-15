@@ -9,14 +9,8 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { mapUsersToEmployees } from '@/lib/services/employees/employeeService';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
-// Type for subGroup in userServiceLines
-interface SubGroupInfo {
-  code: string;
-  description?: string;
-}
-
 // Query params validation schema
-const ClientPlannerQuerySchema = z.object({
+const GlobalClientPlannerQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   'clientCodes[]': z.array(z.string()).optional().default([]),
@@ -24,10 +18,12 @@ const ClientPlannerQuerySchema = z.object({
   'partnerCodes[]': z.array(z.string()).optional().default([]),
   'taskCodes[]': z.array(z.string()).optional().default([]),
   'managerCodes[]': z.array(z.string()).optional().default([]),
+  'serviceLines[]': z.array(z.string()).optional().default([]),
+  'subServiceLineGroups[]': z.array(z.string()).optional().default([]),
 });
 
 // Type for cache response
-interface ClientPlannerResponse {
+interface GlobalClientPlannerResponse {
   tasks: TaskRow[];
   pagination: {
     page: number;
@@ -51,6 +47,8 @@ interface TaskRow {
   clientName: string | null;
   groupDesc: string | null;
   clientPartner: string | null;
+  serviceLine: string | null;
+  subServiceLineGroup: string | null;
   allocations: AllocationRow[];
 }
 
@@ -72,41 +70,35 @@ interface AllocationRow {
 }
 
 /**
- * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/clients
- * Fetch all tasks for service line (including those without allocations)
- * Returns Task → Employee Allocations with pagination support
+ * GET /api/planner/clients
+ * Global client planner - fetch tasks and allocations across all service lines
+ * Requires Country Management access
  * 
  * Performance optimizations:
  * - Redis caching (5min TTL)
  * - Pagination (25 limit default)
- * - Optimized queries with Promise.all batching
  */
-export const GET = secureRoute.queryWithParams<{ serviceLine: string; subServiceLineGroup: string }>({
+export const GET = secureRoute.query({
   feature: Feature.ACCESS_DASHBOARD,
-  handler: async (request, { user, params }) => {
-    const { serviceLine, subServiceLineGroup } = params;
-    
-    if (!subServiceLineGroup) {
-      throw new AppError(400, 'Sub-service line group is required', ErrorCodes.VALIDATION_ERROR);
-    }
-
+  handler: async (request, { user }) => {
     // Check for SYSTEM_ADMIN first (bypasses all access checks)
     const isAdmin = user.systemRole === 'SYSTEM_ADMIN';
     
     if (!isAdmin) {
-      // Check user has access to this sub-service line group
+      // Check user has Country Management access
       const userServiceLines = await getUserServiceLines(user.id);
-      const hasAccess = userServiceLines.some(sl =>
-        sl.subGroups?.some((sg: SubGroupInfo) => sg.code === subServiceLineGroup)
+      const hasCountryMgmtAccess = userServiceLines.some(
+        sl => sl.serviceLine === 'COUNTRY_MANAGEMENT'
       );
-      if (!hasAccess) {
-        throw new AppError(403, 'You do not have access to this sub-service line group', ErrorCodes.FORBIDDEN);
+      
+      if (!hasCountryMgmtAccess) {
+        throw new AppError(403, 'Staff Planner requires Country Management access', ErrorCodes.FORBIDDEN);
       }
     }
 
     // Parse and validate query params
     const searchParams = request.nextUrl.searchParams;
-    const queryParams = ClientPlannerQuerySchema.parse({
+    const queryParams = GlobalClientPlannerQuerySchema.parse({
       page: searchParams.get('page') || 1,
       limit: searchParams.get('limit') || 25,
       'clientCodes[]': searchParams.getAll('clientCodes[]'),
@@ -114,6 +106,8 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       'partnerCodes[]': searchParams.getAll('partnerCodes[]'),
       'taskCodes[]': searchParams.getAll('taskCodes[]'),
       'managerCodes[]': searchParams.getAll('managerCodes[]'),
+      'serviceLines[]': searchParams.getAll('serviceLines[]'),
+      'subServiceLineGroups[]': searchParams.getAll('subServiceLineGroups[]'),
     });
     
     const { page, limit } = queryParams;
@@ -122,31 +116,39 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
     const partnerCodes = queryParams['partnerCodes[]'];
     const taskCodes = queryParams['taskCodes[]'];
     const managerCodes = queryParams['managerCodes[]'];
+    const serviceLineFilters = queryParams['serviceLines[]'];
+    const subServiceLineGroupFilters = queryParams['subServiceLineGroups[]'];
 
-    // Build comprehensive cache key with array filters
-    const cacheKey = `${CACHE_PREFIXES.TASK}planner:clients:${serviceLine}:${subServiceLineGroup}:clients:${clientCodes.join(',') || 'all'}:groups:${groupDescs.join(',') || 'all'}:partners:${partnerCodes.join(',') || 'all'}:tasks:${taskCodes.join(',') || 'all'}:managers:${managerCodes.join(',') || 'all'}:${page}:${limit}`;
+    // Build cache key
+    const cacheKey = `${CACHE_PREFIXES.TASK}global-planner:clients:sl:${serviceLineFilters.join(',') || 'all'}:sslg:${subServiceLineGroupFilters.join(',') || 'all'}:clients:${clientCodes.join(',') || 'all'}:groups:${groupDescs.join(',') || 'all'}:partners:${partnerCodes.join(',') || 'all'}:tasks:${taskCodes.join(',') || 'all'}:managers:${managerCodes.join(',') || 'all'}:${page}:${limit}`;
     
     // Try cache first
-    const cached = await cache.get<ClientPlannerResponse>(cacheKey);
+    const cached = await cache.get<GlobalClientPlannerResponse>(cacheKey);
     if (cached) {
       return NextResponse.json(successResponse(cached));
     }
 
-    // 6. Map subServiceLineGroup to external service line codes
-    const serviceLineExternalMappings = await prisma.serviceLineExternal.findMany({
-      where: {
-        SubServlineGroupCode: subServiceLineGroup
-      },
-      select: {
-        ServLineCode: true,
-        SubServlineGroupCode: true,
-        SubServlineGroupDesc: true
-      }
-    });
+    // Get external service line codes based on filters
+    let externalServLineCodes: string[] = [];
     
-    const externalServLineCodes = serviceLineExternalMappings
-      .map(m => m.ServLineCode)
-      .filter((code): code is string => !!code);
+    if (subServiceLineGroupFilters.length > 0) {
+      const mappings = await prisma.serviceLineExternal.findMany({
+        where: { SubServlineGroupCode: { in: subServiceLineGroupFilters } },
+        select: { ServLineCode: true }
+      });
+      externalServLineCodes = mappings.map(m => m.ServLineCode).filter((code): code is string => !!code);
+    } else if (serviceLineFilters.length > 0) {
+      const mappings = await prisma.serviceLineExternal.findMany({
+        where: { masterCode: { in: serviceLineFilters } },
+        select: { ServLineCode: true }
+      });
+      externalServLineCodes = mappings.map(m => m.ServLineCode).filter((code): code is string => !!code);
+    } else {
+      const allMappings = await prisma.serviceLineExternal.findMany({
+        select: { ServLineCode: true }
+      });
+      externalServLineCodes = [...new Set(allMappings.map(m => m.ServLineCode).filter((code): code is string => !!code))];
+    }
 
     if (externalServLineCodes.length === 0) {
       const emptyResponse = { 
@@ -157,18 +159,38 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       return NextResponse.json(successResponse(emptyResponse));
     }
 
-    // 7. Determine if filters are active
-    const hasFilters = !!(clientCodes.length > 0 || groupDescs.length > 0 || partnerCodes.length > 0 || taskCodes.length > 0 || managerCodes.length > 0);
+    // Get service line external mappings for display
+    const servLineCodeToGroup = new Map<string, { code: string; desc: string }>();
+    const allExternalMappings = await prisma.serviceLineExternal.findMany({
+      where: { ServLineCode: { in: externalServLineCodes } },
+      select: { ServLineCode: true, SubServlineGroupCode: true, SubServlineGroupDesc: true }
+    });
+    allExternalMappings.forEach(m => {
+      if (m.ServLineCode) {
+        servLineCodeToGroup.set(m.ServLineCode, {
+          code: m.SubServlineGroupCode || '',
+          desc: m.SubServlineGroupDesc || ''
+        });
+      }
+    });
 
-    // 8. Build task where conditions with ARRAY-BASED FILTERS AT DATABASE LEVEL
-    const taskWhereConditions: any = {
+    // Build task where conditions
+    interface TaskWhereConditions {
+      ServLineCode: { in: string[] };
+      GSClientID: { not: null };
+      Active: string;
+      Client?: Record<string, unknown>;
+      TaskCode?: { in: string[] };
+      TaskManager?: { in: string[] };
+    }
+    const taskWhereConditions: TaskWhereConditions = {
       ServLineCode: { in: externalServLineCodes },
-      GSClientID: { not: null }, // Only client tasks
-      Active: 'Yes', // Only active tasks (exclude archived)
+      GSClientID: { not: null },
+      Active: 'Yes',
     };
 
-    // Add client filters using IN operator for OR logic within each filter type
-    const clientFilters: any = {};
+    // Client filters
+    const clientFilters: Record<string, unknown> = {};
     
     if (clientCodes.length > 0) {
       clientFilters.clientCode = { in: clientCodes };
@@ -182,12 +204,11 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       clientFilters.clientPartner = { in: partnerCodes };
     }
 
-    // Apply client filters if any exist
     if (Object.keys(clientFilters).length > 0) {
       taskWhereConditions.Client = clientFilters;
     }
 
-    // Add task-level filters
+    // Task-level filters
     if (taskCodes.length > 0) {
       taskWhereConditions.TaskCode = { in: taskCodes };
     }
@@ -196,10 +217,9 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       taskWhereConditions.TaskManager = { in: managerCodes };
     }
 
-    // 9. Apply pagination (always paginate, even with filters)
+    // Pagination
     const offset = (page - 1) * limit;
 
-    // Fetch ALL tasks matching service line and filters (including those without allocations)
     const [tasks, totalCount] = await Promise.all([
       prisma.task.findMany({
         where: taskWhereConditions,
@@ -212,6 +232,7 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
           TaskPartner: true,
           TaskPartnerName: true,
           GSClientID: true,
+          ServLineCode: true,
           Client: {
             select: {
               id: true,
@@ -230,38 +251,23 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         take: limit,
         skip: offset
       }),
-      // Get total count for pagination (all tasks matching filters)
-      prisma.task.count({ 
-        where: taskWhereConditions
-      })
+      prisma.task.count({ where: taskWhereConditions })
     ]);
 
-    // 12. Tasks are already filtered by database, no need for in-memory filtering
-    const filteredTasks = tasks;
-
-    // 13. Fetch TaskTeam data for filtered tasks
-    const taskIds = filteredTasks.map(t => t.id);
+    // Fetch TaskTeam data
+    const taskIds = tasks.map(t => t.id);
     
     if (taskIds.length === 0) {
       const emptyResponse = { 
         tasks: [], 
-        pagination: { 
-          page, 
-          limit, 
-          total: hasFilters ? 0 : totalCount, 
-          totalPages: 0, 
-          hasMore: false 
-        } 
+        pagination: { page, limit, total: 0, totalPages: 0, hasMore: false } 
       };
       await cache.set(cacheKey, emptyResponse, 300);
       return NextResponse.json(successResponse(emptyResponse));
     }
 
     const taskTeamMembers = await prisma.taskTeam.findMany({
-      where: {
-        taskId: { in: taskIds }
-        // Removed startDate/endDate filters to show all team members (including unallocated)
-      },
+      where: { taskId: { in: taskIds } },
       select: {
         id: true,
         taskId: true,
@@ -273,23 +279,16 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         allocatedPercentage: true,
         actualHours: true,
         User: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true
-          }
+          select: { id: true, name: true, email: true, image: true }
         }
       }
     });
 
-    // 14. Get user IDs and fetch Employee data using shared service
+    // Get employee data
     const userIds = [...new Set(taskTeamMembers.map(member => member.userId))];
-    const employeeFetchStart = Date.now();
-    
     const employeeMap = await mapUsersToEmployees(userIds);
 
-    // 16. Group TaskTeam by taskId for easy lookup
+    // Group TaskTeam by taskId
     const taskTeamMap = new Map<number, typeof taskTeamMembers>();
     taskTeamMembers.forEach(member => {
       if (!taskTeamMap.has(member.taskId)) {
@@ -298,15 +297,14 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       taskTeamMap.get(member.taskId)!.push(member);
     });
 
-    // Build flat task rows with employee allocations
-    const taskRows = filteredTasks
+    // Build task rows
+    const taskRows = tasks
       .map(task => {
         if (!task.Client || !task.Client.GSClientID) return null;
 
-        // Get team members for this task
         const teamMembers = taskTeamMap.get(task.id) || [];
+        const servLineGroup = task.ServLineCode ? servLineCodeToGroup.get(task.ServLineCode) : null;
 
-        // Build employee allocations for this task
         const allocations = teamMembers
           .filter(member => member.startDate && member.endDate)
           .map(member => {
@@ -331,7 +329,6 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
             };
           });
 
-        // Include all tasks, even those without allocations (users need to see them to plan)
         return {
           taskId: task.id,
           taskCode: task.TaskCode,
@@ -345,31 +342,29 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
           clientName: task.Client.clientNameFull || task.Client.clientCode,
           groupDesc: task.Client.groupDesc,
           clientPartner: task.Client.clientPartner,
+          serviceLine: task.ServLineCode || null,
+          subServiceLineGroup: servLineGroup?.code || null,
           allocations
         };
       })
       .filter((row): row is NonNullable<typeof row> => row !== null)
       .sort((a, b) => {
-        // Sort by client name, then task name
-        const clientCompare = a.clientName.localeCompare(b.clientName);
+        const clientCompare = (a.clientName || '').localeCompare(b.clientName || '');
         if (clientCompare !== 0) return clientCompare;
-        return a.taskName.localeCompare(b.taskName);
+        return (a.taskName || '').localeCompare(b.taskName || '');
       });
 
-    // 18. Build pagination metadata
-    const finalTotal = totalCount;
     const response = {
       tasks: taskRows,
       pagination: {
         page,
         limit,
-        total: finalTotal,
-        totalPages: Math.ceil(finalTotal / limit),
-        hasMore: finalTotal > (page * limit)
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore: totalCount > (page * limit)
       }
     };
 
-    // Cache for 5 minutes
     await cache.set(cacheKey, response, 300);
 
     return NextResponse.json(successResponse(response));

@@ -13,6 +13,7 @@ import {
 import { format, differenceInDays, isBefore, startOfDay } from 'date-fns';
 import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
 import type { TaskPlannerRow } from '@/hooks/planning/useClientPlanner';
+import { useGlobalClientPlanner } from '@/hooks/planning/useGlobalClientPlanner';
 
 // Flattened allocation item for client/task-centric view
 interface ClientTaskAllocationItem {
@@ -54,21 +55,24 @@ interface ClientPlannerListProps {
     partners: string[];
     tasks: string[];
     managers: string[];
+    serviceLines?: string[];
+    subServiceLineGroups?: string[];
   };
+  isGlobalView?: boolean;
 }
 
-export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }: ClientPlannerListProps) {
+export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters, isGlobalView = false }: ClientPlannerListProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [isNavigating, setIsNavigating] = useState(false);
   const [navigatingToTaskId, setNavigatingToTaskId] = useState<number | null>(null);
   const itemsPerPage = 25;
 
-  // Fetch client planner data with filters
+  // Fetch client planner data - use global hook if in global view
   const { 
-    data: clientPlannerData,
-    isLoading: isLoadingClientPlanner,
-    error: fetchError
+    data: serviceData,
+    isLoading: isLoadingService,
+    error: serviceError
   } = useClientPlanner({
     serviceLine,
     subServiceLineGroup,
@@ -78,9 +82,30 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
     taskCodes: filters.tasks,
     managerCodes: filters.managers,
     page: currentPage,
-    limit: itemsPerPage, // Server-side pagination
-    enabled: true
+    limit: itemsPerPage,
+    enabled: !isGlobalView && !!serviceLine && !!subServiceLineGroup
   });
+
+  const {
+    data: globalData,
+    isLoading: isLoadingGlobal,
+    error: globalError
+  } = useGlobalClientPlanner({
+    clientCodes: filters.clients,
+    groupDescs: filters.groups,
+    partnerCodes: filters.partners,
+    taskCodes: filters.tasks,
+    managerCodes: filters.managers,
+    serviceLines: filters.serviceLines || [],
+    subServiceLineGroups: filters.subServiceLineGroups || [],
+    page: currentPage,
+    limit: itemsPerPage,
+    enabled: isGlobalView
+  });
+
+  const clientPlannerData = isGlobalView ? globalData : serviceData;
+  const isLoadingClientPlanner = isGlobalView ? isLoadingGlobal : isLoadingService;
+  const fetchError = isGlobalView ? globalError : serviceError;
 
   const tasks = clientPlannerData?.tasks || [];
   const pagination = clientPlannerData?.pagination;
@@ -148,8 +173,8 @@ export function ClientPlannerList({ serviceLine, subServiceLineGroup, filters }:
           allocatedHours: allocation.allocatedHours,
           allocatedPercentage: allocation.allocatedPercentage,
           actualHours: allocation.actualHours,
-          serviceLine,
-          subServiceLineGroup
+          serviceLine: (task as any).serviceLine || serviceLine,
+          subServiceLineGroup: (task as any).subServiceLineGroup || subServiceLineGroup
         });
       });
     });

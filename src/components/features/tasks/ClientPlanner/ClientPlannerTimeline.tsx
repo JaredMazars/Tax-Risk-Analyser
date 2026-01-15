@@ -17,6 +17,7 @@ import { Calendar, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 import { ServiceLineRole } from '@/types';
 import { startOfDay, format, addDays, addWeeks } from 'date-fns';
 import { useClientPlanner } from '@/hooks/planning/useClientPlanner';
+import { useGlobalClientPlanner } from '@/hooks/planning/useGlobalClientPlanner';
 
 // Re-export TimelineHeader from TeamPlanner since it's identical
 import { TimelineHeader } from '../TeamPlanner/TimelineHeader';
@@ -33,8 +34,11 @@ interface ClientPlannerTimelineProps {
     partners: string[];
     tasks: string[];
     managers: string[];
+    serviceLines?: string[];
+    subServiceLineGroups?: string[];
   };
-  onAllocationUpdate: () => void;
+  onAllocationUpdate: () => void | Promise<void>;
+  isGlobalView?: boolean;
 }
 
 export function ClientPlannerTimeline({
@@ -42,7 +46,8 @@ export function ClientPlannerTimeline({
   subServiceLineGroup,
   currentUserRole,
   filters,
-  onAllocationUpdate
+  onAllocationUpdate,
+  isGlobalView = false
 }: ClientPlannerTimelineProps) {
   const [scale, setScale] = useState<TimeScale>('week');
   const [referenceDate, setReferenceDate] = useState(new Date());
@@ -83,12 +88,12 @@ export function ClientPlannerTimeline({
   const roleUpper = (currentUserRole || '').toUpperCase();
   const canEdit = roleUpper === 'ADMINISTRATOR' || roleUpper === 'PARTNER' || roleUpper === 'MANAGER' || roleUpper === 'SUPERVISOR' || roleUpper === 'USER';
 
-  // Fetch client planner data with pagination
+  // Fetch client planner data - use global hook if in global view
   const { 
-    data, 
-    isLoading, 
-    error: fetchError,
-    refetch
+    data: serviceData, 
+    isLoading: isLoadingService, 
+    error: serviceError,
+    refetch: serviceRefetch
   } = useClientPlanner({
     serviceLine,
     subServiceLineGroup,
@@ -99,8 +104,31 @@ export function ClientPlannerTimeline({
     managerCodes: filters.managers,
     page,
     limit,
-    enabled: true
+    enabled: !isGlobalView && !!serviceLine && !!subServiceLineGroup
   });
+
+  const {
+    data: globalData,
+    isLoading: isLoadingGlobal,
+    error: globalError,
+    refetch: globalRefetch
+  } = useGlobalClientPlanner({
+    clientCodes: filters.clients,
+    groupDescs: filters.groups,
+    partnerCodes: filters.partners,
+    taskCodes: filters.tasks,
+    managerCodes: filters.managers,
+    serviceLines: filters.serviceLines || [],
+    subServiceLineGroups: filters.subServiceLineGroups || [],
+    page,
+    limit,
+    enabled: isGlobalView
+  });
+
+  const data = isGlobalView ? globalData : serviceData;
+  const isLoading = isGlobalView ? isLoadingGlobal : isLoadingService;
+  const fetchError = isGlobalView ? globalError : serviceError;
+  const refetch = isGlobalView ? globalRefetch : serviceRefetch;
 
   const rawTasks = data?.tasks || [];
   const pagination = data?.pagination;
@@ -367,7 +395,7 @@ export function ClientPlannerTimeline({
         return newMap;
       });
       
-      onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
+      await onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
@@ -410,7 +438,7 @@ export function ClientPlannerTimeline({
         throw new Error(errorMessage);
       }
 
-      onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
+      await onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
@@ -471,7 +499,7 @@ export function ClientPlannerTimeline({
       }
 
       // Invalidate cache to ensure all views stay in sync
-      onAllocationUpdate();
+      await onAllocationUpdate();
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticUpdates(prev => {
@@ -485,8 +513,8 @@ export function ClientPlannerTimeline({
     }
   }, [rows, onAllocationUpdate]);
 
-  const handleAddEmployeeSave = useCallback(() => {
-    onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
+  const handleAddEmployeeSave = useCallback(async () => {
+    await onAllocationUpdate(); // Invalidate all planner data for multi-user consistency
     setIsAddEmployeeModalOpen(false);
     setSelectedTaskForAdd(null);
     setAddEmployeeDates(null);

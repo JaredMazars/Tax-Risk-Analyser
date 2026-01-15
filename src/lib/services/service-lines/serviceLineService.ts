@@ -1022,14 +1022,13 @@ export async function ensureSharedServiceAccess(userId: string): Promise<void> {
       return;
     }
 
-    // Define all shared services
+    // Define all shared services (excluding COUNTRY_MANAGEMENT which requires explicit assignment)
     const sharedServices = [
       'QRM',
       'BUSINESS_DEV',
       'IT',
       'FINANCE',
       'HR',
-      'COUNTRY_MANAGEMENT',
     ];
 
     logger.info('Assigning shared services access to new user', { 

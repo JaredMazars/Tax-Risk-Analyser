@@ -20,7 +20,7 @@ interface GanttTimelineProps {
   taskId: number;
   teamMembers: any[];
   currentUserRole: ServiceLineRole | string;
-  onAllocationUpdate: () => void;
+  onAllocationUpdate: () => void | Promise<void>;
   serviceLine?: string;
   subServiceLineGroup?: string;
 }
@@ -426,7 +426,7 @@ export function GanttTimeline({
         throw new Error('Failed to remove team member');
       }
 
-      onAllocationUpdate();
+      await onAllocationUpdate();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to remove team member. Please try again.';
       setErrorModal({ 
@@ -500,7 +500,7 @@ export function GanttTimeline({
       });
       
       // Trigger refetch to get fresh server data
-      onAllocationUpdate();
+      await onAllocationUpdate();
       
       setIsModalOpen(false);
       setCreatingForUserId(null);
@@ -546,7 +546,7 @@ export function GanttTimeline({
         throw new Error(errorMessage);
       }
 
-      onAllocationUpdate();
+      await onAllocationUpdate();
       setIsModalOpen(false);
       setSelectedAllocation(null);
     } catch (error) {
@@ -640,7 +640,7 @@ export function GanttTimeline({
       }
 
       // Refresh the planner data
-      onAllocationUpdate();
+      await onAllocationUpdate();
       
       setIsAdminPlanningModalOpen(false);
       setSelectedUserId(null);
@@ -772,7 +772,7 @@ export function GanttTimeline({
 
       // Invalidate cache to ensure all views stay in sync
       if (onAllocationUpdate) {
-        onAllocationUpdate();
+        await onAllocationUpdate();
       }
     } catch (error) {
       // Revert optimistic update on error - FIXED: Use composite key
@@ -822,7 +822,7 @@ export function GanttTimeline({
       });
 
       // Trigger refetch
-      onAllocationUpdate();
+      await onAllocationUpdate();
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticUpdates(prev => {

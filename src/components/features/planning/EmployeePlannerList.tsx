@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { format, differenceInDays, isBefore, startOfDay } from 'date-fns';
 import { useEmployeePlanner, type EmployeeAllocationData } from '@/hooks/planning/useEmployeePlanner';
+import { useGlobalEmployeePlanner, type GlobalEmployeeAllocationData } from '@/hooks/planning/useGlobalEmployeePlanner';
 
 interface EmployeePlannerListProps {
   serviceLine: string;
@@ -21,21 +22,24 @@ interface EmployeePlannerListProps {
     offices: string[];
     clients: string[];
     taskCategories: string[];
+    serviceLines?: string[];
+    subServiceLineGroups?: string[];
   };
+  isGlobalView?: boolean;
 }
 
-export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters }: EmployeePlannerListProps) {
+export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters, isGlobalView = false }: EmployeePlannerListProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [isNavigating, setIsNavigating] = useState(false);
   const [navigatingToTaskId, setNavigatingToTaskId] = useState<number | null>(null);
   const itemsPerPage = 50;
 
-  // Fetch employee planner data with filters
+  // Fetch employee planner data - use global hook if in global view
   const { 
-    data: employeePlannerData,
-    isLoading: isLoadingEmployeePlanner,
-    error: fetchError
+    data: servicePlannerData,
+    isLoading: isLoadingServicePlanner,
+    error: serviceError
   } = useEmployeePlanner({
     serviceLine,
     subServiceLineGroup,
@@ -46,10 +50,31 @@ export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters 
     taskCategories: filters.taskCategories,
     page: currentPage,
     limit: itemsPerPage,
-    enabled: true
+    enabled: !isGlobalView && !!serviceLine && !!subServiceLineGroup
   });
 
-  const allocations = employeePlannerData?.allocations || [];
+  const {
+    data: globalPlannerData,
+    isLoading: isLoadingGlobalPlanner,
+    error: globalError
+  } = useGlobalEmployeePlanner({
+    employees: filters.employees,
+    jobGrades: filters.jobGrades,
+    offices: filters.offices,
+    clients: filters.clients,
+    taskCategories: filters.taskCategories,
+    serviceLines: filters.serviceLines || [],
+    subServiceLineGroups: filters.subServiceLineGroups || [],
+    page: currentPage,
+    limit: itemsPerPage,
+    enabled: isGlobalView
+  });
+
+  const employeePlannerData = isGlobalView ? globalPlannerData : servicePlannerData;
+  const isLoadingEmployeePlanner = isGlobalView ? isLoadingGlobalPlanner : isLoadingServicePlanner;
+  const fetchError = isGlobalView ? globalError : serviceError;
+
+  const allocations = (employeePlannerData?.allocations || []) as (EmployeeAllocationData | GlobalEmployeeAllocationData)[];
   const pagination = employeePlannerData?.pagination;
 
   // Pagination metadata from server
@@ -88,18 +113,24 @@ export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters 
     }
   };
 
-  const getTaskUrl = (allocation: EmployeeAllocationData) => {
-    if (!serviceLine || !subServiceLineGroup || !allocation.taskId) return null;
+  const getTaskUrl = (allocation: EmployeeAllocationData | GlobalEmployeeAllocationData) => {
+    if (!allocation.taskId) return null;
     
     // Skip navigation for non-client events
     if (allocation.isNonClientEvent) return null;
     
-    return allocation.clientId
-      ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${allocation.clientId}/tasks/${allocation.taskId}`
-      : `/dashboard/${serviceLine.toLowerCase()}/internal/tasks/${allocation.taskId}`;
+    // For global view, use the allocation's service line info if available
+    const allocServiceLine = (allocation as GlobalEmployeeAllocationData).serviceLine || serviceLine;
+    const allocSubGroup = (allocation as GlobalEmployeeAllocationData).subServiceLineGroup || subServiceLineGroup;
+    
+    if (!allocServiceLine) return null;
+    
+    return allocation.clientId && allocSubGroup
+      ? `/dashboard/${allocServiceLine.toLowerCase()}/${allocSubGroup}/clients/${allocation.clientId}/tasks/${allocation.taskId}`
+      : `/dashboard/${allocServiceLine.toLowerCase()}/internal/tasks/${allocation.taskId}`;
   };
 
-  const handleRowClick = (allocation: EmployeeAllocationData) => {
+  const handleRowClick = (allocation: EmployeeAllocationData | GlobalEmployeeAllocationData) => {
     const url = getTaskUrl(allocation);
     if (!url) return;
     
@@ -108,7 +139,7 @@ export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters 
     router.push(url);
   };
 
-  const handleRowHover = (allocation: EmployeeAllocationData) => {
+  const handleRowHover = (allocation: EmployeeAllocationData | GlobalEmployeeAllocationData) => {
     const url = getTaskUrl(allocation);
     if (url) {
       router.prefetch(url);

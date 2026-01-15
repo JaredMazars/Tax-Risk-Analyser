@@ -6,19 +6,15 @@ import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
-// Type for subGroup in userServiceLines
-interface SubGroupInfo {
-  code: string;
-  description?: string;
-}
-
 // Type for cache response
-interface ClientPlannerFiltersResponse {
+interface GlobalClientPlannerFiltersResponse {
   clients: FilterOption[];
   groups: FilterOption[];
   partners: FilterOption[];
   tasks: FilterOption[];
   managers: FilterOption[];
+  serviceLines: FilterOption[];
+  subServiceLineGroups: FilterOption[];
 }
 
 interface FilterOption {
@@ -27,74 +23,66 @@ interface FilterOption {
 }
 
 /**
- * GET /api/service-lines/[serviceLine]/[subServiceLineGroup]/planner/clients/filters
- * Fetch unique filter option values for client planner filters
- * Returns distinct values for clients, groups, partners, tasks, and managers
+ * GET /api/planner/clients/filters
+ * Global client planner filters - returns all available filter options across service lines
+ * Requires Country Management access
  * 
  * Performance optimizations:
  * - Redis caching (30min TTL for relatively static data)
- * - Optimized queries with Promise.all batching
- * - Only fetch active tasks with clients
  */
-export const GET = secureRoute.queryWithParams<{ serviceLine: string; subServiceLineGroup: string }>({
+export const GET = secureRoute.query({
   feature: Feature.ACCESS_DASHBOARD,
-  handler: async (request, { user, params }) => {
-    const { serviceLine, subServiceLineGroup } = params;
-    
-    if (!subServiceLineGroup) {
-      throw new AppError(400, 'Sub-service line group is required', ErrorCodes.VALIDATION_ERROR);
-    }
-
+  handler: async (request, { user }) => {
     // Check for SYSTEM_ADMIN first (bypasses all access checks)
     const isAdmin = user.systemRole === 'SYSTEM_ADMIN';
     
     if (!isAdmin) {
-      // Check user has access to this sub-service line group
+      // Check user has Country Management access
       const userServiceLines = await getUserServiceLines(user.id);
-      const hasAccess = userServiceLines.some(sl => 
-        sl.subGroups?.some((sg: SubGroupInfo) => sg.code === subServiceLineGroup)
+      const hasCountryMgmtAccess = userServiceLines.some(
+        sl => sl.serviceLine === 'COUNTRY_MANAGEMENT'
       );
-      if (!hasAccess) {
-        throw new AppError(403, 'You do not have access to this sub-service line group', ErrorCodes.FORBIDDEN);
+      
+      if (!hasCountryMgmtAccess) {
+        throw new AppError(403, 'Staff Planner requires Country Management access', ErrorCodes.FORBIDDEN);
       }
     }
 
     // Build cache key
-    const cacheKey = `${CACHE_PREFIXES.TASK}planner:filters:${serviceLine}:${subServiceLineGroup}:user:${user.id}`;
+    const cacheKey = `${CACHE_PREFIXES.TASK}global-planner:clients:filters`;
     
-    // Try cache first (30min TTL since filter options are relatively static)
-    const cached = await cache.get<ClientPlannerFiltersResponse>(cacheKey);
+    // Try cache first
+    const cached = await cache.get<GlobalClientPlannerFiltersResponse>(cacheKey);
     if (cached) {
       return NextResponse.json(successResponse(cached));
     }
 
-    // 5. Map subServiceLineGroup to external service line codes
-    const serviceLineExternalMappings = await prisma.serviceLineExternal.findMany({
-      where: {
-        SubServlineGroupCode: subServiceLineGroup
-      },
-      select: {
-        ServLineCode: true
-      }
-    });
-    
-    const externalServLineCodes = serviceLineExternalMappings
-      .map((m: { ServLineCode: string | null }) => m.ServLineCode)
-      .filter((code: string | null): code is string => !!code);
+    // Fetch all service lines and sub-service line groups
+    const [serviceLineMaster, serviceLineExternal] = await Promise.all([
+      prisma.serviceLineMaster.findMany({
+        where: { active: true },
+        select: { code: true, name: true },
+        orderBy: { name: 'asc' }
+      }),
+      prisma.serviceLineExternal.findMany({
+        select: {
+          ServLineCode: true,
+          SubServlineGroupCode: true,
+          SubServlineGroupDesc: true,
+          masterCode: true
+        },
+        distinct: ['SubServlineGroupCode']
+      })
+    ]);
 
-    if (externalServLineCodes.length === 0) {
-      const emptyResponse = {
-        clients: [],
-        groups: [],
-        partners: [],
-        tasks: [],
-        managers: []
-      };
-      await cache.set(cacheKey, emptyResponse, 1800); // 30 min
-      return NextResponse.json(successResponse(emptyResponse));
-    }
+    // Get all external service line codes
+    const externalServLineCodes = [...new Set(
+      serviceLineExternal
+        .map(m => m.ServLineCode)
+        .filter((code): code is string => !!code)
+    )];
 
-    // Fetch all tasks with clients for this sub-service line group
+    // Fetch all tasks with clients
     const tasksWithClients = await prisma.task.findMany({
       where: {
         ServLineCode: { in: externalServLineCodes },
@@ -121,12 +109,12 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
     const partnerCodes = new Set<string>();
     const managerCodes = new Set<string>();
     
-    tasksWithClients.forEach((task: typeof tasksWithClients[number]) => {
+    tasksWithClients.forEach(task => {
       if (task.TaskPartner) partnerCodes.add(task.TaskPartner);
       if (task.TaskManager) managerCodes.add(task.TaskManager);
     });
     
-    // Look up employee names for partners and managers
+    // Look up employee names
     const employeeCodes = [...new Set([...Array.from(partnerCodes), ...Array.from(managerCodes)])];
     const employees = await prisma.employee.findMany({
       where: {
@@ -139,21 +127,19 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       }
     });
     
-    // Create a map of employee code to name
     const employeeNameMap = new Map<string, string>();
-    employees.forEach((emp: typeof employees[number]) => {
+    employees.forEach(emp => {
       employeeNameMap.set(emp.EmpCode, emp.EmpNameFull);
     });
 
-    // 7. Extract unique values
+    // Extract unique values
     const clientsSet = new Map<string, string>();
     const groupsSet = new Set<string>();
     const partnersSet = new Map<string, string>();
     const tasksSet = new Map<string, string>();
     const managersSet = new Map<string, string>();
 
-    tasksWithClients.forEach((task: typeof tasksWithClients[number]) => {
-      // Clients (use code as ID, show "Code - Name")
+    tasksWithClients.forEach(task => {
       if (task.Client?.clientCode) {
         const label = task.Client.clientNameFull 
           ? `${task.Client.clientCode} - ${task.Client.clientNameFull}`
@@ -161,12 +147,10 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         clientsSet.set(task.Client.clientCode, label);
       }
 
-      // Groups (use description as both ID and label)
       if (task.Client?.groupDesc) {
         groupsSet.add(task.Client.groupDesc);
       }
 
-      // Partners (use partner code as ID, look up name from Employee table)
       if (task.TaskPartner) {
         const partnerCode = task.TaskPartner;
         const partnerName = employeeNameMap.get(partnerCode) || partnerCode;
@@ -175,7 +159,6 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         }
       }
 
-      // Tasks (use code as ID, show "Code - Description")
       if (task.TaskCode) {
         const label = task.TaskDesc 
           ? `${task.TaskCode} - ${task.TaskDesc}`
@@ -183,7 +166,6 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
         tasksSet.set(task.TaskCode, label);
       }
 
-      // Managers (use code as ID, look up name from Employee table)
       if (task.TaskManager) {
         const managerCode = task.TaskManager;
         const managerName = employeeNameMap.get(managerCode) || managerCode;
@@ -193,8 +175,24 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       }
     });
 
-    // 8. Convert to sorted arrays
-    const response = {
+    // Service lines
+    const serviceLines = serviceLineMaster.map(sl => ({
+      id: sl.code,
+      label: sl.name
+    }));
+
+    // Sub-service line groups
+    const subServiceLineGroupsSet = new Map<string, string>();
+    serviceLineExternal.forEach(ext => {
+      if (ext.SubServlineGroupCode) {
+        subServiceLineGroupsSet.set(
+          ext.SubServlineGroupCode,
+          ext.SubServlineGroupDesc || ext.SubServlineGroupCode
+        );
+      }
+    });
+
+    const response: GlobalClientPlannerFiltersResponse = {
       clients: Array.from(clientsSet.entries())
         .map(([id, label]) => ({ id, label }))
         .sort((a, b) => a.label.localeCompare(b.label)),
@@ -213,6 +211,12 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       
       managers: Array.from(managersSet.entries())
         .map(([id, label]) => ({ id, label }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+      
+      serviceLines,
+      
+      subServiceLineGroups: Array.from(subServiceLineGroupsSet.entries())
+        .map(([id, label]) => ({ id, label }))
         .sort((a, b) => a.label.localeCompare(b.label))
     };
 
@@ -222,11 +226,3 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
     return NextResponse.json(successResponse(response));
   },
 });
-
-
-
-
-
-
-
-
