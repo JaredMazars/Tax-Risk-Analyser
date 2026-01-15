@@ -130,8 +130,10 @@ export function useClientPlanner({
       };
     },
     enabled: enabled && !!serviceLine && !!subServiceLineGroup,
-    staleTime: 5 * 1000, // 5 seconds - ensures data freshness between views
+    staleTime: 0, // Always check server for fresh data - fixes cache sync between views
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchOnMount: true, // Always refetch when view mounts - ensures data freshness after updates
+    refetchOnWindowFocus: false, // Don't refetch on window focus to avoid excessive requests
   });
 }
 

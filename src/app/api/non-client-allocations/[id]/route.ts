@@ -6,6 +6,7 @@ import { NonClientEventType } from '@/types';
 import { startOfDay } from 'date-fns';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { z } from 'zod';
+import { invalidatePlannerCachesForServiceLine } from '@/lib/services/cache/cacheInvalidation';
 
 const UpdateAllocationSchema = z.object({
   eventType: z.nativeEnum(NonClientEventType).optional(),

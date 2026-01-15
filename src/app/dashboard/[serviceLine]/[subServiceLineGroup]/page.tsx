@@ -56,6 +56,7 @@ import { KanbanBoard } from '@/components/features/tasks/Kanban';
 import { GroupsFilters, GroupsFiltersType } from '@/components/features/groups/GroupsFilters';
 import { ClientsFilters, ClientsFiltersType } from '@/components/features/clients/ClientsFilters';
 import { TasksFilters, TasksFiltersType } from '@/components/features/tasks/TasksFilters';
+import { PlannerOptimisticProvider } from '@/contexts/PlannerOptimisticContext';
 
 export default function SubServiceLineWorkspacePage() {
   const router = useRouter();
@@ -864,7 +865,8 @@ export default function SubServiceLineWorkspacePage() {
 
           {/* Content - Groups, Clients, Tasks, Planner, My Tasks, or My Planning */}
           {activeTab === 'planner' ? (
-            /* Team Planner */
+            /* Team Planner - Wrapped with optimistic update provider for cross-view sync */
+            <PlannerOptimisticProvider>
             <div className="space-y-4">
               {/* Unified Planner Filters */}
               <PlannerFilters
@@ -917,11 +919,16 @@ export default function SubServiceLineWorkspacePage() {
                       taskId={0}
                       teamMembers={transformedTimelineUsers}
                       currentUserRole={currentUserServiceLineRole}
-                      onAllocationUpdate={() => {
+                      onAllocationUpdate={async () => {
                         // Invalidate ALL planner queries to ensure both views stay in sync
-                        queryClient.invalidateQueries({ 
+                        await queryClient.invalidateQueries({ 
                           queryKey: ['planner'],
                           refetchType: 'all' // Force refetch for both active and inactive queries
+                        });
+                        // Force immediate refetch of active queries for instant sync
+                        await queryClient.refetchQueries({
+                          queryKey: ['planner'],
+                          type: 'active'
                         });
                       }}
                       serviceLine={serviceLine}
@@ -973,11 +980,16 @@ export default function SubServiceLineWorkspacePage() {
                     subServiceLineGroup={subServiceLineGroup}
                     currentUserRole={currentUserServiceLineRole}
                     filters={clientPlannerFilters}
-                    onAllocationUpdate={() => {
+                    onAllocationUpdate={async () => {
                       // Invalidate ALL planner queries to ensure both views stay in sync
-                      queryClient.invalidateQueries({ 
+                      await queryClient.invalidateQueries({ 
                         queryKey: ['planner'],
                         refetchType: 'all' // Force refetch for both active and inactive queries
+                      });
+                      // Force immediate refetch of active queries for instant sync
+                      await queryClient.refetchQueries({
+                        queryKey: ['planner'],
+                        type: 'active'
                       });
                     }}
                   />
@@ -991,6 +1003,7 @@ export default function SubServiceLineWorkspacePage() {
                 )
               )}
             </div>
+            </PlannerOptimisticProvider>
           ) : activeTab === 'my-planning' ? (
             /* My Planning View */
             <MyPlanningView />
