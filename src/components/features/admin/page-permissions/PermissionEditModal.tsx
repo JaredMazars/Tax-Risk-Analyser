@@ -102,6 +102,7 @@ export function PermissionEditModal({
   const [pageSearch, setPageSearch] = useState('');
   const [showPageDropdown, setShowPageDropdown] = useState(false);
   const [loadingPages, setLoadingPages] = useState(false);
+  const [pathnameError, setPathnameError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,6 +111,7 @@ export function PermissionEditModal({
       setDescription(initialDescription || '');
       setPermissions(initialPermissions || {});
       setError(null);
+      setPathnameError(null);
       setPageSearch('');
       setShowPageDropdown(false);
       
@@ -139,10 +141,22 @@ export function PermissionEditModal({
     ? pages.filter((page) => page.pathname.toLowerCase().includes(pageSearch.toLowerCase())).slice(0, 50)
     : pages.slice(0, 50); // Limit to 50 results for performance
 
+  // Validate pathname format
+  const validatePathname = (path: string): { valid: boolean; error?: string } => {
+    if (!path || path.trim().length === 0) {
+      return { valid: false, error: 'Pathname is required' };
+    }
+    if (!path.startsWith('/dashboard')) {
+      return { valid: false, error: 'Pathname must start with /dashboard' };
+    }
+    return { valid: true };
+  };
+
   const handleSelectPage = (selectedPath: string) => {
     setPathname(selectedPath);
     setPageSearch(selectedPath);
     setShowPageDropdown(false);
+    setPathnameError(null);
   };
 
   // Close dropdown when clicking outside
@@ -177,6 +191,15 @@ export function PermissionEditModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPathnameError(null);
+
+    // Validate pathname before submitting
+    const validation = validatePathname(pathname);
+    if (!validation.valid) {
+      setPathnameError(validation.error || 'Invalid pathname');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -187,7 +210,24 @@ export function PermissionEditModal({
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save permissions');
+      // Extract detailed error message from API response
+      let errorMessage = 'Failed to save permissions';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        
+        // Try to parse validation errors from Zod
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed.error) {
+            errorMessage = parsed.error;
+          }
+        } catch {
+          // If not JSON, use the error message as is
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -250,10 +290,24 @@ export function PermissionEditModal({
                         setPageSearch(value);
                         setPathname(value);
                         setShowPageDropdown(true);
+                        
+                        // Real-time validation
+                        if (value.trim()) {
+                          const validation = validatePathname(value);
+                          setPathnameError(validation.valid ? null : validation.error || null);
+                        } else {
+                          setPathnameError(null);
+                        }
                       }}
                       onFocus={() => setShowPageDropdown(true)}
                       placeholder="Search for a page or type path..."
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-forvis-blue-500 focus:ring-forvis-blue-500 sm:text-sm"
+                      className={`mt-1 block w-full rounded-md shadow-sm focus:ring-forvis-blue-500 sm:text-sm ${
+                        pathnameError
+                          ? 'border-red-300 focus:border-red-500'
+                          : pathname && validatePathname(pathname).valid
+                          ? 'border-green-300 focus:border-green-500'
+                          : 'border-gray-300 focus:border-forvis-blue-500'
+                      }`}
                       required
                     />
                     {showPageDropdown && (
@@ -291,6 +345,22 @@ export function PermissionEditModal({
                       </div>
                     )}
                   </div>
+                )}
+                {pathnameError && !initialPathname && (
+                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {pathnameError}
+                  </p>
+                )}
+                {!pathnameError && pathname && validatePathname(pathname).valid && !initialPathname && (
+                  <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Valid pathname
+                  </p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
                   {initialPathname 

@@ -24,6 +24,10 @@ export async function PageAccessGuard({ children, pathname }: PageAccessGuardPro
   // Get current user
   const user = await getCurrentUser();
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PageAccessGuard.tsx:24',message:'getCurrentUser result',data:{hasUser:!!user,userId:user?.id,userEmail:user?.email,userSystemRole:user?.systemRole,pathname},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+
   if (!user) {
     // Not authenticated - redirect to login
     redirect('/api/auth/login?callbackUrl=' + encodeURIComponent(pathname));
@@ -31,6 +35,10 @@ export async function PageAccessGuard({ children, pathname }: PageAccessGuardPro
 
   // Check page access
   const { canAccess, accessLevel } = await checkPageAccess(user.id, pathname);
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PageAccessGuard.tsx:37',message:'checkPageAccess result',data:{userId:user.id,pathname,canAccess,accessLevel},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
 
   if (!canAccess || accessLevel === PageAccessLevel.NONE) {
     // No access - redirect to dashboard with error message

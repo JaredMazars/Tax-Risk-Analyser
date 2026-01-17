@@ -311,7 +311,12 @@ export function sanitizeObject<T extends Record<string, unknown>>(
       sanitized[key] = sanitizeEmail(value);
     } else if ((key.toLowerCase().includes('url') || key.toLowerCase().includes('link')) && typeof value === 'string') {
       sanitized[key] = sanitizeUrl(value);
+    } else if (key.toLowerCase() === 'pathname' && typeof value === 'string') {
+      // Pathname (URL paths) should not be sanitized - they're validated by Zod regex
+      // Sanitization would escape slashes which breaks the validation
+      sanitized[key] = value;
     } else if (key.toLowerCase().includes('path') && typeof value === 'string') {
+      // Filesystem paths need sanitization
       sanitized[key] = sanitizeFilePath(value);
     } else if (key.toLowerCase().includes('comment') && typeof value === 'string') {
       sanitized[key] = sanitizeComment(value);

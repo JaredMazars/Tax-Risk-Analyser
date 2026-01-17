@@ -13,6 +13,7 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 - Blob Storage: See `.cursor/rules/blob-storage-rules.mdc`
 - Approval System: See `.cursor/rules/approval-system-rules.mdc`
 - Tool System: See `.cursor/rules/tool-system-rules.mdc`
+- Security & Page Permissions: See `.cursor/rules/security-rules.mdc`
 
 ## TypeScript
 
@@ -181,24 +182,38 @@ export const POST = secureRoute.fileUpload({ handler });
 
 ### Page-Level Access
 
-**4-Tier Lookup:** Redis Cache -> Database Override -> Code Override -> Convention Default
+**Comprehensive documentation:** See `.cursor/rules/security-rules.mdc` for complete page permissions system including architecture, database tables, pattern matching, cache strategy, admin UI guide, and developer guidelines.
 
-**Access Levels:** `NONE` (redirect) | `VIEW` (read-only) | `FULL` (all actions)
+**Quick Reference:**
 
-**Convention Defaults:**
-- Admin pages: SYSTEM_ADMIN only
-- Analytics/BD: PARTNER+ (MANAGER gets VIEW)
-- Regular pages: All roles FULL, VIEWER gets VIEW
+- **4-Tier Lookup**: Redis Cache → Database Override → Code Override → Convention Default
+- **Access Levels**: `NONE` (redirect) | `VIEW` (read-only) | `FULL` (all actions)
+- **Admin UI**: `/dashboard/admin/page-permissions` (SYSTEM_ADMIN only)
+- **Convention Defaults**:
+  - Admin pages: SYSTEM_ADMIN only
+  - Analytics/BD: PARTNER+ (MANAGER gets VIEW)
+  - Regular pages: All roles FULL, VIEWER gets VIEW
+
+**Usage**:
 
 ```typescript
-// Layout
+// Every page layout must use PageAccessGuard
 <PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>
 
-// Components
+// Check access level in components
 const { isViewOnly, canEdit } = usePageAccess();
 {isViewOnly && <ViewOnlyBadge />}
 <EditActionWrapper><button>Edit</button></EditActionWrapper>
+
+// Programmatic checks (server-side)
+const { canAccess, accessLevel } = await checkPageAccess(userId, pathname);
 ```
+
+**Implementation Files**:
+- `@/lib/permissions/pageAccess.ts` - 4-tier lookup logic
+- `@/lib/permissions/pagePermissions.ts` - Code-based permission matrix
+- `@/components/guards/PageAccessGuard.tsx` - Server component guard
+- `@/lib/services/admin/pagePermissionService.ts` - CRUD operations
 
 ### Frontend Security
 

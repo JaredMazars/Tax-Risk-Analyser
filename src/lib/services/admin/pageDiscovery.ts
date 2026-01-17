@@ -160,8 +160,8 @@ export function extractServiceLineFromPath(pathname: string): string | null {
   if (parts.length >= 3 && parts[1] === 'dashboard' && parts[2]) {
     const segment = parts[2].toUpperCase();
     
-    // Known service lines
-    const serviceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR'];
+    // Known service lines (all from ServiceLine enum)
+    const serviceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT'];
     
     if (serviceLines.includes(segment)) {
       return segment;

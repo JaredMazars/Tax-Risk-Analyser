@@ -224,10 +224,18 @@ export async function getUserAccessibleServiceLines(
   userId: string
 ): Promise<string[]> {
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documentVaultAuthorization.ts:223',message:'getUserAccessibleServiceLines called',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
     });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documentVaultAuthorization.ts:230',message:'User role fetched',data:{userId,userRole:user?.role},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     // SYSTEM_ADMIN has access to all service lines
     if (user?.role === SystemRole.SYSTEM_ADMIN) {
@@ -245,10 +253,25 @@ export async function getUserAccessibleServiceLines(
       distinct: ['masterCode'],
     });
 
+    // #region agent log - Check for ALL QRM assignments with full details
+    const allAssignments = await prisma.serviceLineUser.findMany({
+      where: { userId },
+      select: { id: true, subServiceLineGroup: true, masterCode: true, role: true },
+    });
+    const qrmAssignments = allAssignments.filter(a => a.subServiceLineGroup === 'QRM' || a.subServiceLineGroup?.includes('QRM'));
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documentVaultAuthorization.ts:247',message:'ServiceLineUser assignments fetched - WITH RECORD IDs',data:{userId,assignmentsCount:serviceLineAssignments.length,assignments:serviceLineAssignments.map(a=>({masterCode:a.masterCode})),allAssignmentsCount:allAssignments.length,qrmAssignmentsCount:qrmAssignments.length,qrmAssignments:qrmAssignments.map(a=>({id:a.id,subServiceLineGroup:a.subServiceLineGroup,masterCode:a.masterCode,role:a.role}))},timestamp:Date.now(),sessionId:'debug-session',runId:'check-after-fix',hypothesisId:'A,B,D'})}).catch(()=>{});
+    // #endregion
+
     // Return master codes (TAX, AUDIT, etc.), filtering out nulls
-    return serviceLineAssignments
+    const result = serviceLineAssignments
       .map(sl => sl.masterCode)
       .filter((code): code is string => code !== null);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documentVaultAuthorization.ts:256',message:'getUserAccessibleServiceLines result',data:{userId,accessibleServiceLines:result},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A,B'})}).catch(()=>{});
+    // #endregion
+
+    return result;
   } catch (error) {
     console.error('Error getting user accessible service lines:', error);
     return [];

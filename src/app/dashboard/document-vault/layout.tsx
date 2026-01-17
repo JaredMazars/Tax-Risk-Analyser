@@ -1,22 +1,21 @@
 /**
- * Service Line Layout
- * Wraps service line pages with PageAccessGuard
+ * Document Vault Layout
+ * Wraps document vault pages with PageAccessGuard
  */
 
 import { ReactNode } from 'react';
 import { headers } from 'next/headers';
 import { PageAccessGuard } from '@/components/guards/PageAccessGuard';
 
-interface ServiceLineLayoutProps {
+interface DocumentVaultLayoutProps {
   children: ReactNode;
-  params: Promise<{ serviceLine: string }>;
 }
 
-export default async function ServiceLineLayout({
-  children,
-}: ServiceLineLayoutProps) {
+export default async function DocumentVaultLayout({ 
+  children 
+}: DocumentVaultLayoutProps) {
   const headersList = await headers();
-  const pathname = headersList.get('x-pathname') || '/dashboard';
+  const pathname = headersList.get('x-pathname') || '/dashboard/document-vault';
 
   return (
     <PageAccessGuard pathname={pathname}>
@@ -24,5 +23,3 @@ export default async function ServiceLineLayout({
     </PageAccessGuard>
   );
 }
-
-

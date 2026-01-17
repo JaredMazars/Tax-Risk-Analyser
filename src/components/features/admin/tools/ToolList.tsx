@@ -262,7 +262,7 @@ export function ToolList({ onManageAssignments }: ToolListProps) {
         ) : (
           tools.map((tool) => {
             // Get unique SubServiceLineGroups
-            const assignedGroups = [...new Set(tool.serviceLines.map((sl) => sl.subServiceLineGroup))];
+            const assignedGroups = [...new Set((tool.serviceLines || []).map((sl) => sl.subServiceLineGroup))];
 
             return (
               <Card key={tool.id} variant="standard" className="overflow-hidden">

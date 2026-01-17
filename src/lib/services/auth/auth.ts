@@ -473,6 +473,9 @@ export async function getSession(): Promise<Session | null> {
  */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const session = await getSession();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:476',message:'getCurrentUser result',data:{hasSession:!!session,sessionUser:session?.user,userId:session?.user?.id,userSystemRole:session?.user?.systemRole},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   return session?.user || null;
 }
 
