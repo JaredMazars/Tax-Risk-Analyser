@@ -12,6 +12,7 @@ import { QuestionField } from '@/components/features/tasks/acceptance/QuestionFi
 import { CLIENT_ACCEPTANCE_QUESTIONNAIRE, type QuestionSection } from '@/constants/acceptance-questions';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { ClientRiskResearchStep } from './ClientRiskResearchStep';
+import { ClientTeamSelectionStep, type TeamSelections } from './ClientTeamSelectionStep';
 import type { CompanyResearchResult } from '@/lib/services/bd/companyResearchAgent';
 
 interface ClientAcceptanceQuestionnaireProps {
@@ -32,7 +33,7 @@ export function ClientAcceptanceQuestionnaire({
   clientName,
   onSubmitSuccess,
 }: ClientAcceptanceQuestionnaireProps) {
-  const [activeTab, setActiveTab] = useState(0); // 0 = research, 1+ = questionnaire sections
+  const [activeTab, setActiveTab] = useState(0); // 0 = team selection, 1 = research, 2+ = questionnaire sections
   const [answers, setAnswers] = useState<AnswerState>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,15 +46,40 @@ export function ClientAcceptanceQuestionnaire({
   const [researchSkipped, setResearchSkipped] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Map<string, { answer: string; comment?: string }>>(new Map());
   const batchSaveTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  // Team selection state
+  const [teamSelections, setTeamSelections] = useState<TeamSelections>({
+    selectedPartnerCode: '',
+    selectedManagerCode: '',
+    selectedInchargeCode: '',
+  });
+  const [clientData, setClientData] = useState<any | null>(null);
 
   const sections: QuestionSection[] = CLIENT_ACCEPTANCE_QUESTIONNAIRE;
-  const totalTabs = sections.length + 1; // +1 for research tab
+  const totalTabs = sections.length + 2; // +1 for team selection, +1 for research tab
 
-  // Load existing answers and research data on mount
+  // Load client data and existing answers
   useEffect(() => {
     const loadExistingData = async () => {
       setIsLoading(true);
       try {
+        // Load client details
+        const clientRes = await fetch(`/api/clients/${GSClientID}`);
+        if (clientRes.ok) {
+          const clientResult = await clientRes.json();
+          setClientData(clientResult.data);
+          
+          // Initialize team selections with current values
+          if (clientResult.data) {
+            setTeamSelections({
+              selectedPartnerCode: clientResult.data.clientPartner || '',
+              selectedManagerCode: clientResult.data.clientManager || '',
+              selectedInchargeCode: clientResult.data.clientIncharge || '',
+            });
+          }
+        }
+
+        // Load acceptance answers and research data
         const res = await fetch(`/api/clients/${GSClientID}/acceptance/answers`);
         if (res.ok) {
           const data = await res.json();
@@ -89,7 +115,7 @@ export function ClientAcceptanceQuestionnaire({
             // If research is completed or there are answers, start on first questionnaire tab
             if ((data.data.researchCompleted && Object.keys(loadedAnswers).length > 0) || 
                 Object.keys(loadedAnswers).length > 0) {
-              setActiveTab(1); // Start on first questionnaire section
+              setActiveTab(2); // Start on first questionnaire section (tab 2, since 0=team, 1=research)
             }
           }
         }
@@ -197,16 +223,26 @@ export function ClientAcceptanceQuestionnaire({
     };
   }, []);
 
+  const handleTeamSelectionContinue = (selections: TeamSelections) => {
+    setTeamSelections(selections);
+    setActiveTab(1); // Move to research step
+  };
+
   const getCompletionPercentage = () => {
-    // Calculate completion with equal weight for all tabs (research + questionnaire sections)
+    // Calculate completion with equal weight for all tabs (team selection + research + questionnaire sections)
     let completedTabs = 0;
 
-    // Research tab (tab 0)
+    // Team selection tab (tab 0)
+    if (teamSelections.selectedPartnerCode && teamSelections.selectedManagerCode && teamSelections.selectedInchargeCode) {
+      completedTabs++;
+    }
+
+    // Research tab (tab 1)
     if (researchCompleted || researchSkipped || researchData) {
       completedTabs++;
     }
 
-    // Questionnaire sections (tabs 1+)
+    // Questionnaire sections (tabs 2+)
     sections.forEach((section) => {
       const sectionQuestions = section.questions.filter((q) => q.required);
       const sectionAnswered = sectionQuestions.filter((q) => answers[q.questionKey]?.answer).length;
@@ -242,7 +278,12 @@ export function ClientAcceptanceQuestionnaire({
       const response = await fetch(`/api/clients/${GSClientID}/acceptance/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({
+          answers,
+          selectedPartnerCode: teamSelections.selectedPartnerCode,
+          selectedManagerCode: teamSelections.selectedManagerCode,
+          selectedInchargeCode: teamSelections.selectedInchargeCode,
+        }),
       });
 
       const data = await response.json();
@@ -341,7 +382,7 @@ export function ClientAcceptanceQuestionnaire({
       <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
         <div className="border-b border-forvis-gray-200">
           <div className="flex overflow-x-auto">
-            {/* Research Tab */}
+            {/* Team Selection Tab */}
             <button
               onClick={() => handleTabChange(0)}
               className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${
@@ -350,8 +391,23 @@ export function ClientAcceptanceQuestionnaire({
                   : 'text-forvis-gray-600 hover:text-forvis-gray-900'
               }`}
             >
+              Team Selection
+              {(teamSelections.selectedPartnerCode && teamSelections.selectedManagerCode && teamSelections.selectedInchargeCode) && (
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              )}
+            </button>
+
+            {/* Research Tab */}
+            <button
+              onClick={() => handleTabChange(1)}
+              className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${
+                activeTab === 1
+                  ? 'border-b-2 border-forvis-blue-500 text-forvis-blue-600'
+                  : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+              }`}
+            >
               Research
-              {(researchCompleted || researchSkipped) && (
+              {(researchCompleted || researchSkipped || researchData) && (
                 <CheckCircle className="h-4 w-4 text-green-600" />
               )}
             </button>
@@ -365,9 +421,9 @@ export function ClientAcceptanceQuestionnaire({
               return (
                 <button
                   key={section.key}
-                  onClick={() => handleTabChange(index + 1)}
+                  onClick={() => handleTabChange(index + 2)}
                   className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${
-                    activeTab === index + 1
+                    activeTab === index + 2
                       ? 'border-b-2 border-forvis-blue-500 text-forvis-blue-600'
                       : 'text-forvis-gray-600 hover:text-forvis-gray-900'
                   }`}
@@ -384,8 +440,18 @@ export function ClientAcceptanceQuestionnaire({
 
         {/* Tab Content */}
         <div className="p-6">
-          {/* Research Tab Content */}
+          {/* Team Selection Tab Content */}
           {activeTab === 0 && (
+            <ClientTeamSelectionStep
+              GSClientID={GSClientID}
+              clientData={clientData}
+              onContinue={handleTeamSelectionContinue}
+              isLoading={isLoading}
+            />
+          )}
+
+          {/* Research Tab Content */}
+          {activeTab === 1 && (
             <ClientRiskResearchStep
               GSClientID={GSClientID}
               clientName={clientName}
@@ -396,20 +462,20 @@ export function ClientAcceptanceQuestionnaire({
           )}
 
           {/* Questionnaire Section Content */}
-          {activeTab > 0 && sections[activeTab - 1] && (
+          {activeTab > 1 && sections[activeTab - 2] && (
             <div className="space-y-6">
               <div className="mb-6">
                 <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
-                  {sections[activeTab - 1].title}
+                  {sections[activeTab - 2].title}
                 </h3>
-                {sections[activeTab - 1].description && (
+                {sections[activeTab - 2].description && (
                   <p className="text-sm text-forvis-gray-600">
-                    {sections[activeTab - 1].description}
+                    {sections[activeTab - 2].description}
                   </p>
                 )}
               </div>
 
-              {sections[activeTab - 1].questions.map((question) => (
+              {sections[activeTab - 2].questions.map((question) => (
                 <QuestionField
                   key={question.questionKey}
                   question={question}
@@ -428,7 +494,7 @@ export function ClientAcceptanceQuestionnaire({
         <div className="border-t border-forvis-gray-200 px-6 py-4 bg-forvis-gray-50">
           <div className="flex justify-between items-center">
             <div>
-              {activeTab > 0 && (
+              {activeTab > 1 && (
                 <Button
                   variant="secondary"
                   onClick={() => handleTabChange(activeTab - 1)}

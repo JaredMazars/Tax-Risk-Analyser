@@ -104,6 +104,11 @@ export default function DashboardNav() {
       href: '/dashboard/admin/users',
       description: 'Manage users and permissions',
     });
+    adminMenuItems.push({
+      label: 'Leaders',
+      href: '/dashboard/admin/leaders',
+      description: 'Manage firm-wide leader groups',
+    });
   }
   if (hasServiceLineAccess) {
     adminMenuItems.push({

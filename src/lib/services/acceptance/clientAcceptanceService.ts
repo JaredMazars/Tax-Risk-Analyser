@@ -36,6 +36,9 @@ export interface SubmitClientAcceptanceInput {
   clientId: number;
   answers: Record<string, { answer: string; comment?: string }>;
   userId: string;
+  selectedPartnerCode?: string;
+  selectedManagerCode?: string;
+  selectedInchargeCode?: string;
 }
 
 export interface ApproveClientAcceptanceInput {
@@ -296,7 +299,7 @@ export async function saveClientAcceptanceAnswersBatch(
 export async function submitClientAcceptance(
   input: SubmitClientAcceptanceInput
 ): Promise<ClientAcceptance> {
-  const { clientId, answers, userId } = input;
+  const { clientId, answers, userId, selectedPartnerCode, selectedManagerCode, selectedInchargeCode } = input;
 
   // Get acceptance record
   const acceptance = await getOrCreateClientAcceptance(clientId, userId);
@@ -352,7 +355,7 @@ export async function submitClientAcceptance(
   // Calculate risk score
   const riskResult = calculateClientRiskScore(answers, allQuestions);
 
-  // Update acceptance with completion data
+  // Update acceptance with completion data and pending team selections
   const updated = await prisma.clientAcceptance.update({
     where: { id: acceptance.id },
     data: {
@@ -361,6 +364,9 @@ export async function submitClientAcceptance(
       riskRating: riskResult.rating,
       overallRiskScore: riskResult.score,
       riskSummary: riskResult.summary,
+      pendingPartnerCode: selectedPartnerCode || null,
+      pendingManagerCode: selectedManagerCode || null,
+      pendingInchargeCode: selectedInchargeCode || null,
       updatedAt: new Date(),
     },
     include: {
@@ -411,25 +417,54 @@ export async function approveClientAcceptance(
     );
   }
 
-  // Update with approval
-  const updated = await prisma.clientAcceptance.update({
-    where: { id: acceptance.id },
-    data: {
-      approvedAt: new Date(),
-      approvedBy: userId,
-      approvalId,
-      // Set validity period (e.g., 1 year from approval)
-      validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(),
-    },
-    include: {
-      ClientAcceptanceAnswer: {
-        include: {
-          AcceptanceQuestion: true,
+  // Apply pending team changes and update approval in a transaction
+  const updated = await prisma.$transaction(async (tx) => {
+    // Apply pending team changes to Client table if any exist
+    if (acceptance.pendingPartnerCode || acceptance.pendingManagerCode || acceptance.pendingInchargeCode) {
+      await tx.client.update({
+        where: { id: acceptance.clientId },
+        data: {
+          ...(acceptance.pendingPartnerCode && { clientPartner: acceptance.pendingPartnerCode }),
+          ...(acceptance.pendingManagerCode && { clientManager: acceptance.pendingManagerCode }),
+          ...(acceptance.pendingInchargeCode && { clientIncharge: acceptance.pendingInchargeCode }),
         },
+      });
+
+      logger.info('Applied pending team changes from acceptance approval', {
+        clientId: acceptance.clientId,
+        partner: acceptance.pendingPartnerCode,
+        manager: acceptance.pendingManagerCode,
+        incharge: acceptance.pendingInchargeCode,
+        approvedBy: userId,
+      });
+    }
+
+    // Update acceptance with approval data
+    const approvedAcceptance = await tx.clientAcceptance.update({
+      where: { id: acceptance.id },
+      data: {
+        approvedAt: new Date(),
+        approvedBy: userId,
+        approvalId,
+        teamChangesApplied: !!(acceptance.pendingPartnerCode || acceptance.pendingManagerCode || acceptance.pendingInchargeCode),
+        teamChangesAppliedAt: (acceptance.pendingPartnerCode || acceptance.pendingManagerCode || acceptance.pendingInchargeCode) 
+          ? new Date() 
+          : null,
+        // Set validity period (e.g., 1 year from approval)
+        validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(),
       },
-      Client: true,
-    },
+      include: {
+        ClientAcceptanceAnswer: {
+          include: {
+            AcceptanceQuestion: true,
+          },
+        },
+        Client: true,
+      },
+    });
+
+    return approvedAcceptance;
   });
 
   return updated as any as ClientAcceptance;

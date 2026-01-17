@@ -474,6 +474,11 @@ model ClientAcceptance {
   approvalId             Int?
   validUntil             DateTime?
   lastReviewedAt         DateTime?
+  pendingPartnerCode     String?                  @db.NVarChar(10)
+  pendingManagerCode     String?                  @db.NVarChar(10)
+  pendingInchargeCode    String?                  @db.NVarChar(10)
+  teamChangesApplied     Boolean                  @default(false)
+  teamChangesAppliedAt   DateTime?
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @default(now())
   Approval               Approval?                @relation(fields: [approvalId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ClientAcceptance_Approval")
@@ -770,29 +775,30 @@ model EmailLog {
 }
 
 model Employee {
-  id                  Int                   @id @default(autoincrement())
-  GSEmployeeID        String                @unique @db.UniqueIdentifier
-  EmpCode             String                @db.NVarChar(10)
-  EmpName             String                @db.NVarChar(50)
-  EmpNameFull         String                @db.NVarChar(63)
-  OfficeCode          String                @db.NVarChar(10)
-  SLGroup             String                @db.NVarChar(10)
-  ServLineCode        String                @db.NVarChar(10)
-  ServLineDesc        String                @db.NVarChar(150)
-  SubServLineCode     String                @db.NVarChar(10)
-  SubServLineDesc     String                @db.NVarChar(50)
-  EmpCatCode          String                @db.NVarChar(5)
-  EmpCatDesc          String                @db.NVarChar(50)
-  EmpCatType          String?               @db.NVarChar(1)
-  RateValue           Float                 @db.Money
-  EmpDateLeft         DateTime?
-  Active              String                @db.VarChar(3)
-  EmpDateStarted      DateTime?
-  Team                String?               @db.NVarChar(100)
-  WinLogon            String?               @db.NVarChar(100)
-  createdAt           DateTime              @default(now(), map: "DF__Employee__create__15C52FC4")
-  updatedAt           DateTime              @updatedAt
-  NonClientAllocation NonClientAllocation[]
+  id                     Int                   @id @default(autoincrement())
+  GSEmployeeID           String                @unique @db.UniqueIdentifier
+  EmpCode                String                @db.NVarChar(10)
+  EmpName                String                @db.NVarChar(50)
+  EmpNameFull            String                @db.NVarChar(63)
+  OfficeCode             String                @db.NVarChar(10)
+  SLGroup                String                @db.NVarChar(10)
+  ServLineCode           String                @db.NVarChar(10)
+  ServLineDesc           String                @db.NVarChar(150)
+  SubServLineCode        String                @db.NVarChar(10)
+  SubServLineDesc        String                @db.NVarChar(50)
+  EmpCatCode             String                @db.NVarChar(5)
+  EmpCatDesc             String                @db.NVarChar(50)
+  EmpCatType             String?               @db.NVarChar(1)
+  RateValue              Float                 @db.Money
+  EmpDateLeft            DateTime?
+  Active                 String                @db.VarChar(3)
+  EmpDateStarted         DateTime?
+  Team                   String?               @db.NVarChar(100)
+  WinLogon               String?               @db.NVarChar(100)
+  createdAt              DateTime              @default(now(), map: "DF__Employee__create__15C52FC4")
+  updatedAt              DateTime              @updatedAt
+  NonClientAllocation    NonClientAllocation[]
+  LeaderGroupMemberships LeaderGroupMember[]
 
   @@index([Active])
   @@index([EmpCatCode])
@@ -818,6 +824,36 @@ model ExternalLink {
 
   @@index([active])
   @@index([name])
+}
+
+model LeaderGroup {
+  id          Int                 @id @default(autoincrement())
+  name        String              @unique @db.NVarChar(100)
+  description String?             @db.NVarChar(500)
+  type        String              @default("GROUP") @db.NVarChar(20)
+  createdById String
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  createdBy   User                @relation("LeaderGroupCreatedBy", fields: [createdById], references: [id])
+  members     LeaderGroupMember[]
+
+  @@index([name])
+  @@index([type])
+}
+
+model LeaderGroupMember {
+  id            Int         @id @default(autoincrement())
+  leaderGroupId Int
+  employeeId    Int
+  addedById     String
+  addedAt       DateTime    @default(now())
+  leaderGroup   LeaderGroup @relation(fields: [leaderGroupId], references: [id], onDelete: Cascade)
+  employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  addedBy       User        @relation("LeaderGroupMemberAddedBy", fields: [addedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([leaderGroupId, employeeId])
+  @@index([leaderGroupId])
+  @@index([employeeId])
 }
 
 model FilingStatus {
@@ -1790,6 +1826,8 @@ model User {
   BugReport_BugReport_reportedByToUser                                                                   BugReport[]                         @relation("BugReport_reportedByToUser")
   BugReport_BugReport_testedByToUser                                                                     BugReport[]                         @relation("BugReport_testedByToUser")
   BugReport_BugReport_resolvedByToUser                                                                   BugReport[]                         @relation("BugReport_resolvedByToUser")
+  LeaderGroupsCreated                                                                                    LeaderGroup[]                       @relation("LeaderGroupCreatedBy")
+  LeaderGroupMembersAdded                                                                                LeaderGroupMember[]                 @relation("LeaderGroupMemberAddedBy")
 
   @@index([role])
 }

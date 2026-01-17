@@ -263,10 +263,10 @@ export const GET = secureRoute.query({
       }
 
       // 2.5. Get client-level acceptance approvals
-      // Clients with completed acceptances needing partner approval
+      // NOTE: Client acceptances now use the centralized approval system (CLIENT_ACCEPTANCE workflow)
+      // They are automatically included in centralizedApprovals below via approvalService.getUserApprovals()
+      // This array is kept for backwards compatibility with legacy code
       const clientAcceptances: ClientAcceptanceApproval[] = [];
-      // TODO: Implement client acceptance approval fetching
-      // This would fetch from ClientAcceptance table where completed but not approved
 
       // 3. Get review notes requiring action (active or archived)
       // User is either assignee or raiser and note is in actionable status

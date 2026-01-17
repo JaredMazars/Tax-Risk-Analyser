@@ -1585,4 +1585,63 @@ export type CreateBugReportInput = z.infer<typeof CreateBugReportSchema>;
 export type UpdateBugReportInput = z.infer<typeof UpdateBugReportSchema>;
 export type BugReportFiltersInput = z.infer<typeof BugReportFiltersSchema>;
 
+// =============================================================================
+// Leader Groups
+// =============================================================================
+
+/**
+ * Schema for creating a new leader group
+ */
+export const CreateLeaderGroupSchema = z.object({
+  name: z.string()
+    .trim()
+    .min(2, 'Group name must be at least 2 characters')
+    .max(100, 'Group name must not exceed 100 characters')
+    .regex(/^[a-zA-Z0-9\s\-_]+$/, 'Group name can only contain letters, numbers, spaces, hyphens, and underscores'),
+  description: z.string()
+    .trim()
+    .max(500, 'Description must not exceed 500 characters')
+    .optional(),
+  type: z.enum(['GROUP', 'INDIVIDUAL']).default('GROUP'),
+}).strict();
+
+/**
+ * Schema for updating an existing leader group
+ */
+export const UpdateLeaderGroupSchema = z.object({
+  name: z.string()
+    .trim()
+    .min(2, 'Group name must be at least 2 characters')
+    .max(100, 'Group name must not exceed 100 characters')
+    .regex(/^[a-zA-Z0-9\s\-_]+$/, 'Group name can only contain letters, numbers, spaces, hyphens, and underscores')
+    .optional(),
+  description: z.string()
+    .trim()
+    .max(500, 'Description must not exceed 500 characters')
+    .optional(),
+  type: z.enum(['GROUP', 'INDIVIDUAL']).optional(),
+}).strict();
+
+/**
+ * Schema for adding members to a leader group
+ */
+export const AddLeaderGroupMembersSchema = z.object({
+  employeeIds: z.array(z.number().int().positive())
+    .min(1, 'At least one employee must be selected')
+    .max(50, 'Cannot add more than 50 employees at once'),
+}).strict();
+
+/**
+ * Schema for removing a member from a leader group
+ */
+export const RemoveLeaderGroupMemberSchema = z.object({
+  employeeId: z.number().int().positive(),
+}).strict();
+
+// Inferred types
+export type CreateLeaderGroupInput = z.infer<typeof CreateLeaderGroupSchema>;
+export type UpdateLeaderGroupInput = z.infer<typeof UpdateLeaderGroupSchema>;
+export type AddLeaderGroupMembersInput = z.infer<typeof AddLeaderGroupMembersSchema>;
+export type RemoveLeaderGroupMemberInput = z.infer<typeof RemoveLeaderGroupMemberSchema>;
+
 

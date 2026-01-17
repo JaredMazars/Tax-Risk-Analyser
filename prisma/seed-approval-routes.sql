@@ -38,6 +38,19 @@ VALUES (
   CURRENT_TIMESTAMP
 );
 
+-- Client Partner Approval (for Client Acceptance - assigned client partner)
+INSERT INTO ApprovalRoute (workflowType, routeName, description, routeConfig, isActive, isDefault, createdAt, updatedAt)
+VALUES (
+  'CLIENT_ACCEPTANCE',
+  'client-partner-approval',
+  'Requires approval from assigned client partner',
+  '{"steps":[{"stepOrder":1,"stepType":"USER","assignedToUserIdPath":"context.clientPartnerCode","isRequired":true}],"requiresAllSteps":true}',
+  1,
+  1,
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+);
+
 -- Dual Approval (for Change Requests - proposed + current employee)
 INSERT INTO ApprovalRoute (workflowType, routeName, description, routeConfig, isActive, isDefault, createdAt, updatedAt)
 VALUES (

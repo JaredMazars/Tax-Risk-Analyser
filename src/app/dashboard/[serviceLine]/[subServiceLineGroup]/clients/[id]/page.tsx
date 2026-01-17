@@ -143,8 +143,32 @@ export default function ServiceLineClientDetailPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to initialize client acceptance');
+        const errorData = await response.json();
+        const errorCode = errorData.code;
+        const errorMessage = errorData.error || 'Failed to initialize client acceptance';
+        
+        // Handle partner validation errors with specific messages
+        if (errorCode === 'NO_PARTNER_ASSIGNED') {
+          setAcceptanceError(
+            'This client has no partner assigned. Please assign a partner before beginning the client acceptance assessment.'
+          );
+        } else if (errorCode === 'PARTNER_INACTIVE') {
+          const details = errorData.details || {};
+          setAcceptanceError(
+            `The assigned partner (${details.partnerName || 'Unknown'} - ${details.partnerCode || 'Unknown'}) is not active in the system. Please update the client partner before proceeding.`
+          );
+        } else if (errorCode === 'PARTNER_NOT_FOUND') {
+          const details = errorData.details || {};
+          setAcceptanceError(
+            `The assigned partner code (${details.partnerCode || 'Unknown'}) does not match any employee in the system. Please verify and update the client partner.`
+          );
+        } else {
+          setAcceptanceError(errorMessage);
+        }
+        
+        // Close the confirmation modal on error
+        setShowAcceptanceConfirm(false);
+        return;
       }
 
       // Success - close modal and show questionnaire
@@ -154,6 +178,7 @@ export default function ServiceLineClientDetailPage() {
       setAcceptanceError(
         error instanceof Error ? error.message : 'Failed to start client acceptance. Please try again.'
       );
+      setShowAcceptanceConfirm(false);
     } finally {
       setIsInitializingAcceptance(false);
     }

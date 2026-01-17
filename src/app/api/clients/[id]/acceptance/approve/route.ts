@@ -10,9 +10,12 @@ import {
   approveClientAcceptance,
   getClientAcceptance 
 } from '@/lib/services/acceptance/clientAcceptanceService';
+import { approvalService } from '@/lib/services/approvals/approvalService';
+import { invalidateApprovalsCache, invalidateOnClientMutation } from '@/lib/services/cache/cacheInvalidation';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { GSClientIDSchema } from '@/lib/validation/schemas';
+import { logger } from '@/lib/utils/logger';
 
 export const POST = secureRoute.mutationWithParams<never, { id: string }>({
   feature: Feature.APPROVE_CLIENT_ACCEPTANCE,
@@ -64,12 +67,41 @@ export const POST = secureRoute.mutationWithParams<never, { id: string }>({
     const acceptance = await approveClientAcceptance({
       clientId: client.id,
       userId: user.id,
+      approvalId: existing.approvalId || undefined,
     });
 
-    // TODO: Update approval workflow record
-    // if (existing.approvalId) {
-    //   await approvalService.completeApproval(existing.approvalId, user.id);
-    // }
+    // Complete the approval workflow if it exists
+    if (existing.approvalId) {
+      try {
+        // Get the approval to find the current step
+        const approval = await prisma.approval.findUnique({
+          where: { id: existing.approvalId },
+          include: {
+            ApprovalStep: {
+              where: { status: 'PENDING' },
+              orderBy: { stepOrder: 'asc' },
+            },
+          },
+        });
+
+        if (approval && approval.ApprovalStep.length > 0) {
+          const currentStep = approval.ApprovalStep[0];
+          await approvalService.approveStep(currentStep.id, user.id);
+        }
+      } catch (error) {
+        logger.error('Error completing approval workflow', { 
+          approvalId: existing.approvalId,
+          error 
+        });
+        // Don't fail the request if approval workflow update fails
+      }
+    }
+
+    // Invalidate caches (approvals and client data since team may have changed)
+    await Promise.all([
+      invalidateApprovalsCache(),
+      invalidateOnClientMutation(client.id),
+    ]);
 
     return NextResponse.json(successResponse(acceptance));
   },
