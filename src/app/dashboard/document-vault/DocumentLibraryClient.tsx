@@ -7,6 +7,7 @@ import { ChevronRight, FileText, Settings } from 'lucide-react';
 import { DocumentCard, DocumentFilterBar, ServiceLineVaultAdmin, DocumentDetailModal } from '@/components/features/document-vault';
 import { LoadingSpinner } from '@/components/ui';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
+import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
 import { useCurrentUser, useUserServiceLineRole } from '@/hooks/auth/usePermissions';
 import type { VaultDocumentListItemDTO } from '@/types/documentVault';
 
@@ -26,9 +27,9 @@ export function DocumentLibraryClient() {
   );
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
 
-  // Check if user can administer documents for this service line
+  // Check if user can administer documents for this service line (MANAGER+ roles)
   const isSystemAdmin = currentUser?.systemRole === 'SYSTEM_ADMIN';
-  const isServiceLineAdmin = serviceLine && serviceLineRole === 'ADMINISTRATOR';
+  const isServiceLineAdmin = serviceLine && serviceLineRole && hasServiceLineRole(serviceLineRole, 'MANAGER');
   const canAdminister = isSystemAdmin || isServiceLineAdmin;
 
   // Fetch categories

@@ -97,9 +97,6 @@ export async function checkPageAccess(
   pathname: string
 ): Promise<PageAccessResult> {
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pageAccess.ts:100',message:'checkPageAccess entry',data:{userId,pathname},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
 
     // Get user's system role and check for SYSTEM_ADMIN
     const user = await prisma.user.findUnique({
@@ -107,9 +104,6 @@ export async function checkPageAccess(
       select: { role: true },
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pageAccess.ts:112',message:'user database lookup',data:{hasUser:!!user,userRole:user?.role,roleType:typeof user?.role},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     if (!user) {
       return {
@@ -120,15 +114,9 @@ export async function checkPageAccess(
 
     const systemRole = user.role as SystemRole;
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pageAccess.ts:126',message:'SYSTEM_ADMIN check',data:{systemRole,SystemRoleEnum:SystemRole.SYSTEM_ADMIN,isMatch:systemRole===SystemRole.SYSTEM_ADMIN,strictEquality:systemRole==='SYSTEM_ADMIN'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
 
     // SYSTEM_ADMIN bypasses all checks
     if (systemRole === SystemRole.SYSTEM_ADMIN) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pageAccess.ts:134',message:'SYSTEM_ADMIN early return triggered',data:{returnValue:{canAccess:true,accessLevel:'FULL'}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       return {
         canAccess: true,
         accessLevel: PageAccessLevel.FULL,
@@ -162,9 +150,6 @@ export async function checkPageAccess(
 
     // 1. Check Redis cache
     const cached = await getCachedPagePermission(pathname, role);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pageAccess.ts:150',message:'redis cache check',data:{hasCached:!!cached,cachedValue:cached},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     if (cached) {
       return cached;
     }

@@ -87,7 +87,7 @@ export const PAGE_PERMISSIONS = {
     [SystemRole.USER]: PageAccessLevel.FULL,
   },
   
-  // Document Vault Admin (System Admin + Service Line Admins)
+  // Document Vault Admin (System Admin only)
   '/dashboard/admin/document-vault': {
     [SystemRole.SYSTEM_ADMIN]: PageAccessLevel.FULL,
     [SystemRole.USER]: PageAccessLevel.NONE,

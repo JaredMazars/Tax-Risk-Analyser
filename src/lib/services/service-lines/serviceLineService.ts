@@ -1054,18 +1054,10 @@ export async function ensureSharedServiceAccess(userId: string): Promise<void> {
     // Use sequential processing to avoid overwhelming the database
     for (const serviceLine of sharedServices) {
       try {
-        // #region agent log
-        const subGroups = await getSubServiceLineGroupsByMaster(serviceLine);
-        const mappings = await prisma.serviceLineExternal.findMany({where:{masterCode:serviceLine},select:{SubServlineGroupCode:true,masterCode:true}});
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'serviceLineService.ts:1048',message:'Before granting service line access',data:{serviceLine,subGroupsCount:subGroups.length,subGroups:subGroups.map(s=>s.code),mappings:mappings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'grant',hypothesisId:'D,E'})}).catch(()=>{});
-        // #endregion
 
         await grantServiceLineAccess(userId, serviceLine, ServiceLineRole.USER, 'main');
         logger.info('Granted shared service access', { userId, serviceLine });
       } catch (error) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'serviceLineService.ts:1052',message:'FAILED to grant service line access',data:{serviceLine,error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'grant',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
 
         // Log warning but continue with other services
         logger.warn('Failed to grant access to shared service', { 

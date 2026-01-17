@@ -166,6 +166,7 @@ export default function DashboardNav() {
     });
   }
 
+  // Show Admin menu if user has admin access (SYSTEM_ADMIN only)
   const adminNavItems: NavItem[] = hasAdminAccess && adminMenuItems.length > 0
     ? [
         {

@@ -44,9 +44,6 @@ export const GET = secureRoute.query({
     // Get user's accessible service lines
     const accessibleServiceLines = await getUserAccessibleServiceLines(user.id);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-vault/route.ts:45',message:'Accessible service lines received',data:{userId:user.id,accessibleServiceLines,filterServiceLine:filters.serviceLine},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B,C'})}).catch(()=>{});
-    // #endregion
 
     // Build where clause
     const where: any = {
@@ -69,15 +66,9 @@ export const GET = secureRoute.query({
 
     // Apply service line filter (if specified)
     if (filters.serviceLine) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-vault/route.ts:68',message:'Checking service line access',data:{requestedServiceLine:filters.serviceLine,accessibleServiceLines,includes:accessibleServiceLines.includes(filters.serviceLine)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
 
       // Verify user has access to this service line
       if (!accessibleServiceLines.includes(filters.serviceLine)) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'document-vault/route.ts:70',message:'ACCESS DENIED - service line not in accessible list',data:{requestedServiceLine:filters.serviceLine,accessibleServiceLines},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B,C'})}).catch(()=>{});
-        // #endregion
 
         return NextResponse.json(
           { error: 'Access denied to specified service line' },
