@@ -288,9 +288,9 @@ export function BugReportsAdminClient() {
                       >
                         <Eye className="w-4 h-4 inline" />
                       </button>
-                      {report.status === 'OPEN' && (
+                      {report.status === BugReportStatus.OPEN && (
                         <button
-                          onClick={() => handleUpdateStatus(report.id, 'TESTING')}
+                          onClick={() => handleUpdateStatus(report.id, BugReportStatus.TESTING)}
                           className="text-blue-600 hover:text-blue-900"
                           title="Mark as testing"
                           disabled={updateMutation.isPending}
@@ -298,9 +298,9 @@ export function BugReportsAdminClient() {
                           <Clock className="w-4 h-4 inline" />
                         </button>
                       )}
-                      {(report.status === 'OPEN' || report.status === 'TESTING') && (
+                      {(report.status === BugReportStatus.OPEN || report.status === BugReportStatus.TESTING) && (
                         <button
-                          onClick={() => handleUpdateStatus(report.id, 'RESOLVED')}
+                          onClick={() => handleUpdateStatus(report.id, BugReportStatus.RESOLVED)}
                           className="text-green-600 hover:text-green-900"
                           title="Mark as resolved"
                           disabled={updateMutation.isPending}

@@ -7,6 +7,7 @@ import { getQuestionnaireType, getQuestionnaireStructure } from '@/lib/services/
 import { getAllQuestions, type QuestionnaireType } from '@/constants/acceptance-questions';
 import { calculateCompletionPercentage } from '@/lib/services/acceptance/riskCalculation';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { enforceClientAcceptanceForEngagementAcceptance } from '@/lib/middleware/clientAcceptanceCheck';
 
 /**
  * POST /api/tasks/[id]/acceptance/initialize
@@ -44,10 +45,13 @@ export const POST = secureRoute.mutationWithParams({
     if (!task.Client) {
       throw new AppError(
         400,
-        'Client acceptance is only required for client tasks',
+        'Engagement acceptance is only required for client tasks',
         ErrorCodes.VALIDATION_ERROR
       );
     }
+
+    // Enforce that client acceptance must be completed first
+    await enforceClientAcceptanceForEngagementAcceptance(task.Client.id);
 
     // Determine questionnaire type
     const typeResult = await getQuestionnaireType(taskId, task.Client.id);

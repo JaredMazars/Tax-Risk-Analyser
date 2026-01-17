@@ -32,6 +32,26 @@ export async function invalidateClientCache(clientId: number | string): Promise<
 }
 
 /**
+ * Invalidate client acceptance cache after submission or approval
+ * Client acceptance is cached on the server for validation checks
+ */
+export async function invalidateClientAcceptanceCache(clientId: number): Promise<void> {
+  try {
+    await Promise.all([
+      cache.invalidate(`${CACHE_PREFIXES.CLIENT_ACCEPTANCE}${clientId}`),
+      cache.invalidate(`${CACHE_PREFIXES.CLIENT_ACCEPTANCE}status:${clientId}`),
+      cache.invalidate(`${CACHE_PREFIXES.CLIENT_ACCEPTANCE}valid:${clientId}`),
+      // Also invalidate client cache as acceptance status is part of client data
+      cache.invalidate(`${CACHE_PREFIXES.CLIENT}${clientId}`),
+    ]);
+    logger.debug('Client acceptance cache invalidated', { clientId });
+  } catch (error) {
+    logger.error('Failed to invalidate client acceptance cache', { clientId, error });
+    // Don't throw - cache invalidation failures shouldn't break the operation
+  }
+}
+
+/**
  * Invalidate workspace counts cache for a specific service line and sub-group
  */
 export async function invalidateWorkspaceCounts(

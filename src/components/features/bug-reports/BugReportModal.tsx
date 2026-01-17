@@ -73,7 +73,7 @@ export function BugReportModal({ isOpen, onClose, initialUrl = '' }: BugReportMo
       // Find image in clipboard
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        if (item.type.startsWith('image/')) {
+        if (item && item.type.startsWith('image/')) {
           e.preventDefault();
           const blob = item.getAsFile();
           if (blob) {
@@ -242,7 +242,7 @@ export function BugReportModal({ isOpen, onClose, initialUrl = '' }: BugReportMo
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://..."
                 required
-                helpText="The URL of the page where you encountered the bug"
+                helperText="The URL of the page where you encountered the bug"
               />
 
               {/* Description Field */}

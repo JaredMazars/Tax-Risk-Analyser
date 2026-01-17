@@ -39,7 +39,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     // Task Management
     Feature.MANAGE_TASKS,
     Feature.ASSIGN_TASK_TEAM,
-    Feature.APPROVE_ACCEPTANCE,
+    Feature.MANAGE_CLIENT_ACCEPTANCE,
+    Feature.APPROVE_CLIENT_ACCEPTANCE,
+    Feature.APPROVE_ENGAGEMENT_ACCEPTANCE,
     Feature.APPROVE_ENGAGEMENT_LETTER,
 
     // Client Management
@@ -92,7 +94,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     // Task Management
     Feature.MANAGE_TASKS,
     Feature.ASSIGN_TASK_TEAM,
-    Feature.APPROVE_ACCEPTANCE,
+    Feature.MANAGE_CLIENT_ACCEPTANCE,
+    Feature.APPROVE_CLIENT_ACCEPTANCE,
+    Feature.APPROVE_ENGAGEMENT_ACCEPTANCE,
     Feature.APPROVE_ENGAGEMENT_LETTER,
 
     // Client Management
@@ -132,6 +136,7 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     // Task Management
     Feature.MANAGE_TASKS,
     Feature.ASSIGN_TASK_TEAM,
+    Feature.MANAGE_CLIENT_ACCEPTANCE,
 
     // Client Management
     Feature.VIEW_CLIENT_ANALYTICS,
@@ -160,6 +165,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.ACCESS_CLIENTS,
     Feature.ACCESS_TASKS,
 
+    // Task Management
+    Feature.MANAGE_CLIENT_ACCEPTANCE,
+
     // Documents
     Feature.UPLOAD_DOCUMENTS,
     Feature.DOWNLOAD_DOCUMENTS,
@@ -181,6 +189,9 @@ export const SERVICE_LINE_ROLE_FEATURES: Record<ServiceLineRole, Feature[]> = {
     Feature.ACCESS_DASHBOARD,
     Feature.ACCESS_CLIENTS,
     Feature.ACCESS_TASKS,
+
+    // Task Management
+    Feature.MANAGE_CLIENT_ACCEPTANCE,
 
     // Documents
     Feature.UPLOAD_DOCUMENTS,

@@ -2,12 +2,12 @@
 
 import { CheckCircle, Circle, XCircle, UserCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
-import type { ChangeRequestApproval, ClientAcceptanceApproval, ReviewNoteApproval, VaultDocumentTimelineData } from '@/types/approvals';
+import type { ChangeRequestApproval, EngagementAcceptanceApproval, ReviewNoteApproval, VaultDocumentTimelineData } from '@/types/approvals';
 
 interface WorkflowTimelineProps {
   type: 'changeRequest' | 'clientAcceptance' | 'reviewNote' | 'vaultDocument';
   request?: ChangeRequestApproval;
-  acceptance?: ClientAcceptanceApproval;
+  acceptance?: EngagementAcceptanceApproval;
   note?: ReviewNoteApproval;
   vaultDocument?: VaultDocumentTimelineData;
 }

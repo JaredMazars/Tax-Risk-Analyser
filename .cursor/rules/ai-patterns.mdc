@@ -7,6 +7,15 @@ alwaysApply: false
 
 Azure OpenAI integration for AI-powered generation, analysis, and document intelligence.
 
+## When To Apply This Rule
+
+- Implementing AI-powered features (text generation, analysis, extraction)
+- Using Azure OpenAI models for content generation or structured output
+- Implementing document intelligence or RAG (Retrieval Augmented Generation)
+- Creating AI agents or multi-step workflows
+- Extracting structured data from documents (PDFs, images)
+- Building conversational or interview-based AI features
+
 ## Azure OpenAI Configuration
 
 **Always import from `@/lib/ai/config`:**
@@ -153,3 +162,10 @@ AZURE_DOCUMENT_INTELLIGENCE_KEY=your_key
 3. Use examples: Few-shot prompting
 4. Structure output: Request specific formats
 5. Iterate: Refine based on quality
+
+## Related Rules
+
+- **security-rules.mdc**: API route security with `secureRoute` wrapper, use `secureRoute.ai()` for AI endpoints
+- **blob-storage-rules.mdc**: Document storage for AI-extracted content (engagement letters, DPAs, acceptance docs)
+- **consolidated.mdc**: Main conventions including error handling, logging, and performance patterns
+- **approval-system-rules.mdc**: Use approval system for AI-generated content requiring review/approval

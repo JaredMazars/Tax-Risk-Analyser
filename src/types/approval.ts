@@ -29,8 +29,9 @@ export type ApprovalStepType = 'USER' | 'ROLE' | 'CONDITIONAL';
  * Workflow types
  */
 export type WorkflowType = 
-  | 'CHANGE_REQUEST' 
-  | 'ACCEPTANCE' 
+  | 'CHANGE_REQUEST'
+  | 'CLIENT_ACCEPTANCE'
+  | 'ACCEPTANCE' // Engagement-level acceptance (legacy)
   | 'CONTINUANCE'
   | 'ENGAGEMENT_LETTER'
   | 'DPA'

@@ -11,12 +11,13 @@ import { logger } from '@/lib/utils/logger';
  * PATCH /api/bug-reports/[id]
  * Update a bug report (system admin only)
  */
-export const PATCH = secureRoute.mutation({
+export const PATCH = secureRoute.mutationWithParams({
   feature: Feature.ACCESS_BUG_REPORTS,
   schema: UpdateBugReportSchema,
   handler: async (request, { user, data, params }) => {
     try {
-      const id = parseInt(params.id as string, 10);
+      const resolvedParams = await params;
+      const id = parseInt(resolvedParams.id as string, 10);
 
       if (isNaN(id)) {
         return NextResponse.json(
@@ -132,11 +133,12 @@ export const PATCH = secureRoute.mutation({
  * DELETE /api/bug-reports/[id]
  * Delete a bug report (system admin only)
  */
-export const DELETE = secureRoute.mutation({
+export const DELETE = secureRoute.mutationWithParams({
   feature: Feature.ACCESS_BUG_REPORTS,
   handler: async (request, { user, params }) => {
     try {
-      const id = parseInt(params.id as string, 10);
+      const resolvedParams = await params;
+      const id = parseInt(resolvedParams.id as string, 10);
 
       if (isNaN(id)) {
         return NextResponse.json(

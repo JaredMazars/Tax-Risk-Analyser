@@ -1,0 +1,481 @@
+/**
+ * Client Acceptance Questionnaire Component
+ * Simplified questionnaire for client-level risk assessment
+ */
+
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { CheckCircle, AlertCircle, Send } from 'lucide-react';
+import { Button, Banner } from '@/components/ui';
+import { QuestionField } from '@/components/features/tasks/acceptance/QuestionField';
+import { CLIENT_ACCEPTANCE_QUESTIONNAIRE, type QuestionSection } from '@/constants/acceptance-questions';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { ClientRiskResearchStep } from './ClientRiskResearchStep';
+import type { CompanyResearchResult } from '@/lib/services/bd/companyResearchAgent';
+
+interface ClientAcceptanceQuestionnaireProps {
+  GSClientID: string;
+  clientName: string | null;
+  onSubmitSuccess?: () => void;
+}
+
+interface AnswerState {
+  [questionKey: string]: {
+    answer: string;
+    comment?: string;
+  };
+}
+
+export function ClientAcceptanceQuestionnaire({
+  GSClientID,
+  clientName,
+  onSubmitSuccess,
+}: ClientAcceptanceQuestionnaireProps) {
+  const [activeTab, setActiveTab] = useState(0); // 0 = research, 1+ = questionnaire sections
+  const [answers, setAnswers] = useState<AnswerState>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [researchData, setResearchData] = useState<CompanyResearchResult | null>(null);
+  const [researchCompleted, setResearchCompleted] = useState(false);
+  const [researchSkipped, setResearchSkipped] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<Map<string, { answer: string; comment?: string }>>(new Map());
+  const batchSaveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const sections: QuestionSection[] = CLIENT_ACCEPTANCE_QUESTIONNAIRE;
+  const totalTabs = sections.length + 1; // +1 for research tab
+
+  // Load existing answers and research data on mount
+  useEffect(() => {
+    const loadExistingData = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/clients/${GSClientID}/acceptance/answers`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.data) {
+            // Load answers
+            if (data.data.ClientAcceptanceAnswer) {
+              const loadedAnswers: AnswerState = {};
+              data.data.ClientAcceptanceAnswer.forEach((answerData: any) => {
+                if (answerData.AcceptanceQuestion?.questionKey) {
+                  loadedAnswers[answerData.AcceptanceQuestion.questionKey] = {
+                    answer: answerData.answer || '',
+                    comment: answerData.comment || undefined,
+                  };
+                }
+              });
+              setAnswers(loadedAnswers);
+            }
+
+            // Load research data if exists
+            if (data.data.researchData) {
+              try {
+                const research = JSON.parse(data.data.researchData);
+                setResearchData(research);
+              } catch (e) {
+                console.error('Failed to parse research data:', e);
+              }
+            }
+
+            // Load research completion flags
+            setResearchCompleted(data.data.researchCompleted || false);
+            setResearchSkipped(data.data.researchSkipped || false);
+
+            // If research is completed or there are answers, start on first questionnaire tab
+            if ((data.data.researchCompleted && Object.keys(loadedAnswers).length > 0) || 
+                Object.keys(loadedAnswers).length > 0) {
+              setActiveTab(1); // Start on first questionnaire section
+            }
+          }
+        }
+      } catch (err) {
+        // If no acceptance exists yet, that's okay - start fresh
+        console.error('Failed to load existing data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadExistingData();
+  }, [GSClientID]);
+
+  const handleAnswerChange = (questionKey: string, answer: string, comment?: string) => {
+    // Update UI immediately
+    setAnswers((prev) => ({
+      ...prev,
+      [questionKey]: { answer, comment },
+    }));
+
+    // Add to pending changes
+    setPendingChanges((prev) => {
+      const updated = new Map(prev);
+      updated.set(questionKey, { answer, comment });
+      return updated;
+    });
+
+    // Trigger batch save
+    scheduleBatchSave();
+  };
+
+  const scheduleBatchSave = () => {
+    // Clear existing timeout
+    if (batchSaveTimeoutRef.current) {
+      clearTimeout(batchSaveTimeoutRef.current);
+    }
+
+    // Schedule batch save after 4 seconds of inactivity
+    batchSaveTimeoutRef.current = setTimeout(async () => {
+      await executeBatchSave();
+    }, 4000); // 4 seconds
+  };
+
+  const executeBatchSave = async () => {
+    if (pendingChanges.size === 0) return;
+
+    setSaveStatus('saving');
+    setSaveError(null);
+    
+    try {
+      // Convert Map to array
+      const answersToSave = Array.from(pendingChanges.entries()).map(([questionKey, data]) => ({
+        questionKey,
+        answer: data.answer,
+        comment: data.comment,
+      }));
+
+      const res = await fetch(`/api/clients/${GSClientID}/acceptance/answers`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: answersToSave }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to save answers');
+      }
+
+      // Clear pending changes on success
+      setPendingChanges(new Map());
+      
+      setSaveStatus('saved');
+      // Auto-hide saved status after 2 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2000);
+    } catch (err) {
+      setSaveStatus('error');
+      setSaveError(err instanceof Error ? err.message : 'Failed to save');
+    }
+  };
+
+  const handleTabChange = async (newTab: number) => {
+    // Save pending changes before switching tabs
+    if (pendingChanges.size > 0) {
+      // Cancel scheduled save
+      if (batchSaveTimeoutRef.current) {
+        clearTimeout(batchSaveTimeoutRef.current);
+      }
+      
+      // Immediate save
+      await executeBatchSave();
+    }
+    
+    setActiveTab(newTab);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (batchSaveTimeoutRef.current) {
+        clearTimeout(batchSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const getCompletionPercentage = () => {
+    // Calculate completion with equal weight for all tabs (research + questionnaire sections)
+    let completedTabs = 0;
+
+    // Research tab (tab 0)
+    if (researchCompleted || researchSkipped || researchData) {
+      completedTabs++;
+    }
+
+    // Questionnaire sections (tabs 1+)
+    sections.forEach((section) => {
+      const sectionQuestions = section.questions.filter((q) => q.required);
+      const sectionAnswered = sectionQuestions.filter((q) => answers[q.questionKey]?.answer).length;
+      
+      // Section is complete if all required questions are answered
+      if (sectionQuestions.length > 0 && sectionAnswered === sectionQuestions.length) {
+        completedTabs++;
+      }
+    });
+
+    return Math.round((completedTabs / totalTabs) * 100);
+  };
+
+  const canSubmit = () => {
+    const allQuestions = sections.flatMap((s) => s.questions);
+    const requiredQuestions = allQuestions.filter((q) => q.required);
+    return requiredQuestions.every((q) => answers[q.questionKey]?.answer);
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Save any pending changes first
+      if (pendingChanges.size > 0) {
+        if (batchSaveTimeoutRef.current) {
+          clearTimeout(batchSaveTimeoutRef.current);
+        }
+        await executeBatchSave();
+      }
+
+      const response = await fetch(`/api/clients/${GSClientID}/acceptance/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit client acceptance');
+      }
+
+      onSubmitSuccess?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit');
+    } finally {
+      setIsSubmitting(false);
+      setShowConfirmModal(false);
+    }
+  };
+
+  const handleResearchComplete = (research?: CompanyResearchResult) => {
+    if (research) {
+      setResearchData(research);
+      setResearchCompleted(true);
+      setResearchSkipped(false);
+    }
+    // Don't auto-navigate, let user click tabs
+  };
+
+  const handleSkipResearch = async () => {
+    try {
+      // Call API to mark research as skipped
+      await fetch(`/api/clients/${GSClientID}/acceptance/research/skip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      setResearchCompleted(true);
+      setResearchSkipped(true);
+    } catch (err) {
+      console.error('Failed to skip research:', err);
+    }
+  };
+
+  const completionPercentage = getCompletionPercentage();
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-8">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
+          <span className="ml-3 text-sm text-forvis-gray-600">Loading questionnaire...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Save Status Indicators - Only show errors */}
+      {saveStatus === 'error' && (
+        <Banner 
+          variant="error" 
+          message={saveError || 'Failed to save responses'} 
+          dismissible 
+          onDismiss={() => setSaveStatus('idle')} 
+        />
+      )}
+
+      {/* Progress Header */}
+      <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-forvis-gray-900">
+            Client Risk Assessment for {clientName || GSClientID}
+          </h3>
+          <div className="flex items-center space-x-2">
+            {completionPercentage === 100 ? (
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+            )}
+            <span className="text-sm font-semibold text-forvis-gray-700">
+              {completionPercentage}% Complete
+            </span>
+          </div>
+        </div>
+        <div className="w-full bg-forvis-gray-200 rounded-full h-2">
+          <div
+            className="h-2 rounded-full transition-all duration-300"
+            style={{
+              width: `${completionPercentage}%`,
+              background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
+        <div className="border-b border-forvis-gray-200">
+          <div className="flex overflow-x-auto">
+            {/* Research Tab */}
+            <button
+              onClick={() => handleTabChange(0)}
+              className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${
+                activeTab === 0
+                  ? 'border-b-2 border-forvis-blue-500 text-forvis-blue-600'
+                  : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+              }`}
+            >
+              Research
+              {(researchCompleted || researchSkipped) && (
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              )}
+            </button>
+
+            {/* Questionnaire Section Tabs */}
+            {sections.map((section, index) => {
+              const sectionQuestions = section.questions.filter((q) => q.required);
+              const sectionAnswered = sectionQuestions.filter((q) => answers[q.questionKey]?.answer).length;
+              const isComplete = sectionQuestions.length > 0 && sectionAnswered === sectionQuestions.length;
+              
+              return (
+                <button
+                  key={section.key}
+                  onClick={() => handleTabChange(index + 1)}
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${
+                    activeTab === index + 1
+                      ? 'border-b-2 border-forvis-blue-500 text-forvis-blue-600'
+                      : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+                  }`}
+                >
+                  {section.title}
+                  {isComplete && (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6">
+          {/* Research Tab Content */}
+          {activeTab === 0 && (
+            <ClientRiskResearchStep
+              GSClientID={GSClientID}
+              clientName={clientName}
+              existingResearch={researchData}
+              onComplete={handleResearchComplete}
+              onSkip={handleSkipResearch}
+            />
+          )}
+
+          {/* Questionnaire Section Content */}
+          {activeTab > 0 && sections[activeTab - 1] && (
+            <div className="space-y-6">
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
+                  {sections[activeTab - 1].title}
+                </h3>
+                {sections[activeTab - 1].description && (
+                  <p className="text-sm text-forvis-gray-600">
+                    {sections[activeTab - 1].description}
+                  </p>
+                )}
+              </div>
+
+              {sections[activeTab - 1].questions.map((question) => (
+                <QuestionField
+                  key={question.questionKey}
+                  question={question}
+                  value={answers[question.questionKey]?.answer || ''}
+                  comment={answers[question.questionKey]?.comment || ''}
+                  onChange={(answer, comment) =>
+                    handleAnswerChange(question.questionKey, answer, comment)
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div className="border-t border-forvis-gray-200 px-6 py-4 bg-forvis-gray-50">
+          <div className="flex justify-between items-center">
+            <div>
+              {activeTab > 0 && (
+                <Button
+                  variant="secondary"
+                  onClick={() => handleTabChange(activeTab - 1)}
+                >
+                  Previous
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              {activeTab < totalTabs - 1 ? (
+                <Button
+                  variant="primary"
+                  onClick={() => handleTabChange(activeTab + 1)}
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  variant="gradient"
+                  onClick={() => setShowConfirmModal(true)}
+                  disabled={!canSubmit() || isSubmitting}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title="Submit Client Acceptance?"
+        message="Are you sure you want to submit this client acceptance assessment for Partner approval? Once submitted, you cannot make further changes."
+        confirmText="Submit for Approval"
+        variant="info"
+        onConfirm={handleSubmit}
+        onClose={() => setShowConfirmModal(false)}
+      />
+    </div>
+  );
+}

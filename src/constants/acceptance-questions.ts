@@ -1,13 +1,17 @@
 /**
- * Client Acceptance and Continuance Question Definitions
- * Transformed from SharePoint field configurations
+ * Client and Engagement Acceptance Question Definitions
+ * Separated into Client-level and Engagement-level assessments
  */
 
 export type QuestionnaireType =
-  | 'ACCEPTANCE_FULL'
-  | 'ACCEPTANCE_LITE'
-  | 'CONTINUANCE_FULL'
-  | 'CONTINUANCE_LITE';
+  | 'CLIENT_ACCEPTANCE' // New client risk assessment (client-level)
+  | 'ENGAGEMENT_ACCEPTANCE_FULL' // Engagement-specific acceptance (formerly ACCEPTANCE_FULL)
+  | 'ENGAGEMENT_ACCEPTANCE_LITE' // Engagement-specific acceptance lite (formerly ACCEPTANCE_LITE)
+  | 'CONTINUANCE_FULL' // Client continuance (annual review)
+  | 'CONTINUANCE_LITE' // Client continuance lite
+  // Legacy types (for backwards compatibility)
+  | 'ACCEPTANCE_FULL' 
+  | 'ACCEPTANCE_LITE';
 
 export type FieldType = 'RADIO' | 'TEXTAREA' | 'SELECT' | 'FILE_UPLOAD' | 'BUTTON' | 'PLACEHOLDER';
 
@@ -38,7 +42,297 @@ export interface QuestionSection {
 }
 
 // =============================================================================
-// ACCEPTANCE FULL - New Client Acceptance (Comprehensive)
+// CLIENT_ACCEPTANCE - Client-Level Risk Assessment
+// Simplified questionnaire focusing on client entity risks (not engagement-specific)
+// Completed once for the client, or when substantial risk changes
+// =============================================================================
+
+const CLIENT_ACCEPTANCE_BACKGROUND_SECTION: QuestionSection = {
+  key: 'client_background',
+  title: 'Client Background and Ownership',
+  description: 'Basic information about the client entity and ownership structure',
+  questions: [
+    {
+      questionKey: 'Q1ClientBackground',
+      sectionKey: 'client_background',
+      questionText: 'What is the nature of the client\'s business and industry?',
+      description: 'Provide a brief description of the client\'s primary business activities and industry sector',
+      fieldType: 'TEXTAREA',
+      required: true,
+      order: 1,
+      riskWeight: 2,
+    },
+    {
+      questionKey: 'Q2ClientBackground',
+      sectionKey: 'client_background',
+      questionText: 'Is the client\'s ownership structure clear and transparent?',
+      description: 'Complex ownership structures, offshore entities, or lack of transparency may indicate higher risk',
+      fieldType: 'RADIO',
+      options: ['Yes', 'No', 'Partially'],
+      required: true,
+      order: 2,
+      riskWeight: 6,
+      highRiskAnswers: ['No', 'Partially'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q3ClientBackground',
+      sectionKey: 'client_background',
+      questionText: 'Has the client been operating for more than 3 years?',
+      description: 'Newer clients may have higher business risk',
+      fieldType: 'RADIO',
+      options: ['Yes', 'No'],
+      required: true,
+      order: 3,
+      riskWeight: 3,
+      highRiskAnswers: ['No'],
+    },
+  ],
+};
+
+const CLIENT_ACCEPTANCE_FINANCIAL_SECTION: QuestionSection = {
+  key: 'client_financial',
+  title: 'Financial Stability and Risk',
+  description: 'Assessment of the client\'s financial position and stability',
+  questions: [
+    {
+      questionKey: 'Q1ClientFinancial',
+      sectionKey: 'client_financial',
+      questionText: 'Is the client experiencing financial difficulties or insolvency concerns?',
+      description: 'Financial distress may impact our ability to collect fees and increase engagement risk',
+      fieldType: 'RADIO',
+      options: ['No', 'Some concerns', 'Significant concerns'],
+      required: true,
+      order: 1,
+      riskWeight: 8,
+      highRiskAnswers: ['Significant concerns'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q2ClientFinancial',
+      sectionKey: 'client_financial',
+      questionText: 'Does the client have a history of late payments or fee disputes with service providers?',
+      description: 'Payment history may indicate potential collection issues',
+      fieldType: 'RADIO',
+      options: ['No', 'Yes', 'Unknown'],
+      required: true,
+      order: 2,
+      riskWeight: 6,
+      highRiskAnswers: ['Yes'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q3ClientFinancial',
+      sectionKey: 'client_financial',
+      questionText: 'Is the client\'s industry subject to significant economic volatility or decline?',
+      description: 'Industry conditions may impact client stability and risk',
+      fieldType: 'RADIO',
+      options: ['No', 'Moderate volatility', 'High volatility'],
+      required: true,
+      order: 3,
+      riskWeight: 5,
+      highRiskAnswers: ['High volatility'],
+      allowComment: true,
+    },
+  ],
+};
+
+const CLIENT_ACCEPTANCE_REGULATORY_SECTION: QuestionSection = {
+  key: 'client_regulatory',
+  title: 'Regulatory and Compliance Environment',
+  description: 'Assessment of regulatory risks and compliance history',
+  questions: [
+    {
+      questionKey: 'Q1ClientRegulatory',
+      sectionKey: 'client_regulatory',
+      questionText: 'Is the client subject to significant regulatory oversight or restrictions?',
+      description: 'Regulated entities may require additional considerations and expertise',
+      fieldType: 'RADIO',
+      options: ['No', 'Yes - specify regulatory body'],
+      required: true,
+      order: 1,
+      riskWeight: 5,
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q2ClientRegulatory',
+      sectionKey: 'client_regulatory',
+      questionText: 'Are there any known or suspected regulatory investigations or sanctions involving the client?',
+      description: 'Regulatory issues may indicate higher risk and require additional procedures',
+      fieldType: 'RADIO',
+      options: ['No', 'Yes'],
+      required: true,
+      order: 2,
+      riskWeight: 9,
+      highRiskAnswers: ['Yes'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q3ClientRegulatory',
+      sectionKey: 'client_regulatory',
+      questionText: 'Has the client had issues with tax compliance or disputes with tax authorities?',
+      description: 'Tax compliance issues may indicate systemic control weaknesses',
+      fieldType: 'RADIO',
+      options: ['No', 'Yes - minor', 'Yes - significant'],
+      required: true,
+      order: 3,
+      riskWeight: 7,
+      highRiskAnswers: ['Yes - significant'],
+      allowComment: true,
+    },
+  ],
+};
+
+const CLIENT_ACCEPTANCE_REPUTATION_SECTION: QuestionSection = {
+  key: 'client_reputation',
+  title: 'Reputation and Integrity',
+  description: 'Assessment of client and management integrity and reputation',
+  questions: [
+    {
+      questionKey: 'Q1ClientReputation',
+      sectionKey: 'client_reputation',
+      questionText: 'Are you aware of any adverse information regarding the integrity of the client\'s management or owners?',
+      description: 'Integrity concerns may require declining the engagement',
+      fieldType: 'RADIO',
+      options: ['No', 'Yes'],
+      required: true,
+      order: 1,
+      riskWeight: 10,
+      highRiskAnswers: ['Yes'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q2ClientReputation',
+      sectionKey: 'client_reputation',
+      questionText: 'Has the client been involved in any legal disputes, litigation, or allegations of fraud?',
+      description: 'Legal and fraud concerns may indicate higher risk',
+      fieldType: 'RADIO',
+      options: ['No', 'Yes - minor', 'Yes - significant'],
+      required: true,
+      order: 2,
+      riskWeight: 8,
+      highRiskAnswers: ['Yes - significant'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q3ClientReputation',
+      sectionKey: 'client_reputation',
+      questionText: 'Does the client operate in high-risk sectors (e.g., cash-intensive, cryptocurrency, gambling)?',
+      description: 'Certain sectors carry inherently higher risk for money laundering and fraud',
+      fieldType: 'RADIO',
+      options: ['No', 'Yes'],
+      required: true,
+      order: 3,
+      riskWeight: 7,
+      highRiskAnswers: ['Yes'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q4ClientReputation',
+      sectionKey: 'client_reputation',
+      questionText: 'Are there concerns about the client\'s business practices or ethical standards?',
+      description: 'Ethical concerns may present reputational risk to the firm',
+      fieldType: 'RADIO',
+      options: ['No', 'Some concerns', 'Significant concerns'],
+      required: true,
+      order: 4,
+      riskWeight: 8,
+      highRiskAnswers: ['Significant concerns'],
+      allowComment: true,
+    },
+  ],
+};
+
+const CLIENT_ACCEPTANCE_RELATIONSHIP_SECTION: QuestionSection = {
+  key: 'client_relationship',
+  title: 'Client Relationship and Communication',
+  description: 'Assessment of client relationship and communication quality',
+  questions: [
+    {
+      questionKey: 'Q1ClientRelationship',
+      sectionKey: 'client_relationship',
+      questionText: 'Is management cooperative and responsive to professional advice?',
+      description: 'Difficult client relationships may increase engagement risk',
+      fieldType: 'RADIO',
+      options: ['Yes', 'Sometimes', 'No'],
+      required: true,
+      order: 1,
+      riskWeight: 5,
+      highRiskAnswers: ['No'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q2ClientRelationship',
+      sectionKey: 'client_relationship',
+      questionText: 'Has the client frequently changed professional service providers?',
+      description: 'Frequent changes may indicate difficult client relationships or "opinion shopping"',
+      fieldType: 'RADIO',
+      options: ['No', 'Yes'],
+      required: true,
+      order: 2,
+      riskWeight: 6,
+      highRiskAnswers: ['Yes'],
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q3ClientRelationship',
+      sectionKey: 'client_relationship',
+      questionText: 'Are there any concerns about the client\'s attitude toward compliance or internal controls?',
+      description: 'Weak control environment may increase risk',
+      fieldType: 'RADIO',
+      options: ['No', 'Some concerns', 'Significant concerns'],
+      required: true,
+      order: 3,
+      riskWeight: 7,
+      highRiskAnswers: ['Significant concerns'],
+      allowComment: true,
+    },
+  ],
+};
+
+const CLIENT_ACCEPTANCE_APPROVAL_SECTION: QuestionSection = {
+  key: 'client_approval',
+  title: 'Recommendation and Approval',
+  description: 'Final assessment and recommendation',
+  questions: [
+    {
+      questionKey: 'Q1ClientApproval',
+      sectionKey: 'client_approval',
+      questionText: 'Based on the above assessment, do you recommend accepting this client?',
+      description: 'Overall recommendation considering all risk factors',
+      fieldType: 'RADIO',
+      options: ['Yes - Accept', 'Accept with conditions', 'Decline'],
+      required: true,
+      order: 1,
+      riskWeight: 0,
+      allowComment: true,
+    },
+    {
+      questionKey: 'Q2ClientApproval',
+      sectionKey: 'client_approval',
+      questionText: 'If accepting with conditions or concerns, specify additional safeguards or procedures required',
+      description: 'Document any additional procedures, enhanced monitoring, or safeguards',
+      fieldType: 'TEXTAREA',
+      required: false,
+      order: 2,
+      riskWeight: 0,
+    },
+  ],
+};
+
+export const CLIENT_ACCEPTANCE_QUESTIONNAIRE: QuestionSection[] = [
+  CLIENT_ACCEPTANCE_BACKGROUND_SECTION,
+  CLIENT_ACCEPTANCE_FINANCIAL_SECTION,
+  CLIENT_ACCEPTANCE_REGULATORY_SECTION,
+  CLIENT_ACCEPTANCE_REPUTATION_SECTION,
+  CLIENT_ACCEPTANCE_RELATIONSHIP_SECTION,
+  CLIENT_ACCEPTANCE_APPROVAL_SECTION,
+];
+
+// =============================================================================
+// ENGAGEMENT_ACCEPTANCE_FULL - Engagement-Level Acceptance (Comprehensive)
+// Formerly ACCEPTANCE_FULL - renamed for clarity
+// Focuses on engagement-specific risks, not client-level risks
 // =============================================================================
 
 const ACCEPTANCE_FULL_INDEPENDENCE_SECTION: QuestionSection = {
@@ -835,12 +1129,16 @@ export const CONTINUANCE_LITE_SECTIONS: QuestionSection[] = [
 
 export function getQuestionnaireDefinition(type: QuestionnaireType): QuestionSection[] {
   switch (type) {
-    case 'ACCEPTANCE_FULL':
+    case 'CLIENT_ACCEPTANCE':
+      return CLIENT_ACCEPTANCE_QUESTIONNAIRE;
+    case 'ENGAGEMENT_ACCEPTANCE_FULL':
+    case 'ACCEPTANCE_FULL': // Legacy support
       return ACCEPTANCE_FULL_SECTIONS;
+    case 'ENGAGEMENT_ACCEPTANCE_LITE':
+    case 'ACCEPTANCE_LITE': // Legacy support
+      return ACCEPTANCE_LITE_SECTIONS;
     case 'CONTINUANCE_FULL':
       return CONTINUANCE_FULL_SECTIONS;
-    case 'ACCEPTANCE_LITE':
-      return ACCEPTANCE_LITE_SECTIONS;
     case 'CONTINUANCE_LITE':
       return CONTINUANCE_LITE_SECTIONS;
     default:

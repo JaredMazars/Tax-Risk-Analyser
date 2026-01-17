@@ -103,9 +103,27 @@ export default function OpportunityDetailPage() {
         createTask: createProject,
       });
       setIsConvertModalOpen(false);
-      // Navigate to the new client page
-      if (result.client) {
-        router.push(`/dashboard/${serviceLine}/clients/${result.client.GSClientID}`);
+      
+      // Show alert about client acceptance if needed
+      if (result.needsClientAcceptance) {
+        setAlertModal({
+          isOpen: true,
+          title: 'Client Acceptance Required',
+          message: `Client has been created successfully. However, Client Acceptance must be completed before creating tasks or engagements. You will be redirected to the client page where you can complete the Client Acceptance assessment.`,
+          variant: 'warning',
+        });
+        
+        // Delay navigation to show the message
+        setTimeout(() => {
+          if (result.client) {
+            router.push(`/dashboard/${serviceLine}/clients/${result.client.GSClientID}`);
+          }
+        }, 3000);
+      } else {
+        // Navigate immediately if acceptance already exists
+        if (result.client) {
+          router.push(`/dashboard/${serviceLine}/clients/${result.client.GSClientID}`);
+        }
       }
     } catch (error) {
       console.error('Failed to convert opportunity:', error);

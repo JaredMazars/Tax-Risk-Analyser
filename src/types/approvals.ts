@@ -43,9 +43,26 @@ export interface ChangeRequestApproval {
 
 /**
  * Client Acceptance Approval
- * Tasks with completed acceptance questionnaires needing partner approval
+ * Clients with completed risk assessments needing partner approval
  */
 export interface ClientAcceptanceApproval {
+  clientId: number;
+  clientGSID: string;
+  clientCode: string;
+  clientName: string | null;
+  acceptanceId: number;
+  completedAt: Date;
+  completedBy: string | null;
+  riskRating: string | null;
+  overallRiskScore: number | null;
+}
+
+/**
+ * Engagement Acceptance Approval
+ * Tasks with completed engagement acceptance questionnaires needing partner approval
+ * (formerly called ClientAcceptanceApproval - renamed for clarity)
+ */
+export interface EngagementAcceptanceApproval {
   taskId: number;
   taskName: string;
   taskCode: string | null;
@@ -147,6 +164,7 @@ export interface ReviewNoteApproval {
 export interface ApprovalsResponse {
   changeRequests: ChangeRequestApproval[];
   clientAcceptances: ClientAcceptanceApproval[];
+  engagementAcceptances: EngagementAcceptanceApproval[];
   reviewNotes: ReviewNoteApproval[];
   centralizedApprovals: ApprovalWithSteps[];
   totalCount: number;

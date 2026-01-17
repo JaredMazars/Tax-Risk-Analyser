@@ -145,10 +145,10 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-forvis-gray-900 mb-2">
-                Client Acceptance and Continuance
+                Engagement Acceptance
               </h2>
               <p className="text-sm text-forvis-gray-600">
-                Complete the questionnaire to assess client risk and compliance with professional standards.
+                Complete the questionnaire to assess engagement-specific risks and ensure team competency for this project.
               </p>
             </div>
             
@@ -180,11 +180,14 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
         {workflowState === 'not_started' && viewMode !== 'questionnaire' && (
           <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate p-6">
             <h3 className="text-lg font-semibold text-forvis-gray-900 mb-3">
-              Begin Client Acceptance and Continuance
+              Begin Engagement Acceptance
             </h3>
             <p className="text-sm text-forvis-gray-700 mb-6">
-              No acceptance questionnaire has been created for this engagement yet. Click below to begin the assessment process.
-              The system will automatically determine whether to use the full or lite questionnaire based on client characteristics.
+              No engagement acceptance questionnaire has been created yet. Click below to begin the assessment process.
+              The system will automatically determine whether to use the full or lite questionnaire based on engagement characteristics.
+            </p>
+            <p className="text-xs text-forvis-gray-600 mb-6 p-3 bg-blue-50 rounded border border-blue-200">
+              <strong>Note:</strong> Client Acceptance must be completed before Engagement Acceptance. This focuses on engagement-specific risks and team competency.
             </p>
             <button
               onClick={() => setViewMode('questionnaire')}
@@ -257,7 +260,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
                   <CheckCircle className="h-6 w-6 text-green-600 mt-1 mr-3" />
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-green-900 mb-2">
-                      Acceptance Approved
+                      Engagement Acceptance Approved
                     </h3>
                     <dl className="space-y-2">
                       {task.acceptanceApprovedAt && (

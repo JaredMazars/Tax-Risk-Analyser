@@ -1,6 +1,6 @@
 export { MyApprovalsView } from './MyApprovalsView';
 export { ChangeRequestApprovalItem } from './ChangeRequestApprovalItem';
-export { ClientAcceptanceApprovalItem } from './ClientAcceptanceApprovalItem';
+export { EngagementAcceptanceApprovalItem } from './EngagementAcceptanceApprovalItem';
 export { EngagementLetterApprovalItem } from './EngagementLetterApprovalItem';
 export { DpaApprovalItem } from './DpaApprovalItem';
 export { ReviewNoteApprovalItem } from './ReviewNoteApprovalItem';

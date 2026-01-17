@@ -17,7 +17,7 @@ model AcceptanceAnswer {
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @default(now())
   AcceptanceQuestion       AcceptanceQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_Question")
-  ClientAcceptanceResponse ClientAcceptanceResponse @relation(fields: [responseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_Response")
+  ClientAcceptanceResponse ClientAcceptanceResponse @relation(fields: [responseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_EngagementResponse")
 
   @@unique([responseId, questionId])
   @@index([questionId])
@@ -41,21 +41,22 @@ model AcceptanceDocument {
 }
 
 model AcceptanceQuestion {
-  id                Int                @id(map: "PK__Acceptan__3213E83FB3075BED") @default(autoincrement())
-  questionnaireType String             @db.NVarChar(50)
-  sectionKey        String             @db.NVarChar(100)
-  questionKey       String             @db.NVarChar(100)
-  questionText      String             @db.NVarChar(Max)
-  description       String?            @db.NVarChar(Max)
-  fieldType         String             @db.NVarChar(50)
-  options           String?            @db.NVarChar(Max)
-  required          Boolean            @default(true)
-  order             Int
-  riskWeight        Float              @default(1.0)
-  highRiskAnswers   String?            @db.NVarChar(500)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @default(now())
-  AcceptanceAnswer  AcceptanceAnswer[]
+  id                     Int                      @id(map: "PK__Acceptan__3213E83FB3075BED") @default(autoincrement())
+  questionnaireType      String                   @db.NVarChar(50)
+  sectionKey             String                   @db.NVarChar(100)
+  questionKey            String                   @db.NVarChar(100)
+  questionText           String                   @db.NVarChar(Max)
+  description            String?                  @db.NVarChar(Max)
+  fieldType              String                   @db.NVarChar(50)
+  options                String?                  @db.NVarChar(Max)
+  required               Boolean                  @default(true)
+  order                  Int
+  riskWeight             Float                    @default(1.0)
+  highRiskAnswers        String?                  @db.NVarChar(500)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @default(now())
+  AcceptanceAnswer       AcceptanceAnswer[]
+  ClientAcceptanceAnswer ClientAcceptanceAnswer[]
 
   @@unique([questionnaireType, questionKey])
   @@index([questionnaireType])
@@ -140,6 +141,7 @@ model Approval {
   User_Approval_completedByIdToUser User?                               @relation("Approval_completedByIdToUser", fields: [completedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Approval_CompletedBy")
   User_Approval_requestedByIdToUser User                                @relation("Approval_requestedByIdToUser", fields: [requestedById], references: [id], onUpdate: NoAction, map: "FK_Approval_RequestedBy")
   ApprovalStep                      ApprovalStep[]
+  ClientAcceptance                  ClientAcceptance[]
   ClientPartnerManagerChangeRequest ClientPartnerManagerChangeRequest[]
   VaultDocument                     VaultDocument[]
 
@@ -371,22 +373,22 @@ model BDStage {
 }
 
 model BugReport {
-  id              Int       @id @default(autoincrement())
-  reportedBy      String
-  reportedAt      DateTime  @default(now())
-  url             String    @db.NVarChar(500)
-  description     String    @db.NVarChar(Max)
-  screenshotPath  String?   @db.NVarChar(500)
-  status          String    @default("OPEN") @db.NVarChar(20)
-  testedAt        DateTime?
-  testedBy        String?
-  resolvedAt      DateTime?
-  resolvedBy      String?
-  resolutionNotes String?   @db.NVarChar(Max)
-  priority        String    @default("MEDIUM") @db.NVarChar(20)
-  User_BugReport_reportedByToUser  User   @relation("BugReport_reportedByToUser", fields: [reportedBy], references: [id], onUpdate: NoAction)
-  User_BugReport_testedByToUser    User?  @relation("BugReport_testedByToUser", fields: [testedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User_BugReport_resolvedByToUser  User?  @relation("BugReport_resolvedByToUser", fields: [resolvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                              Int       @id @default(autoincrement())
+  reportedBy                      String
+  reportedAt                      DateTime  @default(now())
+  url                             String    @db.NVarChar(500)
+  description                     String    @db.NVarChar(Max)
+  screenshotPath                  String?   @db.NVarChar(500)
+  status                          String    @default("OPEN") @db.NVarChar(20)
+  testedAt                        DateTime?
+  testedBy                        String?
+  resolvedAt                      DateTime?
+  resolvedBy                      String?
+  resolutionNotes                 String?   @db.NVarChar(Max)
+  priority                        String    @default("MEDIUM") @db.NVarChar(20)
+  User_BugReport_reportedByToUser User      @relation("BugReport_reportedByToUser", fields: [reportedBy], references: [id], onUpdate: NoAction)
+  User_BugReport_testedByToUser   User?     @relation("BugReport_testedByToUser", fields: [testedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_BugReport_resolvedByToUser User?     @relation("BugReport_resolvedByToUser", fields: [resolvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([reportedBy])
   @@index([status])
@@ -422,6 +424,7 @@ model Client {
   updatedAt                         DateTime                            @updatedAt
   GSClientID                        String                              @unique @db.UniqueIdentifier
   BDOpportunity                     BDOpportunity[]
+  ClientAcceptance                  ClientAcceptance?
   ClientAcceptanceResponse          ClientAcceptanceResponse[]
   ClientAnalyticsDocument           ClientAnalyticsDocument[]
   ClientCreditRating                ClientCreditRating[]
@@ -452,6 +455,53 @@ model Client {
   @@index([groupDesc], map: "idx_client_group_desc")
   @@index([groupCode], map: "idx_client_groupcode")
   @@index([clientNameFull], map: "idx_client_name_full")
+}
+
+model ClientAcceptance {
+  id                     Int                      @id(map: "PK__ClientAc__3213E83F94B62F26") @default(autoincrement())
+  clientId               Int                      @unique
+  riskRating             String?                  @db.NVarChar(20)
+  overallRiskScore       Float?
+  riskSummary            String?                  @db.NVarChar(Max)
+  researchData           String?                  @db.NVarChar(Max)
+  researchedAt           DateTime?
+  researchCompleted      Boolean                  @default(false)
+  researchSkipped        Boolean                  @default(false)
+  completedAt            DateTime?
+  completedBy            String?                  @db.NVarChar(200)
+  approvedAt             DateTime?
+  approvedBy             String?                  @db.NVarChar(200)
+  approvalId             Int?
+  validUntil             DateTime?
+  lastReviewedAt         DateTime?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @default(now())
+  Approval               Approval?                @relation(fields: [approvalId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ClientAcceptance_Approval")
+  Client                 Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptance_Client")
+  ClientAcceptanceAnswer ClientAcceptanceAnswer[]
+  user                   User?                    @relation(fields: [userId], references: [id])
+  userId                 String?
+
+  @@index([approvalId])
+  @@index([clientId])
+  @@index([riskRating])
+  @@index([approvedAt])
+}
+
+model ClientAcceptanceAnswer {
+  id                 Int                @id(map: "PK__ClientAc__3213E83F4AB0FF4C") @default(autoincrement())
+  clientAcceptanceId Int
+  questionId         Int
+  answer             String?            @db.NVarChar(Max)
+  comment            String?            @db.NVarChar(Max)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @default(now())
+  AcceptanceQuestion AcceptanceQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceAnswer_Question")
+  ClientAcceptance   ClientAcceptance   @relation(fields: [clientAcceptanceId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceAnswer_ClientAcceptance")
+
+  @@unique([clientAcceptanceId, questionId])
+  @@index([questionId])
+  @@index([clientAcceptanceId])
 }
 
 model ClientAcceptanceResponse {
@@ -1119,44 +1169,44 @@ model ReviewCategory {
 }
 
 model ReviewNote {
-  id                                Int                    @id @default(autoincrement())
-  taskId                            Int
-  title                             String                 @db.NVarChar(255)
-  description                       String?                @db.NVarChar(Max)
-  referenceUrl                      String?
-  referenceType                     String                 @default("EXTERNAL") @db.NVarChar(20)
-  referenceId                       String?                @db.NVarChar(100)
-  section                           String?                @db.NVarChar(255)
-  status                            String                 @default("OPEN") @db.NVarChar(20)
-  priority                          String                 @default("MEDIUM") @db.NVarChar(20)
-  categoryId                        Int?
-  dueDate                           DateTime?
-  raisedBy                          String
-  assignedTo                        String?
-  addressedAt                       DateTime?
-  addressedBy                       String?
-  addressedComment                  String?                @db.NVarChar(Max)
-  clearedAt                         DateTime?
-  clearedBy                         String?
-  clearanceComment                  String?                @db.NVarChar(Max)
-  rejectedAt                        DateTime?
-  rejectionReason                   String?                @db.NVarChar(Max)
-  createdAt                         DateTime               @default(now())
-  updatedAt                         DateTime               @updatedAt
-  currentOwner                      String?
-  lastRespondedBy                   String?
-  lastRespondedAt                   DateTime?
-  User_ReviewNote_addressedByToUser User?                  @relation("ReviewNote_addressedByToUser", fields: [addressedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User_ReviewNote_assignedToToUser  User?                  @relation("ReviewNote_assignedToToUser", fields: [assignedTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  ReviewCategory                    ReviewCategory?        @relation(fields: [categoryId], references: [id])
-  User_ReviewNote_clearedByToUser   User?                  @relation("ReviewNote_clearedByToUser", fields: [clearedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User_ReviewNote_raisedByToUser       User                   @relation("ReviewNote_raisedByToUser", fields: [raisedBy], references: [id], onUpdate: NoAction)
-  User_ReviewNote_currentOwnerToUser   User?                  @relation("ReviewNote_currentOwnerToUser", fields: [currentOwner], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User_ReviewNote_lastRespondedByToUser User?                 @relation("ReviewNote_lastRespondedByToUser", fields: [lastRespondedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Task                              Task                   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  ReviewNoteAssignee                ReviewNoteAssignee[]
-  ReviewNoteAttachment              ReviewNoteAttachment[]
-  ReviewNoteComment                 ReviewNoteComment[]
+  id                                    Int                    @id @default(autoincrement())
+  taskId                                Int
+  title                                 String                 @db.NVarChar(255)
+  description                           String?                @db.NVarChar(Max)
+  referenceUrl                          String?
+  referenceType                         String                 @default("EXTERNAL") @db.NVarChar(20)
+  referenceId                           String?                @db.NVarChar(100)
+  section                               String?                @db.NVarChar(255)
+  status                                String                 @default("OPEN") @db.NVarChar(20)
+  priority                              String                 @default("MEDIUM") @db.NVarChar(20)
+  categoryId                            Int?
+  dueDate                               DateTime?
+  raisedBy                              String
+  assignedTo                            String?
+  addressedAt                           DateTime?
+  addressedBy                           String?
+  addressedComment                      String?                @db.NVarChar(Max)
+  clearedAt                             DateTime?
+  clearedBy                             String?
+  clearanceComment                      String?                @db.NVarChar(Max)
+  rejectedAt                            DateTime?
+  rejectionReason                       String?                @db.NVarChar(Max)
+  createdAt                             DateTime               @default(now())
+  updatedAt                             DateTime               @updatedAt
+  currentOwner                          String?
+  lastRespondedBy                       String?
+  lastRespondedAt                       DateTime?
+  User_ReviewNote_addressedByToUser     User?                  @relation("ReviewNote_addressedByToUser", fields: [addressedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_assignedToToUser      User?                  @relation("ReviewNote_assignedToToUser", fields: [assignedTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ReviewCategory                        ReviewCategory?        @relation(fields: [categoryId], references: [id])
+  User_ReviewNote_clearedByToUser       User?                  @relation("ReviewNote_clearedByToUser", fields: [clearedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_raisedByToUser        User                   @relation("ReviewNote_raisedByToUser", fields: [raisedBy], references: [id], onUpdate: NoAction)
+  User_ReviewNote_currentOwnerToUser    User?                  @relation("ReviewNote_currentOwnerToUser", fields: [currentOwner], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_ReviewNote_lastRespondedByToUser User?                  @relation("ReviewNote_lastRespondedByToUser", fields: [lastRespondedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Task                                  Task                   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  ReviewNoteAssignee                    ReviewNoteAssignee[]
+  ReviewNoteAttachment                  ReviewNoteAttachment[]
+  ReviewNoteComment                     ReviewNoteComment[]
 
   @@index([assignedTo])
   @@index([assignedTo, status])
@@ -1703,6 +1753,7 @@ model User {
   Account                                                                                                Account[]
   Approval_Approval_completedByIdToUser                                                                  Approval[]                          @relation("Approval_completedByIdToUser")
   Approval_Approval_requestedByIdToUser                                                                  Approval[]                          @relation("Approval_requestedByIdToUser")
+  ClientAcceptance                                                                                       ClientAcceptance[]
   ApprovalDelegation_ApprovalDelegation_fromUserIdToUser                                                 ApprovalDelegation[]                @relation("ApprovalDelegation_fromUserIdToUser")
   ApprovalDelegation_ApprovalDelegation_toUserIdToUser                                                   ApprovalDelegation[]                @relation("ApprovalDelegation_toUserIdToUser")
   ApprovalStep_ApprovalStep_approvedByIdToUser                                                           ApprovalStep[]                      @relation("ApprovalStep_approvedByIdToUser")

@@ -33,6 +33,10 @@ import { clientWipKeys } from '@/hooks/clients/useClientWip';
 import { clientDebtorsKeys } from '@/hooks/clients/useClientDebtors';
 import { clientGraphDataKeys } from '@/hooks/clients/useClientGraphData';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
+import { ClientAcceptanceCard } from '@/components/features/clients/ClientAcceptanceCard';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { ClientAcceptanceQuestionnaire } from '@/components/features/clients/ClientAcceptanceQuestionnaire';
+import { Banner } from '@/components/ui';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -47,6 +51,11 @@ export default function ServiceLineClientDetailPage() {
   const [taskPage, setTaskPage] = useState(1);
   const [taskLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAcceptanceConfirm, setShowAcceptanceConfirm] = useState(false);
+  const [showAcceptanceQuestionnaire, setShowAcceptanceQuestionnaire] = useState(false);
+  const [isInitializingAcceptance, setIsInitializingAcceptance] = useState(false);
+  const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
+  const [acceptanceSuccess, setAcceptanceSuccess] = useState<string | null>(null);
   
   // Fetch sub-service line groups to get the description
   const { data: subGroups, isLoading: isLoadingSubGroups } = useSubServiceLineGroups({
@@ -121,6 +130,47 @@ export default function ServiceLineClientDetailPage() {
     // Simple hash to keep stage consistent per project
     const stage = stages[taskId % stages.length];
     return stage || TaskStage.ENGAGE;
+  };
+
+  const handleStartAcceptance = async () => {
+    setIsInitializingAcceptance(true);
+    setAcceptanceError(null);
+    try {
+      // Initialize client acceptance via API
+      const response = await fetch(`/api/clients/${GSClientID}/acceptance/initialize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to initialize client acceptance');
+      }
+
+      // Success - close modal and show questionnaire
+      setShowAcceptanceConfirm(false);
+      setShowAcceptanceQuestionnaire(true);
+    } catch (error) {
+      setAcceptanceError(
+        error instanceof Error ? error.message : 'Failed to start client acceptance. Please try again.'
+      );
+    } finally {
+      setIsInitializingAcceptance(false);
+    }
+  };
+
+  const handleAcceptanceComplete = () => {
+    // Refresh client data to show updated acceptance status
+    queryClient.invalidateQueries({ queryKey: clientKeys.detail(GSClientID) });
+    queryClient.invalidateQueries({ queryKey: ['client', 'acceptance', 'status', client?.id] });
+    
+    // Hide questionnaire and show success message
+    setShowAcceptanceQuestionnaire(false);
+    setAcceptanceSuccess('Client acceptance submitted successfully and is pending Partner approval.');
+    setAcceptanceError(null);
+    
+    // Auto-hide success message after 5 seconds
+    setTimeout(() => setAcceptanceSuccess(null), 5000);
   };
 
   const handleTaskCreated = async (task: any) => {
@@ -299,6 +349,51 @@ export default function ServiceLineClientDetailPage() {
           initialServiceLine={serviceLine as ServiceLine}
           initialSubServiceLineGroup={subServiceLineGroup}
         />
+
+        {/* Client Acceptance Messages */}
+        {acceptanceError && (
+          <div className="mb-6">
+            <Banner
+              variant="error"
+              message={acceptanceError}
+              dismissible
+              onDismiss={() => setAcceptanceError(null)}
+            />
+          </div>
+        )}
+        {acceptanceSuccess && (
+          <div className="mb-6">
+            <Banner
+              variant="success"
+              message={acceptanceSuccess}
+              dismissible
+              onDismiss={() => setAcceptanceSuccess(null)}
+            />
+          </div>
+        )}
+
+        {/* Client Acceptance Section */}
+        <div className="mb-6">
+          <ClientAcceptanceCard
+            GSClientID={GSClientID}
+            clientCode={client.clientCode}
+            clientName={client.clientNameFull}
+            onStartAcceptance={() => {
+              setShowAcceptanceConfirm(true);
+            }}
+          />
+        </div>
+
+        {/* Show questionnaire if active */}
+        {showAcceptanceQuestionnaire && client && (
+          <div className="mb-6">
+            <ClientAcceptanceQuestionnaire
+              GSClientID={GSClientID}
+              clientName={client.clientNameFull}
+              onSubmitSuccess={handleAcceptanceComplete}
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
           {/* Left Column - Client Information (Extended) */}
@@ -712,6 +807,19 @@ export default function ServiceLineClientDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Client Acceptance Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showAcceptanceConfirm}
+        onClose={() => setShowAcceptanceConfirm(false)}
+        onConfirm={handleStartAcceptance}
+        title="Start Client Acceptance Assessment"
+        message={`You are about to begin the client acceptance assessment for ${client?.clientNameFull || 'this client'}. This assessment evaluates risk factors and requires Partner approval before engagement work can begin.`}
+        confirmText="Begin Assessment"
+        cancelText="Cancel"
+        variant="info"
+        isLoading={isInitializingAcceptance}
+      />
     </div>
   );
 }

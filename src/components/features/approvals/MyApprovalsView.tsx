@@ -5,7 +5,7 @@ import { ClipboardCheck, Bell, Archive } from 'lucide-react';
 import { useApprovals } from '@/hooks/approvals/useApprovals';
 import { LoadingSpinner } from '@/components/ui';
 import { ChangeRequestApprovalItem } from './ChangeRequestApprovalItem';
-import { ClientAcceptanceApprovalItem } from './ClientAcceptanceApprovalItem';
+import { EngagementAcceptanceApprovalItem } from './EngagementAcceptanceApprovalItem';
 import { ReviewNoteApprovalItem } from './ReviewNoteApprovalItem';
 import { UnifiedApprovalCard } from './UnifiedApprovalCard';
 import { NotificationItem } from '@/components/features/notifications/NotificationItem';
@@ -276,8 +276,8 @@ export function MyApprovalsView() {
                             : {}
                         }
                       >
-                        <span>Client Acceptance</span>
-                        {approvalsData.clientAcceptances.length > 0 && (
+                        <span>Engagement Acceptance</span>
+                        {approvalsData.engagementAcceptances && approvalsData.engagementAcceptances.length > 0 && (
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                               activeApprovalType === 'clientAcceptance'
@@ -285,7 +285,7 @@ export function MyApprovalsView() {
                                 : 'bg-forvis-blue-100 text-forvis-blue-700'
                             }`}
                           >
-                            {approvalsData.clientAcceptances.length}
+                            {approvalsData.engagementAcceptances.length}
                           </span>
                         )}
                       </button>
@@ -376,18 +376,18 @@ export function MyApprovalsView() {
                         </div>
                       )}
 
-                    {/* Client Acceptances */}
+                    {/* Engagement Acceptances */}
                     {(activeApprovalType === 'all' || activeApprovalType === 'clientAcceptance') &&
-                      approvalsData.clientAcceptances.length > 0 && (
+                      approvalsData.engagementAcceptances && approvalsData.engagementAcceptances.length > 0 && (
                         <div>
                           {activeApprovalType === 'all' && (
                             <h3 className="text-sm font-semibold text-forvis-gray-900 uppercase tracking-wider mb-3">
-                              Client Acceptance Approvals ({approvalsData.clientAcceptances.length})
+                              Engagement Acceptance Approvals ({approvalsData.engagementAcceptances.length})
                             </h3>
                           )}
                           <div className="space-y-3">
-                            {approvalsData.clientAcceptances.map((acceptance) => (
-                              <ClientAcceptanceApprovalItem
+                            {approvalsData.engagementAcceptances.map((acceptance) => (
+                              <EngagementAcceptanceApprovalItem
                                 key={acceptance.taskId}
                                 acceptance={acceptance}
                                 onOpenTaskModal={handleOpenTaskModal}
@@ -453,7 +453,7 @@ export function MyApprovalsView() {
                     {/* Empty State for Specific Tab */}
                     {activeApprovalType !== 'all' &&
                       ((activeApprovalType === 'changeRequests' && approvalsData.changeRequests.length === 0) ||
-                        (activeApprovalType === 'clientAcceptance' && approvalsData.clientAcceptances.length === 0) ||
+                        (activeApprovalType === 'clientAcceptance' && (!approvalsData.engagementAcceptances || approvalsData.engagementAcceptances.length === 0)) ||
                         (activeApprovalType === 'reviewNotes' && approvalsData.reviewNotes.length === 0) ||
                         (activeApprovalType === 'vaultDocuments' && (approvalsData.centralizedApprovals?.length || 0) === 0)) && (
                         <div className="text-center py-12">

@@ -8,6 +8,48 @@ alwaysApply: false
 
 This document provides comprehensive security guidelines including the page permissions system, role-based access control, and security best practices.
 
+## When To Apply This Rule
+
+- Implementing API routes (MUST use `secureRoute` wrapper)
+- Checking page-level permissions or access control
+- Working with role hierarchies or feature permissions
+- Implementing guards, gates, or access wrappers in UI
+- Validating user input or preventing IDOR attacks
+- Setting up audit logging or data protection
+- Configuring page permissions via Admin UI
+
+## Quick Reference
+
+**API Routes** (REQUIRED):
+```typescript
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+
+// Mutations: secureRoute.mutation({ feature, schema, handler })
+// Queries: secureRoute.query({ feature, handler })
+// AI: secureRoute.ai({ schema, handler })
+```
+
+**Page Protection**:
+```tsx
+import { PageAccessGuard } from '@/components/guards/PageAccessGuard';
+<PageAccessGuard pathname={pathname}>{children}</PageAccessGuard>
+```
+
+**UI Access Control**:
+```tsx
+import { FeatureGate } from '@/components/guards/FeatureGate';
+import { useFeature } from '@/hooks/useFeature';
+
+<FeatureGate feature={Feature.MANAGE_TASKS}><Button>Edit</Button></FeatureGate>
+const canManage = useFeature(Feature.MANAGE_TASKS);
+```
+
+**Role Hierarchy**: `SYSTEM_ADMIN` > `ADMINISTRATOR` > `PARTNER` > `MANAGER` > `SUPERVISOR` > `USER` > `VIEWER`
+
+**Access Levels**: `NONE` (redirect) | `VIEW` (read-only) | `FULL` (all actions)
+
+**4-Tier Lookup**: Redis Cache → Database Override → Code Override → Convention Default
+
 ## Overview
 
 The application implements a multi-layered security model:
@@ -855,3 +897,12 @@ The page permissions system provides:
 4. Cache invalidation is automatic
 5. View-only mode preserves data integrity
 6. All pages must use PageAccessGuard
+
+## Related Rules
+
+- **consolidated.mdc**: Main security patterns, API route requirements with `secureRoute`, role hierarchy
+- **forvis-design-rules.mdc**: UI components for security (`<FeatureGate>`, modals, no browser dialogs)
+- **ai-patterns.mdc**: Use `secureRoute.ai()` for AI endpoints with strict rate limiting
+- **blob-storage-rules.mdc**: File upload security, MIME validation, access control
+- **approval-system-rules.mdc**: Approval permissions, role-based routing, business logic authorization
+- **tool-system-rules.mdc**: Tool access permissions, service line-based authorization

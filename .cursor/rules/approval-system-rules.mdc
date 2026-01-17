@@ -1,7 +1,84 @@
 ---
-description: For approval services
+description: Centralized approval system for workflow management - use for all approval workflows
 alwaysApply: false
 ---
+
+# Approval System
+
+**Centralized approval workflow management system with multi-approver support, delegation, and conditional routing.**
+
+## When To Apply This Rule
+
+- Implementing any workflow requiring approval (acceptance, engagement letters, change requests, DPA, continuance, review notes)
+- Creating new approval routes or workflows
+- Handling approval actions (approve, reject, delegate)
+- Displaying approval status in UI
+- Working with any feature that requires multi-step approval
+
+## Core Principles
+
+1. **Centralized System**: ALL approval workflows MUST use the approval system - no custom approval logic
+2. **Workflow Registry**: Register all workflow types in `workflowRegistry.ts`
+3. **Route-Based Assignment**: Use approval routes to determine who approves what
+4. **Cache Invalidation**: ALWAYS call `invalidateApprovalsCache()` after mutations
+5. **Unified UI**: Use `UnifiedApprovalCard` component for displaying approvals
+
+## Implementation Guide
+
+### 1. Register Workflow Type
+
+Add to `src/lib/services/approvals/workflowRegistry.ts`:
+
+```typescript
+import type { WorkflowTypeConfig } from '@/types/approval';
+
+export const WORKFLOW_REGISTRY: Record<string, WorkflowTypeConfig> = {
+  YOUR_WORKFLOW: {
+    type: 'YOUR_WORKFLOW',
+    label: 'Your Workflow',
+    description: 'Description of your workflow',
+    tableName: 'YourTable',
+    defaultRoute: 'your-default-route', // Name of ApprovalRoute
+    allowedRoutes: ['your-default-route', 'alternative-route'],
+  },
+  // ... existing workflows
+};
+```
+
+### 2. Create Approval Route
+
+Routes can be created via:
+- Database seed: `prisma/seed-approval-routes.sql`
+- API: `POST /api/admin/approval-routes`
+
+**Route Structure:**
+```json
+{
+  "name": "your-route",
+  "description": "Description",
+  "workflowType": "YOUR_WORKFLOW",
+  "requiresAllSteps": true,
+  "steps": [
+    {
+      "stepNumber": 1,
+      "stepType": "ROLE",
+      "roleRequired": "PARTNER",
+      "condition": "context.riskLevel > 3"
+    }
+  ]
+}
+```
+
+### 3. Create Approval in Your Service
+
+```typescript
+import { approvalService } from '@/lib/services/approvals/approvalService';
+
+// When creating item that needs approval
+const approval = await approvalService.createApproval({
+  workflowType: 'YOUR_WORKFLOW',
+  workflowId: item.id,
+  title: 'Descriptive title',
   priority: 'MEDIUM', // LOW, MEDIUM, HIGH, URGENT
   requestedById: user.id,
   routeName: 'your-route', // Optional - uses default if not provided
@@ -57,9 +134,9 @@ function YourComponent() {
 }
 ```
 
-## Approval Routes
+## Pre-Configured Routes
 
-**Pre-configured routes:**
+**Default routes available:**
 - `partner-approval` - Single partner approval (default for ACCEPTANCE, ENGAGEMENT_LETTER, DPA)
 - `dual-approval` - Both proposed + current employee (default for CHANGE_REQUEST)
 - `single-approval` - Only proposed employee (alternative for CHANGE_REQUEST)
@@ -69,11 +146,20 @@ function YourComponent() {
 
 ## Key Features
 
-**Multi-Approver Support:**
-- Sequential: All steps must be completed in order (`requiresAllSteps: true`)
-- Parallel: Any one step can complete the approval (`requiresAllSteps: false`)
+### Multi-Approver Support
 
-**Delegation:**
+**Sequential** (`requiresAllSteps: true`):
+- All steps must be completed in order
+- Step 2 can't start until Step 1 is approved
+- Used for hierarchical approvals
+
+**Parallel** (`requiresAllSteps: false`):
+- Any one step can complete the approval
+- All steps are active simultaneously
+- Used for "any partner can approve" scenarios
+
+### Delegation
+
 Users can delegate approvals when out of office:
 
 ```typescript
@@ -86,7 +172,8 @@ await approvalService.delegateApprovals(fromUserId, {
 });
 ```
 
-**Conditional Routing:**
+### Conditional Routing
+
 Routes can include conditions that determine which steps apply:
 
 ```json
@@ -94,6 +181,8 @@ Routes can include conditions that determine which steps apply:
   "condition": "context.riskLevel > 3"
 }
 ```
+
+Supported operators: `>`, `<`, `>=`, `<=`, `==`, `!=`, `&&`, `||`
 
 ## Don'ts
 
@@ -114,16 +203,37 @@ If migrating existing approval logic:
 5. Update UI to use `UnifiedApprovalCard`
 6. Deprecate old approval fields (keep for data migration period)
 
-## Files Reference
+## Related Rules
 
-**Core Service:** `src/lib/services/approvals/approvalService.ts`
-**Workflow Registry:** `src/lib/services/approvals/workflowRegistry.ts`
-**Types:** `src/types/approval.ts`
-**UI Component:** `src/components/features/approvals/UnifiedApprovalCard.tsx`
-**Hooks:** `src/hooks/approvals/useUnifiedApprovals.ts`
-**API Endpoints:** `src/app/api/approvals/[id]/steps/[stepId]/{approve,reject}/route.ts`
-**Seed Routes:** `prisma/seed-approval-routes.sql`
+- **consolidated.mdc**: Main project conventions, security patterns, database conventions
+- **tool-system-rules.mdc**: Tool-approval integration patterns (see "Integration with Approval System" section)
+- **security-rules.mdc**: API route security, permissions, role-based access control
+- **forvis-design-rules.mdc**: UI components for approval displays, modal patterns
 
-## Documentation
+## Quick Reference
 
-See `GENERIC_APPROVAL_SYSTEM_IMPLEMENTATION.md` for complete implementation details and examples.
+**Files:**
+- Core Service: `src/lib/services/approvals/approvalService.ts`
+- Workflow Registry: `src/lib/services/approvals/workflowRegistry.ts`
+- Types: `src/types/approval.ts`
+- UI Component: `src/components/features/approvals/UnifiedApprovalCard.tsx`
+- Hooks: `src/hooks/approvals/useUnifiedApprovals.ts`
+- API Endpoints: `src/app/api/approvals/[id]/steps/[stepId]/{approve,reject}/route.ts`
+- Seed Routes: `prisma/seed-approval-routes.sql`
+
+**Common Tasks:**
+```typescript
+// Create approval
+await approvalService.createApproval({ workflowType, workflowId, title, requestedById, context });
+
+// Invalidate cache
+await invalidateApprovalsCache();
+
+// Get user's approvals
+const approvals = await approvalService.getUserApprovals(userId, { status: 'PENDING' });
+
+// Delegate approvals
+await approvalService.delegateApprovals(fromUserId, { toUserId, startDate, endDate });
+```
+
+**Documentation:** See `GENERIC_APPROVAL_SYSTEM_IMPLEMENTATION.md` for complete implementation details.

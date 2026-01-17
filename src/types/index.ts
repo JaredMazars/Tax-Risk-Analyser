@@ -141,6 +141,62 @@ export interface Client {
   industry?: string | null;
   createdAt: Date;
   updatedAt: Date;
+  // Client acceptance fields (flattened from ClientAcceptance relation)
+  clientAcceptanceId?: number | null;
+  clientAcceptanceApproved?: boolean;
+  clientAcceptanceRiskRating?: string | null;
+  clientAcceptanceApprovedAt?: Date | null;
+  clientAcceptanceApprovedBy?: string | null;
+}
+
+// Client Acceptance (client-level risk assessment)
+export interface ClientAcceptance {
+  id: number;
+  clientId: number;
+  riskRating: string | null; // LOW, MEDIUM, HIGH
+  overallRiskScore: number | null;
+  riskSummary: string | null;
+  completedAt: Date | null;
+  completedBy: string | null;
+  approvedAt: Date | null;
+  approvedBy: string | null;
+  approvalId: number | null;
+  validUntil: Date | null;
+  lastReviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  client?: Client;
+  answers?: ClientAcceptanceAnswer[];
+}
+
+// Client Acceptance Answer
+export interface ClientAcceptanceAnswer {
+  id: number;
+  clientAcceptanceId: number;
+  questionId: number;
+  answer: string | null;
+  comment: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  question?: AcceptanceQuestion;
+}
+
+// Acceptance Question (shared by both client and engagement acceptance)
+export interface AcceptanceQuestion {
+  id: number;
+  questionnaireType: string; // CLIENT_ACCEPTANCE, ENGAGEMENT_ACCEPTANCE_FULL, ENGAGEMENT_ACCEPTANCE_LITE
+  sectionKey: string;
+  questionKey: string;
+  questionText: string;
+  description: string | null;
+  fieldType: string; // text, textarea, select, radio, checkbox, date
+  options: string | null; // JSON string for select/radio/checkbox
+  required: boolean;
+  order: number;
+  riskWeight: number;
+  highRiskAnswers: string | null; // JSON array of high-risk answer values
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Enhanced Project

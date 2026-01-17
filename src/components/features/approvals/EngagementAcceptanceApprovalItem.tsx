@@ -2,13 +2,13 @@
 
 import { CheckCircle, Briefcase, Building2, Calendar, AlertTriangle, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
-import type { ClientAcceptanceApproval } from '@/types/approvals';
+import type { EngagementAcceptanceApproval } from '@/types/approvals';
 import { Button } from '@/components/ui';
 import { StatusBadge } from './StatusBadge';
 import { WorkflowTimeline } from './WorkflowTimeline';
 
-interface ClientAcceptanceApprovalItemProps {
-  acceptance: ClientAcceptanceApproval;
+interface EngagementAcceptanceApprovalItemProps {
+  acceptance: EngagementAcceptanceApproval;
   onOpenTaskModal?: (taskData: {
     taskId: string;
     serviceLine?: string;
@@ -18,7 +18,7 @@ interface ClientAcceptanceApprovalItemProps {
   showArchived?: boolean;
 }
 
-export function ClientAcceptanceApprovalItem({ acceptance, onOpenTaskModal, showArchived = false }: ClientAcceptanceApprovalItemProps) {
+export function EngagementAcceptanceApprovalItem({ acceptance, onOpenTaskModal, showArchived = false }: EngagementAcceptanceApprovalItemProps) {
 
   const getRiskColor = (rating: string | null) => {
     if (!rating) return 'text-forvis-gray-600';
@@ -87,7 +87,7 @@ export function ClientAcceptanceApprovalItem({ acceptance, onOpenTaskModal, show
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
                 <h4 className="text-sm font-semibold text-forvis-gray-900">
-                  Client Acceptance Questionnaire
+                  Engagement Acceptance Questionnaire
                 </h4>
                 <div className="flex items-center space-x-2 mt-1 text-xs text-forvis-gray-600">
                   <Briefcase className="h-3 w-3" />

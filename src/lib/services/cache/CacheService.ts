@@ -26,6 +26,7 @@ export const CACHE_PREFIXES = {
   RATE_LIMIT: 'rl:',
   USER: 'user:',
   CLIENT: 'client:',
+  CLIENT_ACCEPTANCE: 'client:acceptance:',
   TASK: 'task:',
   SERVICE_LINE: 'sl:',
   NOTIFICATION: 'notif:',

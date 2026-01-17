@@ -1,22 +1,25 @@
 /**
  * Task Workflow Utility Functions
  * 
- * Helper functions for managing client acceptance and engagement letter workflow.
+ * Helper functions for managing client acceptance, engagement acceptance, and engagement letter workflow.
  */
 
 export interface TaskWorkflowStatus {
   isClientTask: boolean;
-  acceptanceApproved: boolean;
+  clientAcceptanceRequired: boolean;
+  clientAcceptanceApproved: boolean;
+  acceptanceApproved: boolean; // Engagement acceptance
   engagementLetterComplete: boolean;
   dpaComplete: boolean;
   canAccessWorkTabs: boolean;
-  currentStep: 'acceptance' | 'engagement' | 'dpa' | 'complete';
+  currentStep: 'client_acceptance' | 'acceptance' | 'engagement' | 'dpa' | 'complete';
   nextStep: string;
 }
 
 export interface TaskWorkflowData {
   GSClientID?: string | null;  // External GUID - for client relationship
-  acceptanceApproved?: boolean;
+  clientId?: number | null; // Internal client ID
+  acceptanceApproved?: boolean; // Engagement acceptance
   acceptanceApprovedBy?: string | null;
   acceptanceApprovedAt?: Date | string | null;
   engagementLetterGenerated?: boolean;
@@ -30,6 +33,11 @@ export interface TaskWorkflowData {
   dpaUploadedAt?: Date | string | null;
 }
 
+export interface ClientAcceptanceData {
+  clientAcceptanceApproved?: boolean;
+  clientAcceptanceApprovedAt?: Date | string | null;
+}
+
 /**
  * Check if a task is a client task (requires workflow)
  */
@@ -39,9 +47,13 @@ export function isClientTask(task: TaskWorkflowData | null | undefined): boolean
 }
 
 /**
- * Check if work tabs can be accessed (acceptance approved AND engagement letter uploaded AND DPA uploaded)
+ * Check if work tabs can be accessed
+ * (client acceptance approved AND engagement acceptance approved AND engagement letter uploaded AND DPA uploaded)
  */
-export function canAccessWorkTabs(task: TaskWorkflowData | null | undefined): boolean {
+export function canAccessWorkTabs(
+  task: TaskWorkflowData | null | undefined,
+  clientAcceptance?: ClientAcceptanceData | null
+): boolean {
   if (!task) return false;
   
   // Internal tasks (no client) can always access work tabs
@@ -49,19 +61,30 @@ export function canAccessWorkTabs(task: TaskWorkflowData | null | undefined): bo
     return true;
   }
   
-  // Client tasks need acceptance, engagement letter, and DPA complete
-  return Boolean(task.acceptanceApproved && task.engagementLetterUploaded && task.dpaUploaded);
+  // Client tasks need ALL steps complete
+  const clientAcceptanceApproved = Boolean(clientAcceptance?.clientAcceptanceApproved);
+  return Boolean(
+    clientAcceptanceApproved && 
+    task.acceptanceApproved && 
+    task.engagementLetterUploaded && 
+    task.dpaUploaded
+  );
 }
 
 /**
- * Get the current workflow status
+ * Get the current workflow status (with optional client acceptance data)
  */
-export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): TaskWorkflowStatus {
+export function getWorkflowStatus(
+  task: TaskWorkflowData | null | undefined,
+  clientAcceptance?: ClientAcceptanceData | null
+): TaskWorkflowStatus {
   const isClient = isClientTask(task);
   
   if (!isClient) {
     return {
       isClientTask: false,
+      clientAcceptanceRequired: false,
+      clientAcceptanceApproved: true,
       acceptanceApproved: true,
       engagementLetterComplete: true,
       dpaComplete: true,
@@ -71,16 +94,20 @@ export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): Ta
     };
   }
   
-  const acceptanceApproved = Boolean(task?.acceptanceApproved);
+  const clientAcceptanceApproved = Boolean(clientAcceptance?.clientAcceptanceApproved);
+  const acceptanceApproved = Boolean(task?.acceptanceApproved); // Engagement acceptance
   const engagementLetterComplete = Boolean(task?.engagementLetterUploaded);
   const dpaComplete = Boolean(task?.dpaUploaded);
   
-  let currentStep: 'acceptance' | 'engagement' | 'dpa' | 'complete';
+  let currentStep: 'client_acceptance' | 'acceptance' | 'engagement' | 'dpa' | 'complete';
   let nextStep: string;
   
-  if (!acceptanceApproved) {
+  if (!clientAcceptanceApproved) {
+    currentStep = 'client_acceptance';
+    nextStep = 'Complete Client Acceptance for this client';
+  } else if (!acceptanceApproved) {
     currentStep = 'acceptance';
-    nextStep = 'Complete client acceptance and continuance';
+    nextStep = 'Complete Engagement Acceptance for this task';
   } else if (!engagementLetterComplete) {
     currentStep = 'engagement';
     nextStep = 'Upload signed engagement letter';
@@ -94,10 +121,12 @@ export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): Ta
   
   return {
     isClientTask: true,
+    clientAcceptanceRequired: true,
+    clientAcceptanceApproved,
     acceptanceApproved,
     engagementLetterComplete,
     dpaComplete,
-    canAccessWorkTabs: acceptanceApproved && engagementLetterComplete && dpaComplete,
+    canAccessWorkTabs: clientAcceptanceApproved && acceptanceApproved && engagementLetterComplete && dpaComplete,
     currentStep,
     nextStep,
   };
@@ -106,15 +135,22 @@ export function getWorkflowStatus(task: TaskWorkflowData | null | undefined): Ta
 /**
  * Get message to display for blocked tabs
  */
-export function getBlockedTabMessage(task: TaskWorkflowData | null | undefined): string {
+export function getBlockedTabMessage(
+  task: TaskWorkflowData | null | undefined,
+  clientAcceptance?: ClientAcceptanceData | null
+): string {
   if (!task || !isClientTask(task)) {
     return '';
   }
   
-  const status = getWorkflowStatus(task);
+  const status = getWorkflowStatus(task, clientAcceptance);
+  
+  if (!status.clientAcceptanceApproved) {
+    return 'Client Acceptance must be completed before accessing this task';
+  }
   
   if (!status.acceptanceApproved) {
-    return 'Complete client acceptance and continuance to access this tab';
+    return 'Complete Engagement Acceptance to access this tab';
   }
   
   if (!status.engagementLetterComplete) {
@@ -131,24 +167,36 @@ export function getBlockedTabMessage(task: TaskWorkflowData | null | undefined):
 /**
  * Check if engagement letter can be generated/uploaded
  */
-export function canManageEngagementLetter(task: TaskWorkflowData | null | undefined): boolean {
+export function canManageEngagementLetter(
+  task: TaskWorkflowData | null | undefined,
+  clientAcceptance?: ClientAcceptanceData | null
+): boolean {
   if (!task || !isClientTask(task)) {
     return false;
   }
   
-  return Boolean(task.acceptanceApproved);
+  // Need both client acceptance and engagement acceptance approved
+  const clientAcceptanceApproved = Boolean(clientAcceptance?.clientAcceptanceApproved);
+  return Boolean(clientAcceptanceApproved && task.acceptanceApproved);
 }
 
 /**
  * Get workflow progress percentage
  */
-export function getWorkflowProgress(task: TaskWorkflowData | null | undefined): number {
+export function getWorkflowProgress(
+  task: TaskWorkflowData | null | undefined,
+  clientAcceptance?: ClientAcceptanceData | null
+): number {
   if (!task || !isClientTask(task)) {
     return 100;
   }
   
   let progress = 0;
-  const stepValue = 100 / 3; // Three steps: A&C, EL, DPA
+  const stepValue = 100 / 4; // Four steps: Client Acceptance, Engagement Acceptance, EL, DPA
+  
+  if (clientAcceptance?.clientAcceptanceApproved) {
+    progress += stepValue;
+  }
   
   if (task.acceptanceApproved) {
     progress += stepValue;

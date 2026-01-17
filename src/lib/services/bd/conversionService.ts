@@ -5,6 +5,7 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { v4 as uuidv4 } from 'uuid';
+import { isClientAcceptanceValid } from '@/lib/services/acceptance/clientAcceptanceService';
 
 export interface ConversionResult {
   client: {
@@ -22,6 +23,7 @@ export interface ConversionResult {
     convertedToClientId: number;  // Renamed for clarity
     convertedAt: Date;
   };
+  needsClientAcceptance: boolean; // Flag indicating if client acceptance is required
 }
 
 /**
@@ -137,6 +139,9 @@ export async function convertOpportunityToClient(
     });
   }
 
+  // Check if client acceptance is needed
+  const hasValidAcceptance = await isClientAcceptanceValid(client.id);
+
   const result: ConversionResult = {
     client: {
       id: client.id,
@@ -149,6 +154,7 @@ export async function convertOpportunityToClient(
       convertedToClientId: updatedOpportunity.convertedToClientId!,
       convertedAt: updatedOpportunity.convertedAt!,
     },
+    needsClientAcceptance: !hasValidAcceptance,
   };
 
   if (task) {

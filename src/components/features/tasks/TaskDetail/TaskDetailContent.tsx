@@ -624,7 +624,7 @@ export function TaskDetailContent({
             title="Task Setup Required"
             message={
               !task.acceptanceApproved 
-                ? 'Complete client acceptance and continuance to continue with this task.'
+                ? 'Complete Engagement Acceptance to continue with this task.'
                 : 'Upload the signed engagement letter to access task work tabs.'
             }
             className="mb-4"
@@ -785,14 +785,14 @@ export function TaskDetailContent({
                       selected={activeTab === 'acceptance'}
                       icon={UserRoundCheck}
                     >
-                      Acceptance
+                      Engagement Acceptance
                     </Tab>
                     <Tab
                       onClick={() => handleTabChange('engagement-letter')}
                       selected={activeTab === 'engagement-letter'}
                       icon={FilePen}
                       disabled={!task.acceptanceApproved}
-                      tooltip={!task.acceptanceApproved ? 'Complete client acceptance first' : undefined}
+                      tooltip={!task.acceptanceApproved ? 'Complete Engagement Acceptance first' : undefined}
                     >
                       Engagement Documentation
                     </Tab>

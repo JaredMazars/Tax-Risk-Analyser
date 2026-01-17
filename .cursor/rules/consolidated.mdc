@@ -6,14 +6,57 @@ alwaysApply: true
 
 Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure OpenAI | Azure AD
 
-## Styling & AI
+## Specialized Rule Files (When To Consult)
 
-- Styling: See `.cursor/rules/forvis-design-rules.mdc`
-- AI: See `.cursor/rules/ai-patterns.mdc`
-- Blob Storage: See `.cursor/rules/blob-storage-rules.mdc`
-- Approval System: See `.cursor/rules/approval-system-rules.mdc`
-- Tool System: See `.cursor/rules/tool-system-rules.mdc`
-- Security & Page Permissions: See `.cursor/rules/security-rules.mdc`
+**ALWAYS consult these files for their specific domains:**
+
+### `.cursor/rules/forvis-design-rules.mdc` (CRITICAL)
+**When:** Building ANY UI components, modals, forms, cards, or interactive elements
+**Key Rules:** 
+- NEVER use browser dialogs (`confirm()`, `alert()`, `prompt()`)
+- Use `@/components/ui` imports for all UI components
+- Follow gradient registry for backgrounds and styling
+- Use Banner component (NOT toast libraries like sonner/react-toastify)
+
+### `.cursor/rules/security-rules.mdc` (REQUIRED)
+**When:** Creating API routes, implementing page permissions, or access control
+**Key Rules:**
+- ALL API routes MUST use `secureRoute` wrapper
+- Use `<PageAccessGuard>` for page protection
+- Use `<FeatureGate>` for conditional UI rendering
+- Follow 4-tier permission lookup (Cache → DB → Code → Convention)
+
+### `.cursor/rules/approval-system-rules.mdc`
+**When:** Implementing ANY workflow requiring approval (acceptance, engagement letters, change requests, DPA, review notes)
+**Key Rules:**
+- Use centralized `approvalService.createApproval()`
+- Register workflow type in `workflowRegistry.ts`
+- ALWAYS call `invalidateApprovalsCache()` after mutations
+- Use `UnifiedApprovalCard` for UI display
+
+### `.cursor/rules/ai-patterns.mdc`
+**When:** Using Azure OpenAI, document intelligence, RAG, or AI agents
+**Key Rules:**
+- Import models from `@/lib/ai/config`
+- Use `secureRoute.ai()` for AI endpoints (strict rate limiting)
+- Check `RAGEngine.isConfigured()` before use
+- Follow service selection hierarchy (orchestrator → individual agents → RAG → direct SDK)
+
+### `.cursor/rules/blob-storage-rules.mdc`
+**When:** Uploading files to Azure Blob Storage or creating new document storage features
+**Key Rules:**
+- MUST use purpose-specific containers (never mix document types)
+- Follow naming: `{purpose}` or `{purpose}-{category}`
+- Path structure: `{entityId}/{timestamp}_{sanitized_filename}`
+- Create dedicated container client for each document type
+
+### `.cursor/rules/tool-system-rules.mdc`
+**When:** Creating tools, working with junction tables, or tool-task relationships
+**Key Rules:**
+- All Prisma relations MUST use PascalCase matching model names
+- Junction tables: `[Entity1][Entity2]` naming pattern
+- User relations: Use descriptive names `User_[Model]_[field]ToUser`
+- Tools integrate with approval system for items requiring approval
 
 ## TypeScript
 
@@ -220,7 +263,78 @@ const { canAccess, accessLevel } = await checkPageAccess(userId, pathname);
 - `<FeatureGate feature={Feature.X}>` for conditional UI
 - `useFeature(Feature.X)` hook for checks
 - Server Components default, `'use client'` only when needed
-- NEVER use `confirm()`, `alert()`, `prompt()` - use custom modals
+
+### User Interface & Interaction Patterns (CRITICAL)
+
+**Browser Dialogs Are PROHIBITED:**
+- ❌ NEVER use `confirm()` - unprofessional, no branding, poor UX
+- ❌ NEVER use `alert()` - breaks user flow, cannot be styled
+- ❌ NEVER use `prompt()` - inadequate validation, poor accessibility
+
+**Instead, use custom modal components:**
+- ✅ Confirmation modals for destructive actions (delete, archive, etc.)
+- ✅ Banner components for success/error messages (NOT toast libraries)
+- ✅ Inline validation for forms
+- ✅ Modal dialogs with proper context and branding
+
+**Implementation:**
+```typescript
+// ❌ WRONG: Browser dialog
+if (!confirm('Delete this item?')) return;
+
+// ✅ CORRECT: Custom modal
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+const [showConfirm, setShowConfirm] = useState(false);
+
+<ConfirmModal
+  isOpen={showConfirm}
+  onClose={() => setShowConfirm(false)}
+  onConfirm={handleDelete}
+  title="Delete Client?"
+  message={`Are you sure you want to delete "${clientName}"? This action cannot be undone.`}
+  confirmText="Delete"
+  variant="danger"
+/>
+
+// ❌ WRONG: Alert for errors
+alert('Failed to save');
+
+// ❌ WRONG: External toast libraries (sonner, react-toastify, etc.)
+import { toast } from 'sonner';
+toast.error('Failed to save');
+
+// ✅ CORRECT: Banner component with state management
+import { Banner } from '@/components/ui';
+const [error, setError] = useState<string | null>(null);
+const [success, setSuccess] = useState<string | null>(null);
+
+// On error
+setError('Failed to save changes. Please try again.');
+
+// On success
+setSuccess('Changes saved successfully');
+setTimeout(() => setSuccess(null), 5000); // Auto-hide after 5s
+
+// In JSX
+{error && (
+  <Banner 
+    variant="error" 
+    message={error}
+    dismissible
+    onDismiss={() => setError(null)}
+  />
+)}
+{success && (
+  <Banner 
+    variant="success" 
+    message={success}
+    dismissible
+    onDismiss={() => setSuccess(null)}
+  />
+)}
+```
+
+**See:** `.cursor/rules/forvis-design-rules.mdc` for modal component specifications
 
 ### Input Validation & Sanitization
 

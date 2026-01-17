@@ -18,7 +18,10 @@ export enum Feature {
   // Task Management
   MANAGE_TASKS = 'manage_tasks',
   ASSIGN_TASK_TEAM = 'assign_task_team',
-  APPROVE_ACCEPTANCE = 'approve_acceptance',
+  MANAGE_CLIENT_ACCEPTANCE = 'manage_client_acceptance',
+  APPROVE_CLIENT_ACCEPTANCE = 'approve_client_acceptance',
+  APPROVE_ACCEPTANCE = 'approve_acceptance', // Renamed to APPROVE_ENGAGEMENT_ACCEPTANCE (kept for backwards compatibility)
+  APPROVE_ENGAGEMENT_ACCEPTANCE = 'approve_engagement_acceptance',
   APPROVE_ENGAGEMENT_LETTER = 'approve_engagement_letter',
 
   // Client Management
@@ -81,7 +84,9 @@ export const FEATURE_CATEGORIES = {
   TASK_MANAGEMENT: [
     Feature.MANAGE_TASKS,
     Feature.ASSIGN_TASK_TEAM,
-    Feature.APPROVE_ACCEPTANCE,
+    Feature.MANAGE_CLIENT_ACCEPTANCE,
+    Feature.APPROVE_CLIENT_ACCEPTANCE,
+    Feature.APPROVE_ENGAGEMENT_ACCEPTANCE,
     Feature.APPROVE_ENGAGEMENT_LETTER,
   ],
   CLIENT_MANAGEMENT: [
@@ -138,7 +143,10 @@ export const FEATURE_DESCRIPTIONS: Record<Feature, string> = {
 
   [Feature.MANAGE_TASKS]: 'Create, edit, and manage tasks',
   [Feature.ASSIGN_TASK_TEAM]: 'Assign team members to tasks',
-  [Feature.APPROVE_ACCEPTANCE]: 'Approve client acceptance questionnaires',
+  [Feature.MANAGE_CLIENT_ACCEPTANCE]: 'Complete and manage client acceptance assessments',
+  [Feature.APPROVE_CLIENT_ACCEPTANCE]: 'Approve client risk assessments (Partner only)',
+  [Feature.APPROVE_ACCEPTANCE]: 'Approve engagement acceptance questionnaires (legacy)',
+  [Feature.APPROVE_ENGAGEMENT_ACCEPTANCE]: 'Approve engagement acceptance questionnaires',
   [Feature.APPROVE_ENGAGEMENT_LETTER]: 'Approve engagement letters',
 
   [Feature.MANAGE_CLIENTS]: 'Create and edit client information',

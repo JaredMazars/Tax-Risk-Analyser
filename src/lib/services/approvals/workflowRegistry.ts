@@ -3,7 +3,7 @@
  * Registry of all approval workflows with their configuration
  */
 
-import { UserCog, CheckCircle, FileText, Shield, MessageSquare, RefreshCw, FolderOpen } from 'lucide-react';
+import { UserCog, CheckCircle, FileText, Shield, MessageSquare, RefreshCw, FolderOpen, Building } from 'lucide-react';
 import { prisma } from '@/lib/db/prisma';
 import type { WorkflowRegistryEntry, WorkflowType } from '@/types/approval';
 
@@ -47,8 +47,40 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
     },
   },
 
-  ACCEPTANCE: {
+  CLIENT_ACCEPTANCE: {
     name: 'Client Acceptance',
+    icon: Building,
+    defaultRoute: 'partner-approval',
+    fetchData: async (workflowId: number) => {
+      return await prisma.clientAcceptance.findUnique({
+        where: { id: workflowId },
+        include: {
+          Client: {
+            select: {
+              id: true,
+              GSClientID: true,
+              clientCode: true,
+              clientNameFull: true,
+              groupCode: true,
+              groupDesc: true,
+            },
+          },
+        },
+      });
+    },
+    getDisplayTitle: (data: any) => {
+      const clientName = data?.Client?.clientNameFull || data?.Client?.clientCode || 'Unknown Client';
+      return `Client Acceptance for ${clientName}`;
+    },
+    getDisplayDescription: (data: any) => {
+      const riskRating = data?.riskRating || 'Pending';
+      const score = data?.overallRiskScore ? ` (${data.overallRiskScore.toFixed(1)}%)` : '';
+      return `Risk Rating: ${riskRating}${score}`;
+    },
+  },
+
+  ACCEPTANCE: {
+    name: 'Engagement Acceptance',
     icon: CheckCircle,
     defaultRoute: 'partner-approval',
     fetchData: async (workflowId: number) => {
@@ -75,7 +107,7 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
     },
     getDisplayTitle: (data: any) => {
       const taskName = data?.Task?.TaskDesc || data?.Task?.TaskCode || 'Unknown Task';
-      return `Client Acceptance for ${taskName}`;
+      return `Engagement Acceptance for ${taskName}`;
     },
     getDisplayDescription: (data: any) => {
       const riskRating = data?.riskRating || 'Unknown';

@@ -1,0 +1,640 @@
+/**
+ * Client Acceptance Service
+ * Business logic for client-level risk assessment and acceptance
+ */
+
+import { prisma } from '@/lib/db/prisma';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { 
+  CLIENT_ACCEPTANCE_QUESTIONNAIRE,
+  type AcceptanceQuestionDef 
+} from '@/constants/acceptance-questions';
+import type { ClientAcceptance, ClientAcceptanceAnswer } from '@/types';
+import type { CompanyResearchResult } from '@/lib/services/bd/companyResearchAgent';
+
+export interface ClientAcceptanceStatus {
+  exists: boolean;
+  completed: boolean;
+  approved: boolean;
+  researchCompleted: boolean;
+  researchSkipped: boolean;
+  riskRating: string | null;
+  overallRiskScore: number | null;
+  completedAt: Date | null;
+  completedBy: string | null;
+  approvedAt: Date | null;
+  approvedBy: string | null;
+  validUntil: Date | null;
+}
+
+export interface CreateClientAcceptanceInput {
+  clientId: number;
+  userId: string;
+}
+
+export interface SubmitClientAcceptanceInput {
+  clientId: number;
+  answers: Record<string, { answer: string; comment?: string }>;
+  userId: string;
+}
+
+export interface ApproveClientAcceptanceInput {
+  clientId: number;
+  userId: string;
+  approvalId?: number;
+}
+
+/**
+ * Get question ID from questionKey
+ */
+export async function getQuestionIdFromKey(
+  questionKey: string,
+  questionnaireType: string = 'CLIENT_ACCEPTANCE'
+): Promise<number | null> {
+  const question = await prisma.acceptanceQuestion.findUnique({
+    where: {
+      questionnaireType_questionKey: {
+        questionnaireType,
+        questionKey,
+      },
+    },
+    select: { id: true },
+  });
+  return question?.id || null;
+}
+
+/**
+ * Check if a client has a valid acceptance
+ */
+export async function getClientAcceptanceStatus(
+  clientId: number
+): Promise<ClientAcceptanceStatus> {
+  const acceptance = await prisma.clientAcceptance.findUnique({
+    where: { clientId },
+    select: {
+      id: true,
+      completedAt: true,
+      completedBy: true,
+      approvedAt: true,
+      approvedBy: true,
+      riskRating: true,
+      overallRiskScore: true,
+      validUntil: true,
+      researchCompleted: true,
+      researchSkipped: true,
+    },
+  });
+
+  if (!acceptance) {
+    return {
+      exists: false,
+      completed: false,
+      approved: false,
+      researchCompleted: false,
+      researchSkipped: false,
+      riskRating: null,
+      overallRiskScore: null,
+      completedAt: null,
+      completedBy: null,
+      approvedAt: null,
+      approvedBy: null,
+      validUntil: null,
+    };
+  }
+
+  return {
+    exists: true,
+    completed: Boolean(acceptance.completedAt),
+    approved: Boolean(acceptance.approvedAt),
+    researchCompleted: acceptance.researchCompleted,
+    researchSkipped: acceptance.researchSkipped,
+    riskRating: acceptance.riskRating,
+    overallRiskScore: acceptance.overallRiskScore,
+    completedAt: acceptance.completedAt,
+    completedBy: acceptance.completedBy,
+    approvedAt: acceptance.approvedAt,
+    approvedBy: acceptance.approvedBy,
+    validUntil: acceptance.validUntil,
+  };
+}
+
+/**
+ * Check if client acceptance is valid (exists and approved)
+ */
+export async function isClientAcceptanceValid(clientId: number): Promise<boolean> {
+  const acceptance = await prisma.clientAcceptance.findUnique({
+    where: { clientId },
+    select: {
+      approvedAt: true,
+      validUntil: true,
+    },
+  });
+
+  if (!acceptance || !acceptance.approvedAt) {
+    return false;
+  }
+
+  // Check if still valid (if validUntil is set)
+  if (acceptance.validUntil) {
+    return new Date() < acceptance.validUntil;
+  }
+
+  return true;
+}
+
+/**
+ * Determine if client needs acceptance
+ * Returns true if no acceptance exists or if it has expired
+ */
+export async function needsClientAcceptance(clientId: number): Promise<boolean> {
+  return !(await isClientAcceptanceValid(clientId));
+}
+
+/**
+ * Get or create client acceptance record
+ */
+export async function getOrCreateClientAcceptance(
+  clientId: number,
+  userId: string
+): Promise<ClientAcceptance> {
+  // Check if client exists
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { id: true, clientNameFull: true },
+  });
+
+  if (!client) {
+    throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
+  }
+
+  // Try to find existing acceptance
+  let acceptance = await prisma.clientAcceptance.findUnique({
+    where: { clientId },
+    include: {
+      ClientAcceptanceAnswer: {
+        include: {
+          AcceptanceQuestion: true,
+        },
+      },
+    },
+  });
+
+  if (!acceptance) {
+    // Create new acceptance record
+    acceptance = await prisma.clientAcceptance.create({
+      data: {
+        clientId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      include: {
+        ClientAcceptanceAnswer: {
+          include: {
+            AcceptanceQuestion: true,
+          },
+        },
+      },
+    });
+  }
+
+  return acceptance as any as ClientAcceptance;
+}
+
+/**
+ * Save answers for client acceptance questionnaire
+ */
+export async function saveClientAcceptanceAnswers(
+  clientId: number,
+  questionId: number,
+  answer: string,
+  comment: string | null,
+  userId: string
+): Promise<void> {
+  // Get or create acceptance record
+  const acceptance = await getOrCreateClientAcceptance(clientId, userId);
+
+  // Upsert the answer
+  await prisma.clientAcceptanceAnswer.upsert({
+    where: {
+      clientAcceptanceId_questionId: {
+        clientAcceptanceId: acceptance.id,
+        questionId,
+      },
+    },
+    create: {
+      clientAcceptanceId: acceptance.id,
+      questionId,
+      answer,
+      comment,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    update: {
+      answer,
+      comment,
+      updatedAt: new Date(),
+    },
+  });
+
+  // Update acceptance record timestamp
+  await prisma.clientAcceptance.update({
+    where: { id: acceptance.id },
+    data: { updatedAt: new Date() },
+  });
+}
+
+/**
+ * Save multiple answers in a transaction for better performance
+ */
+export async function saveClientAcceptanceAnswersBatch(
+  clientId: number,
+  answers: Array<{ questionKey: string; answer: string; comment?: string }>,
+  userId: string
+): Promise<void> {
+  const acceptance = await getOrCreateClientAcceptance(clientId, userId);
+
+  // Process all answers in a transaction
+  await prisma.$transaction(async (tx) => {
+    for (const answerData of answers) {
+      const questionId = await getQuestionIdFromKey(answerData.questionKey);
+      if (!questionId) continue;
+
+      await tx.clientAcceptanceAnswer.upsert({
+        where: {
+          clientAcceptanceId_questionId: {
+            clientAcceptanceId: acceptance.id,
+            questionId,
+          },
+        },
+        create: {
+          clientAcceptanceId: acceptance.id,
+          questionId,
+          answer: answerData.answer,
+          comment: answerData.comment || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        update: {
+          answer: answerData.answer,
+          comment: answerData.comment || null,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    // Update acceptance record timestamp once
+    await tx.clientAcceptance.update({
+      where: { id: acceptance.id },
+      data: { updatedAt: new Date() },
+    });
+  });
+}
+
+/**
+ * Submit client acceptance for approval
+ */
+export async function submitClientAcceptance(
+  input: SubmitClientAcceptanceInput
+): Promise<ClientAcceptance> {
+  const { clientId, answers, userId } = input;
+
+  // Get acceptance record
+  const acceptance = await getOrCreateClientAcceptance(clientId, userId);
+
+  // Get all required questions
+  const allQuestions = CLIENT_ACCEPTANCE_QUESTIONNAIRE.flatMap((section) =>
+    section.questions
+  );
+  const requiredQuestions = allQuestions.filter((q) => q.required);
+
+  // Ensure all questions are in the database
+  await ensureQuestionsExist(allQuestions);
+
+  // Validate all required questions are answered
+  const answerKeys = Object.keys(answers);
+  const missingRequired = requiredQuestions.filter(
+    (q) => !answerKeys.includes(q.questionKey)
+  );
+
+  if (missingRequired.length > 0) {
+    throw new AppError(
+      400,
+      `Missing required questions: ${missingRequired.map((q) => q.questionKey).join(', ')}`,
+      ErrorCodes.VALIDATION_ERROR
+    );
+  }
+
+  // Save all answers
+  for (const [questionKey, answerData] of Object.entries(answers)) {
+    const question = allQuestions.find((q) => q.questionKey === questionKey);
+    if (!question) continue;
+
+    const dbQuestion = await prisma.acceptanceQuestion.findUnique({
+      where: {
+        questionnaireType_questionKey: {
+          questionnaireType: 'CLIENT_ACCEPTANCE',
+          questionKey,
+        },
+      },
+    });
+
+    if (dbQuestion) {
+      await saveClientAcceptanceAnswers(
+        clientId,
+        dbQuestion.id,
+        answerData.answer,
+        answerData.comment || null,
+        userId
+      );
+    }
+  }
+
+  // Calculate risk score
+  const riskResult = calculateClientRiskScore(answers, allQuestions);
+
+  // Update acceptance with completion data
+  const updated = await prisma.clientAcceptance.update({
+    where: { id: acceptance.id },
+    data: {
+      completedAt: new Date(),
+      completedBy: userId,
+      riskRating: riskResult.rating,
+      overallRiskScore: riskResult.score,
+      riskSummary: riskResult.summary,
+      updatedAt: new Date(),
+    },
+    include: {
+      ClientAcceptanceAnswer: {
+        include: {
+          AcceptanceQuestion: true,
+        },
+      },
+    },
+  });
+
+  return updated as any as ClientAcceptance;
+}
+
+/**
+ * Approve client acceptance (Partner only)
+ */
+export async function approveClientAcceptance(
+  input: ApproveClientAcceptanceInput
+): Promise<ClientAcceptance> {
+  const { clientId, userId, approvalId } = input;
+
+  const acceptance = await prisma.clientAcceptance.findUnique({
+    where: { clientId },
+  });
+
+  if (!acceptance) {
+    throw new AppError(
+      404,
+      'Client acceptance not found',
+      ErrorCodes.NOT_FOUND
+    );
+  }
+
+  if (!acceptance.completedAt) {
+    throw new AppError(
+      400,
+      'Cannot approve incomplete client acceptance',
+      ErrorCodes.VALIDATION_ERROR
+    );
+  }
+
+  if (acceptance.approvedAt) {
+    throw new AppError(
+      400,
+      'Client acceptance already approved',
+      ErrorCodes.VALIDATION_ERROR
+    );
+  }
+
+  // Update with approval
+  const updated = await prisma.clientAcceptance.update({
+    where: { id: acceptance.id },
+    data: {
+      approvedAt: new Date(),
+      approvedBy: userId,
+      approvalId,
+      // Set validity period (e.g., 1 year from approval)
+      validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      updatedAt: new Date(),
+    },
+    include: {
+      ClientAcceptanceAnswer: {
+        include: {
+          AcceptanceQuestion: true,
+        },
+      },
+      Client: true,
+    },
+  });
+
+  return updated as any as ClientAcceptance;
+}
+
+/**
+ * Invalidate client acceptance (mark for re-assessment)
+ */
+export async function invalidateClientAcceptance(
+  clientId: number,
+  reason: string
+): Promise<void> {
+  const acceptance = await prisma.clientAcceptance.findUnique({
+    where: { clientId },
+  });
+
+  if (!acceptance) {
+    return; // Nothing to invalidate
+  }
+
+  // Set validUntil to now to expire it
+  await prisma.clientAcceptance.update({
+    where: { id: acceptance.id },
+    data: {
+      validUntil: new Date(),
+      riskSummary: `${acceptance.riskSummary || ''}\n\nInvalidated: ${reason}`,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+/**
+ * Save client research data to acceptance record
+ */
+export async function saveClientResearchData(
+  clientId: number,
+  researchData: CompanyResearchResult,
+  userId: string
+): Promise<void> {
+  const acceptance = await getOrCreateClientAcceptance(clientId, userId);
+  
+  await prisma.clientAcceptance.update({
+    where: { id: acceptance.id },
+    data: {
+      researchData: JSON.stringify(researchData),
+      researchedAt: new Date(),
+      researchCompleted: true,
+      researchSkipped: false,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+/**
+ * Mark research as completed (either completed or skipped)
+ */
+export async function markResearchCompleted(
+  clientId: number,
+  skipped: boolean = false,
+  userId?: string
+): Promise<void> {
+  // Get or create acceptance record
+  const acceptance = userId 
+    ? await getOrCreateClientAcceptance(clientId, userId)
+    : await prisma.clientAcceptance.findUnique({
+        where: { clientId },
+      });
+
+  if (!acceptance) {
+    throw new AppError(
+      404,
+      'Client acceptance not found',
+      ErrorCodes.NOT_FOUND
+    );
+  }
+
+  await prisma.clientAcceptance.update({
+    where: { id: acceptance.id },
+    data: {
+      researchCompleted: true,
+      researchSkipped: skipped,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+/**
+ * Get client acceptance with all answers
+ */
+export async function getClientAcceptance(
+  clientId: number
+): Promise<ClientAcceptance | null> {
+  const acceptance = await prisma.clientAcceptance.findUnique({
+    where: { clientId },
+    include: {
+      ClientAcceptanceAnswer: {
+        include: {
+          AcceptanceQuestion: true,
+        },
+      },
+      Client: {
+        select: {
+          id: true,
+          clientCode: true,
+          clientNameFull: true,
+          groupCode: true,
+          groupDesc: true,
+        },
+      },
+    },
+  });
+
+  return acceptance as any as ClientAcceptance | null;
+}
+
+/**
+ * Ensure questions exist in database
+ */
+async function ensureQuestionsExist(
+  questions: AcceptanceQuestionDef[]
+): Promise<void> {
+  for (const question of questions) {
+    await prisma.acceptanceQuestion.upsert({
+      where: {
+        questionnaireType_questionKey: {
+          questionnaireType: 'CLIENT_ACCEPTANCE',
+          questionKey: question.questionKey,
+        },
+      },
+      create: {
+        questionnaireType: 'CLIENT_ACCEPTANCE',
+        sectionKey: question.sectionKey,
+        questionKey: question.questionKey,
+        questionText: question.questionText,
+        description: question.description || null,
+        fieldType: question.fieldType,
+        options: question.options ? JSON.stringify(question.options) : null,
+        required: question.required,
+        order: question.order,
+        riskWeight: question.riskWeight,
+        highRiskAnswers: question.highRiskAnswers
+          ? JSON.stringify(question.highRiskAnswers)
+          : null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      update: {
+        questionText: question.questionText,
+        description: question.description || null,
+        fieldType: question.fieldType,
+        options: question.options ? JSON.stringify(question.options) : null,
+        required: question.required,
+        order: question.order,
+        riskWeight: question.riskWeight,
+        highRiskAnswers: question.highRiskAnswers
+          ? JSON.stringify(question.highRiskAnswers)
+          : null,
+        updatedAt: new Date(),
+      },
+    });
+  }
+}
+
+/**
+ * Calculate client risk score
+ */
+function calculateClientRiskScore(
+  answers: Record<string, { answer: string; comment?: string }>,
+  questions: AcceptanceQuestionDef[]
+): { score: number; rating: string; summary: string } {
+  let totalRisk = 0;
+  let maxPossibleRisk = 0;
+  const highRiskItems: string[] = [];
+
+  for (const question of questions) {
+    const answer = answers[question.questionKey]?.answer;
+    if (!answer || question.riskWeight === 0) continue;
+
+    maxPossibleRisk += question.riskWeight * 10;
+
+    // Check if answer is high risk
+    if (
+      question.highRiskAnswers &&
+      question.highRiskAnswers.includes(answer)
+    ) {
+      totalRisk += question.riskWeight * 10;
+      highRiskItems.push(question.questionText);
+    }
+  }
+
+  const score = maxPossibleRisk > 0 ? (totalRisk / maxPossibleRisk) * 100 : 0;
+
+  let rating: string;
+  if (score < 30) {
+    rating = 'LOW';
+  } else if (score < 60) {
+    rating = 'MEDIUM';
+  } else {
+    rating = 'HIGH';
+  }
+
+  const summary =
+    highRiskItems.length > 0
+      ? `Risk Rating: ${rating} (${score.toFixed(1)}%). High-risk factors: ${highRiskItems.slice(0, 3).join('; ')}${highRiskItems.length > 3 ? ` and ${highRiskItems.length - 3} more` : ''}.`
+      : `Risk Rating: ${rating} (${score.toFixed(1)}%). No significant high-risk factors identified.`;
+
+  return { score, rating, summary };
+}

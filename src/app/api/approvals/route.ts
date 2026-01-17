@@ -9,6 +9,7 @@ import type {
   ApprovalsResponse,
   ChangeRequestApproval,
   ClientAcceptanceApproval,
+  EngagementAcceptanceApproval,
   ReviewNoteApproval,
 } from '@/types/approvals';
 
@@ -230,15 +231,16 @@ export const GET = secureRoute.query({
         },
       });
 
-      // Filter to only tasks where user can approve
-      const clientAcceptances: ClientAcceptanceApproval[] = [];
+      // Filter to only tasks where user can approve (engagement-level acceptance)
+      const engagementAcceptances: EngagementAcceptanceApproval[] = [];
+      // Note: This is the task-level acceptance (formerly called clientAcceptances)
       for (const task of potentialAcceptanceTasks) {
         if (!task.Client) continue; // Skip if no client
         
         const canApprove = await canApproveAcceptance(user.id, task.id as any);
         if (canApprove && task.ClientAcceptanceResponse[0]) {
           const response = task.ClientAcceptanceResponse[0];
-          clientAcceptances.push({
+          engagementAcceptances.push({
             taskId: task.id,
             taskName: task.TaskDesc,
             taskCode: task.TaskCode,
@@ -259,6 +261,12 @@ export const GET = secureRoute.query({
           });
         }
       }
+
+      // 2.5. Get client-level acceptance approvals
+      // Clients with completed acceptances needing partner approval
+      const clientAcceptances: ClientAcceptanceApproval[] = [];
+      // TODO: Implement client acceptance approval fetching
+      // This would fetch from ClientAcceptance table where completed but not approved
 
       // 3. Get review notes requiring action (active or archived)
       // User is either assignee or raiser and note is in actionable status
@@ -415,12 +423,14 @@ export const GET = secureRoute.query({
       const totalCount =
         changeRequests.length +
         clientAcceptances.length +
+        engagementAcceptances.length +
         reviewNoteApprovals.length +
         centralizedApprovals.length;
 
       const response: ApprovalsResponse = {
         changeRequests,
         clientAcceptances,
+        engagementAcceptances,
         reviewNotes: reviewNoteApprovals,
         centralizedApprovals,
         totalCount,
@@ -432,6 +442,7 @@ export const GET = secureRoute.query({
         totalCount,
         changeRequests: changeRequests.length,
         clientAcceptances: clientAcceptances.length,
+        engagementAcceptances: engagementAcceptances.length,
         reviewNotes: reviewNoteApprovals.length,
         centralizedApprovals: centralizedApprovals.length,
       });
