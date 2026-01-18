@@ -2,20 +2,21 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { Grid3x3, ChevronDown, Building2 } from 'lucide-react';
+import { useParams, usePathname } from 'next/navigation';
+import { Briefcase, ChevronDown, Building2 } from 'lucide-react';
 import { useUserAccessibleGroups } from '@/hooks/service-lines/useUserAccessibleGroups';
 import { LoadingSpinner } from '@/components/ui';
 import { isSharedService } from '@/lib/utils/serviceLineUtils';
 
-interface SubServiceLineQuickNavProps {
+interface MyWorkspaceDropdownProps {
   className?: string;
 }
 
-export function SubServiceLineQuickNav({ className = '' }: SubServiceLineQuickNavProps) {
+export function MyWorkspaceDropdown({ className = '' }: MyWorkspaceDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const params = useParams();
+  const pathname = usePathname();
   const currentServiceLine = (params.serviceLine as string)?.toUpperCase();
   const currentSubGroup = params.subServiceLineGroup as string;
 
@@ -25,6 +26,12 @@ export function SubServiceLineQuickNav({ className = '' }: SubServiceLineQuickNa
   const filteredGroups = groupedGroups?.filter(
     (serviceLineGroup) => !isSharedService(serviceLineGroup.serviceLine)
   );
+
+  // Check if we're on any My Workspace tab
+  const isOnMyWorkspace = pathname.includes('?tab=my-tasks') || 
+    pathname.includes('?tab=my-planning') || 
+    pathname.includes('?tab=my-reports') || 
+    pathname.includes('?tab=my-approvals');
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -73,22 +80,35 @@ export function SubServiceLineQuickNav({ className = '' }: SubServiceLineQuickNa
       {/* Button */}
       <button
         onClick={toggleDropdown}
-        className="px-3 py-1.5 rounded-md text-sm font-medium text-white hover:bg-white/20 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2"
-        aria-label="Quick navigation to other service line groups"
+        className="flex items-center gap-1.5 px-4 py-3 text-sm font-semibold transition-all text-white"
+        style={{ 
+          color: 'white',
+          backgroundColor: (isOpen || isOnMyWorkspace) ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+          borderBottom: (isOpen || isOnMyWorkspace) ? '2px solid rgba(255, 255, 255, 0.5)' : '2px solid transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!isOpen && !isOnMyWorkspace) {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen && !isOnMyWorkspace) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
+        aria-label="My Workspace - navigate to service line groups"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <div className="flex items-center space-x-2">
-          <Grid3x3 className="h-4 w-4" />
-          <span>Quick Nav</span>
-          <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-        </div>
+        <Briefcase className="h-4 w-4" />
+        <span>My Workspace</span>
+        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown */}
       {isOpen && (
         <div
-          className="absolute top-full left-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 z-50"
+          className="absolute top-full left-0 mt-0 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-corporate-lg border border-forvis-gray-200 z-50"
           role="menu"
           aria-orientation="vertical"
         >
@@ -161,4 +181,3 @@ export function SubServiceLineQuickNav({ className = '' }: SubServiceLineQuickNa
     </div>
   );
 }
-

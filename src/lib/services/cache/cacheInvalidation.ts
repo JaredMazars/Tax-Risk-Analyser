@@ -165,6 +165,69 @@ export async function invalidateApprovalsCache(): Promise<void> {
 }
 
 /**
+ * Invalidate workflow-specific caches based on workflow type
+ * Use this when an approval is approved/rejected to invalidate entity-specific caches
+ */
+export async function invalidateWorkflowCache(
+  workflowType: string,
+  workflowId: number
+): Promise<void> {
+  try {
+    const { prisma } = await import('@/lib/db/prisma');
+    
+    switch (workflowType) {
+      case 'CLIENT_ACCEPTANCE': {
+        // Query ClientAcceptance to get clientId
+        const acceptance = await prisma.clientAcceptance.findUnique({
+          where: { id: workflowId },
+          select: { clientId: true },
+        });
+        
+        if (acceptance) {
+          // Invalidate both acceptance cache and client cache
+          // Client cache needs invalidation because team members may have changed
+          await Promise.all([
+            invalidateClientAcceptanceCache(acceptance.clientId),
+            invalidateOnClientMutation(acceptance.clientId),
+          ]);
+          logger.debug('Client acceptance workflow cache invalidated', { workflowId, clientId: acceptance.clientId });
+        }
+        break;
+      }
+      
+      case 'ENGAGEMENT_LETTER':
+      case 'DPA':
+      case 'ACCEPTANCE': {
+        // These workflow types use task IDs
+        // Task caches are handled by React Query, but we invalidate workspace counts
+        logger.debug('Task-based workflow cache invalidation handled by React Query', { workflowType, workflowId });
+        break;
+      }
+      
+      case 'VAULT_DOCUMENT': {
+        // Vault document caches - handled by React Query
+        logger.debug('Vault document workflow cache invalidation handled by React Query', { workflowType, workflowId });
+        break;
+      }
+      
+      case 'CHANGE_REQUEST': {
+        // Change request caches - handled by React Query
+        logger.debug('Change request workflow cache invalidation handled by React Query', { workflowType, workflowId });
+        break;
+      }
+      
+      default: {
+        logger.debug('No specific cache invalidation for workflow type', { workflowType, workflowId });
+        break;
+      }
+    }
+  } catch (error) {
+    logger.error('Failed to invalidate workflow cache', { workflowType, workflowId, error });
+    // Silent fail - cache invalidation errors are not critical
+  }
+}
+
+/**
  * Comprehensive invalidation after task creation/update
  * Use this when a task is created, updated, or deleted
  * 

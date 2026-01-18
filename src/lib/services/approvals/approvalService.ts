@@ -38,7 +38,7 @@ export class ApprovalService {
       const routeConfig: RouteConfig = JSON.parse(route.routeConfig);
 
       // Create approval and steps in a transaction
-      const approval = await prisma.$transaction(async (tx) => {
+      const { approval, steps } = await prisma.$transaction(async (tx) => {
         // Create the approval
         const newApproval = await tx.approval.create({
           data: {
@@ -70,7 +70,7 @@ export class ApprovalService {
           });
         }
 
-        return newApproval;
+        return { approval: newApproval, steps };
       });
 
       logger.info('Approval created', {
@@ -78,6 +78,18 @@ export class ApprovalService {
         workflowType: config.workflowType,
         workflowId: config.workflowId,
       });
+
+      // Send notifications to assigned approvers
+      const requestedByUser = await prisma.user.findUnique({
+        where: { id: config.requestedById },
+        select: { name: true },
+      });
+
+      await this.sendApprovalNotifications(
+        approval,
+        steps,
+        requestedByUser?.name || 'A user'
+      );
 
       return approval;
     } catch (error) {
@@ -111,19 +123,37 @@ export class ApprovalService {
         // Resolve user ID from context path
         assignedToUserId = this.resolvePathValue(context, stepConfig.assignedToUserIdPath);
         
-        // If it's an employee code, find the user
+        // If it's an employee code, find the user via Employee.WinLogon → User.email
         if (assignedToUserId && !assignedToUserId.startsWith('user_')) {
-          const user = await tx.user.findFirst({
-            where: {
-              Employee: {
-                some: {
-                  EmpCode: assignedToUserId,
-                },
-              },
-            },
-            select: { id: true },
+          // First, find the employee to get their WinLogon (email)
+          const employee = await tx.employee.findFirst({
+            where: { EmpCode: assignedToUserId },
+            select: { WinLogon: true, EmpNameFull: true },
           });
-          assignedToUserId = user?.id || null;
+          
+          if (employee?.WinLogon) {
+            // Then find the user with that email
+            const user = await tx.user.findFirst({
+              where: { email: employee.WinLogon.toLowerCase() },
+              select: { id: true },
+            });
+            
+            if (user) {
+              assignedToUserId = user.id;
+            } else {
+              logger.warn('Employee has no user account', {
+                empCode: assignedToUserId,
+                empName: employee.EmpNameFull,
+                winLogon: employee.WinLogon,
+              });
+              assignedToUserId = null;
+            }
+          } else {
+            logger.warn('Employee not found or has no WinLogon', {
+              empCode: assignedToUserId,
+            });
+            assignedToUserId = null;
+          }
         }
       }
 
@@ -144,6 +174,66 @@ export class ApprovalService {
     }
 
     return steps;
+  }
+
+  /**
+   * Send notifications to assigned approvers
+   */
+  private async sendApprovalNotifications(
+    approval: Approval,
+    steps: ApprovalStep[],
+    requestedByName: string
+  ): Promise<void> {
+    // Get all users who need to be notified (pending steps with assigned users)
+    const userIdsToNotify = new Set<string>();
+    
+    for (const step of steps) {
+      if (step.status === 'PENDING' && step.assignedToUserId) {
+        userIdsToNotify.add(step.assignedToUserId);
+      }
+    }
+    
+    if (userIdsToNotify.size === 0) {
+      logger.warn('No users to notify for approval', { approvalId: approval.id });
+      return;
+    }
+    
+    // Send notification to each approver
+    const { createApprovalAssignedNotification } = await import('@/lib/services/notifications/templates');
+    const { notificationService } = await import('@/lib/services/notifications/notificationService');
+    
+    const template = createApprovalAssignedNotification(
+      approval.title,
+      approval.workflowType,
+      requestedByName,
+      approval.id
+    );
+    
+    for (const userId of userIdsToNotify) {
+      try {
+        await notificationService.createNotification(
+          userId,
+          'APPROVAL_ASSIGNED',
+          template.title,
+          template.message,
+          undefined, // taskId
+          template.actionUrl,
+          approval.requestedById
+        );
+      } catch (error) {
+        logger.error('Failed to send approval notification', {
+          approvalId: approval.id,
+          userId,
+          error,
+        });
+        // Don't fail the approval creation if notification fails
+      }
+    }
+    
+    logger.info('Sent approval notifications', {
+      approvalId: approval.id,
+      recipientCount: userIdsToNotify.size,
+    });
   }
 
   /**
@@ -305,9 +395,24 @@ export class ApprovalService {
           isComplete,
         });
 
+        // Execute workflow-specific completion logic if approval is complete
+        if (isComplete) {
+          await this.executeWorkflowCompletionHandler(
+            {
+              id: step.Approval.id,
+              workflowType: step.Approval.workflowType,
+              workflowId: step.Approval.workflowId,
+            },
+            userId,
+            tx
+          );
+        }
+
         return {
           success: true,
           approval: updatedApproval,
+          workflowType: step.Approval.workflowType,
+          workflowId: step.Approval.workflowId,
           nextStep: nextStep || null,
           isComplete,
         };
@@ -374,6 +479,8 @@ export class ApprovalService {
         return {
           success: true,
           approval: updatedApproval,
+          workflowType: step.Approval.workflowType,
+          workflowId: step.Approval.workflowId,
           nextStep: null,
           isComplete: true,
         };
@@ -381,6 +488,67 @@ export class ApprovalService {
     } catch (error) {
       logger.error('Error rejecting step', { stepId, userId, error });
       throw error;
+    }
+  }
+
+  /**
+   * Execute workflow-specific completion handlers
+   * Called when an approval is fully approved
+   */
+  private async executeWorkflowCompletionHandler(
+    approval: { id: number; workflowType: string; workflowId: number },
+    approverId: string,
+    tx: any
+  ): Promise<void> {
+    try {
+      switch (approval.workflowType) {
+        case 'CLIENT_ACCEPTANCE': {
+          // Import client acceptance service dynamically
+          const { approveClientAcceptance } = await import('@/lib/services/acceptance/clientAcceptanceService');
+          
+          // Get the ClientAcceptance record to find the clientId
+          const acceptance = await tx.clientAcceptance.findUnique({
+            where: { id: approval.workflowId },
+            select: { clientId: true, approvedAt: true },
+          });
+          
+          if (acceptance && !acceptance.approvedAt) {
+            // Call the existing approval function which will:
+            // 1. Update ClientAcceptance record with approval data
+            // 2. Apply pending team changes to Client table
+            // 3. Set validity period
+            // IMPORTANT: Pass the transaction context to ensure atomic updates
+            await approveClientAcceptance({
+              clientId: acceptance.clientId,
+              userId: approverId,
+              approvalId: approval.id,
+            }, tx);
+            
+            logger.info('Executed CLIENT_ACCEPTANCE completion handler', {
+              approvalId: approval.id,
+              workflowId: approval.workflowId,
+              clientId: acceptance.clientId,
+            });
+          }
+          break;
+        }
+        
+        // Other workflow types can be added here as needed
+        default:
+          // No specific handler for this workflow type
+          logger.debug('No completion handler for workflow type', {
+            workflowType: approval.workflowType,
+            approvalId: approval.id,
+          });
+          break;
+      }
+    } catch (error) {
+      logger.error('Error executing workflow completion handler', {
+        approvalId: approval.id,
+        workflowType: approval.workflowType,
+        error,
+      });
+      // Don't throw - we don't want to fail the approval if the handler fails
     }
   }
 
@@ -491,6 +659,56 @@ export class ApprovalService {
         },
       });
       return;
+    }
+
+    // Fallback for CLIENT_ACCEPTANCE when assignedToUserId is NULL
+    // Check if user's employee code matches the partner code from ClientAcceptance
+    if (!step.assignedToUserId && step.Approval.workflowType === 'CLIENT_ACCEPTANCE') {
+      try {
+        // Fetch ClientAcceptance record to get pendingPartnerCode
+        const acceptance = await prisma.clientAcceptance.findUnique({
+          where: { id: step.Approval.workflowId },
+          select: { pendingPartnerCode: true },
+        });
+
+        const clientPartnerCode = acceptance?.pendingPartnerCode;
+
+        if (clientPartnerCode) {
+          // Get user's email to look up employee
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true },
+          });
+
+          if (user?.email) {
+            // Look up employee by email (WinLogon)
+            const employee = await prisma.employee.findFirst({
+              where: {
+                WinLogon: {
+                  equals: user.email,
+                  mode: undefined,
+                },
+              },
+              select: { EmpCode: true },
+            });
+
+            // Check if employee code matches
+            if (
+              employee?.EmpCode &&
+              employee.EmpCode.trim().toUpperCase() === clientPartnerCode.trim().toUpperCase()
+            ) {
+              return; // User is authorized via employee code match
+            }
+          }
+        }
+      } catch (error) {
+        logger.warn('Error checking employee code fallback for CLIENT_ACCEPTANCE', {
+          stepId: step.id,
+          userId,
+          error,
+        });
+        // Continue to throw forbidden error below
+      }
     }
 
     throw new AppError(

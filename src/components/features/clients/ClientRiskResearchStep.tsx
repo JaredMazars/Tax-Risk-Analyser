@@ -17,6 +17,7 @@ interface ClientRiskResearchStepProps {
   existingResearch?: CompanyResearchResult | null;
   onComplete?: (researchData?: CompanyResearchResult) => void;
   onSkip?: () => void;
+  readOnly?: boolean;
 }
 
 export function ClientRiskResearchStep({
@@ -25,6 +26,7 @@ export function ClientRiskResearchStep({
   existingResearch,
   onComplete,
   onSkip,
+  readOnly = false,
 }: ClientRiskResearchStepProps) {
   const [isResearching, setIsResearching] = useState(false);
   const [researchResult, setResearchResult] = useState<CompanyResearchResult | null>(existingResearch || null);
@@ -92,7 +94,7 @@ export function ClientRiskResearchStep({
           </div>
         </div>
 
-        {!researchResult && !isResearching && (
+        {!researchResult && !isResearching && !readOnly && (
           <div className="bg-white rounded-lg p-4 border border-forvis-gray-200">
             <p className="text-sm text-forvis-gray-700 mb-4">
               Before beginning the acceptance questionnaire, we'll research <strong>{clientName || GSClientID}</strong> using
@@ -115,6 +117,14 @@ export function ClientRiskResearchStep({
                 Skip Research
               </Button>
             </div>
+          </div>
+        )}
+
+        {!researchResult && !isResearching && readOnly && (
+          <div className="bg-white rounded-lg p-4 border border-forvis-gray-200">
+            <p className="text-sm text-forvis-gray-600 italic">
+              No research data available for this acceptance.
+            </p>
           </div>
         )}
 

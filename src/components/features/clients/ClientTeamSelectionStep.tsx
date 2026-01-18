@@ -45,6 +45,11 @@ interface ClientTeamSelectionStepProps {
   } | null;
   onContinue: (selections: TeamSelections) => void;
   isLoading?: boolean;
+  readOnly?: boolean;
+  // Initial selection props (from parent's teamSelections state)
+  initialPartnerCode?: string;
+  initialManagerCode?: string;
+  initialInchargeCode?: string;
 }
 
 interface Employee {
@@ -62,6 +67,10 @@ export function ClientTeamSelectionStep({
   clientData,
   onContinue,
   isLoading = false,
+  readOnly = false,
+  initialPartnerCode,
+  initialManagerCode,
+  initialInchargeCode,
 }: ClientTeamSelectionStepProps) {
   const [selectedPartner, setSelectedPartner] = useState('');
   const [selectedManager, setSelectedManager] = useState('');
@@ -100,37 +109,66 @@ export function ClientTeamSelectionStep({
     }));
   };
 
-  // Initialize with current values when clientData loads
+  // Initialize with current values when clientData loads or initial props are provided
+  // PRIORITY 1: Use initial props if provided (from parent's teamSelections state)
+  // PRIORITY 2: Fall back to clientData if no initial props
   // Validate that Partner, Manager, and Incharge are 3 separate individuals
   useEffect(() => {
-    if (clientData && !hasInitialized.current) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientTeamSelectionStep.tsx:106',message:'ClientData received in component',data:{clientPartner:clientData.clientPartner,clientManager:clientData.clientManager,clientIncharge:clientData.clientIncharge,clientPartnerName:clientData.clientPartnerName,clientManagerName:clientData.clientManagerName,clientInchargeName:clientData.clientInchargeName,hasPartnerName:!!clientData.clientPartnerName,hasManagerName:!!clientData.clientManagerName,hasInchargeName:!!clientData.clientInchargeName},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
-      const partner = clientData.clientPartner || '';
-      const manager = clientData.clientManager || '';
-      const incharge = clientData.clientIncharge || '';
-      
-      // Always set partner
-      setSelectedPartner(partner);
-      
-      // Only set manager if it's different from partner
-      if (manager && manager !== partner) {
-        setSelectedManager(manager);
-      } else {
-        setSelectedManager('');
+    if (!hasInitialized.current) {
+      // PRIORITY 1: Use initial props if provided (from parent's teamSelections state)
+      if (initialPartnerCode || initialManagerCode || initialInchargeCode) {
+        const partner = initialPartnerCode || '';
+        const manager = initialManagerCode || '';
+        const incharge = initialInchargeCode || '';
+        
+        // Always set partner
+        setSelectedPartner(partner);
+        
+        // Only set manager if it's different from partner
+        if (manager && manager !== partner) {
+          setSelectedManager(manager);
+        } else {
+          setSelectedManager('');
+        }
+        
+        // Only set incharge if it's different from both partner and manager
+        if (incharge && incharge !== partner && incharge !== manager) {
+          setSelectedIncharge(incharge);
+        } else {
+          setSelectedIncharge('');
+        }
+        
+        hasInitialized.current = true;
+        return;
       }
       
-      // Only set incharge if it's different from both partner and manager
-      if (incharge && incharge !== partner && incharge !== manager) {
-        setSelectedIncharge(incharge);
-      } else {
-        setSelectedIncharge('');
+      // PRIORITY 2: Fall back to clientData if no initial props
+      if (clientData) {
+        const partner = clientData.clientPartner || '';
+        const manager = clientData.clientManager || '';
+        const incharge = clientData.clientIncharge || '';
+        
+        // Always set partner
+        setSelectedPartner(partner);
+        
+        // Only set manager if it's different from partner
+        if (manager && manager !== partner) {
+          setSelectedManager(manager);
+        } else {
+          setSelectedManager('');
+        }
+        
+        // Only set incharge if it's different from both partner and manager
+        if (incharge && incharge !== partner && incharge !== manager) {
+          setSelectedIncharge(incharge);
+        } else {
+          setSelectedIncharge('');
+        }
+        
+        hasInitialized.current = true;
       }
-      
-      hasInitialized.current = true;
     }
-  }, [clientData]);
+  }, [clientData, initialPartnerCode, initialManagerCode, initialInchargeCode]);
 
   // Load partners
   useEffect(() => {
@@ -147,9 +185,6 @@ export function ClientTeamSelectionStep({
         const res = await fetch(`/api/clients/${GSClientID}/acceptance/employees?${params}`);
         if (res.ok) {
           const data = await res.json();
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientTeamSelectionStep.tsx:143',message:'Partners loaded',data:{count:data.data?.length || 0,partnerCodes:data.data?.map((e: Employee) => e.EmpCode) || [],currentPartner:clientData?.clientPartner,isCurrentPartnerInList:data.data?.some((e: Employee) => e.EmpCode === clientData?.clientPartner)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'I'})}).catch(()=>{});
-          // #endregion
           setPartners(data.data || []);
         } else {
           setError('Failed to load partners list');
@@ -384,7 +419,7 @@ export function ClientTeamSelectionStep({
               placeholder="Select Partner..."
               searchPlaceholder="Search by name or code..."
               isLoading={loadingPartners}
-              disabled={isLoading}
+              disabled={isLoading || readOnly}
               minimumSearchChars={0}
             />
           </div>
@@ -400,7 +435,7 @@ export function ClientTeamSelectionStep({
               placeholder="Select Manager..."
               searchPlaceholder="Search by name or code..."
               isLoading={loadingManagers}
-              disabled={isLoading}
+              disabled={isLoading || readOnly}
               minimumSearchChars={0}
             />
           </div>
@@ -416,10 +451,10 @@ export function ClientTeamSelectionStep({
               placeholder="Select Incharge..."
               searchPlaceholder="Search by name or code..."
               isLoading={loadingIncharges}
-              disabled={isLoading || !selectedManager}
+              disabled={isLoading || !selectedManager || readOnly}
               minimumSearchChars={0}
             />
-            {!selectedManager && (
+            {!selectedManager && !readOnly && (
               <p className="mt-1 text-xs text-forvis-gray-500">Select a manager first</p>
             )}
           </div>
@@ -432,39 +467,25 @@ export function ClientTeamSelectionStep({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-forvis-gray-600 w-20">Partner:</span>
-                {(() => {
-                  const partnerName = `${clientData.clientPartnerName || clientData.clientPartner} [${clientData.clientPartner}]`;
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientTeamSelectionStep.tsx:427',message:'Partner badge props',data:{partnerName,clientPartnerName:clientData.clientPartnerName,clientPartner:clientData.clientPartner,isActive:clientData.clientPartnerStatus?.isActive ?? true,hasUserAccount:clientData.clientPartnerStatus?.hasUserAccount ?? false},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
-                  // #endregion
-                  return (
-                    <EmployeeStatusBadge
-                      name={partnerName}
-                      isActive={clientData.clientPartnerStatus?.isActive ?? true}
-                      hasUserAccount={clientData.clientPartnerStatus?.hasUserAccount ?? false}
-                      variant="text"
-                      iconSize="sm"
-                    />
-                  );
-                })()}
+                <EmployeeStatusBadge
+                  name={`${clientData.clientPartnerName || clientData.clientPartner} [${clientData.clientPartner}]`}
+                  isActive={clientData.clientPartnerStatus?.isActive ?? true}
+                  hasUserAccount={clientData.clientPartnerStatus?.hasUserAccount ?? false}
+                  variant="text"
+                  iconSize="sm"
+                />
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-forvis-gray-600 w-20">Manager:</span>
-                {clientData.clientManager ? (() => {
-                  const managerName = `${clientData.clientManagerName || clientData.clientManager} [${clientData.clientManager}]`;
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientTeamSelectionStep.tsx:448',message:'Manager badge props',data:{managerName,clientManagerName:clientData.clientManagerName,clientManager:clientData.clientManager,isActive:clientData.clientManagerStatus?.isActive ?? true,hasUserAccount:clientData.clientManagerStatus?.hasUserAccount ?? false},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
-                  // #endregion
-                  return (
-                    <EmployeeStatusBadge
-                      name={managerName}
-                      isActive={clientData.clientManagerStatus?.isActive ?? true}
-                      hasUserAccount={clientData.clientManagerStatus?.hasUserAccount ?? false}
-                      variant="text"
-                      iconSize="sm"
-                    />
-                  );
-                })() : (
+                {clientData.clientManager ? (
+                  <EmployeeStatusBadge
+                    name={`${clientData.clientManagerName || clientData.clientManager} [${clientData.clientManager}]`}
+                    isActive={clientData.clientManagerStatus?.isActive ?? true}
+                    hasUserAccount={clientData.clientManagerStatus?.hasUserAccount ?? false}
+                    variant="text"
+                    iconSize="sm"
+                  />
+                ) : (
                   <span className="text-xs text-forvis-gray-500">Not assigned</span>
                 )}
               </div>
@@ -487,15 +508,17 @@ export function ClientTeamSelectionStep({
         )}
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-3">
-          <Button
-            variant="primary"
-            onClick={handleContinue}
-            disabled={!canContinue || isLoading}
-          >
-            Continue to Research →
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="primary"
+              onClick={handleContinue}
+              disabled={!canContinue || isLoading}
+            >
+              Continue to Research →
+            </Button>
+          </div>
+        )}
       </div>
     </Card>
   );

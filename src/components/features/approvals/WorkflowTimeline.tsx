@@ -3,6 +3,7 @@
 import { CheckCircle, Circle, XCircle, UserCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import type { ChangeRequestApproval, EngagementAcceptanceApproval, ReviewNoteApproval, VaultDocumentTimelineData } from '@/types/approvals';
+import type { ApprovalWithSteps } from '@/types/approval';
 
 interface WorkflowTimelineProps {
   type: 'changeRequest' | 'clientAcceptance' | 'reviewNote' | 'vaultDocument';
@@ -10,6 +11,7 @@ interface WorkflowTimelineProps {
   acceptance?: EngagementAcceptanceApproval;
   note?: ReviewNoteApproval;
   vaultDocument?: VaultDocumentTimelineData;
+  approval?: ApprovalWithSteps;
 }
 
 interface TimelineStep {
@@ -19,7 +21,7 @@ interface TimelineStep {
   status: 'approved' | 'pending' | 'rejected';
 }
 
-export function WorkflowTimeline({ type, request, acceptance, note, vaultDocument }: WorkflowTimelineProps) {
+export function WorkflowTimeline({ type, request, acceptance, note, vaultDocument, approval }: WorkflowTimelineProps) {
   const getSteps = (): TimelineStep[] => {
     if (type === 'changeRequest' && request) {
       const steps: TimelineStep[] = [
@@ -59,21 +61,60 @@ export function WorkflowTimeline({ type, request, acceptance, note, vaultDocumen
       return steps;
     }
 
-    if (type === 'clientAcceptance' && acceptance) {
-      return [
-        {
-          label: 'Completed',
-          name: acceptance.completedBy,
-          date: acceptance.completedAt,
-          status: 'approved',
-        },
-        {
-          label: 'Reviewed',
-          name: acceptance.reviewedBy,
-          date: acceptance.reviewedAt,
-          status: acceptance.reviewedAt ? 'approved' : 'pending',
-        },
-      ];
+    if (type === 'clientAcceptance') {
+      // Handle centralized approval system (new client-level acceptances)
+      if (approval) {
+        const steps: TimelineStep[] = [
+          {
+            label: 'Submitted',
+            name: approval.User_Approval_requestedByIdToUser?.name || 'Unknown',
+            date: approval.requestedAt,
+            status: 'approved',
+          },
+        ];
+
+        // Add approval steps
+        const approvalSteps = approval.ApprovalStep
+          .sort((a, b) => a.stepOrder - b.stepOrder)
+          .map((step, index) => {
+            const assignedToName = step.User_ApprovalStep_assignedToUserIdToUser?.name || 'Unassigned';
+            const label = approval.ApprovalStep.length === 1 
+              ? 'Partner Review'
+              : `Partner Review ${index + 1}`;
+            
+            return {
+              label,
+              name: assignedToName,
+              date: step.approvedAt,
+              status: step.status === 'APPROVED' 
+                ? 'approved' as const
+                : step.status === 'REJECTED' 
+                ? 'rejected' as const
+                : 'pending' as const,
+            };
+          });
+
+        steps.push(...approvalSteps);
+        return steps;
+      }
+      
+      // Handle legacy engagement-level acceptance (backwards compatibility)
+      if (acceptance) {
+        return [
+          {
+            label: 'Completed',
+            name: acceptance.completedBy,
+            date: acceptance.completedAt,
+            status: 'approved',
+          },
+          {
+            label: 'Partner Review',
+            name: acceptance.reviewedBy || 'Pending Assignment',
+            date: acceptance.reviewedAt,
+            status: acceptance.reviewedAt ? 'approved' : 'pending',
+          },
+        ];
+      }
     }
 
     if (type === 'reviewNote' && note) {

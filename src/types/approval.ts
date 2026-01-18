@@ -135,6 +135,8 @@ export interface DelegationConfig {
 export interface ApprovalActionResult {
   success: boolean;
   approval: Approval;
+  workflowType: string;
+  workflowId: number;
   nextStep?: ApprovalStep | null;
   isComplete: boolean;
 }

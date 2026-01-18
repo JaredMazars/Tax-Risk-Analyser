@@ -48,10 +48,6 @@ export const POST = secureRoute.mutationWithParams<never, { id: string }>({
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'initialize/route.ts:56',message:'Client data from DB',data:{clientPartner:client.clientPartner,clientManager:client.clientManager,clientIncharge:client.clientIncharge,clientCode:client.clientCode},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     // Validate current partner status (but don't block - UI will handle partner selection)
     const validation = await validateClientPartner(client.id);
 
@@ -68,20 +64,12 @@ export const POST = secureRoute.mutationWithParams<never, { id: string }>({
       true // Bypass cache for fresh data
     );
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'initialize/route.ts:76',message:'After name enrichment',data:{clientPartnerName:enrichedClients[0]?.clientPartnerName,clientManagerName:enrichedClients[0]?.clientManagerName,clientInchargeName:enrichedClients[0]?.clientInchargeName},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-
     // Enrich with employee status
     await enrichObjectsWithEmployeeStatus(enrichedClients, [
       { codeField: 'clientPartner', statusField: 'clientPartnerStatus' },
       { codeField: 'clientManager', statusField: 'clientManagerStatus' },
       { codeField: 'clientIncharge', statusField: 'clientInchargeStatus' },
     ]);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'initialize/route.ts:89',message:'After status enrichment',data:{clientPartnerName:enrichedClients[0]?.clientPartnerName,clientManagerName:enrichedClients[0]?.clientManagerName,clientInchargeName:enrichedClients[0]?.clientInchargeName},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
 
     const enrichedClient = enrichedClients[0]!;
 

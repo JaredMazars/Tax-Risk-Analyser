@@ -1,6 +1,6 @@
 /**
  * GET /api/clients/[id]/acceptance/status
- * Get client acceptance status
+ * Get client acceptance status including approval permissions for current user
  */
 
 import { NextResponse } from 'next/server';
@@ -32,7 +32,8 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    const status = await getClientAcceptanceStatus(client.id);
+    // Pass userId to determine if current user can approve
+    const status = await getClientAcceptanceStatus(client.id, user.id);
 
     return NextResponse.json(successResponse(status));
   },

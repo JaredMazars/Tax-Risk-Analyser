@@ -9,17 +9,16 @@ import {
   Users,
   Settings,
   Grid2x2,
-  Briefcase,
   Bug,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/features/notifications/NotificationBell';
 import { BugReportModal } from '@/components/features/bug-reports/BugReportModal';
+import { MyWorkspaceDropdown } from '@/components/features/workspace';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { useFeature } from '@/hooks/permissions/useFeature';
 import { Feature } from '@/lib/permissions/features';
 import { useExternalLinks, useRefreshExternalLinks } from '@/hooks/admin/useExternalLinks';
-import { usePrimaryWorkspace } from '@/hooks/workspace/usePrimaryWorkspace';
 
 interface NavItem {
   label: string;
@@ -33,9 +32,6 @@ export default function DashboardNav() {
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
   const { currentServiceLine } = useServiceLine();
-  
-  // Fetch user's primary workspace for My Workspace link
-  const { data: primaryWorkspace } = usePrimaryWorkspace();
 
   // Check permissions for admin access
   const { hasFeature: hasAdminAccess } = useFeature(Feature.ACCESS_ADMIN);
@@ -71,16 +67,6 @@ export default function DashboardNav() {
       href: '/dashboard',
     },
   ];
-  
-  // My Workspace nav item - routes to primary workspace's my-tasks tab
-  const myWorkspaceNavItems: NavItem[] = primaryWorkspace
-    ? [
-        {
-          label: 'My Workspace',
-          href: `/dashboard/${primaryWorkspace.serviceLine.toLowerCase()}/${primaryWorkspace.subServiceLineGroup}?tab=my-tasks`,
-        },
-      ]
-    : [];
 
   // External links dropdown - show only if there are active links
   const linksNavItems: NavItem[] = externalLinks.length > 0
@@ -189,8 +175,8 @@ export default function DashboardNav() {
       ]
     : [];
 
-  // Left side nav items (Home, My Workspace)
-  const leftNavItems: NavItem[] = [...baseNavItems, ...myWorkspaceNavItems];
+  // Left side nav items (Home only - My Workspace is now a separate dropdown component)
+  const leftNavItems: NavItem[] = [...baseNavItems];
   
   // Right side nav items (Links and Admin)
   const rightNavItems: NavItem[] = [...linksNavItems, ...adminNavItems];
@@ -236,16 +222,7 @@ export default function DashboardNav() {
             </div>
           )}
           {leftNavItems.map((item) => {
-            // Check if this is the My Workspace link
-            const isMyWorkspace = item.label === 'My Workspace';
-            
-            // For My Workspace, check if user is on any My Workspace tab
-            const isActive = isMyWorkspace
-              ? pathname.includes('?tab=my-tasks') || 
-                pathname.includes('?tab=my-planning') || 
-                pathname.includes('?tab=my-reports') || 
-                pathname.includes('?tab=my-approvals')
-              : item.href === pathname;
+            const isActive = item.href === pathname;
             
             if (item.href) {
               return (
@@ -269,7 +246,6 @@ export default function DashboardNav() {
                     }
                   }}
                 >
-                  {isMyWorkspace && <Briefcase className="h-4 w-4" />}
                   {item.label}
                 </Link>
               );
@@ -355,6 +331,9 @@ export default function DashboardNav() {
               </div>
             );
           })}
+          
+          {/* My Workspace Dropdown */}
+          <MyWorkspaceDropdown />
           </div>
           
           {/* Right side items */}

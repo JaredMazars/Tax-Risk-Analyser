@@ -4,6 +4,9 @@
  * 
  * PUT /api/clients/[id]/acceptance/answers
  * Save/update client acceptance answers
+ * 
+ * PATCH /api/clients/[id]/acceptance/answers
+ * Update answers during approval review (approval partner only)
  */
 
 import { NextResponse } from 'next/server';
@@ -112,5 +115,83 @@ export const PUT = secureRoute.mutationWithParams<typeof SaveAnswerSchema, { id:
 
       return NextResponse.json(successResponse({ success: true }));
     }
+  },
+});
+
+/**
+ * PATCH - Update answers during approval review (approval partner only)
+ */
+const PatchAnswerSchema = z.object({
+  answers: z.array(z.object({
+    questionKey: z.string(),
+    answer: z.string(),
+    comment: z.string().optional(),
+  })).min(1),
+});
+
+export const PATCH = secureRoute.mutationWithParams<typeof PatchAnswerSchema, { id: string }>({
+  feature: Feature.MANAGE_CLIENT_ACCEPTANCE,
+  schema: PatchAnswerSchema,
+  handler: async (request, { user, params, data }) => {
+    const clientId = await getClientIdFromGSID(params.id);
+
+    // Get acceptance to verify it's pending approval
+    const acceptance = await prisma.clientAcceptance.findUnique({
+      where: { clientId },
+      select: {
+        id: true,
+        completedAt: true,
+        approvedAt: true,
+        pendingPartnerCode: true,
+      },
+    });
+
+    if (!acceptance) {
+      throw new AppError(404, 'Client acceptance not found', ErrorCodes.NOT_FOUND);
+    }
+
+    if (!acceptance.completedAt) {
+      throw new AppError(400, 'Cannot edit incomplete acceptance', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    if (acceptance.approvedAt) {
+      throw new AppError(400, 'Cannot edit approved acceptance', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    // Verify user is the approval partner
+    const userEmployee = await prisma.employee.findFirst({
+      where: {
+        WinLogon: {
+          equals: user.email,
+          mode: undefined,
+        },
+      },
+      select: { EmpCode: true },
+    });
+
+    if (!userEmployee || !acceptance.pendingPartnerCode) {
+      throw new AppError(403, 'Unauthorized to edit this acceptance', ErrorCodes.FORBIDDEN);
+    }
+
+    const isApprovalPartner =
+      userEmployee.EmpCode.trim().toUpperCase() === acceptance.pendingPartnerCode.trim().toUpperCase();
+
+    if (!isApprovalPartner) {
+      throw new AppError(
+        403,
+        'Only the assigned approval partner can edit answers during review',
+        ErrorCodes.FORBIDDEN
+      );
+    }
+
+    // Save the updated answers
+    await saveClientAcceptanceAnswersBatch(clientId, data.answers, user.id);
+
+    return NextResponse.json(
+      successResponse({
+        success: true,
+        saved: data.answers.length,
+      })
+    );
   },
 });

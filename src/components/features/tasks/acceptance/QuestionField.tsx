@@ -14,20 +14,12 @@ interface QuestionFieldProps {
 export function QuestionField({ question, value, comment, onChange, disabled }: QuestionFieldProps) {
   const [localValue, setLocalValue] = useState(value || '');
   const [localComment, setLocalComment] = useState(comment || '');
-  const [showComment, setShowComment] = useState(false);
 
   // Update local state when prop changes
   useEffect(() => {
     setLocalValue(value || '');
     setLocalComment(comment || '');
   }, [value, comment]);
-
-  // Determine if comment field should be shown
-  useEffect(() => {
-    if (question.allowComment && localValue && localValue !== '') {
-      setShowComment(true);
-    }
-  }, [localValue, question.allowComment]);
 
   const handleValueChange = useCallback(
     (newValue: string) => {
@@ -79,31 +71,47 @@ export function QuestionField({ question, value, comment, onChange, disabled }: 
 
       {/* Field Input */}
       {question.fieldType === 'RADIO' && question.options && (
-        <div className="flex flex-wrap gap-3 mt-2">
-          {question.options.map((option) => (
-            <label
-              key={option}
-              className={`
-                inline-flex items-center px-4 py-2 rounded-lg border-2 cursor-pointer transition-all
-                ${localValue === option
-                  ? 'border-forvis-blue-500 bg-forvis-blue-50 text-forvis-blue-700 font-semibold'
-                  : 'border-forvis-gray-300 bg-white text-forvis-gray-700 hover:border-forvis-blue-300'
-                }
-                ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              <input
-                type="radio"
-                name={question.questionKey}
-                value={option}
-                checked={localValue === option}
-                onChange={(e) => handleValueChange(e.target.value)}
+        <div className="flex items-start gap-4 mt-2">
+          <div className="flex gap-3">
+            {question.options.map((option) => (
+              <label
+                key={option}
+                className={`
+                  inline-flex items-center px-4 py-2 rounded-lg border-2 cursor-pointer transition-all
+                  ${localValue === option
+                    ? 'border-forvis-blue-500 bg-forvis-blue-50 text-forvis-blue-700 font-semibold'
+                    : 'border-forvis-gray-300 bg-white text-forvis-gray-700 hover:border-forvis-blue-300'
+                  }
+                  ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+              >
+                <input
+                  type="radio"
+                  name={question.questionKey}
+                  value={option}
+                  checked={localValue === option}
+                  onChange={(e) => handleValueChange(e.target.value)}
+                  disabled={disabled}
+                  className="sr-only"
+                />
+                <span className="text-sm">{option}</span>
+              </label>
+            ))}
+          </div>
+          
+          {/* Inline Comment Field */}
+          {question.allowComment && (
+            <div className="flex-1">
+              <textarea
+                value={localComment}
+                onChange={(e) => handleCommentChange(e.target.value)}
                 disabled={disabled}
-                className="sr-only"
+                rows={2}
+                className="block w-full px-3 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 placeholder:text-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors disabled:opacity-50 resize-y"
+                placeholder="Comments / Safeguards (optional)"
               />
-              <span className="text-sm">{option}</span>
-            </label>
-          ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -132,23 +140,6 @@ export function QuestionField({ question, value, comment, onChange, disabled }: 
             </option>
           ))}
         </select>
-      )}
-
-      {/* Comment Field (conditional) */}
-      {showComment && (
-        <div className="mt-3 p-3 rounded-lg bg-forvis-gray-50 border border-forvis-gray-200">
-          <label className="block text-xs font-medium text-forvis-gray-700 mb-2">
-            Comments / Safeguards
-          </label>
-          <textarea
-            value={localComment}
-            onChange={(e) => handleCommentChange(e.target.value)}
-            disabled={disabled}
-            rows={3}
-            className="block w-full px-3 py-2 border border-forvis-gray-300 rounded-lg text-sm text-forvis-gray-900 placeholder:text-forvis-gray-400 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500 transition-colors disabled:opacity-50 resize-none"
-            placeholder="Document safeguards or provide additional details..."
-          />
-        </div>
       )}
     </div>
   );

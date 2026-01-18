@@ -26,6 +26,12 @@ export interface ClientAcceptanceStatus {
   approvedAt: Date | null;
   approvedBy: string | null;
   validUntil: Date | null;
+  pendingApproverName: string | null;
+  pendingPartnerCode: string | null;
+  // Approval mode fields
+  approvalId: number | null;
+  currentStepId: number | null;
+  canCurrentUserApprove: boolean;
 }
 
 export interface CreateClientAcceptanceInput {
@@ -71,7 +77,8 @@ export async function getQuestionIdFromKey(
  * Check if a client has a valid acceptance
  */
 export async function getClientAcceptanceStatus(
-  clientId: number
+  clientId: number,
+  userId?: string
 ): Promise<ClientAcceptanceStatus> {
   const acceptance = await prisma.clientAcceptance.findUnique({
     where: { clientId },
@@ -81,11 +88,13 @@ export async function getClientAcceptanceStatus(
       completedBy: true,
       approvedAt: true,
       approvedBy: true,
+      approvalId: true,
       riskRating: true,
       overallRiskScore: true,
       validUntil: true,
       researchCompleted: true,
       researchSkipped: true,
+      pendingPartnerCode: true,
     },
   });
 
@@ -103,7 +112,82 @@ export async function getClientAcceptanceStatus(
       approvedAt: null,
       approvedBy: null,
       validUntil: null,
+      pendingApproverName: null,
+      pendingPartnerCode: null,
+      approvalId: null,
+      currentStepId: null,
+      canCurrentUserApprove: false,
     };
+  }
+
+  // Fetch user names, pending approval step, and partner name in parallel
+  const [completedUser, approvedUser, pendingStep, partnerEmployee] = await Promise.all([
+    acceptance.completedBy
+      ? prisma.user.findUnique({
+          where: { id: acceptance.completedBy },
+          select: { name: true },
+        })
+      : null,
+    acceptance.approvedBy
+      ? prisma.user.findUnique({
+          where: { id: acceptance.approvedBy },
+          select: { name: true },
+        })
+      : null,
+    acceptance.approvalId && !acceptance.approvedAt
+      ? prisma.approvalStep.findFirst({
+          where: {
+            approvalId: acceptance.approvalId,
+            status: 'PENDING',
+          },
+          orderBy: { stepOrder: 'asc' },
+          include: {
+            User_ApprovalStep_assignedToUserIdToUser: {
+              select: { name: true },
+            },
+          },
+        })
+      : null,
+    acceptance.pendingPartnerCode
+      ? prisma.employee.findFirst({
+          where: { EmpCode: acceptance.pendingPartnerCode },
+          select: { EmpNameFull: true },
+        })
+      : null,
+  ]);
+
+  // Get pending approver name from approval step (if user account exists) or from employee record (fallback)
+  const pendingApproverName = 
+    pendingStep?.User_ApprovalStep_assignedToUserIdToUser?.name || // User account name
+    partnerEmployee?.EmpNameFull || // Employee record name as fallback
+    null;
+
+  // Check if current user can approve (if userId provided)
+  // Two paths: 1) User ID matches approval step, 2) User's employee code matches pendingPartnerCode (fallback)
+  let canCurrentUserApprove = false;
+  
+  if (userId && pendingStep && !acceptance.approvedAt) {
+    // Path 1: Direct user ID match
+    if (pendingStep.assignedToUserId === userId) {
+      canCurrentUserApprove = true;
+    } 
+    // Path 2: Fallback - check if user's employee code matches pendingPartnerCode
+    else if (acceptance.pendingPartnerCode && !pendingStep.assignedToUserId) {
+      const userEmployee = await prisma.employee.findFirst({
+        where: {
+          WinLogon: {
+            equals: (await prisma.user.findUnique({ where: { id: userId }, select: { email: true } }))?.email,
+            mode: undefined,
+          },
+        },
+        select: { EmpCode: true },
+      });
+      
+      if (userEmployee?.EmpCode && 
+          userEmployee.EmpCode.trim().toUpperCase() === acceptance.pendingPartnerCode.trim().toUpperCase()) {
+        canCurrentUserApprove = true;
+      }
+    }
   }
 
   return {
@@ -115,10 +199,15 @@ export async function getClientAcceptanceStatus(
     riskRating: acceptance.riskRating,
     overallRiskScore: acceptance.overallRiskScore,
     completedAt: acceptance.completedAt,
-    completedBy: acceptance.completedBy,
+    completedBy: completedUser?.name ?? acceptance.completedBy,
     approvedAt: acceptance.approvedAt,
-    approvedBy: acceptance.approvedBy,
+    approvedBy: approvedUser?.name ?? acceptance.approvedBy,
     validUntil: acceptance.validUntil,
+    pendingApproverName,
+    pendingPartnerCode: acceptance.pendingPartnerCode,
+    approvalId: acceptance.approvalId,
+    currentStepId: pendingStep?.id ?? null,
+    canCurrentUserApprove,
   };
 }
 
@@ -248,7 +337,7 @@ export async function saveClientAcceptanceAnswers(
 }
 
 /**
- * Save multiple answers in a transaction for better performance
+ * Save multiple answers in a transaction for better performance (optimized with batch lookups)
  */
 export async function saveClientAcceptanceAnswersBatch(
   clientId: number,
@@ -257,10 +346,24 @@ export async function saveClientAcceptanceAnswersBatch(
 ): Promise<void> {
   const acceptance = await getOrCreateClientAcceptance(clientId, userId);
 
+  // Batch lookup all question IDs at once
+  const questionKeys = answers.map((a) => a.questionKey);
+  const questions = await prisma.acceptanceQuestion.findMany({
+    where: {
+      questionnaireType: 'CLIENT_ACCEPTANCE',
+      questionKey: { in: questionKeys },
+    },
+    select: { id: true, questionKey: true },
+  });
+
+  // Create map for O(1) lookup
+  const questionIdMap = new Map(questions.map((q) => [q.questionKey, q.id]));
+
   // Process all answers in a transaction
+  const now = new Date();
   await prisma.$transaction(async (tx) => {
     for (const answerData of answers) {
-      const questionId = await getQuestionIdFromKey(answerData.questionKey);
+      const questionId = questionIdMap.get(answerData.questionKey);
       if (!questionId) continue;
 
       await tx.clientAcceptanceAnswer.upsert({
@@ -275,13 +378,13 @@ export async function saveClientAcceptanceAnswersBatch(
           questionId,
           answer: answerData.answer,
           comment: answerData.comment || null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: now,
+          updatedAt: now,
         },
         update: {
           answer: answerData.answer,
           comment: answerData.comment || null,
-          updatedAt: new Date(),
+          updatedAt: now,
         },
       });
     }
@@ -289,7 +392,7 @@ export async function saveClientAcceptanceAnswersBatch(
     // Update acceptance record timestamp once
     await tx.clientAcceptance.update({
       where: { id: acceptance.id },
-      data: { updatedAt: new Date() },
+      data: { updatedAt: now },
     });
   });
 }
@@ -328,30 +431,14 @@ export async function submitClientAcceptance(
     );
   }
 
-  // Save all answers
-  for (const [questionKey, answerData] of Object.entries(answers)) {
-    const question = allQuestions.find((q) => q.questionKey === questionKey);
-    if (!question) continue;
+  // Save all answers using batch method (much faster than individual saves)
+  const answersToSave = Object.entries(answers).map(([questionKey, answerData]) => ({
+    questionKey,
+    answer: answerData.answer,
+    comment: answerData.comment,
+  }));
 
-    const dbQuestion = await prisma.acceptanceQuestion.findUnique({
-      where: {
-        questionnaireType_questionKey: {
-          questionnaireType: 'CLIENT_ACCEPTANCE',
-          questionKey,
-        },
-      },
-    });
-
-    if (dbQuestion) {
-      await saveClientAcceptanceAnswers(
-        clientId,
-        dbQuestion.id,
-        answerData.answer,
-        answerData.comment || null,
-        userId
-      );
-    }
-  }
+  await saveClientAcceptanceAnswersBatch(clientId, answersToSave, userId);
 
   // Calculate risk score
   const riskResult = calculateClientRiskScore(answers, allQuestions);
@@ -386,40 +473,52 @@ export async function submitClientAcceptance(
  * Approve client acceptance (Partner only)
  */
 export async function approveClientAcceptance(
-  input: ApproveClientAcceptanceInput
+  input: ApproveClientAcceptanceInput,
+  providedTx?: any
 ): Promise<ClientAcceptance> {
   const { clientId, userId, approvalId } = input;
 
-  const acceptance = await prisma.clientAcceptance.findUnique({
-    where: { clientId },
-  });
+  // Use provided transaction or create a new one
+  const executeApproval = async (tx: any) => {
+    const acceptance = await tx.clientAcceptance.findUnique({
+      where: { clientId },
+    });
 
-  if (!acceptance) {
-    throw new AppError(
-      404,
-      'Client acceptance not found',
-      ErrorCodes.NOT_FOUND
-    );
-  }
+    if (!acceptance) {
+      throw new AppError(
+        404,
+        'Client acceptance not found',
+        ErrorCodes.NOT_FOUND
+      );
+    }
 
-  if (!acceptance.completedAt) {
-    throw new AppError(
-      400,
-      'Cannot approve incomplete client acceptance',
-      ErrorCodes.VALIDATION_ERROR
-    );
-  }
+    if (!acceptance.completedAt) {
+      throw new AppError(
+        400,
+        'Cannot approve incomplete client acceptance',
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
 
-  if (acceptance.approvedAt) {
-    throw new AppError(
-      400,
-      'Client acceptance already approved',
-      ErrorCodes.VALIDATION_ERROR
-    );
-  }
-
-  // Apply pending team changes and update approval in a transaction
-  const updated = await prisma.$transaction(async (tx) => {
+    if (acceptance.approvedAt) {
+      // Already approved - return existing record (idempotent behavior)
+      logger.info('Client acceptance already approved, skipping', { clientId });
+      
+      // Fetch full acceptance with relations to match return type
+      const fullAcceptance = await tx.clientAcceptance.findUnique({
+        where: { clientId },
+        include: {
+          ClientAcceptanceAnswer: {
+            include: {
+              AcceptanceQuestion: true,
+            },
+          },
+          Client: true,
+        },
+      });
+      
+      return fullAcceptance as any as ClientAcceptance;
+    }
     // Apply pending team changes to Client table if any exist
     if (acceptance.pendingPartnerCode || acceptance.pendingManagerCode || acceptance.pendingInchargeCode) {
       await tx.client.update({
@@ -430,7 +529,7 @@ export async function approveClientAcceptance(
           ...(acceptance.pendingInchargeCode && { clientIncharge: acceptance.pendingInchargeCode }),
         },
       });
-
+      
       logger.info('Applied pending team changes from acceptance approval', {
         clientId: acceptance.clientId,
         partner: acceptance.pendingPartnerCode,
@@ -466,9 +565,14 @@ export async function approveClientAcceptance(
     });
 
     return approvedAcceptance;
-  });
+  };
 
-  return updated as any as ClientAcceptance;
+  // If a transaction is provided, use it; otherwise create a new one
+  if (providedTx) {
+    return await executeApproval(providedTx);
+  } else {
+    return await prisma.$transaction(executeApproval) as any as ClientAcceptance;
+  }
 }
 
 /**
@@ -582,51 +686,67 @@ export async function getClientAcceptance(
 }
 
 /**
- * Ensure questions exist in database
+ * Ensure questions exist in database (optimized with bulk operations)
  */
 async function ensureQuestionsExist(
   questions: AcceptanceQuestionDef[]
 ): Promise<void> {
-  for (const question of questions) {
-    await prisma.acceptanceQuestion.upsert({
-      where: {
-        questionnaireType_questionKey: {
+  const now = new Date();
+  
+  // First, try bulk create for new questions (skip duplicates)
+  const questionData = questions.map((question) => ({
+    questionnaireType: 'CLIENT_ACCEPTANCE',
+    sectionKey: question.sectionKey,
+    questionKey: question.questionKey,
+    questionText: question.questionText,
+    description: question.description || null,
+    fieldType: question.fieldType,
+    options: question.options ? JSON.stringify(question.options) : null,
+    required: question.required,
+    order: question.order,
+    riskWeight: question.riskWeight,
+    highRiskAnswers: question.highRiskAnswers
+      ? JSON.stringify(question.highRiskAnswers)
+      : null,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  try {
+    // Bulk create - skips duplicates automatically
+    await prisma.acceptanceQuestion.createMany({
+      data: questionData,
+      skipDuplicates: true,
+    });
+  } catch (error) {
+    // If bulk create fails, questions might already exist - that's OK
+    logger.info('Bulk question create skipped (questions may already exist)');
+  }
+
+  // Update existing questions in a single transaction
+  await prisma.$transaction(
+    questions.map((question) =>
+      prisma.acceptanceQuestion.updateMany({
+        where: {
           questionnaireType: 'CLIENT_ACCEPTANCE',
           questionKey: question.questionKey,
         },
-      },
-      create: {
-        questionnaireType: 'CLIENT_ACCEPTANCE',
-        sectionKey: question.sectionKey,
-        questionKey: question.questionKey,
-        questionText: question.questionText,
-        description: question.description || null,
-        fieldType: question.fieldType,
-        options: question.options ? JSON.stringify(question.options) : null,
-        required: question.required,
-        order: question.order,
-        riskWeight: question.riskWeight,
-        highRiskAnswers: question.highRiskAnswers
-          ? JSON.stringify(question.highRiskAnswers)
-          : null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      update: {
-        questionText: question.questionText,
-        description: question.description || null,
-        fieldType: question.fieldType,
-        options: question.options ? JSON.stringify(question.options) : null,
-        required: question.required,
-        order: question.order,
-        riskWeight: question.riskWeight,
-        highRiskAnswers: question.highRiskAnswers
-          ? JSON.stringify(question.highRiskAnswers)
-          : null,
-        updatedAt: new Date(),
-      },
-    });
-  }
+        data: {
+          questionText: question.questionText,
+          description: question.description || null,
+          fieldType: question.fieldType,
+          options: question.options ? JSON.stringify(question.options) : null,
+          required: question.required,
+          order: question.order,
+          riskWeight: question.riskWeight,
+          highRiskAnswers: question.highRiskAnswers
+            ? JSON.stringify(question.highRiskAnswers)
+            : null,
+          updatedAt: now,
+        },
+      })
+    )
+  );
 }
 
 /**

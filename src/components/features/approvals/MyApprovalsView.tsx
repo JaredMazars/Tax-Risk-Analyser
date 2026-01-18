@@ -5,6 +5,7 @@ import { ClipboardCheck, Bell, Archive } from 'lucide-react';
 import { useApprovals } from '@/hooks/approvals/useApprovals';
 import { LoadingSpinner } from '@/components/ui';
 import { ChangeRequestApprovalItem } from './ChangeRequestApprovalItem';
+import { ClientAcceptanceApprovalItem } from './ClientAcceptanceApprovalItem';
 import { EngagementAcceptanceApprovalItem } from './EngagementAcceptanceApprovalItem';
 import { ReviewNoteApprovalItem } from './ReviewNoteApprovalItem';
 import { UnifiedApprovalCard } from './UnifiedApprovalCard';
@@ -22,7 +23,7 @@ import {
 import type { ReadStatusFilter } from '@/types/notification';
 
 type TabType = 'approvals' | 'notifications';
-type ApprovalTypeTab = 'all' | 'changeRequests' | 'clientAcceptance' | 'reviewNotes' | 'vaultDocuments';
+type ApprovalTypeTab = 'all' | 'changeRequests' | 'clientAcceptance' | 'engagementAcceptance' | 'reviewNotes' | 'vaultDocuments';
 
 export function MyApprovalsView() {
   const [activeSubTab, setActiveSubTab] = useState<TabType>('approvals');
@@ -93,6 +94,19 @@ export function MyApprovalsView() {
     // Refresh approvals data
     refetch();
   };
+
+  // Separate client acceptances from other centralized approvals
+  const clientAcceptanceApprovals = useMemo(() => {
+    return approvalsData?.centralizedApprovals?.filter(
+      (approval) => approval.workflowType === 'CLIENT_ACCEPTANCE'
+    ) || [];
+  }, [approvalsData?.centralizedApprovals]);
+
+  const otherCentralizedApprovals = useMemo(() => {
+    return approvalsData?.centralizedApprovals?.filter(
+      (approval) => approval.workflowType !== 'CLIENT_ACCEPTANCE'
+    ) || [];
+  }, [approvalsData?.centralizedApprovals]);
 
   return (
     <div className="space-y-4">
@@ -262,11 +276,11 @@ export function MyApprovalsView() {
 
                       <button
                         onClick={() => setActiveApprovalType('clientAcceptance')}
-                        disabled={approvalsData.clientAcceptances.length === 0}
+                        disabled={clientAcceptanceApprovals.length === 0}
                         className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200 border-b-2 ${
                           activeApprovalType === 'clientAcceptance'
                             ? 'border-forvis-blue-500 text-white shadow-sm'
-                            : approvalsData.clientAcceptances.length === 0
+                            : clientAcceptanceApprovals.length === 0
                             ? 'border-transparent text-forvis-gray-400 cursor-not-allowed'
                             : 'border-transparent text-forvis-gray-700 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
                         }`}
@@ -276,11 +290,41 @@ export function MyApprovalsView() {
                             : {}
                         }
                       >
+                        <span>Client Acceptance</span>
+                        {clientAcceptanceApprovals.length > 0 && (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              activeApprovalType === 'clientAcceptance'
+                                ? 'bg-white/30 text-white'
+                                : 'bg-forvis-blue-100 text-forvis-blue-700'
+                            }`}
+                          >
+                            {clientAcceptanceApprovals.length}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => setActiveApprovalType('engagementAcceptance')}
+                        disabled={approvalsData.engagementAcceptances.length === 0}
+                        className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-t-lg transition-all duration-200 border-b-2 ${
+                          activeApprovalType === 'engagementAcceptance'
+                            ? 'border-forvis-blue-500 text-white shadow-sm'
+                            : approvalsData.engagementAcceptances.length === 0
+                            ? 'border-transparent text-forvis-gray-400 cursor-not-allowed'
+                            : 'border-transparent text-forvis-gray-700 hover:text-forvis-gray-900 hover:border-forvis-gray-300'
+                        }`}
+                        style={
+                          activeApprovalType === 'engagementAcceptance'
+                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            : {}
+                        }
+                      >
                         <span>Engagement Acceptance</span>
                         {approvalsData.engagementAcceptances && approvalsData.engagementAcceptances.length > 0 && (
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              activeApprovalType === 'clientAcceptance'
+                              activeApprovalType === 'engagementAcceptance'
                                 ? 'bg-white/30 text-white'
                                 : 'bg-forvis-blue-100 text-forvis-blue-700'
                             }`}
@@ -376,8 +420,38 @@ export function MyApprovalsView() {
                         </div>
                       )}
 
-                    {/* Engagement Acceptances */}
+                    {/* Client Acceptances */}
                     {(activeApprovalType === 'all' || activeApprovalType === 'clientAcceptance') &&
+                      clientAcceptanceApprovals.length > 0 && (
+                        <div>
+                          {activeApprovalType === 'all' && (
+                            <h3 className="text-sm font-semibold text-forvis-gray-900 uppercase tracking-wider mb-3">
+                              Client Acceptance Approvals ({clientAcceptanceApprovals.length})
+                            </h3>
+                          )}
+                          <div className="space-y-3">
+                            {clientAcceptanceApprovals.map((approval) => (
+                              <ClientAcceptanceApprovalItem
+                                key={approval.id}
+                                approval={approval}
+                                onApprove={async (stepId, comment) => {
+                                  await approveStep.mutateAsync({ stepId, comment });
+                                  refetch();
+                                }}
+                                onReject={async (stepId, comment) => {
+                                  await rejectStep.mutateAsync({ stepId, comment });
+                                  refetch();
+                                }}
+                                isProcessing={approveStep.isPending || rejectStep.isPending}
+                                showArchived={showArchived}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Engagement Acceptances */}
+                    {(activeApprovalType === 'all' || activeApprovalType === 'engagementAcceptance') &&
                       approvalsData.engagementAcceptances && approvalsData.engagementAcceptances.length > 0 && (
                         <div>
                           {activeApprovalType === 'all' && (
@@ -422,16 +496,15 @@ export function MyApprovalsView() {
 
                     {/* Centralized Approvals (Vault Documents, etc.) */}
                     {(activeApprovalType === 'all' || activeApprovalType === 'vaultDocuments') &&
-                      approvalsData.centralizedApprovals &&
-                      approvalsData.centralizedApprovals.length > 0 && (
+                      otherCentralizedApprovals.length > 0 && (
                         <div>
                           {activeApprovalType === 'all' && (
                             <h3 className="text-sm font-semibold text-forvis-gray-900 uppercase tracking-wider mb-3">
-                              Document Vault Approvals ({approvalsData.centralizedApprovals.length})
+                              Document Vault Approvals ({otherCentralizedApprovals.length})
                             </h3>
                           )}
                           <div className="space-y-3">
-                            {approvalsData.centralizedApprovals.map((approval) => (
+                            {otherCentralizedApprovals.map((approval) => (
                               <UnifiedApprovalCard
                                 key={approval.id}
                                 approval={approval}
@@ -453,9 +526,10 @@ export function MyApprovalsView() {
                     {/* Empty State for Specific Tab */}
                     {activeApprovalType !== 'all' &&
                       ((activeApprovalType === 'changeRequests' && approvalsData.changeRequests.length === 0) ||
-                        (activeApprovalType === 'clientAcceptance' && (!approvalsData.engagementAcceptances || approvalsData.engagementAcceptances.length === 0)) ||
+                        (activeApprovalType === 'clientAcceptance' && clientAcceptanceApprovals.length === 0) ||
+                        (activeApprovalType === 'engagementAcceptance' && (!approvalsData.engagementAcceptances || approvalsData.engagementAcceptances.length === 0)) ||
                         (activeApprovalType === 'reviewNotes' && approvalsData.reviewNotes.length === 0) ||
-                        (activeApprovalType === 'vaultDocuments' && (approvalsData.centralizedApprovals?.length || 0) === 0)) && (
+                        (activeApprovalType === 'vaultDocuments' && otherCentralizedApprovals.length === 0)) && (
                         <div className="text-center py-12">
                           {showArchived ? (
                             <Archive className="mx-auto h-12 w-12 text-forvis-gray-400" />

@@ -50,7 +50,7 @@ export const WORKFLOW_REGISTRY: Record<WorkflowType, WorkflowRegistryEntry> = {
   CLIENT_ACCEPTANCE: {
     name: 'Client Acceptance',
     icon: Building,
-    defaultRoute: 'partner-approval',
+    defaultRoute: 'client-partner-approval',
     fetchData: async (workflowId: number) => {
       return await prisma.clientAcceptance.findUnique({
         where: { id: workflowId },

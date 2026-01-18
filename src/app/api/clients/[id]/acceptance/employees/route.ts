@@ -1,7 +1,7 @@
 /**
  * GET /api/clients/[id]/acceptance/employees
  * Fetch employees for team selection in client acceptance
- * No category restrictions - any active employee can be partner, manager, or incharge
+ * Partners restricted to LOCAL, DIR, or CARL categories. Managers and incharges can be any active employee.
  */
 
 import { NextResponse } from 'next/server';
@@ -22,6 +22,13 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     const currentIncharge = searchParams.get('currentIncharge');
 
     let where: any = { Active: 'Yes' };
+
+    // For partners, only include LOCAL, DIR, or CARL categories
+    if (role === 'partner') {
+      where.EmpCatCode = {
+        in: ['LOCAL', 'DIR', 'CARL'],
+      };
+    }
 
     // Build exclusion list to prevent same person in multiple roles
     const excludeCodes: string[] = [];
@@ -52,7 +59,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
         Active: true,
       },
       orderBy: { EmpNameFull: 'asc' },
-      take: 500, // Limit results
+      // No limit - return all active employees for client-side filtering
     });
 
     // Include current partner if not already in list (for historical data display)

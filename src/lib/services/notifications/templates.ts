@@ -331,5 +331,19 @@ export function createChangeRequestRejectedNotification(
   };
 }
 
-
+/**
+ * Create approval assigned notification
+ */
+export function createApprovalAssignedNotification(
+  workflowTitle: string,
+  workflowType: string,
+  requestedByName: string,
+  approvalId: number
+): NotificationTemplate {
+  return {
+    title: 'Approval Required',
+    message: `${requestedByName} submitted "${workflowTitle}" for your approval.`,
+    actionUrl: '/dashboard/approvals',
+  };
+}
 

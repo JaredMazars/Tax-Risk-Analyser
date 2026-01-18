@@ -6,11 +6,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { CheckCircle, AlertCircle, Send } from 'lucide-react';
-import { Button, Banner } from '@/components/ui';
+import { CheckCircle, AlertCircle, Send, Loader2 } from 'lucide-react';
+import { Button, Banner, LoadingOverlay, Badge } from '@/components/ui';
 import { QuestionField } from '@/components/features/tasks/acceptance/QuestionField';
 import { CLIENT_ACCEPTANCE_QUESTIONNAIRE, type QuestionSection } from '@/constants/acceptance-questions';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { ApprovalActions } from '@/components/shared/ApprovalActions';
 import { ClientRiskResearchStep } from './ClientRiskResearchStep';
 import { ClientTeamSelectionStep, type TeamSelections } from './ClientTeamSelectionStep';
 import type { CompanyResearchResult } from '@/lib/services/bd/companyResearchAgent';
@@ -19,6 +20,15 @@ interface ClientAcceptanceQuestionnaireProps {
   GSClientID: string;
   clientName: string | null;
   onSubmitSuccess?: () => void;
+  // Approval mode props
+  approvalMode?: boolean;
+  approvalId?: number;
+  currentStepId?: number;
+  onApprove?: (stepId: number, comment?: string) => Promise<void>;
+  onReject?: (stepId: number, comment: string) => Promise<void>;
+  isApprovalProcessing?: boolean;
+  // Read-only mode prop
+  readOnlyMode?: boolean;
 }
 
 interface AnswerState {
@@ -32,6 +42,13 @@ export function ClientAcceptanceQuestionnaire({
   GSClientID,
   clientName,
   onSubmitSuccess,
+  approvalMode = false,
+  approvalId,
+  currentStepId,
+  onApprove,
+  onReject,
+  isApprovalProcessing = false,
+  readOnlyMode = false,
 }: ClientAcceptanceQuestionnaireProps) {
   const [activeTab, setActiveTab] = useState(0); // 0 = team selection, 1 = research, 2+ = questionnaire sections
   const [answers, setAnswers] = useState<AnswerState>({});
@@ -56,7 +73,9 @@ export function ClientAcceptanceQuestionnaire({
   const [clientData, setClientData] = useState<any | null>(null);
 
   const sections: QuestionSection[] = CLIENT_ACCEPTANCE_QUESTIONNAIRE;
-  const totalTabs = sections.length + 2; // +1 for team selection, +1 for research tab
+  const totalTabs = approvalMode 
+    ? sections.length + 3  // +1 team, +1 research, +1 approval decision
+    : sections.length + 2; // +1 team, +1 research
 
   // Load client data and existing answers
   useEffect(() => {
@@ -67,9 +86,6 @@ export function ClientAcceptanceQuestionnaire({
         const clientRes = await fetch(`/api/clients/${GSClientID}`);
         if (clientRes.ok) {
           const clientResult = await clientRes.json();
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientAcceptanceQuestionnaire.tsx:70',message:'Client data received from API',data:{clientPartner:clientResult.data?.clientPartner,clientManager:clientResult.data?.clientManager,clientIncharge:clientResult.data?.clientIncharge,clientPartnerName:clientResult.data?.clientPartnerName,clientManagerName:clientResult.data?.clientManagerName,clientInchargeName:clientResult.data?.clientInchargeName,hasNameFields:!!(clientResult.data?.clientPartnerName || clientResult.data?.clientManagerName || clientResult.data?.clientInchargeName)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
           setClientData(clientResult.data);
           
           // Initialize team selections with current values
@@ -134,6 +150,9 @@ export function ClientAcceptanceQuestionnaire({
   }, [GSClientID]);
 
   const handleAnswerChange = (questionKey: string, answer: string, comment?: string) => {
+    // Do nothing in read-only mode
+    if (readOnlyMode) return;
+
     // Update UI immediately
     setAnswers((prev) => ({
       ...prev,
@@ -203,8 +222,8 @@ export function ClientAcceptanceQuestionnaire({
   };
 
   const handleTabChange = async (newTab: number) => {
-    // Save pending changes before switching tabs
-    if (pendingChanges.size > 0) {
+    // Save pending changes before switching tabs (not in read-only mode)
+    if (!readOnlyMode && pendingChanges.size > 0) {
       // Cancel scheduled save
       if (batchSaveTimeoutRef.current) {
         clearTimeout(batchSaveTimeoutRef.current);
@@ -382,7 +401,15 @@ export function ClientAcceptanceQuestionnaire({
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden">
+      <div className="bg-white rounded-lg border-2 border-forvis-gray-200 shadow-corporate overflow-hidden relative">
+        {/* Loading Overlay During Submission */}
+        {isSubmitting && (
+          <LoadingOverlay
+            spinnerSize="lg"
+            message="Submitting client acceptance for approval..."
+          />
+        )}
+        
         <div className="border-b border-forvis-gray-200">
           <div className="flex overflow-x-auto">
             {/* Team Selection Tab */}
@@ -438,6 +465,21 @@ export function ClientAcceptanceQuestionnaire({
                 </button>
               );
             })}
+
+            {/* Approval Decision Tab (only in approval mode) */}
+            {approvalMode && (
+              <button
+                onClick={() => handleTabChange(totalTabs - 1)}
+                className={`px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${
+                  activeTab === totalTabs - 1
+                    ? 'border-b-2 border-forvis-blue-500 text-forvis-blue-600'
+                    : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+                }`}
+              >
+                Approval Decision
+                <AlertCircle className="h-4 w-4 text-yellow-600" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -450,6 +492,10 @@ export function ClientAcceptanceQuestionnaire({
               clientData={clientData}
               onContinue={handleTeamSelectionContinue}
               isLoading={isLoading}
+              readOnly={readOnlyMode}
+              initialPartnerCode={teamSelections.selectedPartnerCode}
+              initialManagerCode={teamSelections.selectedManagerCode}
+              initialInchargeCode={teamSelections.selectedInchargeCode}
             />
           )}
 
@@ -461,11 +507,12 @@ export function ClientAcceptanceQuestionnaire({
               existingResearch={researchData}
               onComplete={handleResearchComplete}
               onSkip={handleSkipResearch}
+              readOnly={readOnlyMode}
             />
           )}
 
           {/* Questionnaire Section Content */}
-          {activeTab > 1 && (() => {
+          {activeTab > 1 && activeTab < totalTabs - (approvalMode ? 1 : 0) && (() => {
             const currentSection = sections[activeTab - 2];
             if (!currentSection) return null;
             
@@ -491,47 +538,186 @@ export function ClientAcceptanceQuestionnaire({
                     onChange={(answer, comment) =>
                       handleAnswerChange(question.questionKey, answer, comment)
                     }
+                    disabled={readOnlyMode}
                   />
                 ))}
               </div>
             );
           })()}
+
+          {/* Approval Decision Tab Content */}
+          {approvalMode && activeTab === totalTabs - 1 && (
+            <div className="space-y-6">
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-forvis-gray-900 mb-2">
+                  Approval Decision
+                </h3>
+                <p className="text-sm text-forvis-gray-600">
+                  Review the client acceptance assessment and provide your approval decision.
+                </p>
+              </div>
+
+              {/* Assessment Summary Card */}
+              <div
+                className="rounded-lg border-2 border-forvis-blue-100 p-6"
+                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+              >
+                <h4 className="text-lg font-semibold text-forvis-blue-900 mb-4">
+                  Assessment Summary
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-sm font-medium text-forvis-gray-600 mb-1">Completion Rate</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-bold text-forvis-blue-600">{completionPercentage}%</p>
+                      {completionPercentage === 100 ? (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-yellow-600" />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-forvis-gray-600 mb-1">Risk Rating</p>
+                    <div className="mt-1">
+                      {(() => {
+                        // Get risk rating from current answers
+                        const allQuestions = sections.flatMap((s) => s.questions);
+                        let totalRisk = 0;
+                        let maxPossibleRisk = 0;
+
+                        for (const question of allQuestions) {
+                          const answer = answers[question.questionKey]?.answer;
+                          if (!answer || question.riskWeight === 0) continue;
+
+                          maxPossibleRisk += question.riskWeight * 10;
+
+                          if (
+                            question.highRiskAnswers &&
+                            question.highRiskAnswers.includes(answer)
+                          ) {
+                            totalRisk += question.riskWeight * 10;
+                          }
+                        }
+
+                        const score = maxPossibleRisk > 0 ? (totalRisk / maxPossibleRisk) * 100 : 0;
+                        const rating = score < 30 ? 'LOW' : score < 60 ? 'MEDIUM' : 'HIGH';
+                        const colors = {
+                          LOW: 'bg-green-100 text-green-800 border-green-300',
+                          MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                          HIGH: 'bg-red-100 text-red-800 border-red-300',
+                        };
+
+                        return (
+                          <div className="flex items-center gap-2">
+                            <div className={`px-3 py-1.5 rounded-lg border-2 text-sm font-semibold ${colors[rating]}`}>
+                              {rating}
+                            </div>
+                            <span className="text-sm text-forvis-gray-600">
+                              ({score.toFixed(0)}%)
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Approval Actions */}
+              {currentStepId && onApprove && onReject && (
+                <ApprovalActions
+                  onApprove={async (comment) => {
+                    await onApprove(currentStepId, comment);
+                  }}
+                  onReject={async (comment) => {
+                    await onReject(currentStepId, comment);
+                  }}
+                  isProcessing={isApprovalProcessing}
+                  approveText="Approve Assessment"
+                  rejectText="Reject Assessment"
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
-        <div className="border-t border-forvis-gray-200 px-6 py-4 bg-forvis-gray-50">
-          <div className="flex justify-between items-center">
-            <div>
-              {activeTab > 1 && (
-                <Button
-                  variant="secondary"
-                  onClick={() => handleTabChange(activeTab - 1)}
-                >
-                  Previous
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-3">
-              {activeTab < totalTabs - 1 ? (
-                <Button
-                  variant="primary"
-                  onClick={() => handleTabChange(activeTab + 1)}
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button
-                  variant="gradient"
-                  onClick={() => setShowConfirmModal(true)}
-                  disabled={!canSubmit() || isSubmitting}
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
-                </Button>
-              )}
+        {!readOnlyMode && (
+          <div className="border-t border-forvis-gray-200 px-6 py-4 bg-forvis-gray-50">
+            <div className="flex justify-between items-center">
+              <div>
+                {activeTab > 0 && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleTabChange(activeTab - 1)}
+                    disabled={isSubmitting || isApprovalProcessing}
+                  >
+                    Previous
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                {activeTab < totalTabs - 1 ? (
+                  <Button
+                    variant="primary"
+                    onClick={() => handleTabChange(activeTab + 1)}
+                    disabled={isSubmitting || isApprovalProcessing}
+                  >
+                    {/* Show "Proceed to Approval" on last questionnaire section in approval mode */}
+                    {approvalMode && activeTab === totalTabs - 2 ? 'Proceed to Approval' : 'Next'}
+                  </Button>
+                ) : !approvalMode ? (
+                  <Button
+                    variant="gradient"
+                    onClick={() => setShowConfirmModal(true)}
+                    disabled={!canSubmit() || isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Submit for Approval
+                      </>
+                    )}
+                  </Button>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Read-Only Mode Navigation */}
+        {readOnlyMode && (
+          <div className="border-t border-forvis-gray-200 px-6 py-4 bg-forvis-gray-50">
+            <div className="flex justify-between items-center">
+              <div>
+                {activeTab > 0 && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleTabChange(activeTab - 1)}
+                  >
+                    Previous
+                  </Button>
+                )}
+              </div>
+              <div>
+                {activeTab < totalTabs - 1 && (
+                  <Button
+                    variant="primary"
+                    onClick={() => handleTabChange(activeTab + 1)}
+                  >
+                    Next
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (
