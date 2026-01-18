@@ -543,9 +543,9 @@ export default function ServiceLineClientDetailPage() {
                         <dt className="text-xs font-medium text-forvis-gray-500">Partner</dt>
                         <dd className="mt-0.5 text-sm">
                           <EmployeeStatusBadge
-                            name={client.clientPartnerName || client.clientPartner}
-                            isActive={client.clientPartnerStatus?.isActive}
-                            hasUserAccount={client.clientPartnerStatus?.hasUserAccount}
+                            name={`${client.clientPartnerName || client.clientPartner} [${client.clientPartner}]`}
+                            isActive={client.clientPartnerStatus?.isActive ?? true}
+                            hasUserAccount={client.clientPartnerStatus?.hasUserAccount ?? false}
                             variant="text"
                             iconSize="sm"
                           />
@@ -555,9 +555,9 @@ export default function ServiceLineClientDetailPage() {
                         <dt className="text-xs font-medium text-forvis-gray-500">Manager</dt>
                         <dd className="mt-0.5 text-sm">
                           <EmployeeStatusBadge
-                            name={client.clientManagerName || client.clientManager}
-                            isActive={client.clientManagerStatus?.isActive}
-                            hasUserAccount={client.clientManagerStatus?.hasUserAccount}
+                            name={`${client.clientManagerName || client.clientManager} [${client.clientManager}]`}
+                            isActive={client.clientManagerStatus?.isActive ?? true}
+                            hasUserAccount={client.clientManagerStatus?.hasUserAccount ?? false}
                             variant="text"
                             iconSize="sm"
                           />
@@ -567,9 +567,9 @@ export default function ServiceLineClientDetailPage() {
                         <dt className="text-xs font-medium text-forvis-gray-500">In-Charge</dt>
                         <dd className="mt-0.5 text-sm">
                           <EmployeeStatusBadge
-                            name={client.clientInchargeName || client.clientIncharge}
-                            isActive={client.clientInchargeStatus?.isActive}
-                            hasUserAccount={client.clientInchargeStatus?.hasUserAccount}
+                            name={`${client.clientInchargeName || client.clientIncharge} [${client.clientIncharge}]`}
+                            isActive={client.clientInchargeStatus?.isActive ?? true}
+                            hasUserAccount={client.clientInchargeStatus?.hasUserAccount ?? false}
                             variant="text"
                             iconSize="sm"
                           />
