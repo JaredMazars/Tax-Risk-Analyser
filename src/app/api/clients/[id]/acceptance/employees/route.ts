@@ -17,6 +17,7 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
     const role = searchParams.get('role');
     const excludePartner = searchParams.get('excludePartner');
     const excludeManager = searchParams.get('excludeManager');
+    const currentPartner = searchParams.get('currentPartner');
     const currentManager = searchParams.get('currentManager');
     const currentIncharge = searchParams.get('currentIncharge');
 
@@ -53,6 +54,28 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       orderBy: { EmpNameFull: 'asc' },
       take: 500, // Limit results
     });
+
+    // Include current partner if not already in list (for historical data display)
+    if (role === 'partner' && currentPartner) {
+      const hasCurrentPartner = employees.some(emp => emp.EmpCode === currentPartner);
+      if (!hasCurrentPartner) {
+        const currentEmp = await prisma.employee.findFirst({
+          where: { EmpCode: currentPartner },
+          select: {
+            EmpCode: true,
+            EmpNameFull: true,
+            EmpCatCode: true,
+            EmpCatDesc: true,
+            OfficeCode: true,
+            Active: true,
+          },
+        });
+        if (currentEmp) {
+          // Add current partner to start of list (even if inactive for historical display)
+          employees = [currentEmp, ...employees];
+        }
+      }
+    }
 
     // Include current manager if not already in list (for historical data display)
     if (role === 'manager' && currentManager) {

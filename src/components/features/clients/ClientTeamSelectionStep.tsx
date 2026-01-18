@@ -104,6 +104,9 @@ export function ClientTeamSelectionStep({
   // Validate that Partner, Manager, and Incharge are 3 separate individuals
   useEffect(() => {
     if (clientData && !hasInitialized.current) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientTeamSelectionStep.tsx:106',message:'ClientData received in component',data:{clientPartner:clientData.clientPartner,clientManager:clientData.clientManager,clientIncharge:clientData.clientIncharge,clientPartnerName:clientData.clientPartnerName,clientManagerName:clientData.clientManagerName,clientInchargeName:clientData.clientInchargeName,hasPartnerName:!!clientData.clientPartnerName,hasManagerName:!!clientData.clientManagerName,hasInchargeName:!!clientData.clientInchargeName},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
       const partner = clientData.clientPartner || '';
       const manager = clientData.clientManager || '';
       const incharge = clientData.clientIncharge || '';
@@ -134,9 +137,19 @@ export function ClientTeamSelectionStep({
     const loadPartners = async () => {
       setLoadingPartners(true);
       try {
-        const res = await fetch(`/api/clients/${GSClientID}/acceptance/employees?role=partner`);
+        const params = new URLSearchParams({ role: 'partner' });
+        
+        // Include current partner to ensure it's in the list even if they don't match filters
+        if (clientData?.clientPartner) {
+          params.append('currentPartner', clientData.clientPartner);
+        }
+        
+        const res = await fetch(`/api/clients/${GSClientID}/acceptance/employees?${params}`);
         if (res.ok) {
           const data = await res.json();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientTeamSelectionStep.tsx:143',message:'Partners loaded',data:{count:data.data?.length || 0,partnerCodes:data.data?.map((e: Employee) => e.EmpCode) || [],currentPartner:clientData?.clientPartner,isCurrentPartnerInList:data.data?.some((e: Employee) => e.EmpCode === clientData?.clientPartner)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'I'})}).catch(()=>{});
+          // #endregion
           setPartners(data.data || []);
         } else {
           setError('Failed to load partners list');
@@ -148,7 +161,7 @@ export function ClientTeamSelectionStep({
       }
     };
     loadPartners();
-  }, [GSClientID]);
+  }, [GSClientID, clientData?.clientPartner]);
 
   // Load managers (excluding selected partner) - only apply exclusion after initialization
   useEffect(() => {
@@ -419,25 +432,39 @@ export function ClientTeamSelectionStep({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-forvis-gray-600 w-20">Partner:</span>
-                <EmployeeStatusBadge
-                  name={`${clientData.clientPartnerName || clientData.clientPartner} [${clientData.clientPartner}]`}
-                  isActive={clientData.clientPartnerStatus?.isActive ?? true}
-                  hasUserAccount={clientData.clientPartnerStatus?.hasUserAccount ?? false}
-                  variant="text"
-                  iconSize="sm"
-                />
+                {(() => {
+                  const partnerName = `${clientData.clientPartnerName || clientData.clientPartner} [${clientData.clientPartner}]`;
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientTeamSelectionStep.tsx:427',message:'Partner badge props',data:{partnerName,clientPartnerName:clientData.clientPartnerName,clientPartner:clientData.clientPartner,isActive:clientData.clientPartnerStatus?.isActive ?? true,hasUserAccount:clientData.clientPartnerStatus?.hasUserAccount ?? false},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
+                  // #endregion
+                  return (
+                    <EmployeeStatusBadge
+                      name={partnerName}
+                      isActive={clientData.clientPartnerStatus?.isActive ?? true}
+                      hasUserAccount={clientData.clientPartnerStatus?.hasUserAccount ?? false}
+                      variant="text"
+                      iconSize="sm"
+                    />
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-forvis-gray-600 w-20">Manager:</span>
-                {clientData.clientManager ? (
-                  <EmployeeStatusBadge
-                    name={`${clientData.clientManagerName || clientData.clientManager} [${clientData.clientManager}]`}
-                    isActive={clientData.clientManagerStatus?.isActive ?? true}
-                    hasUserAccount={clientData.clientManagerStatus?.hasUserAccount ?? false}
-                    variant="text"
-                    iconSize="sm"
-                  />
-                ) : (
+                {clientData.clientManager ? (() => {
+                  const managerName = `${clientData.clientManagerName || clientData.clientManager} [${clientData.clientManager}]`;
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientTeamSelectionStep.tsx:448',message:'Manager badge props',data:{managerName,clientManagerName:clientData.clientManagerName,clientManager:clientData.clientManager,isActive:clientData.clientManagerStatus?.isActive ?? true,hasUserAccount:clientData.clientManagerStatus?.hasUserAccount ?? false},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
+                  // #endregion
+                  return (
+                    <EmployeeStatusBadge
+                      name={managerName}
+                      isActive={clientData.clientManagerStatus?.isActive ?? true}
+                      hasUserAccount={clientData.clientManagerStatus?.hasUserAccount ?? false}
+                      variant="text"
+                      iconSize="sm"
+                    />
+                  );
+                })() : (
                   <span className="text-xs text-forvis-gray-500">Not assigned</span>
                 )}
               </div>

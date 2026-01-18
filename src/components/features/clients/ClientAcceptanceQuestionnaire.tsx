@@ -67,6 +67,9 @@ export function ClientAcceptanceQuestionnaire({
         const clientRes = await fetch(`/api/clients/${GSClientID}`);
         if (clientRes.ok) {
           const clientResult = await clientRes.json();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientAcceptanceQuestionnaire.tsx:70',message:'Client data received from API',data:{clientPartner:clientResult.data?.clientPartner,clientManager:clientResult.data?.clientManager,clientIncharge:clientResult.data?.clientIncharge,clientPartnerName:clientResult.data?.clientPartnerName,clientManagerName:clientResult.data?.clientManagerName,clientInchargeName:clientResult.data?.clientInchargeName,hasNameFields:!!(clientResult.data?.clientPartnerName || clientResult.data?.clientManagerName || clientResult.data?.clientInchargeName)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
           setClientData(clientResult.data);
           
           // Initialize team selections with current values

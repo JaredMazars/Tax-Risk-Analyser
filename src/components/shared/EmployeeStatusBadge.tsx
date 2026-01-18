@@ -119,6 +119,11 @@ export function EmployeeStatusBadge({
   }
 
   // Text variant (default): name with colored text + icon
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EmployeeStatusBadge.tsx:127',message:'Rendering text variant',data:{name,isActive,hasUserAccount,statusTextColor:status.textColor,statusTitle:status.title,hasName:!!name,nameLength:name?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H'})}).catch(()=>{});
+  }
+  // #endregion
   return (
     <span
       className={`inline-flex items-center gap-1 ${status.textColor} ${className}`}

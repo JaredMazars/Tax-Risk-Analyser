@@ -83,6 +83,10 @@ export async function getEmployeesByCodes(
   const employeeMap = new Map<string, EmployeeInfo>();
   const uncachedCodes: string[] = [];
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employeeQueries.ts:83',message:'getEmployeesByCodes called',data:{empCodes:validCodes,bypassCache:bypassCache},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+
   // Check cache for each employee (unless bypassing)
   if (!bypassCache) {
     await Promise.all(
@@ -134,6 +138,10 @@ export async function getEmployeesByCodes(
       employeeMap.set(emp.EmpCode, emp);
     })
   );
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employeeQueries.ts:131',message:'DB query results',data:{queriedCodes:uncachedCodes,foundCount:employees.length,employees:employees.map(e=>({code:e.EmpCode,name:e.EmpName,fullName:e.EmpNameFull}))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 
   return employeeMap;
 }

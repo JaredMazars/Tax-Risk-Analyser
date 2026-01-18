@@ -8,6 +8,7 @@ import { getTaskCountsByServiceLine } from '@/lib/services/tasks/taskAggregation
 import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
+import { enrichObjectsWithEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
 import { calculateWIPByTask, calculateWIPBalances } from '@/lib/services/clients/clientBalanceCalculation';
 import { secureRoute } from '@/lib/api/secureRoute';
 
@@ -180,11 +181,24 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       TaskManagerStatus: task.TaskManager ? taskEmployeeStatusMap.get(task.TaskManager) : undefined,
     }));
 
-    const [enrichedClient] = await enrichRecordsWithEmployeeNames([client], [
-      { codeField: 'clientPartner', nameField: 'clientPartnerName' },
-      { codeField: 'clientManager', nameField: 'clientManagerName' },
-      { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+    const enrichedClients = await enrichRecordsWithEmployeeNames(
+      [client],
+      [
+        { codeField: 'clientPartner', nameField: 'clientPartnerName' },
+        { codeField: 'clientManager', nameField: 'clientManagerName' },
+        { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+      ],
+      true // Bypass cache for fresh employee data
+    );
+
+    // Enrich with employee status (active/inactive, has user account)
+    await enrichObjectsWithEmployeeStatus(enrichedClients, [
+      { codeField: 'clientPartner', statusField: 'clientPartnerStatus' },
+      { codeField: 'clientManager', statusField: 'clientManagerStatus' },
+      { codeField: 'clientIncharge', statusField: 'clientInchargeStatus' },
     ]);
+
+    const enrichedClient = enrichedClients[0]!;
 
     const clientWipBalances = calculateWIPBalances(wipTransactions);
 
