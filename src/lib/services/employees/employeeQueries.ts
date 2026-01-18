@@ -66,7 +66,8 @@ export async function getEmployeeByCode(
  * Implements Redis caching with batch optimization
  */
 export async function getEmployeesByCodes(
-  empCodes: string[]
+  empCodes: string[],
+  bypassCache: boolean = false
 ): Promise<Map<string, EmployeeInfo>> {
   if (!empCodes || empCodes.length === 0) {
     return new Map();
@@ -82,20 +83,25 @@ export async function getEmployeesByCodes(
   const employeeMap = new Map<string, EmployeeInfo>();
   const uncachedCodes: string[] = [];
 
-  // Check cache for each employee
-  await Promise.all(
-    validCodes.map(async (code) => {
-      const cacheKey = `${CACHE_PREFIXES.USER}employee:${code}`;
-      const cached = await cache.get<EmployeeInfo>(cacheKey);
-      if (cached) {
-        employeeMap.set(code, cached);
-      } else {
-        uncachedCodes.push(code);
-      }
-    })
-  );
+  // Check cache for each employee (unless bypassing)
+  if (!bypassCache) {
+    await Promise.all(
+      validCodes.map(async (code) => {
+        const cacheKey = `${CACHE_PREFIXES.USER}employee:${code}`;
+        const cached = await cache.get<EmployeeInfo>(cacheKey);
+        if (cached) {
+          employeeMap.set(code, cached);
+        } else {
+          uncachedCodes.push(code);
+        }
+      })
+    );
+  } else {
+    // Bypass cache - fetch all from database
+    uncachedCodes.push(...validCodes);
+  }
 
-  // If all employees were cached, return early
+  // If all employees were cached (and not bypassing), return early
   if (uncachedCodes.length === 0) {
     return employeeMap;
   }
@@ -160,7 +166,8 @@ export async function enrichRecordsWithEmployeeNames<
   T extends { [key: string]: any }
 >(
   records: T[],
-  codeFields: Array<{ codeField: keyof T; nameField?: string }>
+  codeFields: Array<{ codeField: keyof T; nameField?: string }>,
+  bypassCache: boolean = false
 ): Promise<Array<T & { [key: string]: string | undefined }>> {
   if (!records || records.length === 0) {
     return records;
@@ -178,7 +185,7 @@ export async function enrichRecordsWithEmployeeNames<
   });
 
   // Fetch all employees in one batch
-  const employeeMap = await getEmployeesByCodes(Array.from(allCodes));
+  const employeeMap = await getEmployeesByCodes(Array.from(allCodes), bypassCache);
 
   // Enrich each record
   return records.map((record) => {

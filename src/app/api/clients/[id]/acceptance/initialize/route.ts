@@ -54,11 +54,15 @@ export const POST = secureRoute.mutationWithParams<never, { id: string }>({
     const acceptance = await getOrCreateClientAcceptance(client.id, user.id);
 
     // Enrich client data with employee names
-    const enrichedClients = await enrichRecordsWithEmployeeNames([client], [
-      { codeField: 'clientPartner', nameField: 'clientPartnerName' },
-      { codeField: 'clientManager', nameField: 'clientManagerName' },
-      { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
-    ]);
+    const enrichedClients = await enrichRecordsWithEmployeeNames(
+      [client],
+      [
+        { codeField: 'clientPartner', nameField: 'clientPartnerName' },
+        { codeField: 'clientManager', nameField: 'clientManagerName' },
+        { codeField: 'clientIncharge', nameField: 'clientInchargeName' },
+      ],
+      true // Bypass cache for fresh data
+    );
 
     // Enrich with employee status
     await enrichObjectsWithEmployeeStatus(enrichedClients, [
