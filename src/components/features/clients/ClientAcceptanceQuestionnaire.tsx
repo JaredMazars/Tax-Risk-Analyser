@@ -131,6 +131,15 @@ export function ClientAcceptanceQuestionnaire({
             setResearchCompleted(data.data.researchCompleted || false);
             setResearchSkipped(data.data.researchSkipped || false);
 
+            // Load pending team selections if they exist
+            if (data.data.pendingPartnerCode || data.data.pendingManagerCode || data.data.pendingInchargeCode) {
+              setTeamSelections({
+                selectedPartnerCode: data.data.pendingPartnerCode || '',
+                selectedManagerCode: data.data.pendingManagerCode || '',
+                selectedInchargeCode: data.data.pendingInchargeCode || '',
+              });
+            }
+
             // If research is completed or there are answers, start on first questionnaire tab
             if ((data.data.researchCompleted && Object.keys(loadedAnswers).length > 0) || 
                 Object.keys(loadedAnswers).length > 0) {
@@ -221,7 +230,34 @@ export function ClientAcceptanceQuestionnaire({
     }
   };
 
+  const saveCurrentTeamSelections = async () => {
+    // Only save if all three are selected
+    if (!teamSelections.selectedPartnerCode || !teamSelections.selectedManagerCode || !teamSelections.selectedInchargeCode) {
+      return;
+    }
+    
+    try {
+      await fetch(`/api/clients/${GSClientID}/acceptance/team`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnerCode: teamSelections.selectedPartnerCode,
+          managerCode: teamSelections.selectedManagerCode,
+          inchargeCode: teamSelections.selectedInchargeCode,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to save team selections:', err);
+      // Don't show error to user - this is auto-save
+    }
+  };
+
   const handleTabChange = async (newTab: number) => {
+    // Save team selections if leaving team selection tab (tab 0)
+    if (activeTab === 0 && !readOnlyMode) {
+      await saveCurrentTeamSelections();
+    }
+    
     // Save pending changes before switching tabs (not in read-only mode)
     if (!readOnlyMode && pendingChanges.size > 0) {
       // Cancel scheduled save
@@ -505,6 +541,7 @@ export function ClientAcceptanceQuestionnaire({
               GSClientID={GSClientID}
               clientName={clientName}
               existingResearch={researchData}
+              researchSkipped={researchSkipped}
               onComplete={handleResearchComplete}
               onSkip={handleSkipResearch}
               readOnly={readOnlyMode}
@@ -735,6 +772,7 @@ export function ClientAcceptanceQuestionnaire({
         variant="info"
         onConfirm={handleSubmit}
         onClose={() => setShowConfirmModal(false)}
+        isLoading={isSubmitting}
       />
     </div>
   );

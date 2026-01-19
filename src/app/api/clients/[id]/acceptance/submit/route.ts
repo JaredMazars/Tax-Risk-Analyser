@@ -59,14 +59,16 @@ export const POST = secureRoute.mutationWithParams<typeof SubmitAcceptanceSchema
     const approvalPartnerCode = data.selectedPartnerCode || client.clientPartner;
 
     // Validate the partner who will approve is active and has correct category
+    let partnerEmployee;
     if (approvalPartnerCode) {
-      const partnerEmployee = await prisma.employee.findFirst({
+      partnerEmployee = await prisma.employee.findFirst({
         where: {
           EmpCode: approvalPartnerCode.trim(),
         },
         select: {
           EmpCode: true,
           EmpNameFull: true,
+          WinLogon: true,
           Active: true,
           EmpCatCode: true,
         },
@@ -122,8 +124,11 @@ export const POST = secureRoute.mutationWithParams<typeof SubmitAcceptanceSchema
       requestedById: user.id,
       context: { 
         clientPartnerCode: approvalPartnerCode,
+        clientPartnerName: partnerEmployee?.EmpNameFull || null,
+        clientPartnerEmail: partnerEmployee?.WinLogon || null,
         clientId: client.id,
         clientCode: client.clientCode,
+        clientName: client.clientNameFull || client.clientCode,
         hasPendingTeamChanges: !!(data.selectedPartnerCode || data.selectedManagerCode || data.selectedInchargeCode),
       },
     });

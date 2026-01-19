@@ -15,6 +15,7 @@ interface ClientRiskResearchStepProps {
   GSClientID: string;
   clientName: string | null;
   existingResearch?: CompanyResearchResult | null;
+  researchSkipped?: boolean;
   onComplete?: (researchData?: CompanyResearchResult) => void;
   onSkip?: () => void;
   readOnly?: boolean;
@@ -24,6 +25,7 @@ export function ClientRiskResearchStep({
   GSClientID,
   clientName,
   existingResearch,
+  researchSkipped = false,
   onComplete,
   onSkip,
   readOnly = false,
@@ -94,7 +96,7 @@ export function ClientRiskResearchStep({
           </div>
         </div>
 
-        {!researchResult && !isResearching && !readOnly && (
+        {!researchResult && !isResearching && !readOnly && !researchSkipped && (
           <div className="bg-white rounded-lg p-4 border border-forvis-gray-200">
             <p className="text-sm text-forvis-gray-700 mb-4">
               Before beginning the acceptance questionnaire, we'll research <strong>{clientName || GSClientID}</strong> using
@@ -120,7 +122,29 @@ export function ClientRiskResearchStep({
           </div>
         )}
 
-        {!researchResult && !isResearching && readOnly && (
+        {researchSkipped && !researchResult && !isResearching && (
+          <div className="bg-white rounded-lg p-5 border border-forvis-gray-200">
+            <div className="flex items-center gap-3 mb-3">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+              <div>
+                <h3 className="text-sm font-semibold text-forvis-gray-900">Research Skipped</h3>
+                <p className="text-xs text-forvis-gray-600">
+                  You chose to skip the AI-powered research step
+                </p>
+              </div>
+            </div>
+            {!readOnly && (
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={handleResearch}>
+                  <Search className="h-4 w-4 mr-2" />
+                  Run Research Now
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!researchResult && !isResearching && readOnly && !researchSkipped && (
           <div className="bg-white rounded-lg p-4 border border-forvis-gray-200">
             <p className="text-sm text-forvis-gray-600 italic">
               No research data available for this acceptance.

@@ -77,7 +77,9 @@ export function WorkflowTimeline({ type, request, acceptance, note, vaultDocumen
         const approvalSteps = approval.ApprovalStep
           .sort((a, b) => a.stepOrder - b.stepOrder)
           .map((step, index) => {
-            const assignedToName = step.User_ApprovalStep_assignedToUserIdToUser?.name || 'Unassigned';
+            // Type assertion needed as ApprovalStep from ApprovalWithSteps may include user relations
+            const stepWithUsers = step as any;
+            const assignedToName = stepWithUsers.User_ApprovalStep_assignedToUserIdToUser?.name || 'Unassigned';
             const label = approval.ApprovalStep.length === 1 
               ? 'Partner Review'
               : `Partner Review ${index + 1}`;

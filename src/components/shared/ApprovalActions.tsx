@@ -32,12 +32,25 @@ export function ApprovalActions({
   const [rejectError, setRejectError] = useState<string | null>(null);
 
   const handleApproveClick = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ApprovalActions.tsx:34',message:'Approve button clicked - opening modal',data:{isProcessing},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     setApproveComment('');
     setShowApproveModal(true);
   };
 
   const handleApproveConfirm = async () => {
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ApprovalActions.tsx:39',message:'Approve confirmed in modal - calling onApprove',data:{comment:approveComment || 'none',isProcessing},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A_B'})}).catch(()=>{});
+    // #endregion
+    
     await onApprove(approveComment || undefined);
+    
+    // #region agent log
+    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ApprovalActions.tsx:46',message:'onApprove completed - closing modal',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     setShowApproveModal(false);
     setApproveComment('');
   };
@@ -111,18 +124,7 @@ export function ApprovalActions({
         variant="info"
         onConfirm={handleApproveConfirm}
         onClose={() => setShowApproveModal(false)}
-      >
-        <div className="mt-4">
-          <Input
-            label="Comment (Optional)"
-            type="textarea"
-            value={approveComment}
-            onChange={(e) => setApproveComment(e.target.value)}
-            placeholder="Add any comments or notes..."
-            rows={3}
-          />
-        </div>
-      </ConfirmModal>
+      />
 
       {/* Reject Confirmation Modal */}
       <ConfirmModal
@@ -136,23 +138,7 @@ export function ApprovalActions({
           setShowRejectModal(false);
           setRejectError(null);
         }}
-      >
-        <div className="mt-4">
-          <Input
-            label="Reason for Rejection *"
-            type="textarea"
-            value={rejectComment}
-            onChange={(e) => {
-              setRejectComment(e.target.value);
-              setRejectError(null);
-            }}
-            error={rejectError || undefined}
-            placeholder="Explain why this assessment is being rejected..."
-            rows={4}
-            required
-          />
-        </div>
-      </ConfirmModal>
+      />
     </>
   );
 }

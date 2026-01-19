@@ -12,6 +12,11 @@ import {
 } from '@/types/email';
 import { generateUserAddedHtml, generateUserAddedText } from './templates/userAddedTemplate';
 import { generateUserRemovedHtml, generateUserRemovedText } from './templates/userRemovedTemplate';
+import { 
+  generateClientAcceptanceApprovalHtml, 
+  generateClientAcceptanceApprovalText,
+  ClientAcceptanceApprovalEmailData 
+} from './templates/clientAcceptanceApprovalTemplate';
 
 /**
  * Email Service using Azure Communication Services
@@ -314,6 +319,104 @@ export class EmailService {
       return result;
     } catch (error) {
       logger.error('Error in sendUserRemovedEmail:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Send client acceptance approval notification
+   * This sends an email to the assigned partner when a client acceptance is submitted
+   * 
+   * @param approverEmail - Partner's email address (WinLogon for employees without user accounts)
+   * @param approverName - Partner's full name
+   * @param approverUserId - Partner's user ID (null if no account exists)
+   * @param clientName - Full client name
+   * @param clientCode - Client code
+   * @param riskRating - Risk rating (LOW, MEDIUM, HIGH)
+   * @param riskScore - Optional numeric risk score
+   * @param submittedByName - Name of user who submitted the acceptance
+   */
+  async sendClientAcceptanceApprovalEmail(
+    approverEmail: string,
+    approverName: string,
+    approverUserId: string | null,
+    clientName: string,
+    clientCode: string,
+    riskRating: string,
+    riskScore: number | null,
+    submittedByName: string
+  ): Promise<EmailSendResult> {
+    try {
+      // For users with accounts, check notification preferences
+      if (approverUserId) {
+        const enabled = await this.checkNotificationPreference(
+          approverUserId,
+          null, // No specific task, this is client-level
+          'APPROVAL_ASSIGNED'
+        );
+
+        if (!enabled) {
+          logger.info('User has disabled APPROVAL_ASSIGNED notifications', {
+            userId: approverUserId,
+            clientCode,
+          });
+          return { success: true, messageId: 'skipped' };
+        }
+      }
+
+      const data: ClientAcceptanceApprovalEmailData = {
+        approverName,
+        approverEmail,
+        clientName,
+        clientCode,
+        riskRating,
+        riskScore: riskScore ?? undefined,
+        submittedByName,
+        approvalUrl: `${this.baseUrl}/dashboard/approvals`,
+      };
+
+      const subject = `Approval Required: Client Acceptance for ${clientName}`;
+      const htmlContent = generateClientAcceptanceApprovalHtml(data);
+      const textContent = generateClientAcceptanceApprovalText(data);
+
+      const result = await this.sendEmail(
+        approverEmail,
+        subject,
+        htmlContent,
+        textContent
+      );
+
+      // Log the email
+      await this.logEmail(
+        approverEmail,
+        approverUserId,
+        'APPROVAL_ASSIGNED',
+        subject,
+        result.success ? EmailStatus.SENT : EmailStatus.FAILED,
+        result.error,
+        {
+          clientName,
+          clientCode,
+          riskRating,
+          riskScore,
+          hasUserAccount: !!approverUserId,
+        }
+      );
+
+      logger.info('Client acceptance approval email sent', {
+        approverEmail,
+        approverUserId: approverUserId || 'no-account',
+        clientCode,
+        riskRating,
+        success: result.success,
+      });
+
+      return result;
+    } catch (error) {
+      logger.error('Error in sendClientAcceptanceApprovalEmail:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

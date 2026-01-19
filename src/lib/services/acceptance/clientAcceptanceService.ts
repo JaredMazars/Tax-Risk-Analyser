@@ -177,7 +177,6 @@ export async function getClientAcceptanceStatus(
         where: {
           WinLogon: {
             equals: (await prisma.user.findUnique({ where: { id: userId }, select: { email: true } }))?.email,
-            mode: undefined,
           },
         },
         select: { EmpCode: true },
@@ -657,6 +656,31 @@ export async function markResearchCompleted(
 }
 
 /**
+ * Save client team selections (pending changes until approval)
+ */
+export async function saveClientTeamSelections(
+  clientId: number,
+  selections: {
+    partnerCode?: string;
+    managerCode?: string;
+    inchargeCode?: string;
+  },
+  userId: string
+): Promise<void> {
+  const acceptance = await getOrCreateClientAcceptance(clientId, userId);
+  
+  await prisma.clientAcceptance.update({
+    where: { id: acceptance.id },
+    data: {
+      pendingPartnerCode: selections.partnerCode || null,
+      pendingManagerCode: selections.managerCode || null,
+      pendingInchargeCode: selections.inchargeCode || null,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+/**
  * Get client acceptance with all answers
  */
 export async function getClientAcceptance(
@@ -716,7 +740,6 @@ async function ensureQuestionsExist(
     // Bulk create - skips duplicates automatically
     await prisma.acceptanceQuestion.createMany({
       data: questionData,
-      skipDuplicates: true,
     });
   } catch (error) {
     // If bulk create fails, questions might already exist - that's OK

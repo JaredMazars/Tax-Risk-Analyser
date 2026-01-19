@@ -163,7 +163,6 @@ export const PATCH = secureRoute.mutationWithParams<typeof PatchAnswerSchema, { 
       where: {
         WinLogon: {
           equals: user.email,
-          mode: undefined,
         },
       },
       select: { EmpCode: true },

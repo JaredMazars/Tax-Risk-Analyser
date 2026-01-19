@@ -436,7 +436,7 @@ export function MyApprovalsView() {
                                 approval={approval}
                                 onApprove={async (stepId, comment) => {
                                   await approveStep.mutateAsync({ stepId, comment });
-                                  refetch();
+                                  await refetch();
                                 }}
                                 onReject={async (stepId, comment) => {
                                   await rejectStep.mutateAsync({ stepId, comment });

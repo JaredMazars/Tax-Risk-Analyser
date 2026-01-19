@@ -92,6 +92,9 @@ export function ClientTeamSelectionStep({
   
   // Track if we've initialized from clientData to prevent clearing on reload
   const hasInitialized = useRef(false);
+  
+  // Auto-save state
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Helper function to filter and transform employees for SearchCombobox
   const filterOptions = (employees: Employee[], search: string): SearchComboboxOption[] => {
@@ -255,6 +258,53 @@ export function ClientTeamSelectionStep({
     };
     loadIncharges();
   }, [GSClientID, selectedPartner, selectedManager, selectedIncharge, clientData?.clientIncharge]);
+
+  // Auto-save team selections
+  const saveTeamSelections = async () => {
+    // Only save if all three are selected and we're not in read-only mode
+    if (!selectedPartner || !selectedManager || !selectedIncharge || readOnly) return;
+    
+    try {
+      await fetch(`/api/clients/${GSClientID}/acceptance/team`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnerCode: selectedPartner,
+          managerCode: selectedManager,
+          inchargeCode: selectedIncharge,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to save team selections:', err);
+      // Don't show error to user - this is auto-save, not critical
+    }
+  };
+
+  const scheduleSave = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(async () => {
+      await saveTeamSelections();
+    }, 2000); // Save after 2 seconds of inactivity
+  };
+
+  // Trigger auto-save when selections change
+  useEffect(() => {
+    if (hasInitialized.current && (selectedPartner || selectedManager || selectedIncharge)) {
+      scheduleSave();
+    }
+  }, [selectedPartner, selectedManager, selectedIncharge]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle partner selection changes
   const handlePartnerChange = (value: string | number | null) => {

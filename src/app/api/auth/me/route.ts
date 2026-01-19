@@ -19,7 +19,6 @@ export const GET = secureRoute.query({
       where: {
         WinLogon: {
           equals: user.email,
-          mode: undefined, // SQL Server uses collation for case-insensitivity
         },
       },
       select: {

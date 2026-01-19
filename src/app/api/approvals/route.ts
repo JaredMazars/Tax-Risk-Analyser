@@ -413,6 +413,10 @@ export const GET = secureRoute.query({
       // These use the unified approval system
       const centralizedData = await approvalService.getUserApprovals(user.id);
       
+      // #region agent log
+      await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'approvals/route.ts:414',message:'Got centralized approvals',data:{userId:user.id,totalApprovals:centralizedData.approvals.length,clientAcceptanceCount:centralizedData.approvals.filter(a => a.workflowType === 'CLIENT_ACCEPTANCE').length,approvalIds:centralizedData.approvals.map(a => a.id),statuses:centralizedData.approvals.map(a => ({id:a.id,status:a.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'D_E'})}).catch(()=>{});
+      // #endregion
+      
       // Filter based on archived flag
       // Note: Archived/completed centralized approvals are not yet implemented
       const centralizedApprovals = showArchived

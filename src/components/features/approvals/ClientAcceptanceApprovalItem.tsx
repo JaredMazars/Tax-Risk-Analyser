@@ -1,11 +1,12 @@
 'use client';
 
-import { Building, AlertTriangle, Calendar, CheckCircle, Eye, User } from 'lucide-react';
+import { Building, AlertTriangle, Calendar, CheckCircle, Eye, User, FileCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import type { ApprovalWithSteps } from '@/types/approval';
-import { Button } from '@/components/ui';
+import { Button, LoadingSpinner } from '@/components/ui';
 import { StatusBadge } from './StatusBadge';
 import { WorkflowTimeline } from './WorkflowTimeline';
+import { ClientAcceptanceQuestionnaire } from '@/components/features/clients/ClientAcceptanceQuestionnaire';
 import { useState } from 'react';
 
 interface ClientAcceptanceApprovalItemProps {
@@ -23,19 +24,23 @@ export function ClientAcceptanceApprovalItem({
   isProcessing = false,
   showArchived = false,
 }: ClientAcceptanceApprovalItemProps) {
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectComment, setRejectComment] = useState('');
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [isLoadingClient, setIsLoadingClient] = useState(false);
+  const [clientData, setClientData] = useState<{
+    GSClientID: string;
+    clientCode: string;
+    clientName: string;
+  } | null>(null);
 
   // Get current pending step
   const currentStep = approval.ApprovalStep.find((s) => s.status === 'PENDING');
   const isApproved = approval.status === 'APPROVED';
 
-  // Get workflow data (will be fetched via API in UnifiedApprovalCard pattern)
-  const workflowData = approval.context as any;
-  const clientName = workflowData?.Client?.clientNameFull || workflowData?.Client?.clientCode || 'Unknown Client';
-  const clientCode = workflowData?.Client?.clientCode || 'N/A';
-  const riskRating = workflowData?.riskRating || 'Pending';
-  const overallRiskScore = workflowData?.overallRiskScore;
+  // Display data from approval title
+  const clientName = approval.title || 'Client Acceptance';
+  const clientCode = `ID: ${approval.workflowId}`;
+  const riskRating = 'Pending';
+  const overallRiskScore: number | null | undefined = undefined;
 
   const getRiskColor = (rating: string) => {
     switch (rating.toUpperCase()) {
@@ -47,6 +52,44 @@ export function ClientAcceptanceApprovalItem({
         return 'text-green-600';
       default:
         return 'text-forvis-gray-600';
+    }
+  };
+
+  const fetchClientData = async () => {
+    setIsLoadingClient(true);
+    try {
+      const res = await fetch(`/api/approvals/${approval.id}/client-acceptance`);
+      if (!res.ok) throw new Error('Failed to fetch client data');
+      const data = await res.json();
+      setClientData(data.data);
+    } catch (error) {
+      console.error('Failed to fetch client data:', error);
+    } finally {
+      setIsLoadingClient(false);
+    }
+  };
+
+  const handleOpenModal = async () => {
+    await fetchClientData();
+    setShowReviewModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowReviewModal(false);
+    setClientData(null);
+  };
+
+  const handleApprove = async (stepId: number, comment?: string) => {
+    if (onApprove) {
+      await onApprove(stepId, comment);
+      handleCloseModal();
+    }
+  };
+
+  const handleReject = async (stepId: number, comment: string) => {
+    if (onReject) {
+      await onReject(stepId, comment);
+      handleCloseModal();
     }
   };
 
@@ -70,27 +113,13 @@ export function ClientAcceptanceApprovalItem({
     return {
       text: 'Review & Approve',
       variant: 'gradient' as const,
-      icon: null,
+      icon: FileCheck,
       disabled: false,
     };
   };
 
   const buttonConfig = getButtonConfig();
   const ButtonIcon = buttonConfig.icon;
-
-  const handleApprove = async () => {
-    if (currentStep && onApprove) {
-      await onApprove(currentStep.id);
-    }
-  };
-
-  const handleReject = async () => {
-    if (currentStep && onReject && rejectComment.trim()) {
-      await onReject(currentStep.id, rejectComment);
-      setShowRejectModal(false);
-      setRejectComment('');
-    }
-  };
 
   return (
     <>
@@ -141,9 +170,9 @@ export function ClientAcceptanceApprovalItem({
                     <span className={`font-medium ${getRiskColor(riskRating)}`}>
                       Risk Rating: {riskRating}
                     </span>
-                    {overallRiskScore !== null && overallRiskScore !== undefined && (
+                    {overallRiskScore != null && (
                       <span className="text-forvis-gray-600">
-                        (Score: {overallRiskScore.toFixed(1)})
+                        (Score: {(overallRiskScore as number).toFixed(1)})
                       </span>
                     )}
                   </div>
@@ -168,36 +197,16 @@ export function ClientAcceptanceApprovalItem({
 
           {/* Actions */}
           <div className="ml-4 flex-shrink-0">
-            {!showArchived && currentStep ? (
-              <div className="flex flex-col space-y-2">
-                <Button
-                  variant="gradient"
-                  size="sm"
-                  onClick={handleApprove}
-                  disabled={isProcessing}
-                >
-                  Approve
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => setShowRejectModal(true)}
-                  disabled={isProcessing}
-                >
-                  Reject
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant={buttonConfig.variant}
-                size="sm"
-                disabled={buttonConfig.disabled}
-                className={buttonConfig.disabled ? 'cursor-default opacity-80' : ''}
-              >
-                {ButtonIcon && <ButtonIcon className="h-4 w-4 mr-1.5" />}
-                {buttonConfig.text}
-              </Button>
-            )}
+            <Button
+              variant={buttonConfig.variant}
+              size="sm"
+              onClick={handleOpenModal}
+              disabled={buttonConfig.disabled || isProcessing}
+              className={buttonConfig.disabled ? 'cursor-default opacity-80' : ''}
+            >
+              {ButtonIcon && <ButtonIcon className="h-4 w-4 mr-1.5" />}
+              {buttonConfig.text}
+            </Button>
           </div>
         </div>
 
@@ -205,41 +214,49 @@ export function ClientAcceptanceApprovalItem({
         <WorkflowTimeline type="clientAcceptance" approval={approval} />
       </div>
 
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-corporate-lg max-w-lg w-full p-6">
-            <h3 className="text-lg font-semibold text-forvis-gray-900 mb-4">
-              Reject Client Acceptance
-            </h3>
-            <p className="text-sm text-forvis-gray-600 mb-4">
-              Please provide a reason for rejecting this client acceptance:
-            </p>
-            <textarea
-              className="w-full border border-forvis-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
-              rows={4}
-              value={rejectComment}
-              onChange={(e) => setRejectComment(e.target.value)}
-              placeholder="Enter rejection reason..."
-            />
-            <div className="flex justify-end space-x-3 mt-4">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setRejectComment('');
-                }}
-                disabled={isProcessing}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleReject}
-                disabled={isProcessing || !rejectComment.trim()}
-              >
-                {isProcessing ? 'Rejecting...' : 'Confirm Rejection'}
-              </Button>
+      {/* Review Modal - Full Screen Questionnaire */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+          <div className="min-h-screen px-4 py-8">
+            <div className="max-w-5xl mx-auto">
+              <div className="bg-white rounded-lg shadow-corporate-lg">
+                <div className="border-b border-forvis-gray-200 px-6 py-4 flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-forvis-gray-900">
+                    {showArchived ? 'View Client Acceptance' : 'Review Client Acceptance'}
+                  </h2>
+                  <Button
+                    variant="secondary"
+                    onClick={handleCloseModal}
+                    disabled={isProcessing}
+                  >
+                    Close
+                  </Button>
+                </div>
+                <div className="p-6">
+                  {isLoadingClient ? (
+                    <div className="flex items-center justify-center py-12">
+                      <LoadingSpinner size="lg" />
+                      <span className="ml-3 text-sm text-forvis-gray-600">Loading client data...</span>
+                    </div>
+                  ) : clientData ? (
+                    <ClientAcceptanceQuestionnaire
+                      GSClientID={clientData.GSClientID}
+                      clientName={clientData.clientName}
+                      approvalMode={!showArchived}
+                      approvalId={approval.id}
+                      currentStepId={currentStep?.id}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      isApprovalProcessing={isProcessing}
+                      readOnlyMode={showArchived}
+                    />
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-sm text-red-600">Failed to load client data</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

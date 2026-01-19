@@ -88,7 +88,8 @@ export class ApprovalService {
       await this.sendApprovalNotifications(
         approval,
         steps,
-        requestedByUser?.name || 'A user'
+        requestedByUser?.name || 'A user',
+        config.context || {}
       );
 
       return approval;
@@ -177,30 +178,17 @@ export class ApprovalService {
   }
 
   /**
-   * Send notifications to assigned approvers
+   * Send notifications to assigned approvers (both in-app and email)
    */
   private async sendApprovalNotifications(
     approval: Approval,
     steps: ApprovalStep[],
-    requestedByName: string
+    requestedByName: string,
+    context: Record<string, unknown>
   ): Promise<void> {
-    // Get all users who need to be notified (pending steps with assigned users)
-    const userIdsToNotify = new Set<string>();
-    
-    for (const step of steps) {
-      if (step.status === 'PENDING' && step.assignedToUserId) {
-        userIdsToNotify.add(step.assignedToUserId);
-      }
-    }
-    
-    if (userIdsToNotify.size === 0) {
-      logger.warn('No users to notify for approval', { approvalId: approval.id });
-      return;
-    }
-    
-    // Send notification to each approver
     const { createApprovalAssignedNotification } = await import('@/lib/services/notifications/templates');
     const { notificationService } = await import('@/lib/services/notifications/notificationService');
+    const { emailService } = await import('@/lib/services/email/emailService');
     
     const template = createApprovalAssignedNotification(
       approval.title,
@@ -209,31 +197,157 @@ export class ApprovalService {
       approval.id
     );
     
-    for (const userId of userIdsToNotify) {
-      try {
-        await notificationService.createNotification(
-          userId,
-          'APPROVAL_ASSIGNED',
-          template.title,
-          template.message,
-          undefined, // taskId
-          template.actionUrl,
-          approval.requestedById
-        );
-      } catch (error) {
-        logger.error('Failed to send approval notification', {
-          approvalId: approval.id,
-          userId,
-          error,
-        });
-        // Don't fail the approval creation if notification fails
+    let notificationsSent = 0;
+    let emailsSent = 0;
+    
+    for (const step of steps) {
+      if (step.status !== 'PENDING') {
+        continue;
+      }
+      
+      // Case 1: User has account - send both in-app and email notifications
+      if (step.assignedToUserId) {
+        try {
+          // Get user details for email
+          const user = await prisma.user.findUnique({
+            where: { id: step.assignedToUserId },
+            select: { email: true, name: true },
+          });
+          
+          if (user) {
+            // Send in-app notification (navbar bell)
+            await notificationService.createNotification(
+              step.assignedToUserId,
+              'APPROVAL_ASSIGNED',
+              template.title,
+              template.message,
+              undefined, // taskId
+              template.actionUrl,
+              approval.requestedById
+            );
+            notificationsSent++;
+            
+            // Send email notification for CLIENT_ACCEPTANCE
+            if (approval.workflowType === 'CLIENT_ACCEPTANCE') {
+              const clientAcceptance = await prisma.clientAcceptance.findUnique({
+                where: { id: approval.workflowId },
+                include: {
+                  Client: {
+                    select: {
+                      clientNameFull: true,
+                      clientCode: true,
+                    },
+                  },
+                },
+              });
+              
+              if (clientAcceptance?.Client) {
+                await emailService.sendClientAcceptanceApprovalEmail(
+                  user.email,
+                  user.name || user.email,
+                  step.assignedToUserId,
+                  clientAcceptance.Client.clientNameFull || clientAcceptance.Client.clientCode,
+                  clientAcceptance.Client.clientCode,
+                  clientAcceptance.riskRating || 'Unknown',
+                  clientAcceptance.overallRiskScore,
+                  requestedByName
+                );
+                emailsSent++;
+              }
+            }
+            
+            logger.info('Sent dual-channel notification (in-app + email)', {
+              approvalId: approval.id,
+              userId: step.assignedToUserId,
+              userEmail: user.email,
+            });
+          }
+        } catch (error) {
+          logger.error('Failed to send notification to user with account', {
+            approvalId: approval.id,
+            userId: step.assignedToUserId,
+            error,
+          });
+        }
+      } 
+      // Case 2: No user account - send email to employee's WinLogon
+      else if (approval.workflowType === 'CLIENT_ACCEPTANCE') {
+        try {
+          // Get partner code from context or ClientAcceptance record
+          const partnerCode = context.clientPartnerCode as string | undefined;
+          
+          if (partnerCode) {
+            // Lookup employee to get email (WinLogon)
+            const employee = await prisma.employee.findFirst({
+              where: { EmpCode: partnerCode },
+              select: { WinLogon: true, EmpNameFull: true },
+            });
+            
+            if (employee?.WinLogon) {
+              // Get client acceptance details
+              const clientAcceptance = await prisma.clientAcceptance.findUnique({
+                where: { id: approval.workflowId },
+                include: {
+                  Client: {
+                    select: {
+                      clientNameFull: true,
+                      clientCode: true,
+                    },
+                  },
+                },
+              });
+              
+              if (clientAcceptance?.Client) {
+                await emailService.sendClientAcceptanceApprovalEmail(
+                  employee.WinLogon,
+                  employee.EmpNameFull || employee.WinLogon,
+                  null, // No user account
+                  clientAcceptance.Client.clientNameFull || clientAcceptance.Client.clientCode,
+                  clientAcceptance.Client.clientCode,
+                  clientAcceptance.riskRating || 'Unknown',
+                  clientAcceptance.overallRiskScore,
+                  requestedByName
+                );
+                emailsSent++;
+                
+                logger.info('Sent email notification to employee without user account', {
+                  approvalId: approval.id,
+                  employeeCode: partnerCode,
+                  employeeEmail: employee.WinLogon,
+                  employeeName: employee.EmpNameFull,
+                });
+              }
+            } else {
+              logger.warn('Employee not found or has no WinLogon', {
+                approvalId: approval.id,
+                partnerCode,
+              });
+            }
+          }
+        } catch (error) {
+          logger.error('Failed to send email notification to employee', {
+            approvalId: approval.id,
+            partnerCode: context.clientPartnerCode,
+            error,
+          });
+        }
       }
     }
     
-    logger.info('Sent approval notifications', {
-      approvalId: approval.id,
-      recipientCount: userIdsToNotify.size,
-    });
+    if (notificationsSent === 0 && emailsSent === 0) {
+      logger.warn('No notifications sent for approval', {
+        approvalId: approval.id,
+        workflowType: approval.workflowType,
+        stepCount: steps.length,
+      });
+    } else {
+      logger.info('Sent approval notifications', {
+        approvalId: approval.id,
+        inAppNotifications: notificationsSent,
+        emailNotifications: emailsSent,
+        totalRecipients: notificationsSent + emailsSent,
+      });
+    }
   }
 
   /**
@@ -256,7 +370,7 @@ export class ApprovalService {
 
       const delegatedUserIds = activeDelegations.map((d) => d.fromUserId);
 
-      // Build query for user's approvals
+      // Build query for user's approvals (standard path)
       const approvals = await prisma.approval.findMany({
         where: {
           status: 'PENDING',
@@ -307,8 +421,130 @@ export class ApprovalService {
         ],
       });
 
+      // Fallback path: Get CLIENT_ACCEPTANCE approvals where assignedToUserId is NULL
+      // and user's employee code matches the pendingPartnerCode
+      let clientAcceptanceApprovals: any[] = [];
+      
+      try {
+        // Get user's employee code
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true },
+        });
+
+        if (user?.email) {
+          const employee = await prisma.employee.findFirst({
+            where: {
+              WinLogon: {
+                equals: user.email,
+              },
+            },
+            select: { EmpCode: true },
+          });
+
+          if (employee?.EmpCode) {
+            // Find CLIENT_ACCEPTANCE approvals with NULL assignedToUserId
+            // where the pendingPartnerCode matches user's employee code
+            const clientAcceptances = await prisma.clientAcceptance.findMany({
+              where: {
+                pendingPartnerCode: employee.EmpCode,
+                approvedAt: null, // Not yet approved
+                completedAt: { not: null }, // Submitted
+              },
+              select: {
+                id: true,
+                approvalId: true,
+                pendingPartnerCode: true,
+              },
+            });
+
+            if (clientAcceptances.length > 0) {
+              const approvalIds = clientAcceptances
+                .filter((ca) => ca.approvalId)
+                .map((ca) => ca.approvalId!);
+
+              if (approvalIds.length > 0) {
+                clientAcceptanceApprovals = await prisma.approval.findMany({
+                  where: {
+                    id: { in: approvalIds },
+                    status: 'PENDING',
+                    workflowType: 'CLIENT_ACCEPTANCE',
+                    ApprovalStep: {
+                      some: {
+                        status: 'PENDING',
+                        assignedToUserId: null, // NULL user ID (fallback path)
+                      },
+                    },
+                  },
+                  include: {
+                    ApprovalStep: {
+                      where: {
+                        status: 'PENDING',
+                      },
+                      include: {
+                        User_ApprovalStep_assignedToUserIdToUser: {
+                          select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                          },
+                        },
+                        User_ApprovalStep_delegatedToUserIdToUser: {
+                          select: {
+                            id: true,
+                            name: true,
+                          },
+                        },
+                      },
+                    },
+                    User_Approval_requestedByIdToUser: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      },
+                    },
+                  },
+                });
+
+                logger.info('Found CLIENT_ACCEPTANCE approvals via employee code fallback', {
+                  userId,
+                  employeeCode: employee.EmpCode,
+                  count: clientAcceptanceApprovals.length,
+                });
+              }
+            }
+          }
+        }
+      } catch (fallbackError) {
+        logger.error('Error in CLIENT_ACCEPTANCE fallback query', {
+          userId,
+          error: fallbackError,
+        });
+        // Don't throw - continue with standard approvals
+      }
+
+      // Merge approvals (remove duplicates)
+      const allApprovals = [...approvals];
+      const existingIds = new Set(approvals.map((a) => a.id));
+      
+      for (const approval of clientAcceptanceApprovals) {
+        if (!existingIds.has(approval.id)) {
+          allApprovals.push(approval);
+        }
+      }
+
+      // Sort by priority and date
+      allApprovals.sort((a, b) => {
+        if (a.priority !== b.priority) {
+          const priorityOrder = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+          return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+        }
+        return b.requestedAt.getTime() - a.requestedAt.getTime();
+      });
+
       // Group by workflow type
-      const groupedByWorkflow = approvals.reduce((acc, approval) => {
+      const groupedByWorkflow = allApprovals.reduce((acc, approval) => {
         const type = approval.workflowType as WorkflowType;
         if (!acc[type]) {
           acc[type] = [];
@@ -318,9 +554,9 @@ export class ApprovalService {
       }, {} as Record<WorkflowType, ApprovalWithSteps[]>);
 
       return {
-        approvals,
+        approvals: allApprovals,
         groupedByWorkflow,
-        totalCount: approvals.length,
+        totalCount: allApprovals.length,
       };
     } catch (error) {
       logger.error('Error getting user approvals', { userId, error });
@@ -686,7 +922,6 @@ export class ApprovalService {
               where: {
                 WinLogon: {
                   equals: user.email,
-                  mode: undefined,
                 },
               },
               select: { EmpCode: true },
