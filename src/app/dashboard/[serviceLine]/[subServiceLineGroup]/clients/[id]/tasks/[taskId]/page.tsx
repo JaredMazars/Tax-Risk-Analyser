@@ -9,6 +9,7 @@ import { LoadingSpinner, Button } from '@/components/ui';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { TaskDetailContent } from '@/components/features/tasks/TaskDetail/TaskDetailContent';
 import { useTask } from '@/hooks/tasks/useTaskData';
+import { useClientAcceptanceStatus } from '@/hooks/acceptance/useClientAcceptanceStatus';
 
 export default function ClientProjectPage() {
   const params = useParams();
@@ -37,6 +38,9 @@ export default function ClientProjectPage() {
   const subServiceLineGroupDescription = currentSubGroup?.description || subServiceLineGroup;
   
   const { data: task, isLoading: taskLoading } = useTask(taskId);
+  
+  // Fetch client acceptance status if this is a client task
+  const { data: clientAcceptanceStatus } = useClientAcceptanceStatus(task?.GSClientID || null);
   
   // Verify user has access to this task and service line
   useEffect(() => {
@@ -89,6 +93,16 @@ export default function ClientProjectPage() {
     validateAccess();
   }, [taskId, serviceLine, subServiceLineGroup]);
 
+  // Check client acceptance after task data is loaded
+  useEffect(() => {
+    if (task && task.GSClientID && clientAcceptanceStatus !== undefined) {
+      if (!clientAcceptanceStatus?.approved) {
+        setHasAccess(false);
+        setAccessError('Client Acceptance must be completed and approved before accessing this task');
+      }
+    }
+  }, [task, clientAcceptanceStatus]);
+
   // Show loading while checking access
   if (hasAccess === null) {
     return (
@@ -103,6 +117,11 @@ export default function ClientProjectPage() {
 
   // Show access denied if user doesn't have permission
   if (hasAccess === false) {
+    const isClientAcceptanceError = accessError?.includes('Client Acceptance');
+    const clientDetailsUrl = task?.GSClientID 
+      ? `/dashboard/${serviceLine.toLowerCase()}/${subServiceLineGroup}/clients/${task.GSClientID}`
+      : '/dashboard';
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-forvis-gray-50">
         <div className="text-center max-w-md px-4">
@@ -111,13 +130,25 @@ export default function ClientProjectPage() {
           <p className="text-forvis-gray-600 mb-4">
             {accessError || 'You do not have access to this task or service line.'}
           </p>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => router.push('/dashboard')}
-          >
-            Return to Dashboard
-          </Button>
+          <div className="flex gap-3 justify-center">
+            {isClientAcceptanceError && task?.GSClientID ? (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => router.push(clientDetailsUrl)}
+              >
+                Go to Client Details
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => router.push('/dashboard')}
+              >
+                Return to Dashboard
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );

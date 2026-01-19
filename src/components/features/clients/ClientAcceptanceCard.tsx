@@ -114,7 +114,7 @@ export function ClientAcceptanceCard({
     return (
       <div className={`px-3 py-1.5 rounded-lg border-2 text-sm font-semibold ${color}`}>
         Risk: {status.riskRating}
-        {status.overallRiskScore && ` (${status.overallRiskScore.toFixed(0)}%)`}
+        {status.overallRiskScore != null && ` (${status.overallRiskScore.toFixed(0)}%)`}
       </div>
     );
   };

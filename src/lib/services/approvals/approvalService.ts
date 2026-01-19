@@ -537,7 +537,7 @@ export class ApprovalService {
       // Sort by priority and date
       allApprovals.sort((a, b) => {
         if (a.priority !== b.priority) {
-          const priorityOrder = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+          const priorityOrder: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
           return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
         }
         return b.requestedAt.getTime() - a.requestedAt.getTime();

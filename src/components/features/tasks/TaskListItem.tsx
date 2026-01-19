@@ -2,7 +2,7 @@
 
 import React, { useState, ReactNode } from 'react';
 import Link from 'next/link';
-import { Clock } from 'lucide-react';
+import { Clock, Lock } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { AlertModal } from '@/components/shared/AlertModal';
 import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
@@ -59,6 +59,7 @@ interface TaskListItemProps {
   masterServiceLine?: string | null; // The main service line this task belongs to
   GSClientID?: string; // Optional GSClientID for when task.Client is not populated
   fromMyTasks?: boolean; // Whether navigating from My Tasks tab
+  isLocked?: boolean; // Whether task is locked due to client acceptance requirements
 }
 
 export function TaskListItem({
@@ -72,8 +73,10 @@ export function TaskListItem({
   masterServiceLine,
   GSClientID,
   fromMyTasks = false,
+  isLocked = false,
 }: TaskListItemProps) {
   const [showAccessModal, setShowAccessModal] = useState(false);
+  const [showLockedModal, setShowLockedModal] = useState(false);
   
   // Use WIP balances from task prop (loaded with client API)
   const balancesData = task.wip;
@@ -93,7 +96,10 @@ export function TaskListItem({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    if (!isAccessible) {
+    if (isLocked) {
+      e.preventDefault();
+      setShowLockedModal(true);
+    } else if (!isAccessible) {
       e.preventDefault();
       setShowAccessModal(true);
     }
@@ -107,13 +113,16 @@ export function TaskListItem({
     <>
       <div className="flex items-start justify-between gap-4 mb-2">
         <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-          <h3 className={`text-sm font-semibold ${isAccessible ? 'text-forvis-gray-900' : 'text-forvis-gray-500'}`}>
-            {task.TaskDesc}
-          </h3>
+          <div className="flex items-center gap-1.5">
+            {isLocked && <Lock className="h-4 w-4 text-yellow-600" />}
+            <h3 className={`text-sm font-semibold ${isLocked || !isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-900'}`}>
+              {task.TaskDesc}
+            </h3>
+          </div>
           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-            isAccessible 
-              ? 'bg-gray-100 text-gray-700 border border-gray-200'
-              : 'bg-forvis-gray-100 text-forvis-gray-400 border border-forvis-gray-200'
+            isLocked || !isAccessible
+              ? 'bg-forvis-gray-100 text-forvis-gray-400 border border-forvis-gray-200'
+              : 'bg-gray-100 text-gray-700 border border-gray-200'
           }`}>
             {task.TaskCode}
           </span>
@@ -122,7 +131,12 @@ export function TaskListItem({
               {task.Active === 'Archived' ? 'Archived' : 'Inactive'}
             </span>
           )}
-          {!isAccessible && (
+          {isLocked && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+              Locked
+            </span>
+          )}
+          {!isAccessible && !isLocked && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
               Different Group
             </span>
@@ -287,7 +301,15 @@ export function TaskListItem({
 
   return (
     <>
-      {isAccessible ? (
+      {isLocked ? (
+        <div
+          onClick={handleClick}
+          className="block p-3 border border-forvis-gray-300 rounded-lg transition-all opacity-50 cursor-not-allowed bg-forvis-gray-50"
+          title="Complete Client Acceptance to access this task"
+        >
+          {content}
+        </div>
+      ) : isAccessible ? (
         <Link
           href={taskUrl}
           className="block p-3 border border-forvis-gray-200 rounded-lg transition-all hover:border-forvis-blue-500 hover:shadow-sm cursor-pointer"
@@ -310,6 +332,14 @@ export function TaskListItem({
         title="Task Not Accessible"
         message={`This task belongs to a different sub-service line group. You are currently viewing ${currentSubServiceLineGroupDescription || currentSubServiceLineGroup}. This task belongs to ${taskSubGroup}.`}
         variant="info"
+      />
+      
+      <AlertModal
+        isOpen={showLockedModal}
+        onClose={() => setShowLockedModal(false)}
+        title="Task Locked"
+        message="Client Acceptance must be completed and approved before accessing this task. Please complete the risk assessment from the client details page."
+        variant="warning"
       />
     </>
   );

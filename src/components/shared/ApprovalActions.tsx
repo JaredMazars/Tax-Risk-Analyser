@@ -32,25 +32,12 @@ export function ApprovalActions({
   const [rejectError, setRejectError] = useState<string | null>(null);
 
   const handleApproveClick = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ApprovalActions.tsx:34',message:'Approve button clicked - opening modal',data:{isProcessing},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     setApproveComment('');
     setShowApproveModal(true);
   };
 
   const handleApproveConfirm = async () => {
-    // #region agent log
-    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ApprovalActions.tsx:39',message:'Approve confirmed in modal - calling onApprove',data:{comment:approveComment || 'none',isProcessing},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A_B'})}).catch(()=>{});
-    // #endregion
-    
     await onApprove(approveComment || undefined);
-    
-    // #region agent log
-    await fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ApprovalActions.tsx:46',message:'onApprove completed - closing modal',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
     setShowApproveModal(false);
     setApproveComment('');
   };

@@ -35,6 +35,7 @@ import { clientGraphDataKeys } from '@/hooks/clients/useClientGraphData';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { ClientAcceptanceCard } from '@/components/features/clients/ClientAcceptanceCard';
 import { Banner } from '@/components/ui';
+import { useClientAcceptanceStatus } from '@/hooks/acceptance/useClientAcceptanceStatus';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -69,6 +70,9 @@ export default function ServiceLineClientDetailPage() {
 
   // Fetch latest credit rating
   const { data: latestRating, isLoading: isLoadingRating } = useLatestCreditRating(GSClientID);
+  
+  // Fetch client acceptance status
+  const { data: clientAcceptanceStatus, isLoading: isLoadingAcceptance } = useClientAcceptanceStatus(GSClientID);
   
   // Use client data directly
   const client: any = useMemo(() => {
@@ -312,6 +316,20 @@ export default function ServiceLineClientDetailPage() {
           />
         </div>
 
+        {/* Warning Banner - Show when client acceptance is not approved */}
+        {!isLoadingAcceptance && !clientAcceptanceStatus?.approved && (
+          <div className="mb-6">
+            <Banner
+              variant="warning"
+              message={
+                clientAcceptanceStatus?.exists && clientAcceptanceStatus?.completed
+                  ? "Tasks are locked pending Client Acceptance approval. Once approved by the Partner, all tasks will become accessible."
+                  : "Tasks are locked until Client Acceptance is completed and approved. Complete the risk assessment above to unlock task creation and access."
+              }
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
           {/* Left Column - Client Information (Extended) */}
           <div className="lg:col-span-1 self-stretch">
@@ -510,14 +528,23 @@ export default function ServiceLineClientDetailPage() {
                 <h2 className="text-base font-semibold text-forvis-gray-900">
                   Tasks ({client._count?.Task || 0})
                 </h2>
-                <Button
-                  onClick={() => setShowCreateModal(true)}
-                  variant="gradient"
-                  size="sm"
-                  icon={<Plus className="h-4 w-4" />}
-                >
-                  New Task
-                </Button>
+                <div className="relative group">
+                  <Button
+                    onClick={() => setShowCreateModal(true)}
+                    variant="gradient"
+                    size="sm"
+                    icon={<Plus className="h-4 w-4" />}
+                    disabled={!clientAcceptanceStatus?.approved}
+                    title={!clientAcceptanceStatus?.approved ? 'Client Acceptance must be completed and approved before creating tasks' : undefined}
+                  >
+                    New Task
+                  </Button>
+                  {!clientAcceptanceStatus?.approved && (
+                    <div className="hidden group-hover:block absolute z-10 bottom-full mb-2 right-0 w-64 p-2 text-xs text-white bg-forvis-gray-900 rounded-lg shadow-lg">
+                      Client Acceptance must be completed and approved before creating tasks
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Task Tabs - Current Sub-Service Line vs Other Tasks */}
@@ -633,6 +660,7 @@ export default function ServiceLineClientDetailPage() {
                           showPartnerManager={true}
                           masterServiceLine={task.masterServiceLine}
                           additionalBadge={<TaskStageIndicator stage={taskStage} />}
+                          isLocked={!clientAcceptanceStatus?.approved}
                         />
                       );
                     })}

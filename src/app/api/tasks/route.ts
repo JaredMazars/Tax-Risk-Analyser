@@ -17,6 +17,7 @@ import { secureRoute } from '@/lib/api/secureRoute';
 import { TaskStage } from '@/types/task-stages';
 import { getWipBalancesByTaskIds } from '@/lib/services/wip/wipCalculationSQL';
 import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
+import { enforceClientAcceptanceForTaskCreation } from '@/lib/middleware/clientAcceptanceCheck';
 
 // Zod schema for GET query params validation
 const TaskListQuerySchema = z.object({
@@ -398,6 +399,11 @@ export const POST = secureRoute.mutation({
       }
       
       GSClientID = client.GSClientID;
+    }
+
+    // Enforce client acceptance requirement for client tasks
+    if (data.clientId) {
+      await enforceClientAcceptanceForTaskCreation(data.clientId);
     }
 
     const externalServiceLine = await prisma.serviceLineExternal.findFirst({
