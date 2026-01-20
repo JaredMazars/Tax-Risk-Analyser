@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { ServiceLineCard } from '@/components/features/service-lines/ServiceLineCard';
 import { SharedServiceCard } from '@/components/features/service-lines/SharedServiceCard';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -94,15 +95,27 @@ export default function DashboardHomePage() {
         )}
 
         {/* Header */}
-        <div className="mb-8 text-center" style={{ overflow: 'visible' }}>
-          <p className="text-sm font-medium text-forvis-blue-600 mb-1">
+        <div className="mb-8 text-center flex flex-col items-center" style={{ overflow: 'visible' }}>
+          <p className="text-sm font-medium text-forvis-blue-600 mb-0">
             {firstName ? `Welcome back, ${firstName}` : 'Welcome'}
           </p>
-          <h1 className="text-3xl md:text-4xl font-semibold text-forvis-gray-900">
-            Forvis Mazars
-          </h1>
-          <div className="flex justify-center" style={{ overflow: 'visible' }}>
-            <GT3Logo />
+          <div className="relative" style={{ width: '1400px', height: '350px', overflow: 'visible' }}>
+            {/* Mazars Logo - Base Layer (No Animation) */}
+            <div className="absolute" style={{ bottom: 0, left: '50%', transform: 'translateX(-50%)' }}>
+              <Image
+                src="/Forvis Mazars Logo.png"
+                alt="Forvis Mazars Logo"
+                width={1400}
+                height={420}
+                style={{ objectFit: 'contain' }}
+                priority
+              />
+            </div>
+            
+            {/* GT3 Logo - Overlapping Layer (With Animation) */}
+            <div className="absolute" style={{ top: '-80px', left: '50%', transform: 'translateX(-50%) scale(0.6)', zIndex: 10 }}>
+              <GT3Logo />
+            </div>
           </div>
           <p className="text-sm text-forvis-gray-600">
             {availableServiceLines.length > 0 
