@@ -42,7 +42,7 @@ export default function AboutPage() {
     {
       icon: CheckCircle,
       title: 'Faster Client Onboarding',
-      description: 'Streamlined acceptance process gets clients approved and projects started without delays.'
+      description: 'Streamlined acceptance process gets clients approved and engagements started without delays.'
     }
   ];
 
@@ -73,7 +73,7 @@ export default function AboutPage() {
     {
       icon: BarChart3,
       title: 'Business Development',
-      description: 'Track leads and convert opportunities into live clients and projects.'
+      description: 'Track leads and convert opportunities into live clients and engagements.'
     },
     {
       icon: Workflow,
@@ -288,7 +288,7 @@ export default function AboutPage() {
           {/* AI Section */}
           <div className="rounded-lg pt-0 pb-3 mb-6">
             <div 
-              className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-lg shadow-corporate mb-1.5"
+              className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-lg shadow-corporate mb-3"
               style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
             >
               <div className="flex items-center gap-1.5">
