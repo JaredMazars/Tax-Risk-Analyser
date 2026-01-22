@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
-import { Briefcase, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown, Clock, Calculator } from 'lucide-react';
+import { Briefcase, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown, Clock, Calculator, Wallet } from 'lucide-react';
 import { useTaskWip, ProfitabilityMetrics } from '@/hooks/tasks/useTaskWip';
 import { taskTransactionsKeys } from '@/hooks/tasks/useTaskTransactions';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
@@ -239,8 +239,17 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
       {/* Tab Content */}
       {activeTab === 'profitability' && (
         <div className="space-y-6 p-6">
-      {/* Key Performance Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Key Performance Summary - Section Header */}
+      <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+        <div className="flex items-center gap-3">
+          <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+            <BarChart3 className="h-5 w-5 text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-forvis-gray-900">Key Performance Metrics</h2>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div 
           className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
           style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
@@ -372,10 +381,18 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
           <h3 className="text-lg font-bold text-forvis-gray-900">Detailed Breakdown</h3>
         </div>
         
-        <div className="p-6 space-y-8">
-          {/* Production & Revenue Flow */}
-          <div className="bg-forvis-gray-50 rounded-lg p-6 border border-forvis-gray-200">
-            <h3 className="text-md font-bold text-forvis-gray-900 mb-6">Revenue Flow</h3>
+        <div className="p-6 space-y-6">
+          {/* Production & Revenue Flow Section Header */}
+          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+            <div className="flex items-center gap-3">
+              <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+                <TrendingUp className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-forvis-gray-900">Revenue Flow</h2>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg p-6 border border-forvis-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div>
                 <ProfitabilityCard
@@ -417,9 +434,17 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
             </div>
           </div>
 
-          {/* Rate Metrics */}
+          {/* Rate Metrics Section Header */}
+          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+            <div className="flex items-center gap-3">
+              <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+                <Clock className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-forvis-gray-900">Hourly Rates</h2>
+            </div>
+          </div>
+
           <div>
-            <h3 className="text-md font-bold text-forvis-gray-900 mb-4">Hourly Rates</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <ProfitabilityCard
                 label="Total Hours"
@@ -443,9 +468,17 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
             </div>
           </div>
 
-          {/* WIP Balances */}
+          {/* WIP Balances Section Header */}
+          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+            <div className="flex items-center gap-3">
+              <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+                <Briefcase className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-forvis-gray-900">WIP Balances</h2>
+            </div>
+          </div>
+
           <div>
-            <h3 className="text-md font-bold text-forvis-gray-900 mb-4">WIP Balances</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <ProfitabilityCard 
                 label="Balance WIP" 
@@ -474,9 +507,17 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
             </div>
           </div>
 
-          {/* Additional Details */}
+          {/* Additional Details Section Header */}
+          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+            <div className="flex items-center gap-3">
+              <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+                <Wallet className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-forvis-gray-900">Additional Metrics</h2>
+            </div>
+          </div>
+
           <div>
-            <h3 className="text-md font-bold text-forvis-gray-900 mb-4">Additional Metrics</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <ProfitabilityCard 
                 label="LTD Adjustments" 
