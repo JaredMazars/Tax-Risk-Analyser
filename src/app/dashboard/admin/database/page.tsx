@@ -26,7 +26,7 @@ import { LoadingSpinner, Button, Card, Badge } from '@/components/ui';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { AlertModal } from '@/components/shared/AlertModal';
 import { ProcessingModal } from '@/components/shared/ProcessingModal';
-import Editor from '@/components/ui/MonacoEditor';
+import { SqlEditorWithLanguage as SqlEditor } from '@/components/ui/SqlEditor';
 import {
   LineChart,
   Line,
@@ -1832,18 +1832,10 @@ export default function DatabaseManagementPage() {
               </div>
 
               <div className="mb-4">
-                <Editor
+                <SqlEditor
                   height="300px"
-                  defaultLanguage="sql"
-                  theme="vs-light"
                   value={sqlQuery}
                   onChange={(value) => setSqlQuery(value || '')}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                  }}
                 />
               </div>
 
