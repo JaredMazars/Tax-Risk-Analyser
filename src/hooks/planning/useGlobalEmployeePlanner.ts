@@ -41,6 +41,7 @@ export interface GlobalEmployeeAllocationData {
   isNonClientEvent: boolean;
   nonClientEventType: string | null;
   notes: string | null;
+  isCurrentTask?: boolean; // Whether this allocation belongs to the filtered service lines (true) or other service lines (false = read-only)
   employeeStatus?: {
     isActive: boolean;
     hasUserAccount: boolean;

@@ -165,6 +165,7 @@ export default function StaffPlannerPage() {
           isNonClientEvent: alloc.isNonClientEvent,
           nonClientEventType: alloc.nonClientEventType,
           notes: alloc.notes,
+          isCurrentTask: alloc.isCurrentTask,
         });
       }
     });

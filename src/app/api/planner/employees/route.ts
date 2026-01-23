@@ -13,6 +13,7 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { ServiceLineRole } from '@/types';
 import { enrichEmployeesWithStatus, getEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
 import { extractEmpCodeFromUserId } from '@/lib/utils/employeeCodeExtractor';
+import { logger } from '@/lib/utils/logger';
 
 // Query params validation schema
 const GlobalEmployeePlannerQuerySchema = z.object({
@@ -66,6 +67,7 @@ interface AllocationRow {
   isNonClientEvent: boolean;
   nonClientEventType: string | null;
   notes: string | null;
+  isCurrentTask?: boolean; // Whether this allocation belongs to the filtered service lines (true) or other service lines (false = read-only)
   employeeStatus?: {
     isActive: boolean;
     hasUserAccount: boolean;
@@ -98,6 +100,9 @@ interface ServiceLineEmployee {
 export const GET = secureRoute.query({
   feature: Feature.ACCESS_DASHBOARD,
   handler: async (request, { user }) => {
+    const startTime = Date.now();
+    const perfLog: Record<string, number> = {};
+    
     // Check for SYSTEM_ADMIN first (bypasses all access checks)
     const isAdmin = user.systemRole === 'SYSTEM_ADMIN';
     
@@ -151,6 +156,7 @@ export const GET = secureRoute.query({
     
     // OPTIMIZATION: Consolidate all service line mapping queries into a single query
     // Build conditional where clause based on filters
+    const t1 = Date.now();
     const mappingWhere: any = {};
     
     if (subServiceLineGroupFilters.length > 0) {
@@ -169,6 +175,7 @@ export const GET = secureRoute.query({
     externalServLineCodes = [...new Set(
       mappings.map(m => m.ServLineCode).filter((code): code is string => !!code)
     )];
+    perfLog.serviceLineMapping = Date.now() - t1;
 
     if (externalServLineCodes.length === 0) {
       const emptyResponse = { 
@@ -241,19 +248,38 @@ export const GET = secureRoute.query({
       }
     }
 
-    // For timeline view, get ALL employees from filtered service lines
+    // Pre-filter employees by job grade/office at database level (for both list and timeline views)
+    // This allows TaskTeam query to use filtered user IDs, reducing data transfer
     let allServiceLineEmployees: ServiceLineEmployee[] = [];
-    if (includeUnallocated) {
-      // For global view without filters, get ALL active employees
-      // Only filter by ServLineCode if specific service line filters are applied
-      const hasServiceLineFilters = serviceLineFilters.length > 0 || subServiceLineGroupFilters.length > 0;
-      
+    let preFilteredUserIds: string[] | undefined;
+    let employeeToUserMapping: Map<number, { id: string; email: string; name: string | null }> | null = null;
+    
+    // Build employee filter conditions
+    const t2 = Date.now();
+    const hasServiceLineFilters = serviceLineFilters.length > 0 || subServiceLineGroupFilters.length > 0;
+    const employeeWhere: any = {
+      Active: 'Yes',
+      EmpDateLeft: null
+    };
+    
+    if (hasServiceLineFilters) {
+      employeeWhere.ServLineCode = { in: externalServLineCodes };
+    }
+    
+    // Apply job grade filter at database level
+    if (jobGrades.length > 0) {
+      employeeWhere.EmpCatCode = { in: jobGrades };
+    }
+    
+    // Apply office filter at database level
+    if (offices.length > 0) {
+      employeeWhere.OfficeCode = { in: offices };
+    }
+    
+    // For timeline view OR when filters are applied, fetch filtered employees
+    if (includeUnallocated || jobGrades.length > 0 || offices.length > 0) {
       const employeesQuery = await prisma.employee.findMany({
-        where: {
-          ...(hasServiceLineFilters ? { ServLineCode: { in: externalServLineCodes } } : {}),
-          Active: 'Yes',
-          EmpDateLeft: null
-        },
+        where: employeeWhere,
         select: {
           id: true,
           GSEmployeeID: true,
@@ -270,38 +296,44 @@ export const GET = secureRoute.query({
       
       allServiceLineEmployees = employeesQuery;
       
-      // Apply employee filter
+      // Apply employee filter if specified (by EmpCode)
       if (employees.length > 0) {
         allServiceLineEmployees = allServiceLineEmployees.filter(emp => 
           employees.includes(emp.EmpCode)
         );
       }
       
-      // Apply job grade and office filters
-      if (jobGrades.length > 0 || offices.length > 0) {
-        allServiceLineEmployees = allServiceLineEmployees.filter(emp => {
-          if (jobGrades.length > 0) {
-            const empJobGrade = emp.EmpCatCode;
-            if (!empJobGrade || !jobGrades.includes(empJobGrade)) return false;
-          }
-          if (offices.length > 0) {
-            const empOffice = emp.OfficeCode?.trim();
-            if (!empOffice || !offices.includes(empOffice)) return false;
-          }
-          return true;
-        });
+      perfLog.employeeQuery = Date.now() - t2;
+      
+      // If filters applied and not timeline view, get user IDs to constrain TaskTeam query
+      if (!includeUnallocated && (jobGrades.length > 0 || offices.length > 0)) {
+        const t3 = Date.now();
+        employeeToUserMapping = await mapEmployeesToUsers(allServiceLineEmployees);
+        preFilteredUserIds = Array.from(employeeToUserMapping.values()).map(u => u.id);
+        perfLog.employeeToUserMapping = Date.now() - t3;
+        
+        // Apply to TaskTeam where clause
+        if (preFilteredUserIds.length > 0) {
+          taskTeamWhere.userId = { in: preFilteredUserIds };
+        } else {
+          // No matching employees - return empty results early
+          taskTeamWhere.userId = { in: ['__NO_MATCH__'] };
+        }
       }
     }
 
     // Fetch allocations
     let taskTeamWhereFinal = taskTeamWhere;
-    const employeeUserIdMap = new Map<number, string>();
+    let employeeUserIdMap = new Map<number, string>();
     
     if (includeUnallocated && allServiceLineEmployees.length > 0) {
-      const employeeUserMap = await mapEmployeesToUsers(allServiceLineEmployees);
+      // Reuse existing mapping if available, otherwise create new one
+      if (!employeeToUserMapping) {
+        employeeToUserMapping = await mapEmployeesToUsers(allServiceLineEmployees);
+      }
       
       allServiceLineEmployees.forEach(emp => {
-        const user = employeeUserMap.get(emp.id);
+        const user = employeeToUserMapping!.get(emp.id);
         if (user) {
           employeeUserIdMap.set(emp.id, user.id);
         }
@@ -309,11 +341,20 @@ export const GET = secureRoute.query({
       
       const userIdsToFetch = Array.from(employeeUserIdMap.values());
       if (userIdsToFetch.length > 0) {
-        taskTeamWhereFinal = { ...taskTeamWhere, userId: { in: userIdsToFetch } };
+        taskTeamWhereFinal = {
+          ...taskTeamWhere,
+          userId: { in: userIdsToFetch }
+        };
       }
     }
     
-    const [taskTeamAllocations, _totalCount] = await Promise.all([
+    // Apply pagination at database level for list view (not timeline view)
+    // Timeline view needs all allocations for employees, then paginates employees
+    const skip = !includeUnallocated ? (page - 1) * limit : undefined;
+    const take = !includeUnallocated ? limit : undefined;
+    
+    const t4 = Date.now();
+    const [taskTeamAllocations, totalCount] = await Promise.all([
       prisma.taskTeam.findMany({
         where: taskTeamWhereFinal,
         select: {
@@ -342,19 +383,82 @@ export const GET = secureRoute.query({
             }
           }
         },
+        ...(skip !== undefined && { skip }),
+        ...(take !== undefined && { take }),
         orderBy: [{ User: { name: 'asc' } }, { startDate: 'asc' }]
       }),
       prisma.taskTeam.count({ where: taskTeamWhereFinal })
     ]);
+    perfLog.taskTeamQuery = Date.now() - t4;
 
     // Get user IDs and fetch Employee data
-    let userIdsForEmployeeMap = [...new Set(taskTeamAllocations.map(member => member.userId))];
+    // Optimize: If we already have employee-to-user mapping, build reverse map instead of querying again
+    const t5 = Date.now();
+    let employeeMap: Map<string, any>;
     
-    if (includeUnallocated) {
-      userIdsForEmployeeMap = [...new Set([...userIdsForEmployeeMap, ...Array.from(employeeUserIdMap.values())])];
+    if (includeUnallocated && employeeToUserMapping && allServiceLineEmployees.length > 0) {
+      // Build reverse map from data we already have
+      employeeMap = new Map();
+      allServiceLineEmployees.forEach(emp => {
+        const user = employeeToUserMapping!.get(emp.id);
+        if (user) {
+          // Map by user ID (lowercase) and email prefix for lookup
+          employeeMap.set(user.id.toLowerCase(), emp);
+          const emailPrefix = user.email.split('@')[0]?.toLowerCase();
+          if (emailPrefix) {
+            employeeMap.set(emailPrefix, emp);
+          }
+        }
+      });
+      
+      // For any user IDs from allocations that we don't have yet, query those
+      const unmappedUserIds = taskTeamAllocations
+        .map(a => a.userId)
+        .filter(userId => !employeeMap.has(userId.toLowerCase()));
+      
+      if (unmappedUserIds.length > 0) {
+        const additionalEmployees = await mapUsersToEmployees(unmappedUserIds);
+        // Merge with existing map
+        additionalEmployees.forEach((emp, userId) => {
+          employeeMap.set(userId, emp);
+        });
+      }
+    } else {
+      // Standard path: query all user IDs
+      let userIdsForEmployeeMap = [...new Set(taskTeamAllocations.map(member => member.userId))];
+      employeeMap = await mapUsersToEmployees(userIdsForEmployeeMap);
     }
+    perfLog.userToEmployeeMapping = Date.now() - t5;
+
+    // Fetch ServiceLineRole for ALL users (both allocated and unallocated)
+    // For global view, we need to map by subServiceLineGroup since users may have different roles in different service lines
+    let userServiceLineRoleMap = new Map<string, Map<string, string>>(); // userId -> subServiceLineGroup -> role
+    const allUserIds = [...new Set([
+      ...taskTeamAllocations.map(a => a.userId),
+      ...(includeUnallocated ? Array.from(employeeUserIdMap.values()) : [])
+    ])];
     
-    const employeeMap = await mapUsersToEmployees(userIdsForEmployeeMap);
+    if (allUserIds.length > 0) {
+      // Fetch all service line roles for these users
+      const serviceLineRoles = await prisma.serviceLineUser.findMany({
+        where: {
+          userId: { in: allUserIds }
+        },
+        select: {
+          userId: true,
+          subServiceLineGroup: true,
+          role: true
+        }
+      });
+      
+      // Build nested map: userId -> subServiceLineGroup -> role
+      serviceLineRoles.forEach(sr => {
+        if (!userServiceLineRoleMap.has(sr.userId)) {
+          userServiceLineRoleMap.set(sr.userId, new Map());
+        }
+        userServiceLineRoleMap.get(sr.userId)!.set(sr.subServiceLineGroup, sr.role);
+      });
+    }
 
     // Get service line external mappings for display
     const servLineCodeToGroup = new Map<string, { code: string; desc: string }>();
@@ -371,33 +475,73 @@ export const GET = secureRoute.query({
       }
     });
 
-    // Apply job grade and office filters for list view
-    let filteredAllocations = taskTeamAllocations;
-    
-    if (!includeUnallocated && (jobGrades.length > 0 || offices.length > 0)) {
-      filteredAllocations = taskTeamAllocations.filter(allocation => {
-        const employee = employeeMap.get(allocation.userId.toLowerCase()) || 
-                        employeeMap.get(allocation.userId.split('@')[0]?.toLowerCase() || '');
-        
-        if (jobGrades.length > 0) {
-          const empJobGrade = employee?.EmpCatCode;
-          if (!empJobGrade || !jobGrades.includes(empJobGrade)) return false;
-        }
-        
-        if (offices.length > 0) {
-          const empOffice = employee?.OfficeCode?.trim();
-          if (!empOffice || !offices.includes(empOffice)) return false;
-        }
-        
-        return true;
-      });
-    }
+    // Filtering now happens at database level via pre-filtered user IDs
+    // No in-memory filtering needed - taskTeamAllocations already filtered
+    const filteredAllocations = taskTeamAllocations;
+
+    // Fetch cross-service-line allocations for the same users (from OTHER service lines)
+    // These will be shown in grey and non-editable to provide full visibility of employee workload
+    const currentServiceLineUserIds = [...new Set(taskTeamAllocations.map(a => a.userId))];
+    const crossServiceLineAllocations = currentServiceLineUserIds.length > 0 
+      ? await prisma.taskTeam.findMany({
+          where: {
+            userId: { in: currentServiceLineUserIds },
+            startDate: { not: null },
+            endDate: { not: null },
+            Task: {
+              ServLineCode: { notIn: externalServLineCodes } // From OTHER service lines
+            }
+          },
+          select: {
+            id: true,
+            taskId: true,
+            userId: true,
+            role: true,
+            startDate: true,
+            endDate: true,
+            allocatedHours: true,
+            allocatedPercentage: true,
+            actualHours: true,
+            User: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true
+              }
+            },
+            Task: {
+              select: {
+                id: true,
+                TaskDesc: true,
+                TaskCode: true,
+                GSClientID: true,
+                ServLineCode: true, // Include to identify which service line
+                Client: {
+                  select: {
+                    id: true,
+                    clientCode: true,
+                    clientNameFull: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: [
+            { User: { name: 'asc' } },
+            { startDate: 'asc' }
+          ],
+          take: 500 // Limit to prevent unbounded queries
+        })
+      : [];
 
     // Fetch employee status
+    const t6 = Date.now();
     const allEmployeeCodes = Array.from(employeeMap.values())
       .map(emp => emp.EmpCode)
       .filter(Boolean) as string[];
     const employeeStatusMap = await enrichEmployeesWithStatus(allEmployeeCodes);
+    perfLog.employeeStatusEnrichment = Date.now() - t6;
 
     // Transform to flat structure
     const allocationRows = await Promise.all(filteredAllocations.map(async (allocation) => {
@@ -407,14 +551,15 @@ export const GET = secureRoute.query({
       const isClientTask = !!allocation.Task.Client?.clientCode;
       const servLineGroup = allocation.Task.ServLineCode ? servLineCodeToGroup.get(allocation.Task.ServLineCode) : null;
       
+      // Get service line role for this user in this specific sub-service line group
+      const serviceLineRole = servLineGroup?.code 
+        ? (userServiceLineRoleMap.get(allocation.userId)?.get(servLineGroup.code) || 'USER')
+        : 'USER';
+      
+      // Try to get employee status from batch lookup
       let empStatus = employee?.EmpCode ? employeeStatusMap.get(employee.EmpCode) : undefined;
       
-      if (!empStatus) {
-        const extractedEmpCode = extractEmpCodeFromUserId(allocation.userId);
-        if (extractedEmpCode) {
-          empStatus = (await getEmployeeStatus(extractedEmpCode)) ?? undefined;
-        }
-      }
+      // No fallback - if not in batch map, leave undefined to avoid N+1 queries
 
       return {
         allocationId: allocation.id,
@@ -423,7 +568,7 @@ export const GET = secureRoute.query({
         userName: allocation.User?.name || employee?.EmpNameFull || allocation.userId,
         userEmail: allocation.User?.email || allocation.userId,
         jobGradeCode: employee?.EmpCatCode || null,
-        serviceLineRole: 'USER',
+        serviceLineRole: serviceLineRole,
         officeLocation: employee?.OfficeCode?.trim() || null,
         serviceLine: employee?.ServLineCode || allocation.Task.ServLineCode || null,
         subServiceLineGroup: servLineGroup?.code || null,
@@ -442,12 +587,65 @@ export const GET = secureRoute.query({
         isNonClientEvent: !isClientTask,
         nonClientEventType: null,
         notes: null,
+        isCurrentTask: true, // Current service line allocations are editable
         employeeStatus: empStatus
       };
     }));
     
+    // Transform cross-service-line allocations and add with isCurrentTask: false
+    const crossServiceLineRows = await Promise.all(crossServiceLineAllocations.map(async (allocation) => {
+      const employee = employeeMap.get(allocation.userId.toLowerCase()) || 
+                      employeeMap.get(allocation.userId.split('@')[0]?.toLowerCase() || '');
+
+      const isClientTask = !!allocation.Task.Client?.clientCode;
+      const servLineGroup = allocation.Task.ServLineCode ? servLineCodeToGroup.get(allocation.Task.ServLineCode) : null;
+      
+      // Get service line role for this user in this specific sub-service line group
+      const serviceLineRole = servLineGroup?.code 
+        ? (userServiceLineRoleMap.get(allocation.userId)?.get(servLineGroup.code) || 'USER')
+        : 'USER';
+      
+      // Try to get employee status from batch lookup
+      let empStatus = employee?.EmpCode ? employeeStatusMap.get(employee.EmpCode) : undefined;
+      
+      // No fallback - if not in batch map, leave undefined to avoid N+1 queries
+
+      return {
+        allocationId: allocation.id,
+        userId: allocation.userId,
+        employeeId: employee?.id || null,
+        userName: allocation.User?.name || employee?.EmpNameFull || allocation.userId,
+        userEmail: allocation.User?.email || allocation.userId,
+        jobGradeCode: employee?.EmpCatCode || null,
+        serviceLineRole: serviceLineRole,
+        officeLocation: employee?.OfficeCode?.trim() || null,
+        serviceLine: employee?.ServLineCode || allocation.Task.ServLineCode || null,
+        subServiceLineGroup: servLineGroup?.code || null,
+        clientId: allocation.Task.Client?.id || null,
+        clientName: isClientTask ? (allocation.Task.Client?.clientNameFull || allocation.Task.Client?.clientCode || 'Unknown') : 'Internal',
+        clientCode: isClientTask ? (allocation.Task.Client?.clientCode || 'N/A') : 'INTERNAL',
+        taskId: allocation.Task.id,
+        taskName: allocation.Task.TaskDesc,
+        taskCode: allocation.Task.TaskCode || null,
+        startDate: startOfDay(allocation.startDate!),
+        endDate: startOfDay(allocation.endDate!),
+        role: allocation.role,
+        allocatedHours: allocation.allocatedHours ? parseFloat(allocation.allocatedHours.toString()) : null,
+        allocatedPercentage: allocation.allocatedPercentage,
+        actualHours: allocation.actualHours ? parseFloat(allocation.actualHours.toString()) : null,
+        isNonClientEvent: !isClientTask,
+        nonClientEventType: null,
+        notes: null,
+        isCurrentTask: false, // Cross-service-line allocations are read-only
+        employeeStatus: empStatus
+      };
+    }));
+    
+    // Merge current service line and cross-service-line allocations
+    const mergedAllocationRows = [...allocationRows, ...crossServiceLineRows];
+    
     // Add employees with no allocations for timeline view
-    let finalAllocationRows = allocationRows;
+    let finalAllocationRows = mergedAllocationRows;
     if (includeUnallocated && allServiceLineEmployees.length > 0) {
       const employeeIdsWithAllocations = new Set(
         allocationRows.filter(row => row.employeeId).map(row => row.employeeId!)
@@ -462,11 +660,14 @@ export const GET = secureRoute.query({
         const userEmail = userId || `${emp.WinLogon}@forvismazars.us`;
         let empStatus = emp.EmpCode ? employeeStatusMap.get(emp.EmpCode) : undefined;
         
-        if (!empStatus && emp.EmpCode) {
-          empStatus = (await getEmployeeStatus(emp.EmpCode)) ?? undefined;
-        }
+        // No fallback - if not in batch map, leave undefined to avoid N+1 queries
         
         const servLineGroup = emp.ServLineCode ? servLineCodeToGroup.get(emp.ServLineCode) : null;
+        
+        // Get service line role for this user in their service line
+        const serviceLineRole = (userId && servLineGroup?.code)
+          ? (userServiceLineRoleMap.get(userId)?.get(servLineGroup.code) || 'USER')
+          : 'USER';
         
         return {
           allocationId: 0,
@@ -475,7 +676,7 @@ export const GET = secureRoute.query({
           userName: emp.EmpNameFull || emp.EmpName || `Employee ${emp.id}`,
           userEmail: userEmail,
           jobGradeCode: emp.EmpCatCode || null,
-          serviceLineRole: 'USER',
+          serviceLineRole: serviceLineRole,
           officeLocation: emp.OfficeCode?.trim() || null,
           serviceLine: emp.ServLineCode || null,
           subServiceLineGroup: servLineGroup?.code || null,
@@ -494,21 +695,31 @@ export const GET = secureRoute.query({
           isNonClientEvent: false,
           nonClientEventType: null,
           notes: null,
+          isCurrentTask: true, // Placeholder for unallocated employees in filtered service lines
           employeeStatus: empStatus
         };
       }));
       
-      finalAllocationRows = [...allocationRows, ...unallocatedRows];
+      finalAllocationRows = [...mergedAllocationRows, ...unallocatedRows];
     }
     
-    // Apply pagination
-    const totalFilteredCount = includeUnallocated 
-      ? allServiceLineEmployees.length
-      : filteredAllocations.length;
+    // Apply pagination to the final results
+    // List view: Already paginated at database level (skip/take on TaskTeam query)
+    // Timeline view: Paginate in-memory (based on employees, includes unallocated)
+    let paginatedResults: typeof finalAllocationRows;
+    let totalFilteredCount: number;
     
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedResults = finalAllocationRows.slice(startIndex, endIndex);
+    if (includeUnallocated) {
+      // Timeline view: Paginate employees (in-memory)
+      totalFilteredCount = allServiceLineEmployees.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      paginatedResults = finalAllocationRows.slice(startIndex, endIndex);
+    } else {
+      // List view: Already paginated at DB level, use as-is
+      totalFilteredCount = totalCount; // From Prisma count query
+      paginatedResults = finalAllocationRows;
+    }
 
     const response = {
       allocations: paginatedResults,
@@ -522,6 +733,17 @@ export const GET = secureRoute.query({
     };
 
     await cache.set(cacheKey, response, 300);
+
+    // Log performance breakdown
+    perfLog.total = Date.now() - startTime;
+    logger.info('Global planner employees query breakdown', {
+      includeUnallocated,
+      page,
+      limit,
+      resultCount: paginatedResults.length,
+      crossServiceCount: crossServiceLineAllocations.length,
+      ...perfLog
+    });
 
     return NextResponse.json(successResponse(response));
   },

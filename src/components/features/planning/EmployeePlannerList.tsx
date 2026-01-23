@@ -268,6 +268,7 @@ export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters,
                 const status = getStatusBadge(allocation.startDate, allocation.endDate);
                 const duration = differenceInDays(allocation.endDate, allocation.startDate) + 1;
                 const hasTaskUrl = !!getTaskUrl(allocation);
+                const isOtherServiceLine = (allocation as GlobalEmployeeAllocationData).isCurrentTask === false;
 
                 return (
                   <tr
@@ -277,9 +278,11 @@ export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters,
                     className={`transition-all ${
                       navigatingToTaskId === allocation.taskId
                         ? 'bg-forvis-blue-100 opacity-50'
-                        : index % 2 === 0 
-                          ? `bg-white ${hasTaskUrl ? 'hover:bg-forvis-blue-50 cursor-pointer' : ''}` 
-                          : `bg-forvis-gray-50 ${hasTaskUrl ? 'hover:bg-forvis-blue-50 cursor-pointer' : ''}`
+                        : isOtherServiceLine
+                          ? 'bg-gray-100 text-gray-500 opacity-70'
+                          : index % 2 === 0 
+                            ? `bg-white ${hasTaskUrl ? 'hover:bg-forvis-blue-50 cursor-pointer' : ''}` 
+                            : `bg-forvis-gray-50 ${hasTaskUrl ? 'hover:bg-forvis-blue-50 cursor-pointer' : ''}`
                     }`}
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -308,6 +311,11 @@ export function EmployeePlannerList({ serviceLine, subServiceLineGroup, filters,
                       )}
                       {allocation.isNonClientEvent && (
                         <div className="text-xs text-forvis-gray-600 italic">Non-client event</div>
+                      )}
+                      {isGlobalView && 'serviceLine' in allocation && allocation.serviceLine && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          [{allocation.serviceLine}]
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-forvis-gray-900">

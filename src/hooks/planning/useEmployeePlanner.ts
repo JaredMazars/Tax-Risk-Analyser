@@ -22,6 +22,7 @@ export interface EmployeeAllocationData {
   userName: string;
   userEmail: string;
   jobGradeCode: string | null;
+  serviceLineRole?: string;
   officeLocation: string | null;
   clientId: number | null;
   clientName: string;
@@ -38,6 +39,7 @@ export interface EmployeeAllocationData {
   isNonClientEvent: boolean;
   nonClientEventType: string | null;
   notes: string | null;
+  isCurrentTask?: boolean; // Whether this allocation belongs to the current service line (true) or other service lines (false = read-only)
   employeeStatus?: {
     isActive: boolean;
     hasUserAccount: boolean;
