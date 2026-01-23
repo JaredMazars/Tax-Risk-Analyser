@@ -9,6 +9,10 @@ export interface ClientFilters {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  clientCodes?: string[];  // Filter by specific client codes
+  partners?: string[];      // Filter by partner employee codes
+  managers?: string[];      // Filter by manager employee codes
+  groups?: string[];        // Filter by group codes
 }
 
 export interface ClientListResult {
@@ -62,16 +66,46 @@ export async function getClientsWithPagination(
         limit = 50,
         sortBy = 'clientNameFull',
         sortOrder = 'asc',
+        clientCodes = [],
+        partners = [],
+        managers = [],
+        groups = [],
       } = filters;
 
       const skip = (page - 1) * Math.min(limit, 100);
       const take = Math.min(limit, 100);
 
-      // Build where clause with improved search
+      // Build where clause with advanced filtering
       interface WhereClause {
         OR?: Array<{ [key: string]: { contains: string } }>;
+        AND?: Array<{ [key: string]: unknown }>;
       }
       const where: WhereClause = {};
+      
+      // Build AND conditions for advanced filters
+      const andConditions: Array<{ [key: string]: unknown }> = [];
+      
+      if (clientCodes.length > 0) {
+        andConditions.push({ clientCode: { in: clientCodes } });
+      }
+      
+      if (partners.length > 0) {
+        andConditions.push({ clientPartner: { in: partners } });
+      }
+      
+      if (managers.length > 0) {
+        andConditions.push({ clientManager: { in: managers } });
+      }
+      
+      if (groups.length > 0) {
+        andConditions.push({ groupCode: { in: groups } });
+      }
+      
+      if (andConditions.length > 0) {
+        where.AND = andConditions;
+      }
+      
+      // Add search OR conditions
       if (search) {
         where.OR = [
           { clientNameFull: { contains: search } },
@@ -83,49 +117,47 @@ export async function getClientsWithPagination(
         ];
       }
 
-      // Build orderBy clause
-      type OrderByClause = Record<string, 'asc' | 'desc'>;
-      const orderBy: OrderByClause = {};
-      const validSortFields = ['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt'] as const;
-      if (validSortFields.includes(sortBy as typeof validSortFields[number])) {
-        orderBy[sortBy] = sortOrder;
-      } else {
-        orderBy.clientNameFull = 'asc';
-      }
+      // Build orderBy with deterministic secondary sort for pagination stability
+      const orderBy: Array<Record<string, 'asc' | 'desc'>> = [
+        { [sortBy]: sortOrder },
+        { GSClientID: 'asc' }, // Secondary sort for deterministic ordering
+      ];
 
-      // Get total count
-      const total = await prisma.client.count({ where });
-
-      // Get clients with project count
-      const clients = await prisma.client.findMany({
-        where,
-        skip,
-        take,
-        orderBy,
-        select: {
-          id: true,
-          GSClientID: true,
-          clientCode: true,
-          clientNameFull: true,
-          groupCode: true,
-          groupDesc: true,
-          clientPartner: true,
-          clientManager: true,
-          clientIncharge: true,
-          industry: true,
-          sector: true,
-          active: true,
-          typeCode: true,
-          typeDesc: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: {
-              Task: true,
+      // Run count and query in parallel for better performance
+      const [total, clients] = await Promise.all([
+        prisma.client.count({ where }),
+        prisma.client.findMany({
+          where,
+          skip,
+          take,
+          orderBy,
+          select: {
+            id: true,
+            GSClientID: true,
+            clientCode: true,
+            clientNameFull: true,
+            groupCode: true,
+            groupDesc: true,
+            clientPartner: true,
+            clientManager: true,
+            clientIncharge: true,
+            industry: true,
+            sector: true,
+            active: true,
+            typeCode: true,
+            typeDesc: true,
+            createdAt: true,
+            updatedAt: true,
+            _count: {
+              select: {
+                Task: {
+                  where: { Active: 'Yes' }, // Only count active tasks
+                },
+              },
             },
           },
-        },
-      });
+        }),
+      ]);
 
       // Enrich clients with employee names
       const enrichedClients = await enrichRecordsWithEmployeeNames(clients, [

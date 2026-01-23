@@ -35,6 +35,7 @@ import { useApprovalsCount } from '@/hooks/approvals/useApprovals';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { SubServiceLineQuickNav } from '@/components/features/service-lines/SubServiceLineQuickNav';
 import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
+import { Pagination } from '@/components/shared/Pagination';
 import { MyPlanningView, PlannerFilters } from '@/components/features/planning';
 import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
@@ -1250,66 +1251,15 @@ export default function SubServiceLineWorkspacePage() {
 
               {/* Pagination */}
               {pagination && (
-                <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-sm font-normal text-forvis-gray-800">
-                    Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                    <span className="font-medium">
-                      {Math.min(currentPage * itemsPerPage, pagination.total)}
-                    </span>{' '}
-                    of <span className="font-medium">{pagination.total}</span> group{pagination.total !== 1 ? 's' : ''}
-                  </div>
-                  
-                  {pagination.totalPages > 1 && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="secondary"
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1.5 text-sm"
-                      >
-                        Previous
-                      </Button>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                          .filter(page => {
-                            return (
-                              page === 1 ||
-                              page === pagination.totalPages ||
-                              (page >= currentPage - 1 && page <= currentPage + 1)
-                            );
-                          })
-                          .map((page, index, array) => {
-                            const prevPage = array[index - 1];
-                            const showEllipsis = prevPage && page - prevPage > 1;
-                            
-                            return (
-                              <div key={page} className="flex items-center">
-                                {showEllipsis && <span className="px-2 text-forvis-gray-500">...</span>}
-                                <button
-                                  onClick={() => setCurrentPage(page)}
-                                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 ${
-                                    currentPage === page
-                                      ? 'bg-forvis-blue-600 text-white shadow-sm'
-                                      : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-                                  }`}
-                                >
-                                  {page}
-                                </button>
-                              </div>
-                            );
-                          })}
-                      </div>
-                      <Button
-                        variant="secondary"
-                        onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
-                        disabled={currentPage >= pagination.totalPages}
-                        className="px-3 py-1.5 text-sm"
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={pagination.totalPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={pagination.total}
+                  itemsPerPage={itemsPerPage}
+                  showMetadata
+                  className="mt-4"
+                />
               )}
                 </>
               )}
@@ -1458,69 +1408,16 @@ export default function SubServiceLineWorkspacePage() {
 
             {/* Pagination */}
             {pagination && (
-              <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-sm font-normal text-forvis-gray-800">
-                  Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                  <span className="font-medium">
-                    {Math.min(currentPage * itemsPerPage, pagination.total)}
-                  </span>{' '}
-                  of <span className="font-medium">{pagination.total}</span> client{pagination.total !== 1 ? 's' : ''}
-                </div>
-              
-              {pagination.totalPages > 1 && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1.5 text-sm"
-                  >
-                    Previous
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                      .filter(page => {
-                        // Show first page, last page, current page, and 1 page on each side
-                        return (
-                          page === 1 ||
-                          page === pagination.totalPages ||
-                          (page >= currentPage - 1 && page <= currentPage + 1)
-                        );
-                      })
-                      .map((page, index, array) => {
-                        // Add ellipsis if there's a gap
-                        const prevPage = array[index - 1];
-                        const showEllipsis = prevPage && page - prevPage > 1;
-                        
-                        return (
-                          <div key={page} className="flex items-center">
-                            {showEllipsis && <span className="px-2 text-forvis-gray-500">...</span>}
-                            <button
-                              onClick={() => setCurrentPage(page)}
-                              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 ${
-                                currentPage === page
-                                  ? 'bg-forvis-blue-600 text-white shadow-sm'
-                                  : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          </div>
-                        );
-                      })}
-                  </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
-                    disabled={currentPage >= pagination.totalPages}
-                    className="px-3 py-1.5 text-sm"
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-            </div>
-              )}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={pagination.total}
+                itemsPerPage={itemsPerPage}
+                showMetadata
+                className="mt-4"
+              />
+            )}
                 </>
               )}
             </div>
@@ -1728,67 +1625,16 @@ export default function SubServiceLineWorkspacePage() {
 
               {/* Pagination */}
               {pagination && (
-              <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-sm font-normal text-forvis-gray-800">
-                  Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                  <span className="font-medium">
-                    {Math.min(currentPage * itemsPerPage, pagination.total)}
-                  </span>{' '}
-                  of <span className="font-medium">{pagination.total}</span> {debouncedSearch ? 'filtered ' : ''}task{pagination.total !== 1 ? 's' : ''}
-                </div>
-                
-                {pagination.totalPages > 1 && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1.5 text-sm"
-                    >
-                      Previous
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                        .filter(page => {
-                          return (
-                            page === 1 ||
-                            page === pagination.totalPages ||
-                            (page >= currentPage - 1 && page <= currentPage + 1)
-                          );
-                        })
-                        .map((page, index, array) => {
-                          const prevPage = array[index - 1];
-                          const showEllipsis = prevPage && page - prevPage > 1;
-                          
-                          return (
-                            <div key={page} className="flex items-center">
-                              {showEllipsis && <span className="px-2 text-forvis-gray-500">...</span>}
-                              <button
-                                onClick={() => setCurrentPage(page)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 ${
-                                  currentPage === page
-                                    ? 'bg-forvis-blue-600 text-white shadow-sm'
-                                    : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-                                }`}
-                              >
-                                {page}
-                              </button>
-                            </div>
-                          );
-                        })}
-                    </div>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
-                      disabled={currentPage >= pagination.totalPages}
-                      className="px-3 py-1.5 text-sm"
-                    >
-                      Next
-                    </Button>
-                  </div>
-                )}
-              </div>
-                )}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={pagination.totalPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={pagination.total}
+                  itemsPerPage={itemsPerPage}
+                  showMetadata
+                  className="mt-4"
+                />
+              )}
                 </>
               )}
                 </div>
