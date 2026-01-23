@@ -7,6 +7,7 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
 import { NON_CLIENT_EVENT_CONFIG } from '@/types';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { getCachedServiceLineMapping } from '@/lib/services/service-lines/serviceLineCache';
 
 // Type for subGroup in userServiceLines
 interface SubGroupInfo {
@@ -69,19 +70,8 @@ export const GET = secureRoute.queryWithParams<{ serviceLine: string; subService
       return NextResponse.json(successResponse(cached));
     }
 
-    // 5. Map subServiceLineGroup to external service line codes
-    const serviceLineExternalMappings = await prisma.serviceLineExternal.findMany({
-      where: {
-        SubServlineGroupCode: subServiceLineGroup
-      },
-      select: {
-        ServLineCode: true
-      }
-    });
-    
-    const externalServLineCodes = serviceLineExternalMappings
-      .map(m => m.ServLineCode)
-      .filter((code): code is string => !!code);
+    // 5. Map subServiceLineGroup to external service line codes (cached)
+    const externalServLineCodes = await getCachedServiceLineMapping(subServiceLineGroup);
 
     if (externalServLineCodes.length === 0) {
       const emptyResponse = {

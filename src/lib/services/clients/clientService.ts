@@ -161,16 +161,11 @@ export async function getClientsWithPagination(
         where.AND = andConditions;
       }
       
-      // Add multi-field search OR conditions
-      // Optimized by full-text index on: clientNameFull, clientCode, groupDesc, groupCode, industry, sector
+      // Add search conditions for client code and name only
       if (search) {
         where.OR = [
           { clientNameFull: { contains: search } },
           { clientCode: { contains: search } },
-          { groupDesc: { contains: search } },
-          { groupCode: { contains: search } },
-          { industry: { contains: search } },
-          { sector: { contains: search } },
         ];
       }
 
@@ -387,7 +382,6 @@ export async function getClientWithProjects(
     'Get client with tasks'
   );
 }
-
 
 
 
