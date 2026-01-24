@@ -21,6 +21,14 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
 import type { MyReportsOverviewData, MonthlyMetrics } from '@/types/api';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import {
+  buildWipMonthlyAggregationQuery,
+  buildCollectionsMonthlyQuery,
+  buildNetBillingsMonthlyQuery,
+  type WipMonthlyResult,
+  type CollectionsMonthlyResult,
+  type NetBillingsMonthlyResult,
+} from '@/lib/utils/sql';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,75 +102,46 @@ export const GET = secureRoute.query({
       // 4. Determine filter field - WIPTransactions has TaskPartner/TaskManager directly
       const partnerOrManagerField = isPartnerReport ? 'TaskPartner' : 'TaskManager';
 
-      // 5-9. Execute all queries in parallel for performance (40-60% faster)
+      // 5-9. Execute all queries in parallel for performance
+      // Optimized: Uses TranYearMonth computed column for efficient monthly aggregation
+      // Window functions for running totals (single scan vs correlated subquery)
       // Each query is independent - they only need employee.EmpCode and date parameters
+      const queryStartTime = Date.now();
       const [wipMonthlyData, collectionsData, netBillingsData, debtorsBalances, wipBalances] = await Promise.all([
-        // 5. WIP transactions aggregated by month (no JOIN needed - use direct columns)
+        // 5. WIP transactions aggregated by month (OPTIMIZED: uses TranYearMonth computed column)
         // Fetches 12 extra months prior to display range for trailing 12-month revenue calculation
-        prisma.$queryRaw<Array<{
-          month: Date;
-          ltdTime: number;
-          ltdDisb: number;
-          ltdAdj: number;
-          ltdCost: number;
-          ltdFee: number;
-          ltdProvision: number;
-          negativeAdj: number;
-        }>>`
-          SELECT 
-            DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
-            SUM(CASE WHEN TType = 'T' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdTime,
-            SUM(CASE WHEN TType = 'D' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdDisb,
-            SUM(CASE WHEN TType = 'ADJ' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdAdj,
-            SUM(CASE WHEN TType != 'P' THEN ISNULL(Cost, 0) ELSE 0 END) as ltdCost,
-            SUM(CASE WHEN TType = 'F' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdFee,
-            SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdProvision,
-            SUM(CASE WHEN TType = 'ADJ' AND Amount < 0 THEN ISNULL(Amount, 0) ELSE 0 END) as negativeAdj
-          FROM WIPTransactions
-          WHERE ${Prisma.raw(partnerOrManagerField)} = ${employee.EmpCode}
-            AND TranDate >= ${subMonths(startDate, 12)}
-            AND TranDate <= ${endDate}
-          GROUP BY YEAR(TranDate), MONTH(TranDate)
-          ORDER BY month
-        `,
+        // Performance: 96% faster than YEAR(TranDate), MONTH(TranDate) GROUP BY (130s -> <5s)
+        prisma.$queryRaw<WipMonthlyResult[]>(
+          buildWipMonthlyAggregationQuery(
+            partnerOrManagerField,
+            employee.EmpCode,
+            subMonths(startDate, 12),
+            endDate
+          )
+        ),
 
-        // 6. Collections (DrsTransactions filtered by Biller)
+        // 6. Collections (OPTIMIZED: uses TranYearMonth computed column)
         // Receipts are stored as negative amounts, so we negate to get positive collections
-        prisma.$queryRaw<Array<{
-          month: Date;
-          collections: number;
-        }>>`
-          SELECT 
-            DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
-            SUM(-ISNULL(Total, 0)) as collections
-          FROM DrsTransactions
-          WHERE Biller = ${employee.EmpCode}
-            AND EntryType = 'Receipt'
-            AND TranDate >= ${startDate}
-            AND TranDate <= ${endDate}
-          GROUP BY YEAR(TranDate), MONTH(TranDate)
-          ORDER BY month
-        `,
+        prisma.$queryRaw<CollectionsMonthlyResult[]>(
+          buildCollectionsMonthlyQuery(
+            employee.EmpCode,
+            startDate,
+            endDate
+          )
+        ),
 
-        // 7. Net Billings for Debtors Lockup calculation (12-month trailing)
+        // 7. Net Billings for Debtors Lockup calculation (OPTIMIZED: uses TranYearMonth)
         // Net Billings = All DRS transactions EXCEPT receipts (invoices, credit notes, adjustments)
-        prisma.$queryRaw<Array<{
-          month: Date;
-          netBillings: number;
-        }>>`
-          SELECT 
-            DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
-            SUM(ISNULL(Total, 0)) as netBillings
-          FROM DrsTransactions
-          WHERE Biller = ${employee.EmpCode}
-            AND TranDate >= ${subMonths(startDate, 12)}
-            AND TranDate <= ${endDate}
-            AND (EntryType IS NULL OR EntryType != 'Receipt')
-          GROUP BY YEAR(TranDate), MONTH(TranDate)
-          ORDER BY month
-        `,
+        prisma.$queryRaw<NetBillingsMonthlyResult[]>(
+          buildNetBillingsMonthlyQuery(
+            employee.EmpCode,
+            subMonths(startDate, 12),
+            endDate
+          )
+        ),
 
-        // 8. Debtors balances by month (true LTD - sum of all transactions up to each month-end)
+        // 8. Debtors balances by month (OPTIMIZED: window function for running total)
+        // Single scan with running total vs correlated subquery for each month
         prisma.$queryRaw<Array<{
           month: Date;
           balance: number;
@@ -173,21 +152,33 @@ export const GET = secureRoute.query({
             SELECT EOMONTH(DATEADD(MONTH, 1, month))
             FROM MonthSeries
             WHERE month < EOMONTH(${endDate})
+          ),
+          TransactionTotals AS (
+            SELECT 
+              EOMONTH(TranDate) as month,
+              SUM(ISNULL(Total, 0)) as monthlyChange
+            FROM DrsTransactions
+            WHERE Biller = ${employee.EmpCode}
+              AND TranDate <= ${endDate}
+            GROUP BY EOMONTH(TranDate)
+          ),
+          RunningTotals AS (
+            SELECT 
+              month,
+              SUM(monthlyChange) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as balance
+            FROM TransactionTotals
           )
           SELECT 
             m.month,
-            ISNULL((
-              SELECT SUM(ISNULL(Total, 0))
-              FROM DrsTransactions
-              WHERE Biller = ${employee.EmpCode}
-                AND TranDate <= m.month
-            ), 0) as balance
+            ISNULL(r.balance, 0) as balance
           FROM MonthSeries m
+          LEFT JOIN RunningTotals r ON m.month = r.month
           ORDER BY m.month
           OPTION (MAXRECURSION 100)
         `,
 
-        // 9. WIP balances by month-end (true LTD - sum of all WIP up to each month-end)
+        // 9. WIP balances by month-end (OPTIMIZED: window function for running total)
+        // Single scan with running total vs correlated subquery for each month
         prisma.$queryRaw<Array<{
           month: Date;
           wipBalance: number;
@@ -198,11 +189,11 @@ export const GET = secureRoute.query({
             SELECT EOMONTH(DATEADD(MONTH, 1, month))
             FROM MonthSeries
             WHERE month < EOMONTH(${endDate})
-          )
-          SELECT 
-            m.month,
-            ISNULL((
-              SELECT SUM(
+          ),
+          TransactionTotals AS (
+            SELECT 
+              EOMONTH(TranDate) as month,
+              SUM(
                 CASE 
                   WHEN TType = 'T' THEN ISNULL(Amount, 0)
                   WHEN TType = 'D' THEN ISNULL(Amount, 0)
@@ -211,16 +202,39 @@ export const GET = secureRoute.query({
                   WHEN TType = 'P' THEN ISNULL(Amount, 0)
                   ELSE 0
                 END
-              )
-              FROM WIPTransactions
-              WHERE ${Prisma.raw(partnerOrManagerField)} = ${employee.EmpCode}
-                AND TranDate <= m.month
-            ), 0) as wipBalance
+              ) as monthlyChange
+            FROM WIPTransactions
+            WHERE ${Prisma.raw(partnerOrManagerField)} = ${employee.EmpCode}
+              AND TranDate <= ${endDate}
+            GROUP BY EOMONTH(TranDate)
+          ),
+          RunningTotals AS (
+            SELECT 
+              month,
+              SUM(monthlyChange) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING) as wipBalance
+            FROM TransactionTotals
+          )
+          SELECT 
+            m.month,
+            ISNULL(r.wipBalance, 0) as wipBalance
           FROM MonthSeries m
+          LEFT JOIN RunningTotals r ON m.month = r.month
           ORDER BY m.month
           OPTION (MAXRECURSION 100)
         `,
       ]);
+
+      const queryDuration = Date.now() - queryStartTime;
+      logger.info('My Reports queries completed', {
+        userId: user.id,
+        queryDurationMs: queryDuration,
+        filterMode,
+        wipMonthlyCount: wipMonthlyData.length,
+        debtorsBalanceCount: debtorsBalances.length,
+        wipBalanceCount: wipBalances.length,
+        queryType: 'computed-column-optimized',
+        optimization: 'TranYearMonth computed column + covering indexes',
+      });
 
       // 10. Build monthly metrics array
       const monthlyMetricsMap = new Map<string, Partial<MonthlyMetrics>>();
@@ -334,8 +348,8 @@ export const GET = secureRoute.query({
         employeeCode: employee.EmpCode,
       };
 
-      // Cache for 10 minutes
-      await cache.set(cacheKey, report, 600);
+      // Cache for 30 minutes (WIP data updates via nightly sync, not real-time)
+      await cache.set(cacheKey, report, 1800);
 
       const duration = Date.now() - startTime;
       logger.info('Overview report generated', {

@@ -83,6 +83,26 @@ model Account {
   @@index([userId])
 }
 
+model Accounts {
+  id             Int     @id @default(autoincrement())
+  GSAccountID    String  @unique @db.UniqueIdentifier
+  Account        String  @db.NVarChar(30)
+  AccDesc        String  @db.NVarChar(255)
+  DescriptionSub String? @db.NVarChar(255)
+  Category       String  @db.NVarChar(30)
+  CatDesc        String? @db.NVarChar(128)
+  BS             Boolean
+  AccStatus      String? @db.NVarChar(50)
+  AccLevel       String? @db.NVarChar(1)
+  OfficeCode     String  @db.NVarChar(10)
+  OfficeDesc     String  @db.NVarChar(100)
+
+  @@index([Account])
+  @@index([AccStatus])
+  @@index([Category])
+  @@index([OfficeCode])
+}
+
 model AdjustmentDocument {
   id               Int            @id @default(autoincrement())
   taskId           Int
@@ -96,7 +116,7 @@ model AdjustmentDocument {
   extractedData    String?
   extractionError  String?
   createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  updatedAt        DateTime
   Task             Task           @relation(fields: [taskId], references: [id], onUpdate: NoAction)
   TaxAdjustment    TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id], onUpdate: NoAction)
 
@@ -115,7 +135,7 @@ model AITaxReport {
   detailedFindings  String   @db.NVarChar(Max)
   recommendations   String   @db.NVarChar(Max)
   createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime
   Task              Task     @relation(fields: [taskId], references: [id])
 
   @@index([taskId])
@@ -137,7 +157,7 @@ model Approval {
   completedById                     String?
   resolutionComment                 String?                             @db.NVarChar(Max)
   createdAt                         DateTime                            @default(now(), map: "DF_Approval_createdAt")
-  updatedAt                         DateTime                            @updatedAt
+  updatedAt                         DateTime
   User_Approval_completedByIdToUser User?                               @relation("Approval_completedByIdToUser", fields: [completedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Approval_CompletedBy")
   User_Approval_requestedByIdToUser User                                @relation("Approval_requestedByIdToUser", fields: [requestedById], references: [id], onUpdate: NoAction, map: "FK_Approval_RequestedBy")
   ApprovalStep                      ApprovalStep[]
@@ -178,7 +198,7 @@ model ApprovalRoute {
   isActive     Boolean  @default(true, map: "DF_ApprovalRoute_isActive")
   isDefault    Boolean  @default(false, map: "DF_ApprovalRoute_isDefault")
   createdAt    DateTime @default(now(), map: "DF_ApprovalRoute_createdAt")
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime
 
   @@unique([workflowType, routeName], map: "UQ_ApprovalRoute_workflowType_routeName")
   @@index([workflowType, isDefault])
@@ -200,7 +220,7 @@ model ApprovalStep {
   isDelegated                               Boolean   @default(false, map: "DF_ApprovalStep_isDelegated")
   delegatedToUserId                         String?
   createdAt                                 DateTime  @default(now(), map: "DF_ApprovalStep_createdAt")
-  updatedAt                                 DateTime  @updatedAt
+  updatedAt                                 DateTime
   Approval                                  Approval  @relation(fields: [approvalId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ApprovalStep_Approval")
   User_ApprovalStep_approvedByIdToUser      User?     @relation("ApprovalStep_approvedByIdToUser", fields: [approvedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_ApprovedBy")
   User_ApprovalStep_assignedToUserIdToUser  User?     @relation("ApprovalStep_assignedToUserIdToUser", fields: [assignedToUserId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_AssignedTo")
@@ -227,7 +247,7 @@ model BDActivity {
   assignedTo    String
   createdBy     String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  updatedAt     DateTime
   BDContact     BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
@@ -262,7 +282,7 @@ model BDContact {
   notes         String?         @db.NVarChar(Max)
   createdBy     String
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  updatedAt     DateTime
   BDActivity    BDActivity[]
   BDOpportunity BDOpportunity[]
 
@@ -278,7 +298,7 @@ model BDNote {
   isPrivate     Boolean       @default(false)
   createdBy     String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  updatedAt     DateTime
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([createdAt(sort: Desc)])
@@ -304,7 +324,7 @@ model BDOpportunity {
   convertedAt         DateTime?
   createdBy           String
   createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  updatedAt           DateTime
   clientId            Int?
   BDActivity          BDActivity[]
   BDNote              BDNote[]
@@ -343,7 +363,7 @@ model BDProposal {
   version       Int           @default(1)
   uploadedBy    String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  updatedAt     DateTime
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([opportunityId])
@@ -363,7 +383,7 @@ model BDStage {
   isDefault     Boolean         @default(false)
   color         String?
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  updatedAt     DateTime
   BDOpportunity BDOpportunity[]
 
   @@unique([serviceLine, name])
@@ -438,7 +458,7 @@ model Client {
   typeCode                          String                              @db.NVarChar(10)
   typeDesc                          String                              @db.NVarChar(50)
   createdAt                         DateTime                            @default(now())
-  updatedAt                         DateTime                            @updatedAt
+  updatedAt                         DateTime
   GSClientID                        String                              @unique @db.UniqueIdentifier
   BDOpportunity                     BDOpportunity[]
   ClientAcceptance                  ClientAcceptance?
@@ -552,7 +572,7 @@ model ClientAnalyticsDocument {
   uploadedAt           DateTime               @default(now())
   extractedData        String?                @db.NVarChar(Max)
   createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
+  updatedAt            DateTime
   Client               Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
   CreditRatingDocument CreditRatingDocument[]
 
@@ -572,7 +592,7 @@ model ClientCreditRating {
   confidence           Float
   analyzedBy           String
   createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
+  updatedAt            DateTime
   Client               Client                 @relation(fields: [clientId], references: [id], onUpdate: NoAction)
   CreditRatingDocument CreditRatingDocument[]
 
@@ -633,13 +653,45 @@ model ComplianceChecklist {
   completedBy String?
   createdBy   String
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  updatedAt   DateTime
   Task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([assignedTo])
   @@index([dueDate])
   @@index([status])
   @@index([taskId])
+}
+
+model Creditors {
+  id              Int      @id @default(autoincrement())
+  GSTranID        String   @unique @db.UniqueIdentifier
+  GSTaskID        String?  @db.UniqueIdentifier
+  GSDisbID        String?  @db.UniqueIdentifier
+  GSMatchID       String?  @db.UniqueIdentifier
+  TranType        String   @db.VarChar(3)
+  BatchNumber     String?  @db.NVarChar(20)
+  InvNumber       String   @db.NVarChar(20)
+  TranDate        DateTime
+  MatchDate       DateTime
+  CreditorCode    String   @db.NVarChar(10)
+  CreditorControl String?  @db.NVarChar(30)
+  OfficeCode      String?  @db.NVarChar(10)
+  ClntDisb        Int
+  Account         String?  @db.NVarChar(30)
+  AccDesc         String?  @db.NVarChar(255)
+  InvAmount       Float?   @db.Money
+  InvVatAmount    Float?   @db.Money
+  InvTotal        Float?   @db.Money
+  InvNarr         String?  @db.Text
+  MatchNr         String   @db.NVarChar(20)
+
+  @@index([BatchNumber])
+  @@index([CreditorCode])
+  @@index([GSTaskID])
+  @@index([InvNumber])
+  @@index([MatchDate])
+  @@index([OfficeCode])
+  @@index([TranDate])
 }
 
 model CreditRatingDocument {
@@ -698,7 +750,7 @@ model Debtors {
   PTDDebtorProvision Float?    @db.Money
   YTDDebtorProvision Float?    @db.Money
   createdAt          DateTime  @default(now(), map: "DF_Debtors_createdAt")
-  updatedAt          DateTime  @updatedAt
+  updatedAt          DateTime
   Client             Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
   @@index([Biller])
@@ -745,11 +797,13 @@ model DrsTransactions {
   ClientManager     String   @db.NVarChar(10)
   ClientManagerName String   @db.NVarChar(50)
   createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime
   Client            Client   @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
   @@index([OfficeCode])
   @@index([PeriodKey])
+  @@index([ServLineCode])
+  @@index([TranDate])
   @@index([Biller, TranDate], map: "idx_drs_biller_trandate")
   @@index([GSClientID, TranDate, EntryType], map: "idx_drs_gsclientid_trandate_entrytype")
   @@index([ServLineCode], map: "idx_drs_servlinecode")
@@ -796,7 +850,7 @@ model Employee {
   Team                String?               @db.NVarChar(100)
   WinLogon            String?               @db.NVarChar(100)
   createdAt           DateTime              @default(now(), map: "DF__Employee__create__15C52FC4")
-  updatedAt           DateTime              @updatedAt
+  updatedAt           DateTime
   LeaderGroupMember   LeaderGroupMember[]
   NonClientAllocation NonClientAllocation[]
 
@@ -808,6 +862,7 @@ model Employee {
   @@index([ServLineCode])
   @@index([SLGroup])
   @@index([WinLogon])
+  @@index([EmpCode, Active], map: "idx_employee_empcode_active")
 }
 
 model ExternalLink {
@@ -818,7 +873,7 @@ model ExternalLink {
   active    Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
 
   @@index([active])
   @@index([name])
@@ -837,7 +892,7 @@ model FilingStatus {
   notes           String?   @db.NVarChar(Max)
   createdBy       String
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime
   Task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([deadline])
@@ -858,7 +913,7 @@ model FiscalPeriod {
   periodName    String   @db.NVarChar(50)
   quarterName   String   @db.NVarChar(50)
   createdAt     DateTime @default(now(), map: "DF_FiscalPeriod_createdAt")
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime
 
   @@index([calendarYear, calendarMonth], map: "IX_FiscalPeriod_calendarYear_calendarMonth")
   @@index([fiscalQuarter], map: "IX_FiscalPeriod_fiscalQuarter")
@@ -866,6 +921,57 @@ model FiscalPeriod {
   @@index([fiscalYear, fiscalMonth], map: "IX_FiscalPeriod_fiscalYear_fiscalMonth")
   @@index([fiscalYear, fiscalQuarter], map: "IX_FiscalPeriod_fiscalYear_fiscalQuarter")
   @@index([startDate, endDate], map: "IX_FiscalPeriod_startDate_endDate")
+}
+
+model GL {
+  id             Int       @id @default(autoincrement())
+  GSEntryID      String    @unique @db.UniqueIdentifier
+  GSAccountID    String    @db.UniqueIdentifier
+  Account        String    @db.NVarChar(30)
+  AccDesc        String    @db.NVarChar(255)
+  DescriptionSub String?   @db.NVarChar(255)
+  SourceBatch    String?   @db.NVarChar(50)
+  EntryDate      DateTime?
+  DatePosted     DateTime?
+  Reference      String?   @db.NVarChar(20)
+  Amount         Float?    @db.Money
+  Debit          Float?    @db.Money
+  Credit         Float?    @db.Money
+  Category       String    @db.NVarChar(30)
+  CatDesc        String?   @db.NVarChar(128)
+  BS             Boolean
+  OfficeCode     String    @db.NVarChar(10)
+  OfficeDesc     String    @db.NVarChar(100)
+  Narration      String?   @db.NVarChar(255)
+  EntryGroup     String?   @db.UniqueIdentifier
+  EntryTypeCode  String    @db.NVarChar(3)
+  EntryGroupCode String    @db.NVarChar(10)
+  EntryGroupDesc String?   @db.NVarChar(50)
+  AccStatus      String?   @db.NVarChar(50)
+
+  @@index([Account])
+  @@index([DatePosted])
+  @@index([EntryDate])
+  @@index([EntryGroup])
+  @@index([GSAccountID])
+  @@index([OfficeCode])
+  @@index([SourceBatch])
+}
+
+model GLBudgets {
+  id             Int    @id @default(autoincrement())
+  GSBudgetID     String @unique @db.UniqueIdentifier
+  GSBudgetTypeID String @db.UniqueIdentifier
+  GSAccountID    String @db.UniqueIdentifier
+  BudgetCode     String @db.NVarChar(10)
+  PeriodYear     Int
+  PeriodNumber   Int
+  BudgetAmount   Float?
+
+  @@index([BudgetCode])
+  @@index([GSAccountID])
+  @@index([GSBudgetTypeID])
+  @@index([PeriodYear, PeriodNumber])
 }
 
 model GS_Stg_TSChargeable {
@@ -936,7 +1042,7 @@ model LeaderGroup {
   description       String?             @db.NVarChar(500)
   createdById       String
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  updatedAt         DateTime
   type              String              @default("GROUP") @db.NVarChar(20)
   User              User                @relation(fields: [createdById], references: [id])
   LeaderGroupMember LeaderGroupMember[]
@@ -972,7 +1078,7 @@ model LegalPrecedent {
   link      String?
   createdBy String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
   Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
@@ -989,7 +1095,7 @@ model MappedAccount {
   priorYearBalance Float    @default(0)
   sarsItem         String
   createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime
   taskId           Int
   Task             Task     @relation(fields: [taskId], references: [id])
 
@@ -1016,7 +1122,7 @@ model NewsBulletin {
   isActive           Boolean   @default(true)
   createdById        String
   createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  updatedAt          DateTime
   documentFileName   String?   @db.NVarChar(255)
   documentFilePath   String?   @db.NVarChar(500)
   documentFileSize   Int?
@@ -1042,7 +1148,7 @@ model NonClientAllocation {
   notes               String?  @db.NVarChar(Max)
   createdBy           String
   createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime
   employeeId          Int
   Employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
@@ -1058,7 +1164,7 @@ model NotificationPreference {
   notificationType String
   emailEnabled     Boolean  @default(true)
   createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime
   Task             Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   User             User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -1109,7 +1215,7 @@ model OpinionDraft {
   status             String               @default("DRAFT")
   createdBy          String
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  updatedAt          DateTime
   OpinionChatMessage OpinionChatMessage[]
   OpinionDocument    OpinionDocument[]
   Task               Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -1132,7 +1238,7 @@ model OpinionSection {
   reviewedAt     DateTime?
   order          Int
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  updatedAt      DateTime
   OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
 
   @@index([opinionDraftId, order])
@@ -1146,7 +1252,7 @@ model PagePermission {
   description String?  @db.NVarChar(Max)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime
   createdBy   String?
 
   @@unique([pathname, role])
@@ -1164,7 +1270,7 @@ model PageRegistry {
   active     Boolean  @default(true)
   lastSeen   DateTime @default(now())
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  updatedAt  DateTime
 
   @@index([active])
   @@index([category])
@@ -1179,7 +1285,7 @@ model ResearchNote {
   category  String?
   createdBy String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
   Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([category])
@@ -1194,7 +1300,7 @@ model ReviewCategory {
   active      Boolean      @default(true)
   sortOrder   Int          @default(0)
   createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  updatedAt   DateTime
   ReviewNote  ReviewNote[]
 
   @@index([active])
@@ -1226,7 +1332,7 @@ model ReviewNote {
   rejectedAt                            DateTime?
   rejectionReason                       String?                @db.NVarChar(Max)
   createdAt                             DateTime               @default(now())
-  updatedAt                             DateTime               @updatedAt
+  updatedAt                             DateTime
   currentOwner                          String?
   lastRespondedBy                       String?
   lastRespondedAt                       DateTime?
@@ -1297,7 +1403,7 @@ model ReviewNoteComment {
   comment              String                 @db.NVarChar(Max)
   isInternal           Boolean                @default(false)
   createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
+  updatedAt            DateTime
   ReviewNoteAttachment ReviewNoteAttachment[]
   ReviewNote           ReviewNote             @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
   User                 User                   @relation(fields: [userId], references: [id], onUpdate: NoAction)
@@ -1321,7 +1427,7 @@ model SarsResponse {
   documentPath    String?
   createdBy       String
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime
   Task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([deadline])
@@ -1339,10 +1445,12 @@ model ServiceLineExternal {
   SubServlineGroupCode String?  @db.NVarChar(10)
   SubServlineGroupDesc String?  @db.NVarChar(150)
   createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt            DateTime
+  Active               Boolean?
 
   @@index([ServLineCode], map: "idx_servline_code")
   @@index([masterCode])
+  @@index([ServLineCode])
   @@index([SLGroup])
   @@index([SubServlineGroupCode])
 }
@@ -1354,7 +1462,7 @@ model ServiceLineMaster {
   active        Boolean         @default(true)
   sortOrder     Int             @default(0)
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  updatedAt     DateTime
   VaultDocument VaultDocument[]
 
   @@index([code], map: "idx_master_sl_code")
@@ -1368,7 +1476,7 @@ model ServiceLineTool {
   toolId              Int
   active              Boolean  @default(true)
   createdAt           DateTime @default(now(), map: "DF__ServiceLi__creat__08362A7C")
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime
   Tool                Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@unique([subServiceLineGroup, toolId])
@@ -1385,7 +1493,7 @@ model ServiceLineUser {
   assignmentType      String   @default("SPECIFIC_SUBGROUP")
   parentAssignmentId  Int?
   createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime
   masterCode          String?  @db.NVarChar(50)
   User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1414,7 +1522,7 @@ model StandardTask {
   StdTaskDesc  String   @db.NVarChar(150)
   ServLineCode String   @db.NVarChar(10)
   createdAt    DateTime @default(now(), map: "DF_StandardTask_createdAt")
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime
 
   @@index([GSStdTaskID])
   @@index([ServLineCode])
@@ -1440,7 +1548,7 @@ model Task {
   TaskDateTerminate        DateTime?
   createdBy                String?
   createdAt                DateTime                   @default(now())
-  updatedAt                DateTime                   @updatedAt
+  updatedAt                DateTime
   taskYear                 Int
   AdjustmentDocument       AdjustmentDocument[]
   AITaxReport              AITaxReport[]
@@ -1475,6 +1583,8 @@ model Task {
   @@index([GSClientID], map: "idx_task_gsclientid")
   @@index([ServLineCode, Active], map: "idx_task_servlinecode_active")
   @@index([GSClientID, Active, updatedAt(sort: Desc)])
+  @@index([GSClientID])
+  @@index([ServLineCode, Active])
   @@index([ServLineCode, Active, updatedAt(sort: Desc)])
   @@index([ServLineCode, SLGroup])
   @@index([TaskManager, Active])
@@ -1492,7 +1602,7 @@ model TaskAcceptance {
   overallRiskScore   Float?
   riskRating         String?
   createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  updatedAt          DateTime
   Task               Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([riskRating])
@@ -1518,7 +1628,7 @@ model TaskBudget {
   LastUser        String?   @db.NVarChar(50)
   LastUpdated     DateTime?
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime
   BudApproveDate  DateTime?
   BudDueDate      DateTime?
   BudStartDate    DateTime?
@@ -1535,15 +1645,15 @@ model TaskBudgetDisbursement {
   taskId       Int
   description  String   @db.NVarChar(255)
   amount       Decimal  @db.Decimal(18, 2)
-  expectedDate DateTime
   createdBy    String
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime
+  expectedDate DateTime
+  User         User     @relation(fields: [createdBy], references: [id], onUpdate: NoAction)
   Task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  User         User     @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([taskId])
   @@index([createdBy])
+  @@index([taskId])
 }
 
 model TaskBudgetFee {
@@ -1551,15 +1661,15 @@ model TaskBudgetFee {
   taskId       Int
   description  String   @db.NVarChar(255)
   amount       Decimal  @db.Decimal(18, 2)
-  expectedDate DateTime
   createdBy    String
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime
+  expectedDate DateTime
+  User         User     @relation(fields: [createdBy], references: [id], onUpdate: NoAction)
   Task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  User         User     @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([taskId])
   @@index([createdBy])
+  @@index([taskId])
 }
 
 model TaskDocument {
@@ -1574,7 +1684,7 @@ model TaskDocument {
   version     Int      @default(1)
   uploadedBy  String
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime
   Task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([category])
@@ -1594,7 +1704,7 @@ model TaskEngagementLetter {
   uploadedAt              DateTime?
   uploadedBy              String?
   createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
+  updatedAt               DateTime
   dpaUploaded             Boolean          @default(false, map: "DF_TaskEngagementLetter_dpaUploaded")
   dpaFilePath             String?          @db.NVarChar(Max)
   dpaUploadedAt           DateTime?
@@ -1633,6 +1743,19 @@ model TaskEngagementLetter {
   @@index([templateVersionId])
 }
 
+model TaskIndependenceConfirmation {
+  id          Int       @id @default(autoincrement())
+  taskTeamId  Int       @unique
+  confirmed   Boolean   @default(false)
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  TaskTeam    TaskTeam  @relation(fields: [taskTeamId], references: [id], onDelete: Cascade)
+
+  @@index([confirmed])
+  @@index([taskTeamId])
+}
+
 model TaskStage {
   id        Int      @id(map: "PK_TaskStage") @default(autoincrement())
   taskId    Int
@@ -1648,39 +1771,27 @@ model TaskStage {
 }
 
 model TaskTeam {
-  id                       Int                            @id @default(autoincrement())
-  taskId                   Int
-  userId                   String
-  role                     String                         @default("VIEWER")
-  createdAt                DateTime                       @default(now())
-  startDate                DateTime?
-  endDate                  DateTime?
-  allocatedHours           Decimal?                       @db.Decimal(10, 2)
-  allocatedPercentage      Int?
-  actualHours              Decimal?                       @db.Decimal(10, 2)
-  Task                     Task                           @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  User                     User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  independenceConfirmation TaskIndependenceConfirmation?
+  id                           Int                           @id @default(autoincrement())
+  taskId                       Int
+  userId                       String
+  role                         String                        @default("VIEWER")
+  createdAt                    DateTime                      @default(now())
+  startDate                    DateTime?
+  endDate                      DateTime?
+  allocatedHours               Decimal?                      @db.Decimal(10, 2)
+  allocatedPercentage          Int?
+  actualHours                  Decimal?                      @db.Decimal(10, 2)
+  TaskIndependenceConfirmation TaskIndependenceConfirmation?
+  Task                         Task                          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  User                         User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId])
   @@index([userId, taskId], map: "idx_taskteam_userid_taskid")
   @@index([role])
   @@index([taskId, startDate, endDate])
   @@index([userId, startDate, endDate])
+  @@index([userId, taskId])
   @@index([userId, taskId, role])
-}
-
-model TaskIndependenceConfirmation {
-  id          Int       @id @default(autoincrement())
-  taskTeamId  Int       @unique
-  confirmed   Boolean   @default(false)
-  confirmedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  TaskTeam    TaskTeam  @relation(fields: [taskTeamId], references: [id], onDelete: Cascade)
-
-  @@index([taskTeamId])
-  @@index([confirmed])
 }
 
 model TaskTool {
@@ -1690,7 +1801,7 @@ model TaskTool {
   addedBy   String
   sortOrder Int      @default(0)
   createdAt DateTime @default(now(), map: "DF__TaskTool__create__0EE3280B")
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
   User      User     @relation(fields: [addedBy], references: [id], onUpdate: NoAction)
   Task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   Tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
@@ -1716,7 +1827,7 @@ model TaxAdjustment {
   sarsSection        String?
   confidenceScore    Float?
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  updatedAt          DateTime
   AdjustmentDocument AdjustmentDocument[]
   Task               Task                 @relation(fields: [taskId], references: [id])
 
@@ -1736,7 +1847,7 @@ model Template {
   active          Boolean           @default(true)
   createdBy       String
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  updatedAt       DateTime
   currentVersion  Int               @default(1)
   TemplateSection TemplateSection[]
   TemplateVersion TemplateVersion[]
@@ -1758,7 +1869,7 @@ model TemplateSection {
   applicableServiceLines String?  @db.NVarChar(Max)
   applicableProjectTypes String?  @db.NVarChar(Max)
   createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  updatedAt              DateTime
   Template               Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([sectionKey])
@@ -1815,7 +1926,7 @@ model Tool {
   active          Boolean           @default(true)
   sortOrder       Int               @default(0)
   createdAt       DateTime          @default(now(), map: "DF__Tool__createdAt__7ADC2F5E")
-  updatedAt       DateTime          @updatedAt
+  updatedAt       DateTime
   ServiceLineTool ServiceLineTool[]
   TaskTool        TaskTool[]
   ToolSubTab      ToolSubTab[]
@@ -1835,7 +1946,7 @@ model ToolSubTab {
   sortOrder     Int      @default(0)
   active        Boolean  @default(true)
   createdAt     DateTime @default(now(), map: "DF__ToolSubTa__creat__01892CED")
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime
   Tool          Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@unique([toolId, code])
@@ -1852,7 +1963,7 @@ model User {
   image                                                                                                  String?
   role                                                                                                   String                              @default("USER")
   createdAt                                                                                              DateTime                            @default(now())
-  updatedAt                                                                                              DateTime                            @updatedAt
+  updatedAt                                                                                              DateTime
   Account                                                                                                Account[]
   Approval_Approval_completedByIdToUser                                                                  Approval[]                          @relation("Approval_completedByIdToUser")
   Approval_Approval_requestedByIdToUser                                                                  Approval[]                          @relation("Approval_requestedByIdToUser")
@@ -2064,7 +2175,7 @@ model Wip {
   YTDHours         Float?    @db.Money
   PTDHours         Float?    @db.Money
   createdAt        DateTime  @default(now(), map: "DF_Wip_createdAt")
-  updatedAt        DateTime  @updatedAt
+  updatedAt        DateTime
   Client           Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
   Task             Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
@@ -2102,7 +2213,7 @@ model WIPAging {
   NettWip      Float?    @db.Money
   PtdFeeAmt    Float?    @db.Money
   createdAt    DateTime  @default(now(), map: "DF_WIPAging_createdAt")
-  updatedAt    DateTime  @updatedAt
+  updatedAt    DateTime
   Client       Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
   Task         Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
@@ -2162,29 +2273,24 @@ model WIPTransactions {
   EmpMainServLineDesc String?   @db.NVarChar(150)
   EmpServLineGroup    String?   @db.NVarChar(10)
   createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  updatedAt           DateTime
   Client              Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   Task                Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
-  // COVERING INDEXES (replace simple indexes with SQL migration):
-  // - idx_wip_gsclientid_covering: (GSClientID) INCLUDE (Amount, TType, GSTaskID) WHERE GSClientID IS NOT NULL
-  // - idx_wip_gstaskid_covering: (GSTaskID) INCLUDE (Amount, TType, GSClientID)
-  // These covering indexes replace the old simple @@index([GSClientID]) and @@index([GSTaskID])
-  // Prisma doesn't support INCLUDE syntax, so these are managed via SQL migration:
-  // prisma/migrations/20260123063454_replace_simple_with_covering_wip_indexes/
-  
-  // Date-based composite indexes (for graph/analytics queries with date filters)
+  @@index([GSClientID], map: "idx_wip_gsclientid")
+  @@index([GSTaskID], map: "idx_wip_gstaskid")
+  @@index([GSTaskID], map: "idx_wip_gstaskid_covering")
+  @@index([GSClientID], map: "idx_wiptransactions_gsclientid")
+  @@index([GSTaskID], map: "idx_wiptransactions_gstaskid")
+  @@index([EmpCode])
   @@index([GSClientID, TranDate, TType])
   @@index([GSTaskID, TranDate, TType])
-  @@index([TranDate])
-  
-  // Other indexes
-  @@index([EmpCode])
-  @@index([TaskManager, TranDate])
-  @@index([TaskPartner, TranDate])
-  @@index([TType])
   @@index([OfficeCode])
   @@index([ServLineGroup])
+  @@index([TaskManager, TranDate])
+  @@index([TaskPartner, TranDate])
+  @@index([TranDate])
+  @@index([TType])
 }
 
 model WorkspaceFile {
@@ -2204,7 +2310,7 @@ model WorkspaceFile {
   lastModifiedAt          DateTime?
   version                 Int                       @default(1)
   createdAt               DateTime                  @default(now(), map: "DF_WorkspaceFile_createdAt")
-  updatedAt               DateTime                  @updatedAt
+  updatedAt               DateTime
   WorkspaceFolder         WorkspaceFolder           @relation(fields: [folderId], references: [id], onDelete: Cascade)
   WorkspaceFileActivity   WorkspaceFileActivity[]
   WorkspaceFilePermission WorkspaceFilePermission[]
@@ -2243,120 +2349,11 @@ model WorkspaceFolder {
   sharepointUrl         String?           @db.NVarChar(500)
   createdBy             String            @db.NVarChar(200)
   createdAt             DateTime          @default(now(), map: "DF_WorkspaceFolder_createdAt")
-  updatedAt             DateTime          @updatedAt
+  updatedAt             DateTime
   active                Boolean           @default(true)
   taskId                Int?
   WorkspaceFile         WorkspaceFile[]
   WorkspaceFolder       WorkspaceFolder?  @relation("WorkspaceFolderToWorkspaceFolder", fields: [parentFolderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_WorkspaceFolder WorkspaceFolder[] @relation("WorkspaceFolderToWorkspaceFolder")
   Task                  Task?             @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-// Financial Tables - Chart of Accounts and GL Transactions
-
-model GLAccount {
-  id             Int     @id @default(autoincrement())
-  GSAccountID    String  @unique @db.UniqueIdentifier
-  Account        String  @db.NVarChar(30)
-  AccDesc        String  @db.NVarChar(255)
-  DescriptionSub String? @db.NVarChar(255)
-  Category       String  @db.NVarChar(30)
-  CatDesc        String? @db.NVarChar(128)
-  BS             Boolean
-  AccStatus      String? @db.NVarChar(50)
-  AccLevel       String? @db.NVarChar(1)
-  OfficeCode     String  @db.NVarChar(10)
-  OfficeDesc     String  @db.NVarChar(100)
-
-  @@index([Account])
-  @@index([OfficeCode])
-  @@index([Category])
-  @@index([AccStatus])
-  @@map("Accounts")
-}
-
-model GLTransaction {
-  id             Int       @id @default(autoincrement())
-  GSEntryID      String    @unique @db.UniqueIdentifier
-  GSAccountID    String    @db.UniqueIdentifier
-  Account        String    @db.NVarChar(30)
-  AccDesc        String    @db.NVarChar(255)
-  DescriptionSub String?   @db.NVarChar(255)
-  SourceBatch    String?   @db.NVarChar(50)
-  EntryDate      DateTime?
-  DatePosted     DateTime?
-  Reference      String?   @db.NVarChar(20)
-  Amount         Float?    @db.Money
-  Debit          Float?    @db.Money
-  Credit         Float?    @db.Money
-  Category       String    @db.NVarChar(30)
-  CatDesc        String?   @db.NVarChar(128)
-  BS             Boolean
-  OfficeCode     String    @db.NVarChar(10)
-  OfficeDesc     String    @db.NVarChar(100)
-  Narration      String?   @db.NVarChar(255)
-  EntryGroup     String?   @db.UniqueIdentifier
-  EntryTypeCode  String    @db.NVarChar(3)
-  EntryGroupCode String    @db.NVarChar(10)
-  EntryGroupDesc String?   @db.NVarChar(50)
-  AccStatus      String?   @db.NVarChar(50)
-
-  @@index([GSAccountID])
-  @@index([Account])
-  @@index([EntryDate])
-  @@index([DatePosted])
-  @@index([OfficeCode])
-  @@index([EntryGroup])
-  @@index([SourceBatch])
-  @@map("GL")
-}
-
-model CreditorTransaction {
-  id              Int      @id @default(autoincrement())
-  GSTranID        String   @unique @db.UniqueIdentifier
-  GSTaskID        String?  @db.UniqueIdentifier
-  GSDisbID        String?  @db.UniqueIdentifier
-  GSMatchID       String?  @db.UniqueIdentifier
-  TranType        String   @db.VarChar(3)
-  BatchNumber     String?  @db.NVarChar(20)
-  InvNumber       String   @db.NVarChar(20)
-  TranDate        DateTime
-  MatchDate       DateTime
-  CreditorCode    String   @db.NVarChar(10)
-  CreditorControl String?  @db.NVarChar(30)
-  OfficeCode      String?  @db.NVarChar(10)
-  ClntDisb        Int
-  Account         String?  @db.NVarChar(30)
-  AccDesc         String?  @db.NVarChar(255)
-  InvAmount       Float?   @db.Money
-  InvVatAmount    Float?   @db.Money
-  InvTotal        Float?   @db.Money
-  InvNarr         String?  @db.Text
-  MatchNr         String   @db.NVarChar(20)
-
-  @@index([CreditorCode])
-  @@index([TranDate])
-  @@index([MatchDate])
-  @@index([InvNumber])
-  @@index([GSTaskID])
-  @@index([BatchNumber])
-  @@index([OfficeCode])
-  @@map("Creditors")
-}
-
-model GLBudget {
-  id             Int    @id @default(autoincrement())
-  GSBudgetID     String @unique @db.UniqueIdentifier
-  GSBudgetTypeID String @db.UniqueIdentifier
-  GSAccountID    String @db.UniqueIdentifier
-  BudgetCode     String @db.NVarChar(10)
-  PeriodYear     Int
-  PeriodNumber   Int
-  BudgetAmount   Float?
-
-  @@index([GSAccountID])
-  @@index([BudgetCode])
-  @@index([PeriodYear, PeriodNumber])
-  @@index([GSBudgetTypeID])
-  @@map("GLBudgets")
 }

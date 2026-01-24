@@ -470,3 +470,5 @@ await prisma.yourTable.update({
 ## Core Principles
 
 Security checks are NOT optional. Performance patterns are REQUIRED. Type safety is MANDATORY.
+
+
