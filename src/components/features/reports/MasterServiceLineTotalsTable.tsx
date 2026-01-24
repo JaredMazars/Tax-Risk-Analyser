@@ -7,6 +7,8 @@
  * Columns: Master Service Line Name | Total Tasks | Net WIP
  */
 
+import { useState } from 'react';
+import { Pagination } from '@/components/shared/Pagination';
 import type { TaskWithWIPAndServiceLine } from '@/types/api';
 
 interface MasterServiceLineTotal {
@@ -47,6 +49,10 @@ const formatPercentage = (percent: number) => {
 };
 
 export function MasterServiceLineTotalsTable({ tasks }: MasterServiceLineTotalsTableProps) {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+
   // Aggregate tasks by master service line
   const masterServiceLineTotals = new Map<string, MasterServiceLineTotal>();
 
@@ -84,6 +90,30 @@ export function MasterServiceLineTotalsTable({ tasks }: MasterServiceLineTotalsT
   const sortedMasterServiceLines = Array.from(masterServiceLineTotals.values()).sort((a, b) =>
     a.name.localeCompare(b.name)
   );
+
+  // Pagination calculation
+  const totalPages = Math.ceil(sortedMasterServiceLines.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedMasterServiceLines = sortedMasterServiceLines.slice(startIndex, endIndex);
+
+  // Calculate grand totals for current page
+  const grandTotals = {
+    taskCount: paginatedMasterServiceLines.reduce((sum, msl) => sum + msl.taskCount, 0),
+    ltdHours: paginatedMasterServiceLines.reduce((sum, msl) => sum + msl.ltdHours, 0),
+    grossProduction: paginatedMasterServiceLines.reduce((sum, msl) => sum + msl.grossProduction, 0),
+    ltdAdj: paginatedMasterServiceLines.reduce((sum, msl) => sum + msl.ltdAdj, 0),
+    netRevenue: paginatedMasterServiceLines.reduce((sum, msl) => sum + msl.netRevenue, 0),
+    ltdCost: paginatedMasterServiceLines.reduce((sum, msl) => sum + msl.ltdCost, 0),
+    grossProfit: paginatedMasterServiceLines.reduce((sum, msl) => sum + msl.grossProfit, 0),
+  };
+  
+  const totalAdjPercentage = grandTotals.grossProduction !== 0 
+    ? (grandTotals.ltdAdj / grandTotals.grossProduction) * 100 
+    : 0;
+  const totalGPPercentage = grandTotals.netRevenue !== 0 
+    ? (grandTotals.grossProfit / grandTotals.netRevenue) * 100 
+    : 0;
 
   if (sortedMasterServiceLines.length === 0) {
     return (
@@ -134,7 +164,7 @@ export function MasterServiceLineTotalsTable({ tasks }: MasterServiceLineTotalsT
 
         {/* Table Body */}
         <div className="bg-white">
-          {sortedMasterServiceLines.map((msl, index) => {
+          {paginatedMasterServiceLines.map((msl, index) => {
             const adjustmentPercentage = msl.grossProduction !== 0 ? (msl.ltdAdj / msl.grossProduction) * 100 : 0;
             const grossProfitPercentage = msl.netRevenue !== 0 ? (msl.grossProfit / msl.netRevenue) * 100 : 0;
             
@@ -189,8 +219,69 @@ export function MasterServiceLineTotalsTable({ tasks }: MasterServiceLineTotalsT
               </div>
             );
           })}
+
+          {/* Totals Row */}
+          <div
+            className="grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
+            style={{
+              background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+              gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px'
+            }}
+          >
+            <div className="text-forvis-blue-800">TOTAL (Page {currentPage} of {totalPages})</div>
+            <div className="text-right text-forvis-blue-800 tabular-nums">
+              {grandTotals.taskCount}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatNumber(grandTotals.ltdHours)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.grossProduction)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.ltdAdj < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.ltdAdj)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.netRevenue < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.netRevenue)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              totalAdjPercentage < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatPercentage(totalAdjPercentage)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.ltdCost)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.grossProfit < 0 ? 'text-forvis-error-600' : 'text-forvis-success-600'
+            }`}>
+              {formatCurrency(grandTotals.grossProfit)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              totalGPPercentage >= 60 ? 'text-forvis-success-600' : 
+              totalGPPercentage >= 50 ? 'text-forvis-warning-600' : 
+              'text-forvis-error-600'
+            }`}>
+              {formatPercentage(totalGPPercentage)}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={sortedMasterServiceLines.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        showMetadata
+        className="mt-4 px-4"
+      />
     </div>
   );
 }

@@ -7,6 +7,8 @@
  * Columns: Group Name | Client | Total Tasks | Net WIP
  */
 
+import { useState } from 'react';
+import { Pagination } from '@/components/shared/Pagination';
 import type { TaskWithWIPAndServiceLine } from '@/types/api';
 
 interface ClientTotal {
@@ -50,6 +52,10 @@ const formatPercentage = (percent: number) => {
 };
 
 export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
+
   // Aggregate tasks by client
   const clientTotals = new Map<string, ClientTotal>();
 
@@ -89,6 +95,30 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
     if (groupCompare !== 0) return groupCompare;
     return a.clientCode.localeCompare(b.clientCode);
   });
+
+  // Pagination calculation
+  const totalPages = Math.ceil(sortedClients.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedClients = sortedClients.slice(startIndex, endIndex);
+
+  // Calculate grand totals for current page
+  const grandTotals = {
+    taskCount: paginatedClients.reduce((sum, client) => sum + client.taskCount, 0),
+    ltdHours: paginatedClients.reduce((sum, client) => sum + client.ltdHours, 0),
+    grossProduction: paginatedClients.reduce((sum, client) => sum + client.grossProduction, 0),
+    ltdAdj: paginatedClients.reduce((sum, client) => sum + client.ltdAdj, 0),
+    netRevenue: paginatedClients.reduce((sum, client) => sum + client.netRevenue, 0),
+    ltdCost: paginatedClients.reduce((sum, client) => sum + client.ltdCost, 0),
+    grossProfit: paginatedClients.reduce((sum, client) => sum + client.grossProfit, 0),
+  };
+  
+  const totalAdjPercentage = grandTotals.grossProduction !== 0 
+    ? (grandTotals.ltdAdj / grandTotals.grossProduction) * 100 
+    : 0;
+  const totalGPPercentage = grandTotals.netRevenue !== 0 
+    ? (grandTotals.grossProfit / grandTotals.netRevenue) * 100 
+    : 0;
 
   if (sortedClients.length === 0) {
     return (
@@ -140,7 +170,7 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
 
         {/* Table Body */}
         <div className="bg-white">
-          {sortedClients.map((client, index) => {
+          {paginatedClients.map((client, index) => {
             const adjustmentPercentage = client.grossProduction !== 0 ? (client.ltdAdj / client.grossProduction) * 100 : 0;
             const grossProfitPercentage = client.netRevenue !== 0 ? (client.grossProfit / client.netRevenue) * 100 : 0;
             
@@ -200,9 +230,69 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
               </div>
             );
           })}
+
+          {/* Totals Row */}
+          <div
+            className="grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
+            style={{
+              background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+              gridTemplateColumns: '1fr 1.5fr 70px 90px 110px 110px 110px 90px 110px 110px 110px'
+            }}
+          >
+            <div className="text-forvis-blue-800" style={{ gridColumn: 'span 2' }}>TOTAL (Page {currentPage} of {totalPages})</div>
+            <div className="text-right text-forvis-blue-800 tabular-nums">
+              {grandTotals.taskCount}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatNumber(grandTotals.ltdHours)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.grossProduction)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.ltdAdj < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.ltdAdj)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.netRevenue < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.netRevenue)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              totalAdjPercentage < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatPercentage(totalAdjPercentage)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.ltdCost)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.grossProfit < 0 ? 'text-forvis-error-600' : 'text-forvis-success-600'
+            }`}>
+              {formatCurrency(grandTotals.grossProfit)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              totalGPPercentage >= 60 ? 'text-forvis-success-600' : 
+              totalGPPercentage >= 50 ? 'text-forvis-warning-600' : 
+              'text-forvis-error-600'
+            }`}>
+              {formatPercentage(totalGPPercentage)}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={sortedClients.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        showMetadata
+        className="mt-4 px-4"
+      />
     </div>
   );
 }
-

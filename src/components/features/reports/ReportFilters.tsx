@@ -18,6 +18,8 @@ export interface ReportFiltersState {
   clients: (string | number)[];     // Multi-select client IDs
   serviceLines: string[];            // Multi-select service line codes
   groups: string[];                  // Multi-select group codes
+  masterServiceLines: string[];      // Multi-select master SL codes
+  subServiceLineGroups: string[];    // Multi-select sub serv group codes
 }
 
 interface ReportFiltersProps {
@@ -35,9 +37,11 @@ export function ReportFilters({
   const [clientSearch, setClientSearch] = useState('');
   const [serviceLineSearch, setServiceLineSearch] = useState('');
   const [groupSearch, setGroupSearch] = useState('');
+  const [masterServiceLineSearch, setMasterServiceLineSearch] = useState('');
+  const [subServiceLineGroupSearch, setSubServiceLineGroupSearch] = useState('');
 
   // Extract unique options from available tasks
-  const { clientOptions, serviceLineOptions, groupOptions } = useMemo(() => {
+  const { clientOptions, serviceLineOptions, groupOptions, masterServiceLineOptions, subServiceLineGroupOptions } = useMemo(() => {
     // Clients
     const clientMap = new Map<string, SearchMultiComboboxOption>();
     availableTasks.forEach((task) => {
@@ -80,10 +84,41 @@ export function ReportFilters({
       a.label.localeCompare(b.label)
     );
 
+    // Master Service Lines
+    const masterServiceLineMap = new Map<string, SearchMultiComboboxOption>();
+    availableTasks.forEach((task) => {
+      if (!masterServiceLineMap.has(task.masterServiceLineCode)) {
+        masterServiceLineMap.set(task.masterServiceLineCode, {
+          id: task.masterServiceLineCode,
+          label: task.masterServiceLineName,
+        });
+      }
+    });
+    const masterServiceLines = Array.from(masterServiceLineMap.values()).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
+
+    // Sub Service Line Groups
+    const subServiceLineGroupMap = new Map<string, SearchMultiComboboxOption>();
+    availableTasks.forEach((task) => {
+      const code = task.subServlineGroupCode || task.servLineCode;
+      if (!subServiceLineGroupMap.has(code)) {
+        subServiceLineGroupMap.set(code, {
+          id: code,
+          label: task.subServlineGroupDesc,
+        });
+      }
+    });
+    const subServiceLineGroups = Array.from(subServiceLineGroupMap.values()).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
+
     return {
       clientOptions: clients,
       serviceLineOptions: serviceLines,
       groupOptions: groups,
+      masterServiceLineOptions: masterServiceLines,
+      subServiceLineGroupOptions: subServiceLineGroups,
     };
   }, [availableTasks]);
 
@@ -112,6 +147,22 @@ export function ReportFilters({
     );
   }, [groupOptions, groupSearch]);
 
+  const filteredMasterServiceLineOptions = useMemo(() => {
+    if (!masterServiceLineSearch || masterServiceLineSearch.length < 2) return masterServiceLineOptions;
+    const searchLower = masterServiceLineSearch.toLowerCase();
+    return masterServiceLineOptions.filter((option) =>
+      option.label.toLowerCase().includes(searchLower)
+    );
+  }, [masterServiceLineOptions, masterServiceLineSearch]);
+
+  const filteredSubServiceLineGroupOptions = useMemo(() => {
+    if (!subServiceLineGroupSearch || subServiceLineGroupSearch.length < 2) return subServiceLineGroupOptions;
+    const searchLower = subServiceLineGroupSearch.toLowerCase();
+    return subServiceLineGroupOptions.filter((option) =>
+      option.label.toLowerCase().includes(searchLower)
+    );
+  }, [subServiceLineGroupOptions, subServiceLineGroupSearch]);
+
   const handleClientsChange = (values: (string | number)[]) => {
     onFiltersChange({ ...filters, clients: values });
   };
@@ -124,33 +175,51 @@ export function ReportFilters({
     onFiltersChange({ ...filters, groups: values as string[] });
   };
 
+  const handleMasterServiceLinesChange = (values: (string | number)[]) => {
+    onFiltersChange({ ...filters, masterServiceLines: values as string[] });
+  };
+
+  const handleSubServiceLineGroupsChange = (values: (string | number)[]) => {
+    onFiltersChange({ ...filters, subServiceLineGroups: values as string[] });
+  };
+
   const handleClearFilters = () => {
     onFiltersChange({
       clients: [],
       serviceLines: [],
       groups: [],
+      masterServiceLines: [],
+      subServiceLineGroups: [],
     });
     setClientSearch('');
     setServiceLineSearch('');
     setGroupSearch('');
+    setMasterServiceLineSearch('');
+    setSubServiceLineGroupSearch('');
   };
 
   const hasActiveFilters =
     filters.clients.length > 0 ||
     filters.serviceLines.length > 0 ||
-    filters.groups.length > 0;
+    filters.groups.length > 0 ||
+    filters.masterServiceLines.length > 0 ||
+    filters.subServiceLineGroups.length > 0;
 
   // Generate active filters summary
   const getActiveFiltersSummary = () => {
     const parts: string[] = [];
-    if (filters.clients.length > 0)
-      parts.push(`${filters.clients.length} Client${filters.clients.length > 1 ? 's' : ''}`);
+    if (filters.masterServiceLines.length > 0)
+      parts.push(`${filters.masterServiceLines.length} Master SL${filters.masterServiceLines.length > 1 ? 's' : ''}`);
+    if (filters.subServiceLineGroups.length > 0)
+      parts.push(`${filters.subServiceLineGroups.length} Sub SL Group${filters.subServiceLineGroups.length > 1 ? 's' : ''}`);
     if (filters.serviceLines.length > 0)
       parts.push(
         `${filters.serviceLines.length} Service Line${filters.serviceLines.length > 1 ? 's' : ''}`
       );
     if (filters.groups.length > 0)
       parts.push(`${filters.groups.length} Group${filters.groups.length > 1 ? 's' : ''}`);
+    if (filters.clients.length > 0)
+      parts.push(`${filters.clients.length} Client${filters.clients.length > 1 ? 's' : ''}`);
     return parts.join(', ');
   };
 
@@ -158,20 +227,36 @@ export function ReportFilters({
     <div className="bg-white rounded-lg shadow-corporate p-3 mb-4">
       <div className="space-y-2">
         {/* Filter Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          {/* Clients Filter */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
+          {/* Master Service Lines Filter */}
           <SearchMultiCombobox
-            value={filters.clients}
-            onChange={handleClientsChange}
-            onSearchChange={setClientSearch}
-            options={filteredClientOptions}
-            placeholder="All Clients"
-            searchPlaceholder="Search by code or name..."
+            value={filters.masterServiceLines}
+            onChange={handleMasterServiceLinesChange}
+            onSearchChange={setMasterServiceLineSearch}
+            options={filteredMasterServiceLineOptions}
+            placeholder="All Master SL"
+            searchPlaceholder="Search master service lines..."
             minimumSearchChars={2}
             emptyMessage={
-              clientSearch.length < 2
-                ? 'Type 2+ characters to search clients'
-                : 'No clients found'
+              masterServiceLineSearch.length < 2
+                ? 'Type 2+ characters to search'
+                : 'No master service lines found'
+            }
+          />
+
+          {/* Sub Service Line Groups Filter */}
+          <SearchMultiCombobox
+            value={filters.subServiceLineGroups}
+            onChange={handleSubServiceLineGroupsChange}
+            onSearchChange={setSubServiceLineGroupSearch}
+            options={filteredSubServiceLineGroupOptions}
+            placeholder="All Sub SL Groups"
+            searchPlaceholder="Search sub service line groups..."
+            minimumSearchChars={2}
+            emptyMessage={
+              subServiceLineGroupSearch.length < 2
+                ? 'Type 2+ characters to search'
+                : 'No sub service line groups found'
             }
           />
 
@@ -202,6 +287,22 @@ export function ReportFilters({
             minimumSearchChars={2}
             emptyMessage={
               groupSearch.length < 2 ? 'Type 2+ characters to search' : 'No groups found'
+            }
+          />
+
+          {/* Clients Filter */}
+          <SearchMultiCombobox
+            value={filters.clients}
+            onChange={handleClientsChange}
+            onSearchChange={setClientSearch}
+            options={filteredClientOptions}
+            placeholder="All Clients"
+            searchPlaceholder="Search by code or name..."
+            minimumSearchChars={2}
+            emptyMessage={
+              clientSearch.length < 2
+                ? 'Type 2+ characters to search clients'
+                : 'No clients found'
             }
           />
         </div>

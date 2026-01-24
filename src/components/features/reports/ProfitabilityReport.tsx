@@ -49,6 +49,8 @@ export function ProfitabilityReport() {
     clients: [],
     serviceLines: [],
     groups: [],
+    masterServiceLines: [],
+    subServiceLineGroups: [],
   });
 
   // Handle custom date range validation and application
@@ -104,113 +106,241 @@ export function ProfitabilityReport() {
       filtered = filtered.filter((task) => filters.groups.includes(task.groupCode));
     }
 
+    // Multi-select master service line filter (empty = show all)
+    if (filters.masterServiceLines.length > 0) {
+      filtered = filtered.filter((task) => 
+        filters.masterServiceLines.includes(task.masterServiceLineCode)
+      );
+    }
+
+    // Multi-select sub service line group filter (empty = show all)
+    if (filters.subServiceLineGroups.length > 0) {
+      filtered = filtered.filter((task) => 
+        filters.subServiceLineGroups.includes(task.subServlineGroupCode || task.servLineCode)
+      );
+    }
+
     return filtered;
   }, [data, filters]);
 
   return (
     <div>
-      {/* Tabs */}
+      {/* Tabs + Info Banner */}
       <div className="border-b border-forvis-gray-200 mb-4">
-        <nav className="flex gap-4" role="tablist">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'fiscal'}
-            onClick={() => setActiveTab('fiscal')}
-            className={`pb-2 px-1 text-sm font-medium transition-colors ${
-              activeTab === 'fiscal'
-                ? 'border-b-2 border-forvis-blue-600 text-forvis-blue-600'
-                : 'text-forvis-gray-600 hover:text-forvis-gray-900'
-            }`}
-          >
-            Fiscal Year View
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'custom'}
-            onClick={() => setActiveTab('custom')}
-            className={`pb-2 px-1 text-sm font-medium transition-colors ${
-              activeTab === 'custom'
-                ? 'border-b-2 border-forvis-blue-600 text-forvis-blue-600'
-                : 'text-forvis-gray-600 hover:text-forvis-gray-900'
-            }`}
-          >
-            Custom Date Range
-          </button>
-        </nav>
-      </div>
-
-      {/* Inline Selectors */}
-      <div className="bg-white rounded-lg border border-forvis-gray-200 p-4 mb-4">
-        {activeTab === 'fiscal' ? (
-          <div className="max-w-xs">
-            <FiscalYearSelector
-              value={fiscalYear}
-              onChange={(val) => setFiscalYear(val as number)}
-              allowAllYears={false}
-              currentFY={currentFY}
-            />
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-2">
+          {/* Tabs + Custom Date Hint */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <nav className="flex gap-4" role="tablist">
+              <button
+                role="tab"
+                aria-selected={activeTab === 'fiscal'}
+                onClick={() => setActiveTab('fiscal')}
+                className={`pb-2 px-1 text-sm font-medium transition-colors ${
+                  activeTab === 'fiscal'
+                    ? 'border-b-2 border-forvis-blue-600 text-forvis-blue-600'
+                    : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+                }`}
+              >
+                Fiscal Year View
+              </button>
+              <button
+                role="tab"
+                aria-selected={activeTab === 'custom'}
+                onClick={() => setActiveTab('custom')}
+                className={`pb-2 px-1 text-sm font-medium transition-colors ${
+                  activeTab === 'custom'
+                    ? 'border-b-2 border-forvis-blue-600 text-forvis-blue-600'
+                    : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+                }`}
+              >
+                Custom Date Range
+              </button>
+            </nav>
+            
+          
           </div>
-        ) : (
-          <div className="space-y-4">
-            {dateError && (
-              <Banner
-                variant="error"
-                message={dateError}
-                dismissible
-                onDismiss={() => setDateError(null)}
-              />
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <Input
-                type="date"
-                label="Start Date"
-                value={customInputs.start}
-                onChange={(e) => setCustomInputs(prev => ({ ...prev, start: e.target.value }))}
-              />
-              <Input
-                type="date"
-                label="End Date"
-                value={customInputs.end}
-                onChange={(e) => setCustomInputs(prev => ({ ...prev, end: e.target.value }))}
-              />
-              <Button onClick={handleDateRangeApply} variant="primary">
-                Apply Date Range
-              </Button>
+
+          {/* Period Info */}
+          {data && (
+            <div
+              className="rounded-lg px-3 py-1.5 border border-forvis-blue-100"
+              style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+            >
+              <p className="text-xs text-forvis-gray-700 whitespace-nowrap">
+                <span className="font-semibold">Period:</span>{' '}
+                {activeTab === 'fiscal' ? `FY${fiscalYear} (Cumulative)` : 'Custom Date Range (Cumulative)'} •{' '}
+                <span className="font-semibold">Viewing as:</span>{' '}
+                {data.filterMode === 'PARTNER' ? 'Task Partner' : 'Task Manager'} •{' '}
+                <span className="font-semibold">{filteredTasks.length}</span> task
+                {filteredTasks.length !== 1 ? 's' : ''}
+              </p>
             </div>
-            <p className="text-xs text-forvis-gray-600">
-              Select a date range up to 24 months. Values will be cumulative within the selected period.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Info Banner */}
-      {data && (
-        <div className="mb-4">
-          <div
-            className="rounded-lg p-3 border border-forvis-blue-100"
-            style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-          >
-            <div className="flex items-start gap-2">
-              <div className="flex-1">
-                <p className="text-xs text-forvis-gray-700">
-                  <span className="font-semibold">Period:</span>{' '}
-                  {activeTab === 'fiscal' ? `FY${fiscalYear} (Cumulative)` : 'Custom Date Range (Cumulative)'} •{' '}
-                  <span className="font-semibold">Viewing as:</span>{' '}
-                  {data.filterMode === 'PARTNER' ? 'Task Partner' : 'Task Manager'} •{' '}
-                  <span className="ml-1">
-                    Shows tasks where you are assigned as{' '}
-                    {data.filterMode === 'PARTNER' ? 'Partner' : 'Manager'}
-                  </span>
-                  {' • '}
-                  <span className="font-semibold">{filteredTasks.length}</span> task
-                  {filteredTasks.length !== 1 ? 's' : ''}
-                </p>
+      {/* Inline Selectors - Fiscal Year/Date Range + View Mode */}
+      <div className="bg-white rounded-lg border border-forvis-gray-200 p-4 mb-4">
+        <div className="space-y-4">
+          {/* Date Controls */}
+          <div>
+            {activeTab === 'fiscal' ? (
+              <div className="w-56">
+                <FiscalYearSelector
+                  value={fiscalYear}
+                  onChange={(val) => setFiscalYear(val as number)}
+                  allowAllYears={false}
+                  currentFY={currentFY}
+                />
               </div>
+            ) : (
+              <div className="w-full">
+                {dateError && (
+                  <div className="mb-3">
+                    <Banner
+                      variant="error"
+                      message={dateError}
+                      dismissible
+                      onDismiss={() => setDateError(null)}
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end max-w-2xl">
+                  <Input
+                    type="date"
+                    label="Start Date"
+                    value={customInputs.start}
+                    onChange={(e) => setCustomInputs(prev => ({ ...prev, start: e.target.value }))}
+                  />
+                  <Input
+                    type="date"
+                    label="End Date"
+                    value={customInputs.end}
+                    onChange={(e) => setCustomInputs(prev => ({ ...prev, end: e.target.value }))}
+                  />
+                  <button 
+                    onClick={handleDateRangeApply}
+                    className="inline-flex items-center justify-center px-6 py-2 text-sm font-medium rounded-md text-white shadow-sm transition-all duration-200 hover:opacity-90 h-[42px]"
+                    style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* View Mode Buttons - Grid Layout */}
+          <div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              <button
+                onClick={() => setViewMode('master-service-line')}
+                className={`inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                  viewMode === 'master-service-line'
+                    ? 'text-white shadow-sm'
+                    : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+                }`}
+                style={
+                  viewMode === 'master-service-line'
+                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                    : {}
+                }
+              >
+                <LayoutList className="h-4 w-4" />
+                <span className="hidden xl:inline">Master SL</span>
+                <span className="xl:hidden">MSL</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('sub-service-line-group')}
+                className={`inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                  viewMode === 'sub-service-line-group'
+                    ? 'text-white shadow-sm'
+                    : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+                }`}
+                style={
+                  viewMode === 'sub-service-line-group'
+                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                    : {}
+                }
+              >
+                <FolderTree className="h-4 w-4" />
+                <span className="hidden xl:inline">Sub SL Group</span>
+                <span className="xl:hidden">SSL</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('service-line')}
+                className={`inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                  viewMode === 'service-line'
+                    ? 'text-white shadow-sm'
+                    : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+                }`}
+                style={
+                  viewMode === 'service-line'
+                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                    : {}
+                }
+              >
+                <Tag className="h-4 w-4" />
+                <span className="hidden xl:inline">Service Line</span>
+                <span className="xl:hidden">SL</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('group')}
+                className={`inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                  viewMode === 'group'
+                    ? 'text-white shadow-sm'
+                    : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+                }`}
+                style={
+                  viewMode === 'group'
+                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                    : {}
+                }
+              >
+                <Layers className="h-4 w-4" />
+                <span>Group</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('client')}
+                className={`inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                  viewMode === 'client'
+                    ? 'text-white shadow-sm'
+                    : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+                }`}
+                style={
+                  viewMode === 'client'
+                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                    : {}
+                }
+              >
+                <Building2 className="h-4 w-4" />
+                <span>Client</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('task')}
+                className={`inline-flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${
+                  viewMode === 'task'
+                    ? 'text-white shadow-sm'
+                    : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+                }`}
+                style={
+                  viewMode === 'task'
+                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                    : {}
+                }
+              >
+                <ListTodo className="h-4 w-4" />
+                <span>Task</span>
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Loading State */}
       {isLoading && (
@@ -232,111 +362,6 @@ export function ProfitabilityReport() {
       {/* Data Display */}
       {!isLoading && !error && data && (
         <>
-          {/* View Mode Selector */}
-          <div className="mb-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => setViewMode('master-service-line')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                viewMode === 'master-service-line'
-                  ? 'text-white shadow-sm'
-                  : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-              }`}
-              style={
-                viewMode === 'master-service-line'
-                  ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
-                  : {}
-              }
-            >
-              <LayoutList className="h-4 w-4" />
-              Master SL
-            </button>
-
-            <button
-              onClick={() => setViewMode('sub-service-line-group')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                viewMode === 'sub-service-line-group'
-                  ? 'text-white shadow-sm'
-                  : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-              }`}
-              style={
-                viewMode === 'sub-service-line-group'
-                  ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
-                  : {}
-              }
-            >
-              <FolderTree className="h-4 w-4" />
-              Sub SL Group
-            </button>
-
-            <button
-              onClick={() => setViewMode('service-line')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                viewMode === 'service-line'
-                  ? 'text-white shadow-sm'
-                  : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-              }`}
-              style={
-                viewMode === 'service-line'
-                  ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
-                  : {}
-              }
-            >
-              <Tag className="h-4 w-4" />
-              Service Line
-            </button>
-
-            <button
-              onClick={() => setViewMode('group')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                viewMode === 'group'
-                  ? 'text-white shadow-sm'
-                  : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-              }`}
-              style={
-                viewMode === 'group'
-                  ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
-                  : {}
-              }
-            >
-              <Layers className="h-4 w-4" />
-              Group
-            </button>
-
-            <button
-              onClick={() => setViewMode('client')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                viewMode === 'client'
-                  ? 'text-white shadow-sm'
-                  : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-              }`}
-              style={
-                viewMode === 'client'
-                  ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
-                  : {}
-              }
-            >
-              <Building2 className="h-4 w-4" />
-              Client
-            </button>
-
-            <button
-              onClick={() => setViewMode('task')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                viewMode === 'task'
-                  ? 'text-white shadow-sm'
-                  : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
-              }`}
-              style={
-                viewMode === 'task'
-                  ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
-                  : {}
-              }
-            >
-              <ListTodo className="h-4 w-4" />
-              Task
-            </button>
-          </div>
-
           {/* Filters */}
           <ReportFilters
             filters={filters}
