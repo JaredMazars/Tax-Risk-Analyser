@@ -41,7 +41,8 @@ export const POST = secureRoute.mutationWithParams({
         description: data.description,
         amount: data.amount,
         expectedDate: data.expectedDate,
-        createdBy: user.id
+        createdBy: user.id,
+        updatedAt: new Date()
       },
       select: {
         id: true,

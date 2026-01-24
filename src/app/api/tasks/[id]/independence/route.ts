@@ -62,7 +62,7 @@ export const GET = secureRoute.queryWithParams({
             image: true,
           },
         },
-        independenceConfirmation: {
+        TaskIndependenceConfirmation: {
           select: {
             id: true,
             taskTeamId: true,
@@ -146,7 +146,7 @@ export const GET = secureRoute.queryWithParams({
           User: null as any,
           Employee: partnerEmployee,
           hasAccount: false,
-          independenceConfirmation: null,
+          TaskIndependenceConfirmation: null,
         });
       }
     }
@@ -163,7 +163,7 @@ export const GET = secureRoute.queryWithParams({
           User: null as any,
           Employee: managerEmployee,
           hasAccount: false,
-          independenceConfirmation: null,
+          TaskIndependenceConfirmation: null,
         });
       }
     }
@@ -203,7 +203,7 @@ export const POST = secureRoute.mutation({
         id: true,
         userId: true,
         taskId: true,
-        independenceConfirmation: {
+        TaskIndependenceConfirmation: {
           select: {
             id: true,
             confirmed: true,
@@ -230,7 +230,7 @@ export const POST = secureRoute.mutation({
     }
 
     // Check if already confirmed
-    if (taskTeamMember.independenceConfirmation?.confirmed) {
+    if (taskTeamMember.TaskIndependenceConfirmation?.confirmed) {
       throw new AppError(
         400,
         'Independence already confirmed',
@@ -245,10 +245,12 @@ export const POST = secureRoute.mutation({
         taskTeamId,
         confirmed: true,
         confirmedAt: new Date(),
+        updatedAt: new Date(),
       },
       update: {
         confirmed: true,
         confirmedAt: new Date(),
+        updatedAt: new Date(),
       },
       select: {
         id: true,
