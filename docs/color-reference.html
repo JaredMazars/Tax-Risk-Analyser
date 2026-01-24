@@ -329,6 +329,91 @@
       padding: 0 12px;
     }
 
+    /* Interactive Component Styles */
+    button[class^="btn-"]{
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 650;
+      font-size: 14px;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button[class^="btn-"]:hover{
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    button[class^="btn-"]:active{
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-success{
+      background: linear-gradient(135deg, #4E9B8E 0%, #2F6A5F 50%, #1F4540 100%);
+    }
+
+    .btn-success:hover{
+      background: linear-gradient(135deg, #5AAEA0 0%, #3A7F73 50%, #27574F 100%);
+    }
+
+    .btn-warning{
+      background: linear-gradient(135deg, #C09B4E 0%, #8F6A2F 50%, #5E451F 100%);
+    }
+
+    .btn-warning:hover{
+      background: linear-gradient(135deg, #D4B571 0%, #A8803A 50%, #765727 100%);
+    }
+
+    .btn-error{
+      background: linear-gradient(135deg, #B8546E 0%, #872F48 50%, #581E2F 100%);
+    }
+
+    .btn-error:hover{
+      background: linear-gradient(135deg, #CD7B91 0%, #9F3B56 50%, #6F263B 100%);
+    }
+
+    .btn-primary{
+      background: linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%);
+    }
+
+    .btn-primary:hover{
+      background: linear-gradient(135deg, #6BA5E8 0%, #3F6BBD 50%, #254578 100%);
+    }
+
+    span[class^="badge-"]{
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-weight: 650;
+      font-size: 12px;
+      color: white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .badge-success{
+      background: linear-gradient(135deg, #3A7F73 0%, #27574F 100%);
+    }
+
+    .badge-warning{
+      background: linear-gradient(135deg, #A8803A 0%, #765727 100%);
+    }
+
+    .badge-error{
+      background: linear-gradient(135deg, #9F3B56 0%, #6F263B 100%);
+    }
+
+    .badge-primary{
+      background: linear-gradient(135deg, #2E5AAC 0%, #1C3667 100%);
+    }
+
     @media (max-width: 768px){
       .brand-colors{ grid-template-columns: 1fr; }
       .brand-colors.two{ grid-template-columns: 1fr; }
@@ -514,6 +599,91 @@
       </div>
     </div>
 
+    <!-- Interactive Button Examples -->
+    <div class="section">
+      <h2>Interactive Components (Buttons, CTAs)</h2>
+      <p style="color: var(--muted-600); margin-bottom: 24px;">Semantic buttons use gradients for depth and visual interest, matching the Forvis brand style.</p>
+
+      <h3>Action Buttons</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
+        <button class="btn-success">
+          <svg style="width: 16px; height: 16px; margin-right: 6px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          Approve Request
+        </button>
+        <button class="btn-warning">
+          <svg style="width: 16px; height: 16px; margin-right: 6px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+          </svg>
+          Review Pending
+        </button>
+        <button class="btn-error">
+          <svg style="width: 16px; height: 16px; margin-right: 6px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+          Reject Request
+        </button>
+        <button class="btn-primary">
+          <svg style="width: 16px; height: 16px; margin-right: 6px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+          Primary Action
+        </button>
+      </div>
+
+      <h3 style="margin-top: 32px;">Status Badges with Gradients</h3>
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 32px;">
+        <span class="badge-success">
+          <svg style="width: 12px; height: 12px; margin-right: 4px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+          </svg>
+          Approved
+        </span>
+        <span class="badge-warning">
+          <svg style="width: 12px; height: 12px; margin-right: 4px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01"></path>
+          </svg>
+          Pending
+        </span>
+        <span class="badge-error">
+          <svg style="width: 12px; height: 12px; margin-right: 4px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+          Rejected
+        </span>
+        <span class="badge-primary">
+          <svg style="width: 12px; height: 12px; margin-right: 4px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke-width="3"></circle>
+          </svg>
+          In Progress
+        </span>
+      </div>
+
+      <h3 style="margin-top: 32px;">Code Examples</h3>
+      <div style="background: var(--surface-50); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-top: 16px;">
+        <div style="font-family: ui-monospace, monospace; font-size: 13px; color: var(--ink-700); line-height: 1.6;">
+          <div style="color: var(--muted-600);">// Success Button</div>
+          <div>&lt;button className="px-4 py-2 rounded-lg font-semibold text-white"</div>
+          <div>&nbsp;&nbsp;style={{ background: 'linear-gradient(135deg, #4E9B8E 0%, #2F6A5F 50%, #1F4540 100%)' }}&gt;</div>
+          <div>&nbsp;&nbsp;Approve</div>
+          <div>&lt;/button&gt;</div>
+          <br/>
+          <div style="color: var(--muted-600);">// Warning Button</div>
+          <div>&lt;button className="px-4 py-2 rounded-lg font-semibold text-white"</div>
+          <div>&nbsp;&nbsp;style={{ background: 'linear-gradient(135deg, #C09B4E 0%, #8F6A2F 50%, #5E451F 100%)' }}&gt;</div>
+          <div>&nbsp;&nbsp;Review</div>
+          <div>&lt;/button&gt;</div>
+          <br/>
+          <div style="color: var(--muted-600);">// Error Button</div>
+          <div>&lt;button className="px-4 py-2 rounded-lg font-semibold text-white"</div>
+          <div>&nbsp;&nbsp;style={{ background: 'linear-gradient(135deg, #B8546E 0%, #872F48 50%, #581E2F 100%)' }}&gt;</div>
+          <div>&nbsp;&nbsp;Reject</div>
+          <div>&lt;/button&gt;</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Gradients -->
     <div class="section">
       <h2>Gradients</h2>
@@ -538,16 +708,33 @@
         </div>
       </div>
 
-      <h3 style="margin-top: 24px;">Semantic</h3>
+      <h3 style="margin-top: 24px;">Semantic (Light Backgrounds)</h3>
       <div class="gradient-grid">
-        <div class="gradient-box" style="background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%); color: var(--success-900);">
+        <div class="gradient-box" style="background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%); color: var(--success-900); border: 1px solid var(--success-200);">
           Success background gradient
         </div>
-        <div class="gradient-box" style="background: linear-gradient(135deg, var(--warning-50) 0%, var(--warning-100) 100%); color: var(--warning-900);">
+        <div class="gradient-box" style="background: linear-gradient(135deg, var(--warning-50) 0%, var(--warning-100) 100%); color: var(--warning-900); border: 1px solid var(--warning-200);">
           Warning background gradient
         </div>
-        <div class="gradient-box" style="background: linear-gradient(135deg, var(--error-50) 0%, var(--error-100) 100%); color: var(--error-900);">
+        <div class="gradient-box" style="background: linear-gradient(135deg, var(--error-50) 0%, var(--error-100) 100%); color: var(--error-900); border: 1px solid var(--error-200);">
           Error background gradient
+        </div>
+      </div>
+
+      <h3 style="margin-top: 24px;">Semantic Buttons (Deep Gradients)</h3>
+      <p style="font-size: 13px; color: var(--muted-600); margin-bottom: 12px;">Use these for buttons, CTAs, and interactive elements requiring emphasis and depth.</p>
+      <div class="gradient-grid">
+        <div class="gradient-box" style="background: linear-gradient(135deg, #4E9B8E 0%, #2F6A5F 50%, #1F4540 100%); color: white;">
+          Success button
+          <div style="font-size: 11px; opacity: 0.85; margin-top: 4px; font-family: ui-monospace, monospace;">success-400 → 600 → 800</div>
+        </div>
+        <div class="gradient-box" style="background: linear-gradient(135deg, #C09B4E 0%, #8F6A2F 50%, #5E451F 100%); color: white;">
+          Warning button
+          <div style="font-size: 11px; opacity: 0.85; margin-top: 4px; font-family: ui-monospace, monospace;">warning-400 → 600 → 800</div>
+        </div>
+        <div class="gradient-box" style="background: linear-gradient(135deg, #B8546E 0%, #872F48 50%, #581E2F 100%); color: white;">
+          Error button
+          <div style="font-size: 11px; opacity: 0.85; margin-top: 4px; font-family: ui-monospace, monospace;">error-400 → 600 → 800</div>
         </div>
       </div>
     </div>

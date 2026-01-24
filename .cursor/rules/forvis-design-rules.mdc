@@ -42,6 +42,23 @@ import { Button, Card, DashboardCard, Input, Badge, Banner, StatCard, LoadingSpi
 - **Backgrounds:** `#F0F7FD`, `#F8F9FA`, `#FFFFFF`  
 - **Text:** `#212529`, `#343A40`, `#6C757D`
 
+### Corporate Neutrals (Professional Finance Palette)
+
+**Ink (Dark Grays):**
+- `ink-950`: #0F172A (Deepest dark, rare use)
+- `ink-900`: #111827 (Primary text, headings)
+- `ink-700`: #334155 (Secondary text)
+
+**Muted (Medium Grays):**
+- `muted-600`: #64748B (Tertiary text, labels)
+- `muted-500`: #6B7280 (Subtle text, metadata)
+
+**Surfaces (Backgrounds):**
+- `surface-0`: #FFFFFF (Pure white)
+- `surface-50`: #F7FAFD (Cool off-white)
+- `surface-100`: #EEF4FB (Subtle blue-tint)
+- `border`: rgba(17, 24, 39, 0.08) (Subtle borders)
+
 ### Gradient Registry (Exact Inline Styles Only)
 
 #### A. Primary Surfaces
@@ -76,76 +93,147 @@ style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #D9CBA8 1
 style={{ background: 'linear-gradient(135deg, #F0EAE0 0%, #E0D5C3 100%)', borderColor: '#C9BCAA' }}
 ```
 
+#### E. Semantic Gradients
+
+**Light Background Gradients** (Alerts, Containers):
+```jsx
+// Success (approval states, success alerts)
+style={{ background: 'linear-gradient(135deg, #E8F3F1 0%, #C8E3DF 100%)' }}
+
+// Warning (pending states, warning alerts)
+style={{ background: 'linear-gradient(135deg, #F8F3E8 0%, #EFE3C8 100%)' }}
+
+// Error (rejection states, error alerts)
+style={{ background: 'linear-gradient(135deg, #F7EBF0 0%, #EDCED9 100%)' }}
+```
+
+**Deep Button Gradients** (Interactive Elements):
+```jsx
+// Success Button (Approve, Confirm, Save) - Uses success-400 → 600 → 800
+style={{ background: 'linear-gradient(135deg, #4E9B8E 0%, #2F6A5F 50%, #1F4540 100%)' }}
+
+// Warning Button (Review, Caution, Pending) - Uses warning-400 → 600 → 800
+style={{ background: 'linear-gradient(135deg, #C09B4E 0%, #8F6A2F 50%, #5E451F 100%)' }}
+
+// Error Button (Delete, Reject, Cancel) - Uses error-400 → 600 → 800
+style={{ background: 'linear-gradient(135deg, #B8546E 0%, #872F48 50%, #581E2F 100%)' }}
+```
+
+**Pattern:** Semantic buttons use 3-stop gradients (light → medium → dark) matching the Forvis diagonal blue gradient style for consistent depth and visual interest.
+
 ---
 
 ## 3. Semantic & Data Visualization Colors
 
+**Visual Reference:** See [`docs/color-reference.html`](../docs/color-reference.html) for interactive examples and complete palette visualization.
+
 ### Semantic Status Colors
 
-Professional, muted color palettes for success, error, and warning states that harmonize with Forvis brand identity.
+Professional, muted color palettes for success, error, and warning states that harmonize with Forvis brand identity. These darker, more saturated colors provide better depth and professionalism than standard bright colors.
 
-#### Success (Green) - Professional Growth
-- **Usage:** Approvals, successful operations, positive metrics, profit indicators
-- **Base Color:** `#4CAF50` (forvis-success-500)
-- **Text on Light:** `text-forvis-success-600` (#43A047) - ✅ WCAG AA compliant
-- **Backgrounds:** `bg-forvis-success-50` (#E8F5E9) for light backgrounds
-- **Borders:** `border-forvis-success-200` (#A5D6A7) for soft borders
-- **Emphasis:** `text-forvis-success-800` (#2E7D32) for high-contrast text
+#### Success (Teal-Green) - Professional Growth
 
-**Gradient (Approval States):**
+**Complete Scale:**
+- `success-50`: #E8F3F1 (Lightest background)
+- `success-100`: #C8E3DF (Light background)
+- `success-200`: #A0CFC8 (Soft borders)
+- `success-300`: #71B5AA (Muted accents)
+- `success-400`: #4E9B8E (Interactive elements)
+- `success-500`: #3A7F73 (Base - buttons, emphasis)
+- `success-600`: #2F6A5F (Text on light - WCAG AA)
+- `success-700`: #27574F (Dark text)
+- `success-800`: #1F4540 (High contrast)
+- `success-900`: #163530 (Darkest)
+
+**Usage:** Approved status, completed actions, positive metrics, profit indicators
+
+**Tailwind Classes:**
+- Text: `text-forvis-success-600` (on light), `text-forvis-success-800` (emphasis)
+- Backgrounds: `bg-forvis-success-50` (light), `bg-forvis-success-100` (cards)
+- Borders: `border-forvis-success-200`
+
+**Gradient (Light Backgrounds):**
 ```jsx
-style={{ background: 'linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)' }}
+style={{ background: 'linear-gradient(135deg, #E8F3F1 0%, #C8E3DF 100%)' }}
 ```
 
-#### Error (Red) - Professional Alert
-- **Usage:** Rejections, failed operations, negative metrics, loss indicators
-- **Base Color:** `#DC2626` (forvis-error-500)
-- **Text on Light:** `text-forvis-error-600` (#C62828) - ✅ WCAG AA compliant
-- **Backgrounds:** `bg-forvis-error-50` (#FFEBEE) for light backgrounds
-- **Borders:** `border-forvis-error-200` (#EF9A9A) for soft borders
-- **Emphasis:** `text-forvis-error-900` (#8B0000) for critical alerts
+#### Error (Burgundy) - Professional Alert
 
-**Gradient (Rejection States):**
+**Complete Scale:**
+- `error-50`: #F7EBF0 (Lightest background)
+- `error-100`: #EDCED9 (Light background)
+- `error-200`: #DFA8B8 (Soft borders)
+- `error-300`: #CD7B91 (Muted accents)
+- `error-400`: #B8546E (Interactive elements)
+- `error-500`: #9F3B56 (Base - buttons, emphasis)
+- `error-600`: #872F48 (Text on light - WCAG AA)
+- `error-700`: #6F263B (Dark text)
+- `error-800`: #581E2F (High contrast)
+- `error-900`: #421624 (Darkest)
+
+**Usage:** Rejected status, failed operations, negative metrics, loss indicators, overdue/high risk
+
+**Tailwind Classes:**
+- Text: `text-forvis-error-600` (on light), `text-forvis-error-800` (emphasis)
+- Backgrounds: `bg-forvis-error-50` (light), `bg-forvis-error-100` (cards)
+- Borders: `border-forvis-error-200`
+
+**Gradient (Light Backgrounds):**
 ```jsx
-style={{ background: 'linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)' }}
+style={{ background: 'linear-gradient(135deg, #F7EBF0 0%, #EDCED9 100%)' }}
 ```
 
-#### Warning (Amber) - Professional Caution
-- **Usage:** Pending approvals, caution states, incomplete actions, attention needed
-- **Base Color:** `#F59E0B` (forvis-warning-500)
-- **Text on Light:** `text-forvis-warning-600` (#F57C00) - ✅ WCAG AA compliant
-- **Backgrounds:** `bg-forvis-warning-50` (#FFF8E1) for light backgrounds
-- **Borders:** `border-forvis-warning-200` (#FFE082) for soft borders
-- **Emphasis:** `text-forvis-warning-800` (#D84315) for urgent warnings
+#### Warning (Ochre/Amber) - Professional Caution
 
-**Gradient (Pending States):**
+**Complete Scale:**
+- `warning-50`: #F8F3E8 (Lightest background)
+- `warning-100`: #EFE3C8 (Light background)
+- `warning-200`: #E3CFA0 (Soft borders)
+- `warning-300`: #D4B571 (Muted accents)
+- `warning-400`: #C09B4E (Interactive elements)
+- `warning-500`: #A8803A (Base - buttons, emphasis)
+- `warning-600`: #8F6A2F (Text on light - WCAG AA)
+- `warning-700`: #765727 (Dark text)
+- `warning-800`: #5E451F (High contrast)
+- `warning-900`: #473418 (Darkest)
+
+**Usage:** Pending review, attention needed, approaching deadline, caution states
+
+**Tailwind Classes:**
+- Text: `text-forvis-warning-600` (on light), `text-forvis-warning-800` (emphasis)
+- Backgrounds: `bg-forvis-warning-50` (light), `bg-forvis-warning-100` (cards)
+- Borders: `border-forvis-warning-200`
+
+**Gradient (Light Backgrounds):**
 ```jsx
-style={{ background: 'linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%)' }}
+style={{ background: 'linear-gradient(135deg, #F8F3E8 0%, #EFE3C8 100%)' }}
 ```
 
 ### Data Visualization Colors (Charts & Graphs)
 
-8 harmonious colors for Recharts multi-line charts, maintaining professional Forvis aesthetic:
+9 harmonious colors for Recharts multi-line charts, maintaining professional Forvis aesthetic with muted, corporate tones:
 
-| Purpose | Tailwind Class | Hex Value | Usage |
-|---------|---------------|-----------|-------|
-| Primary Series | `text-forvis-dataViz-primary` | #2E5AAC | Main data series (revenue, primary metric) |
-| Secondary Series | `text-forvis-dataViz-secondary` | #5B93D7 | Secondary data series (forecast, comparison) |
-| Positive Metrics | `text-forvis-dataViz-success` | #43A047 | Profit, growth, success metrics |
-| Caution Metrics | `text-forvis-dataViz-warning` | #F59E0B | Warning thresholds, attention needed |
-| Negative Metrics | `text-forvis-dataViz-error` | #DC2626 | Losses, costs, negative trends |
-| Additional 1 | `text-forvis-dataViz-purple` | #7E57C2 | Multi-series charts |
-| Additional 2 | `text-forvis-dataViz-teal` | #26A69A | Multi-series charts |
-| Additional 3 | `text-forvis-dataViz-orange` | #FF7043 | Multi-series charts |
+| Purpose | Variable | Hex Value | Usage |
+|---------|----------|-----------|-------|
+| Primary Series | `viz-1` | #2E5AAC | Main data (revenue, primary metric) |
+| Secondary Series | `viz-2` | #3F74C6 | Refined mid-blue (forecast, comparison) |
+| Tertiary Series | `viz-3` | #2C5A8A | Slate-blue (supporting data) |
+| Success Metrics | `viz-4` | #2F6A5F | Positive trends (from success-600) |
+| Warning Metrics | `viz-5` | #A8803A | Attention needed (from warning-500) |
+| Error Metrics | `viz-6` | #872F48 | Negative trends (from error-600) |
+| Additional 1 | `viz-7` | #5E5AAE | Muted violet (multi-series) |
+| Additional 2 | `viz-8` | #2E7C7A | Muted teal (multi-series) |
+| Additional 3 | `viz-9` | #B56A3B | Muted copper (multi-series) |
 
 **Recharts Implementation:**
 ```tsx
 import { LineChart, Line } from 'recharts';
 
 <LineChart data={data}>
-  <Line dataKey="revenue" stroke="#2E5AAC" strokeWidth={2} />
-  <Line dataKey="costs" stroke="#DC2626" strokeWidth={2} />
-  <Line dataKey="profit" stroke="#43A047" strokeWidth={2} />
+  <Line dataKey="revenue" stroke="#2E5AAC" strokeWidth={2} /> {/* viz-1 */}
+  <Line dataKey="costs" stroke="#872F48" strokeWidth={2} /> {/* viz-6 error */}
+  <Line dataKey="profit" stroke="#2F6A5F" strokeWidth={2} /> {/* viz-4 success */}
+  <Line dataKey="forecast" stroke="#3F74C6" strokeWidth={2} /> {/* viz-2 */}
 </LineChart>
 ```
 

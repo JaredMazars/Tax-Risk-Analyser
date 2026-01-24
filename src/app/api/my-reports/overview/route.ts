@@ -83,7 +83,7 @@ async function cachePastFiscalYearsInBackground(
 async function fetchMetricsForFiscalYear(
   employee: { EmpCode: string; EmpCatCode: string },
   fiscalYear: number,
-  partnerOrManagerField: string,
+  partnerOrManagerField: 'TaskPartner' | 'TaskManager',
   serviceLines?: string[]
 ): Promise<MonthlyMetrics[]> {
   const { start: startDate, end: endDate } = getFiscalYearRange(fiscalYear);
@@ -443,7 +443,7 @@ export const GET = secureRoute.query({
         // Build yearlyData object
         const yearlyData: { [year: string]: MonthlyMetrics[] } = {};
         years.forEach((year, index) => {
-          yearlyData[year.toString()] = yearlyDataArray[index];
+          yearlyData[year.toString()] = yearlyDataArray[index]!;
         });
 
         const report: MyReportsOverviewData = {

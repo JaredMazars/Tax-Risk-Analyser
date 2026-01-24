@@ -56,6 +56,8 @@ interface CustomTooltipProps {
     value: number;
     name: string;
     dataKey: string;
+    stroke?: string;
+    color?: string;
     payload?: {
       fiscalMonth: string;
       fiscalMonthIndex: number;
@@ -125,7 +127,7 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
           {showCalculation === 'wip' && data?.yearData && yearForCalculations && (
             (() => {
               const yearMetrics = data.yearData[yearForCalculations];
-              return yearMetrics && yearMetrics.wipBalance !== undefined ? (
+              return yearMetrics && yearMetrics.wipBalance !== undefined && yearMetrics.trailing12Revenue !== undefined ? (
                 <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
                   <div className="font-medium mb-1">Calculation:</div>
                   <div>WIP Balance: {formatCurrency(yearMetrics.wipBalance)}</div>
@@ -141,7 +143,7 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
           {showCalculation === 'debtors' && data?.yearData && yearForCalculations && (
             (() => {
               const yearMetrics = data.yearData[yearForCalculations];
-              return yearMetrics && yearMetrics.debtorsBalance !== undefined ? (
+              return yearMetrics && yearMetrics.debtorsBalance !== undefined && yearMetrics.trailing12Billings !== undefined ? (
                 <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
                   <div className="font-medium mb-1">Calculation:</div>
                   <div>Debtors Balance: {formatCurrency(yearMetrics.debtorsBalance)}</div>
@@ -157,7 +159,7 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
           {showCalculation === 'writeoff' && data?.yearData && yearForCalculations && (
             (() => {
               const yearMetrics = data.yearData[yearForCalculations];
-              return yearMetrics && yearMetrics.negativeAdj !== undefined ? (
+              return yearMetrics && yearMetrics.negativeAdj !== undefined && yearMetrics.provisions !== undefined && yearMetrics.grossTime !== undefined ? (
                 <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
                   <div className="font-medium mb-1">Calculation:</div>
                   <div>Negative Adjustments: {formatCurrency(yearMetrics.negativeAdj)}</div>
@@ -358,8 +360,10 @@ function ChartCard({
   const formatMonthForDisplay = (monthStr: string): string => {
     // Parse YYYY-MM format
     const [year, month] = monthStr.split('-');
+    if (!month || !year) return monthStr; // Fallback to original if parsing fails
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${monthNames[parseInt(month) - 1]} ${year}`;
+    const monthIndex = parseInt(month, 10) - 1;
+    return `${monthNames[monthIndex] || month} ${year}`;
   };
 
   // Unified data transformation - single array with all years per month
@@ -379,19 +383,22 @@ function ChartCard({
         
         // Add each year's value as a separate property
         years.forEach(year => {
-          const monthData = yearlyData[year][monthIndex];
-          if (monthData) {
-            let value: number;
-            if (metricKey === 'totalLockup') {
-              value = (monthData.wipLockupDays ?? 0) + (monthData.debtorsLockupDays ?? 0);
-            } else {
-              value = (monthData as any)[metricKey] ?? 0;
+          const yearData = yearlyData[year];
+          if (yearData) {
+            const monthData = yearData[monthIndex];
+            if (monthData) {
+              let value: number;
+              if (metricKey === 'totalLockup') {
+                value = (monthData.wipLockupDays ?? 0) + (monthData.debtorsLockupDays ?? 0);
+              } else {
+                value = (monthData as any)[metricKey] ?? 0;
+              }
+              monthPoint[`FY${year}`] = value;
+              
+              // Store original data for tooltip (keyed by year)
+              if (!monthPoint.yearData) monthPoint.yearData = {};
+              monthPoint.yearData[year] = monthData;
             }
-            monthPoint[`FY${year}`] = value;
-            
-            // Store original data for tooltip (keyed by year)
-            if (!monthPoint.yearData) monthPoint.yearData = {};
-            monthPoint.yearData[year] = monthData;
           }
         });
         
@@ -668,68 +675,14 @@ export function MyReportsOverview() {
     return `${value.toFixed(0)}d`;
   };
 
-  // Prepare chart data
-  const chartData = useMemo(() => {
-    // Multi-year comparison mode
-    if (data?.yearlyData) {
-      return {
-        netRevenue: data.yearlyData,
-        grossProfit: data.yearlyData,
-        collections: data.yearlyData,
-        wipLockup: data.yearlyData,
-        debtorsLockup: data.yearlyData,
-        writeoff: data.yearlyData,
-        totalLockup: data.yearlyData,
-        wipBalance: data.yearlyData,
-        debtorsBalance: data.yearlyData,
-      };
-    }
-
-    // Single year mode
-    if (!data?.monthlyMetrics) return null;
-
-    return {
-      netRevenue: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.netRevenue,
-      })),
-      grossProfit: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.grossProfit,
-      })),
-      collections: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.collections,
-      })),
-      wipLockup: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.wipLockupDays,
-      })),
-      debtorsLockup: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.debtorsLockupDays,
-      })),
-      writeoff: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.writeoffPercentage,
-      })),
-      // Total Lockup Days = WIP Lockup + Debtors Lockup
-      totalLockup: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.wipLockupDays + m.debtorsLockupDays,
-      })),
-      // WIP Balance
-      wipBalance: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.wipBalance ?? 0,
-      })),
-      // Debtors Balance
-      debtorsBalance: data.monthlyMetrics.map(m => ({
-        ...m,
-        value: m.debtorsBalance ?? 0,
-      })),
-    };
-  }, [data]);
+  // Prepare single-year data with value property for ChartCard
+  const singleYearData = useMemo(() => {
+    if (!data?.monthlyMetrics) return undefined;
+    return data.monthlyMetrics.map(m => ({
+      ...m,
+      value: m.netRevenue, // Default value, ChartCard will use metricKey to extract correct value
+    }));
+  }, [data?.monthlyMetrics]);
 
   if (isLoading) {
     return (
@@ -757,7 +710,8 @@ export function MyReportsOverview() {
 
   // Only show "no data" if we actually expected data (not waiting for custom dates)
   const isWaitingForCustomDates = activeTab === 'custom' && (!appliedDates.start || !appliedDates.end);
-  if ((!data || !chartData) && !isWaitingForCustomDates) {
+  const hasData = data?.monthlyMetrics || data?.yearlyData;
+  if (!hasData && !isWaitingForCustomDates) {
     return (
       <div className="rounded-lg bg-forvis-gray-50 border border-forvis-gray-200 p-6">
         <div className="text-center py-8">
@@ -874,15 +828,15 @@ export function MyReportsOverview() {
       </div>
 
       {/* Charts Grid - only show when we have data */}
-      {chartData && (
+      {hasData && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Net Revenue */}
         <ChartCard
           title="Net Revenue"
           description="Time + Adjustments"
           icon={<DollarSign className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.netRevenue}
-          yearlyData={isMultiYear ? chartData.netRevenue : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
@@ -895,8 +849,8 @@ export function MyReportsOverview() {
           title="Gross Profit"
           description="Net revenue minus costs"
           icon={<TrendingUp className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.grossProfit}
-          yearlyData={isMultiYear ? chartData.grossProfit : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
@@ -909,8 +863,8 @@ export function MyReportsOverview() {
           title="Collections"
           description="Total receipts received"
           icon={<Wallet className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.collections}
-          yearlyData={isMultiYear ? chartData.collections : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
@@ -923,8 +877,8 @@ export function MyReportsOverview() {
           title="WIP Lockup Days"
           description="(WIP balance * 365) / trailing 12-month revenue"
           icon={<Clock className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.wipLockup}
-          yearlyData={isMultiYear ? chartData.wipLockup : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatDays}
           yAxisFormatter={formatDaysShort}
           dataKey="value"
@@ -940,8 +894,8 @@ export function MyReportsOverview() {
           title="Debtors Lockup Days"
           description="(Debtors balance * 365) / trailing 12-month billings"
           icon={<Calendar className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.debtorsLockup}
-          yearlyData={isMultiYear ? chartData.debtorsLockup : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatDays}
           yAxisFormatter={formatDaysShort}
           dataKey="value"
@@ -957,8 +911,8 @@ export function MyReportsOverview() {
           title="Writeoff %"
           description="(Negative adjustments + provisions) / gross time"
           icon={<AlertTriangle className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.writeoff}
-          yearlyData={isMultiYear ? chartData.writeoff : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatPercentage}
           yAxisFormatter={formatPercentage}
           dataKey="value"
@@ -974,8 +928,8 @@ export function MyReportsOverview() {
           title="Total Lockup Days"
           description="WIP lockup + Debtors lockup combined"
           icon={<Timer className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.totalLockup}
-          yearlyData={isMultiYear ? chartData.totalLockup : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatDays}
           yAxisFormatter={formatDaysShort}
           dataKey="value"
@@ -990,8 +944,8 @@ export function MyReportsOverview() {
           title="WIP Balance"
           description="Outstanding work in progress value"
           icon={<Banknote className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.wipBalance}
-          yearlyData={isMultiYear ? chartData.wipBalance : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
@@ -1004,8 +958,8 @@ export function MyReportsOverview() {
           title="Debtors Balance"
           description="Outstanding receivables value"
           icon={<CreditCard className="h-5 w-5 text-white" />}
-          data={isMultiYear ? undefined : chartData.debtorsBalance}
-          yearlyData={isMultiYear ? chartData.debtorsBalance : undefined}
+          data={isMultiYear ? undefined : singleYearData}
+          yearlyData={isMultiYear ? data?.yearlyData : undefined}
           valueFormatter={formatCurrency}
           yAxisFormatter={formatCurrencyShort}
           dataKey="value"
