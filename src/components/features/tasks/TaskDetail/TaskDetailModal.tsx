@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import { TaskDetailContent } from './TaskDetailContent';
 
 export interface TaskDetailModalProps {
