@@ -1,58 +1,55 @@
-BEGIN TRY
+-- ============================================================================
+-- BASELINE MIGRATION - Generated from actual database introspection
+-- Date: 2026-01-25
+-- Tables: 98
+-- Indexes: 490
+-- Foreign Keys: 131
+-- Stored Procedures: 3
+-- ============================================================================
 
-BEGIN TRAN;
+-- ============================================================================
+-- PART 1: CREATE TABLES
+-- ============================================================================
 
--- CreateSchema
-IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = N'dbo') EXEC sp_executesql N'CREATE SCHEMA [dbo];';
-
--- CreateTable
 CREATE TABLE [dbo].[AcceptanceAnswer] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [responseId] INT NOT NULL,
     [questionId] INT NOT NULL,
-    [answer] NVARCHAR(max),
-    [comment] NVARCHAR(max),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceAnswer_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceAnswer_updatedAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK__Acceptan__3213E83F4AB0FF4B] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [AcceptanceAnswer_responseId_questionId_key] UNIQUE NONCLUSTERED ([responseId],[questionId])
+    [answer] NVARCHAR(Max),
+    [comment] NVARCHAR(Max),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceAnswer_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceAnswer_updatedAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[AcceptanceDocument] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [responseId] INT NOT NULL,
     [documentType] NVARCHAR(50) NOT NULL,
     [fileName] NVARCHAR(255) NOT NULL,
     [filePath] NVARCHAR(500) NOT NULL,
     [fileSize] INT NOT NULL,
     [uploadedBy] NVARCHAR(200) NOT NULL,
-    [uploadedAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceDocument_uploadedAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceDocument_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK__Acceptan__3213E83FEBEE39E6] PRIMARY KEY CLUSTERED ([id])
+    [uploadedAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceDocument_uploadedAt_df] DEFAULT (getdate()),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceDocument_createdAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[AcceptanceQuestion] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [questionnaireType] NVARCHAR(50) NOT NULL,
     [sectionKey] NVARCHAR(100) NOT NULL,
     [questionKey] NVARCHAR(100) NOT NULL,
-    [questionText] NVARCHAR(max) NOT NULL,
-    [description] NVARCHAR(max),
+    [questionText] NVARCHAR(Max) NOT NULL,
+    [description] NVARCHAR(Max),
     [fieldType] NVARCHAR(50) NOT NULL,
-    [options] NVARCHAR(max),
-    [required] BIT NOT NULL CONSTRAINT [AcceptanceQuestion_required_df] DEFAULT 1,
+    [options] NVARCHAR(Max),
+    [required] BIT NOT NULL CONSTRAINT [AcceptanceQuestion_required_df] DEFAULT ((1)),
     [order] INT NOT NULL,
-    [riskWeight] FLOAT(53) NOT NULL CONSTRAINT [AcceptanceQuestion_riskWeight_df] DEFAULT 1.0,
+    [riskWeight] FLOAT NOT NULL CONSTRAINT [AcceptanceQuestion_riskWeight_df] DEFAULT ((1.0)),
     [highRiskAnswers] NVARCHAR(500),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceQuestion_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceQuestion_updatedAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK__Acceptan__3213E83FB3075BED] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [AcceptanceQuestion_questionnaireType_questionKey_key] UNIQUE NONCLUSTERED ([questionnaireType],[questionKey])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceQuestion_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [AcceptanceQuestion_updatedAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Account] (
     [id] NVARCHAR(1000) NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
@@ -65,14 +62,11 @@ CREATE TABLE [dbo].[Account] (
     [token_type] NVARCHAR(1000),
     [scope] NVARCHAR(1000),
     [id_token] NVARCHAR(1000),
-    [session_state] NVARCHAR(1000),
-    CONSTRAINT [Account_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Account_provider_providerAccountId_key] UNIQUE NONCLUSTERED ([provider],[providerAccountId])
+    [session_state] NVARCHAR(1000)
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Accounts] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSAccountID] UNIQUEIDENTIFIER NOT NULL,
     [Account] NVARCHAR(30) NOT NULL,
     [AccDesc] NVARCHAR(255) NOT NULL,
@@ -83,14 +77,11 @@ CREATE TABLE [dbo].[Accounts] (
     [AccStatus] NVARCHAR(50),
     [AccLevel] NVARCHAR(1),
     [OfficeCode] NVARCHAR(10) NOT NULL,
-    [OfficeDesc] NVARCHAR(100) NOT NULL,
-    CONSTRAINT [Accounts_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Accounts_GSAccountID_key] UNIQUE NONCLUSTERED ([GSAccountID])
+    [OfficeDesc] NVARCHAR(100) NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[AdjustmentDocument] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [taxAdjustmentId] INT,
     [fileName] NVARCHAR(1000) NOT NULL,
@@ -98,122 +89,107 @@ CREATE TABLE [dbo].[AdjustmentDocument] (
     [fileSize] INT NOT NULL,
     [filePath] NVARCHAR(1000) NOT NULL,
     [uploadedBy] NVARCHAR(1000),
-    [extractionStatus] NVARCHAR(1000) NOT NULL CONSTRAINT [AdjustmentDocument_extractionStatus_df] DEFAULT 'PENDING',
+    [extractionStatus] NVARCHAR(1000) NOT NULL CONSTRAINT [AdjustmentDocument_extractionStatus_df] DEFAULT ('PENDING'),
     [extractedData] NVARCHAR(1000),
     [extractionError] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AdjustmentDocument_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [AdjustmentDocument_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AdjustmentDocument_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[AITaxReport] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
-    [executiveSummary] NVARCHAR(max) NOT NULL,
-    [risks] NVARCHAR(max) NOT NULL,
-    [taxSensitiveItems] NVARCHAR(max) NOT NULL,
-    [detailedFindings] NVARCHAR(max) NOT NULL,
-    [recommendations] NVARCHAR(max) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AITaxReport_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [AITaxReport_pkey] PRIMARY KEY CLUSTERED ([id])
+    [executiveSummary] NVARCHAR(Max) NOT NULL,
+    [risks] NVARCHAR(Max) NOT NULL,
+    [taxSensitiveItems] NVARCHAR(Max) NOT NULL,
+    [detailedFindings] NVARCHAR(Max) NOT NULL,
+    [recommendations] NVARCHAR(Max) NOT NULL,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [AITaxReport_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Approval] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [workflowType] VARCHAR(50) NOT NULL,
     [workflowId] INT NOT NULL,
     [status] VARCHAR(20) NOT NULL,
-    [priority] VARCHAR(20) NOT NULL CONSTRAINT [DF_Approval_priority] DEFAULT 'MEDIUM',
+    [priority] VARCHAR(20) NOT NULL CONSTRAINT [DF_Approval_priority] DEFAULT ('MEDIUM'),
     [title] NVARCHAR(255) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [requestedById] NVARCHAR(1000) NOT NULL,
-    [requestedAt] DATETIME2 NOT NULL CONSTRAINT [DF_Approval_requestedAt] DEFAULT CURRENT_TIMESTAMP,
+    [requestedAt] DATETIME2 NOT NULL CONSTRAINT [DF_Approval_requestedAt] DEFAULT (getdate()),
     [currentStepId] INT,
-    [requiresAllSteps] BIT NOT NULL CONSTRAINT [DF_Approval_requiresAllSteps] DEFAULT 0,
+    [requiresAllSteps] BIT NOT NULL CONSTRAINT [DF_Approval_requiresAllSteps] DEFAULT ((0)),
     [completedAt] DATETIME2,
     [completedById] NVARCHAR(1000),
-    [resolutionComment] NVARCHAR(max),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_Approval_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [PK_Approval] PRIMARY KEY CLUSTERED ([id])
+    [resolutionComment] NVARCHAR(Max),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_Approval_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ApprovalDelegation] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [fromUserId] NVARCHAR(1000) NOT NULL,
     [toUserId] NVARCHAR(1000) NOT NULL,
     [workflowType] VARCHAR(50),
     [startDate] DATETIME2 NOT NULL,
     [endDate] DATETIME2,
     [reason] NVARCHAR(500),
-    [isActive] BIT NOT NULL CONSTRAINT [DF_ApprovalDelegation_isActive] DEFAULT 1,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ApprovalDelegation_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK_ApprovalDelegation] PRIMARY KEY CLUSTERED ([id])
+    [isActive] BIT NOT NULL CONSTRAINT [DF_ApprovalDelegation_isActive] DEFAULT ((1)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ApprovalDelegation_createdAt] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ApprovalRoute] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [workflowType] VARCHAR(50) NOT NULL,
     [routeName] NVARCHAR(100) NOT NULL,
     [description] NVARCHAR(500),
-    [routeConfig] NVARCHAR(max) NOT NULL,
-    [isActive] BIT NOT NULL CONSTRAINT [DF_ApprovalRoute_isActive] DEFAULT 1,
-    [isDefault] BIT NOT NULL CONSTRAINT [DF_ApprovalRoute_isDefault] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ApprovalRoute_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [PK_ApprovalRoute] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [UQ_ApprovalRoute_workflowType_routeName] UNIQUE NONCLUSTERED ([workflowType],[routeName])
+    [routeConfig] NVARCHAR(Max) NOT NULL,
+    [isActive] BIT NOT NULL CONSTRAINT [DF_ApprovalRoute_isActive] DEFAULT ((1)),
+    [isDefault] BIT NOT NULL CONSTRAINT [DF_ApprovalRoute_isDefault] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ApprovalRoute_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ApprovalStep] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [approvalId] INT NOT NULL,
     [stepOrder] INT NOT NULL,
     [stepType] VARCHAR(50) NOT NULL,
-    [isRequired] BIT NOT NULL CONSTRAINT [DF_ApprovalStep_isRequired] DEFAULT 1,
+    [isRequired] BIT NOT NULL CONSTRAINT [DF_ApprovalStep_isRequired] DEFAULT ((1)),
     [assignedToUserId] NVARCHAR(1000),
     [assignedToRole] VARCHAR(50),
-    [assignedToCondition] NVARCHAR(max),
-    [status] VARCHAR(20) NOT NULL CONSTRAINT [DF_ApprovalStep_status] DEFAULT 'PENDING',
+    [assignedToCondition] NVARCHAR(Max),
+    [status] VARCHAR(20) NOT NULL CONSTRAINT [DF_ApprovalStep_status] DEFAULT ('PENDING'),
     [approvedAt] DATETIME2,
     [approvedById] NVARCHAR(1000),
-    [comment] NVARCHAR(max),
-    [isDelegated] BIT NOT NULL CONSTRAINT [DF_ApprovalStep_isDelegated] DEFAULT 0,
+    [comment] NVARCHAR(Max),
+    [isDelegated] BIT NOT NULL CONSTRAINT [DF_ApprovalStep_isDelegated] DEFAULT ((0)),
     [delegatedToUserId] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ApprovalStep_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [PK_ApprovalStep] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ApprovalStep_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[BDActivity] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [opportunityId] INT NOT NULL,
     [contactId] INT,
     [activityType] NVARCHAR(1000) NOT NULL,
     [subject] NVARCHAR(1000) NOT NULL,
-    [description] NVARCHAR(max),
-    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [BDActivity_status_df] DEFAULT 'SCHEDULED',
+    [description] NVARCHAR(Max),
+    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [BDActivity_status_df] DEFAULT ('SCHEDULED'),
     [dueDate] DATETIME2,
     [completedAt] DATETIME2,
     [duration] INT,
     [location] NVARCHAR(1000),
     [assignedTo] NVARCHAR(1000) NOT NULL,
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDActivity_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [BDActivity_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDActivity_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[BDContact] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [companyName] NVARCHAR(1000),
     [firstName] NVARCHAR(1000) NOT NULL,
     [lastName] NVARCHAR(1000) NOT NULL,
@@ -229,123 +205,107 @@ CREATE TABLE [dbo].[BDContact] (
     [city] NVARCHAR(1000),
     [province] NVARCHAR(1000),
     [postalCode] NVARCHAR(1000),
-    [country] NVARCHAR(1000) CONSTRAINT [BDContact_country_df] DEFAULT 'South Africa',
-    [notes] NVARCHAR(max),
+    [country] NVARCHAR(1000) CONSTRAINT [BDContact_country_df] DEFAULT ('South Africa'),
+    [notes] NVARCHAR(Max),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDContact_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [BDContact_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDContact_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[BDNote] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [opportunityId] INT NOT NULL,
-    [content] NVARCHAR(max) NOT NULL,
-    [isPrivate] BIT NOT NULL CONSTRAINT [BDNote_isPrivate_df] DEFAULT 0,
+    [content] NVARCHAR(Max) NOT NULL,
+    [isPrivate] BIT NOT NULL CONSTRAINT [BDNote_isPrivate_df] DEFAULT ((0)),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDNote_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [BDNote_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDNote_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[BDOpportunity] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [title] NVARCHAR(1000) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [companyName] NVARCHAR(1000),
     [contactId] INT,
     [serviceLine] NVARCHAR(1000) NOT NULL,
     [stageId] INT NOT NULL,
-    [value] FLOAT(53),
-    [probability] FLOAT(53),
+    [value] FLOAT,
+    [probability] FLOAT,
     [expectedCloseDate] DATETIME2,
     [source] NVARCHAR(1000),
-    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [BDOpportunity_status_df] DEFAULT 'OPEN',
+    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [BDOpportunity_status_df] DEFAULT ('OPEN'),
     [lostReason] NVARCHAR(1000),
     [assignedTo] NVARCHAR(1000) NOT NULL,
     [convertedToClientId] INT,
     [convertedAt] DATETIME2,
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDOpportunity_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDOpportunity_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [clientId] INT,
-    CONSTRAINT [BDOpportunity_pkey] PRIMARY KEY CLUSTERED ([id])
+    [clientId] INT
 );
 
--- CreateTable
 CREATE TABLE [dbo].[BDProposal] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [opportunityId] INT NOT NULL,
     [title] NVARCHAR(1000) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [fileName] NVARCHAR(1000) NOT NULL,
     [filePath] NVARCHAR(1000) NOT NULL,
     [fileSize] INT NOT NULL,
-    [proposedValue] FLOAT(53),
+    [proposedValue] FLOAT,
     [validUntil] DATETIME2,
-    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [BDProposal_status_df] DEFAULT 'DRAFT',
+    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [BDProposal_status_df] DEFAULT ('DRAFT'),
     [sentAt] DATETIME2,
     [viewedAt] DATETIME2,
     [respondedAt] DATETIME2,
-    [version] INT NOT NULL CONSTRAINT [BDProposal_version_df] DEFAULT 1,
+    [version] INT NOT NULL CONSTRAINT [BDProposal_version_df] DEFAULT ((1)),
     [uploadedBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDProposal_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [BDProposal_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDProposal_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[BDStage] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [name] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000),
     [order] INT NOT NULL,
-    [probability] FLOAT(53) NOT NULL,
+    [probability] FLOAT NOT NULL,
     [serviceLine] NVARCHAR(1000),
-    [isActive] BIT NOT NULL CONSTRAINT [BDStage_isActive_df] DEFAULT 1,
-    [isDefault] BIT NOT NULL CONSTRAINT [BDStage_isDefault_df] DEFAULT 0,
+    [isActive] BIT NOT NULL CONSTRAINT [BDStage_isActive_df] DEFAULT ((1)),
+    [isDefault] BIT NOT NULL CONSTRAINT [BDStage_isDefault_df] DEFAULT ((0)),
     [color] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDStage_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [BDStage_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [BDStage_serviceLine_name_key] UNIQUE NONCLUSTERED ([serviceLine],[name])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [BDStage_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[BugReport] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [reportedBy] NVARCHAR(1000) NOT NULL,
-    [reportedAt] DATETIME2 NOT NULL CONSTRAINT [BugReport_reportedAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [reportedAt] DATETIME2 NOT NULL CONSTRAINT [BugReport_reportedAt_df] DEFAULT (getdate()),
     [url] NVARCHAR(500) NOT NULL,
-    [description] NVARCHAR(max) NOT NULL,
+    [description] NVARCHAR(Max) NOT NULL,
     [screenshotPath] NVARCHAR(500),
-    [status] NVARCHAR(20) NOT NULL CONSTRAINT [BugReport_status_df] DEFAULT 'OPEN',
+    [status] NVARCHAR(20) NOT NULL CONSTRAINT [BugReport_status_df] DEFAULT ('OPEN'),
     [testedAt] DATETIME2,
     [testedBy] NVARCHAR(1000),
     [resolvedAt] DATETIME2,
     [resolvedBy] NVARCHAR(1000),
-    [resolutionNotes] NVARCHAR(max),
-    [priority] NVARCHAR(20) NOT NULL CONSTRAINT [BugReport_priority_df] DEFAULT 'MEDIUM',
-    CONSTRAINT [BugReport_pkey] PRIMARY KEY CLUSTERED ([id])
+    [resolutionNotes] NVARCHAR(Max),
+    [priority] NVARCHAR(20) NOT NULL CONSTRAINT [BugReport_priority_df] DEFAULT ('MEDIUM')
 );
 
--- CreateTable
 CREATE TABLE [dbo].[CategoryApprover] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [categoryId] INT NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
-    [stepOrder] INT NOT NULL CONSTRAINT [DF__CategoryA__stepO__01] DEFAULT 1,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__CategoryA__creat__02] DEFAULT CURRENT_TIMESTAMP,
-    [createdBy] NVARCHAR(1000) NOT NULL,
-    CONSTRAINT [PK_CategoryApprover] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [UQ_CategoryApprover_CategoryId_UserId] UNIQUE NONCLUSTERED ([categoryId],[userId])
+    [stepOrder] INT NOT NULL CONSTRAINT [DF__CategoryA__stepO__01] DEFAULT ((1)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__CategoryA__creat__02] DEFAULT (getdate()),
+    [createdBy] NVARCHAR(1000) NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Client] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [clientCode] NVARCHAR(10) NOT NULL,
     [clientNameFull] NVARCHAR(255),
     [groupCode] NVARCHAR(10) NOT NULL,
@@ -368,21 +328,17 @@ CREATE TABLE [dbo].[Client] (
     [rolePlayer] BIT NOT NULL,
     [typeCode] NVARCHAR(10) NOT NULL,
     [typeDesc] NVARCHAR(50) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [Client_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [Client_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [GSClientID] UNIQUEIDENTIFIER NOT NULL,
-    CONSTRAINT [Client_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Client_clientCode_key] UNIQUE NONCLUSTERED ([clientCode]),
-    CONSTRAINT [Client_GSClientID_key] UNIQUE NONCLUSTERED ([GSClientID])
+    [GSClientID] UNIQUEIDENTIFIER NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ClientAcceptance] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [clientId] INT NOT NULL,
     [riskRating] NVARCHAR(20),
-    [overallRiskScore] FLOAT(53),
-    [riskSummary] NVARCHAR(max),
+    [overallRiskScore] FLOAT,
+    [riskSummary] NVARCHAR(Max),
     [completedAt] DATETIME2,
     [completedBy] NVARCHAR(200),
     [approvedAt] DATETIME2,
@@ -390,88 +346,76 @@ CREATE TABLE [dbo].[ClientAcceptance] (
     [approvalId] INT,
     [validUntil] DATETIME2,
     [lastReviewedAt] DATETIME2,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientAcceptance_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientAcceptance_updatedAt] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientAcceptance_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientAcceptance_updatedAt] DEFAULT (getdate()),
     [userId] NVARCHAR(1000),
-    [researchData] NVARCHAR(max),
+    [researchData] NVARCHAR(Max),
     [researchedAt] DATETIME2,
-    [researchCompleted] BIT NOT NULL CONSTRAINT [ClientAcceptance_researchCompleted_df] DEFAULT 0,
-    [researchSkipped] BIT NOT NULL CONSTRAINT [ClientAcceptance_researchSkipped_df] DEFAULT 0,
+    [researchCompleted] BIT NOT NULL CONSTRAINT [ClientAcceptance_researchCompleted_df] DEFAULT ((0)),
+    [researchSkipped] BIT NOT NULL CONSTRAINT [ClientAcceptance_researchSkipped_df] DEFAULT ((0)),
     [pendingInchargeCode] NVARCHAR(10),
     [pendingManagerCode] NVARCHAR(10),
     [pendingPartnerCode] NVARCHAR(10),
-    [teamChangesApplied] BIT NOT NULL CONSTRAINT [ClientAcceptance_teamChangesApplied_df] DEFAULT 0,
-    [teamChangesAppliedAt] DATETIME2,
-    CONSTRAINT [PK__ClientAc__3213E83F94B62F26] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [ClientAcceptance_clientId_key] UNIQUE NONCLUSTERED ([clientId])
+    [teamChangesApplied] BIT NOT NULL CONSTRAINT [ClientAcceptance_teamChangesApplied_df] DEFAULT ((0)),
+    [teamChangesAppliedAt] DATETIME2
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ClientAcceptanceAnswer] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [clientAcceptanceId] INT NOT NULL,
     [questionId] INT NOT NULL,
-    [answer] NVARCHAR(max),
-    [comment] NVARCHAR(max),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientAcceptanceAnswer_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientAcceptanceAnswer_updatedAt] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK__ClientAc__3213E83F4AB0FF4C] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [ClientAcceptanceAnswer_clientAcceptanceId_questionId_key] UNIQUE NONCLUSTERED ([clientAcceptanceId],[questionId])
+    [answer] NVARCHAR(Max),
+    [comment] NVARCHAR(Max),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientAcceptanceAnswer_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientAcceptanceAnswer_updatedAt] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ClientAcceptanceResponse] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [clientId] INT NOT NULL,
     [questionnaireType] NVARCHAR(50) NOT NULL,
-    [overallRiskScore] FLOAT(53),
+    [overallRiskScore] FLOAT,
     [riskRating] NVARCHAR(20),
-    [riskSummary] NVARCHAR(max),
+    [riskSummary] NVARCHAR(Max),
     [completedAt] DATETIME2,
     [completedBy] NVARCHAR(200),
     [reviewedBy] NVARCHAR(200),
     [reviewedAt] DATETIME2,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ClientAcceptanceResponse_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [ClientAcceptanceResponse_updatedAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK__ClientAc__3213E83F94B62F25] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ClientAcceptanceResponse_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [ClientAcceptanceResponse_updatedAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ClientAnalyticsDocument] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [clientId] INT NOT NULL,
     [documentType] NVARCHAR(1000) NOT NULL,
     [fileName] NVARCHAR(1000) NOT NULL,
     [filePath] NVARCHAR(1000) NOT NULL,
     [fileSize] INT NOT NULL,
     [uploadedBy] NVARCHAR(1000) NOT NULL,
-    [uploadedAt] DATETIME2 NOT NULL CONSTRAINT [ClientAnalyticsDocument_uploadedAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [extractedData] NVARCHAR(max),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ClientAnalyticsDocument_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ClientAnalyticsDocument_pkey] PRIMARY KEY CLUSTERED ([id])
+    [uploadedAt] DATETIME2 NOT NULL CONSTRAINT [ClientAnalyticsDocument_uploadedAt_df] DEFAULT (getdate()),
+    [extractedData] NVARCHAR(Max),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ClientAnalyticsDocument_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ClientCreditRating] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [clientId] INT NOT NULL,
-    [ratingScore] FLOAT(53) NOT NULL,
+    [ratingScore] FLOAT NOT NULL,
     [ratingGrade] NVARCHAR(1000) NOT NULL,
-    [ratingDate] DATETIME2 NOT NULL CONSTRAINT [ClientCreditRating_ratingDate_df] DEFAULT CURRENT_TIMESTAMP,
-    [analysisReport] NVARCHAR(max) NOT NULL,
-    [financialRatios] NVARCHAR(max) NOT NULL,
-    [confidence] FLOAT(53) NOT NULL,
+    [ratingDate] DATETIME2 NOT NULL CONSTRAINT [ClientCreditRating_ratingDate_df] DEFAULT (getdate()),
+    [analysisReport] NVARCHAR(Max) NOT NULL,
+    [financialRatios] NVARCHAR(Max) NOT NULL,
+    [confidence] FLOAT NOT NULL,
     [analyzedBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ClientCreditRating_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ClientCreditRating_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ClientCreditRating_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ClientPartnerManagerChangeRequest] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [clientId] INT NOT NULL,
     [changeType] VARCHAR(20) NOT NULL,
     [currentEmployeeCode] NVARCHAR(10) NOT NULL,
@@ -481,40 +425,36 @@ CREATE TABLE [dbo].[ClientPartnerManagerChangeRequest] (
     [reason] NVARCHAR(500),
     [status] VARCHAR(20) NOT NULL,
     [requestedById] NVARCHAR(1000) NOT NULL,
-    [requestedAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientPartnerManagerChangeRequest_requestedAt] DEFAULT CURRENT_TIMESTAMP,
+    [requestedAt] DATETIME2 NOT NULL CONSTRAINT [DF_ClientPartnerManagerChangeRequest_requestedAt] DEFAULT (getdate()),
     [resolvedById] NVARCHAR(1000),
     [resolvedAt] DATETIME2,
     [resolutionComment] NVARCHAR(500),
-    [requiresDualApproval] BIT NOT NULL CONSTRAINT [DF_ClientPartnerManagerChangeRequest_requiresDualApproval] DEFAULT 0,
+    [requiresDualApproval] BIT NOT NULL CONSTRAINT [DF_ClientPartnerManagerChangeRequest_requiresDualApproval] DEFAULT ((0)),
     [currentEmployeeApprovedAt] DATETIME2,
     [currentEmployeeApprovedById] NVARCHAR(1000),
     [proposedEmployeeApprovedAt] DATETIME2,
     [proposedEmployeeApprovedById] NVARCHAR(1000),
-    [approvalId] INT,
-    CONSTRAINT [PK_ClientPartnerManagerChangeRequest] PRIMARY KEY CLUSTERED ([id])
+    [approvalId] INT
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ComplianceChecklist] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [title] NVARCHAR(1000) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [dueDate] DATETIME2,
-    [priority] NVARCHAR(1000) NOT NULL CONSTRAINT [ComplianceChecklist_priority_df] DEFAULT 'MEDIUM',
-    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [ComplianceChecklist_status_df] DEFAULT 'PENDING',
+    [priority] NVARCHAR(1000) NOT NULL CONSTRAINT [ComplianceChecklist_priority_df] DEFAULT ('MEDIUM'),
+    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [ComplianceChecklist_status_df] DEFAULT ('PENDING'),
     [assignedTo] NVARCHAR(1000),
     [completedAt] DATETIME2,
     [completedBy] NVARCHAR(1000),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ComplianceChecklist_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ComplianceChecklist_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ComplianceChecklist_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Creditors] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSTranID] UNIQUEIDENTIFIER NOT NULL,
     [GSTaskID] UNIQUEIDENTIFIER,
     [GSDisbID] UNIQUEIDENTIFIER,
@@ -534,24 +474,18 @@ CREATE TABLE [dbo].[Creditors] (
     [InvVatAmount] MONEY,
     [InvTotal] MONEY,
     [InvNarr] TEXT,
-    [MatchNr] NVARCHAR(20) NOT NULL,
-    CONSTRAINT [Creditors_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Creditors_GSTranID_key] UNIQUE NONCLUSTERED ([GSTranID])
+    [MatchNr] NVARCHAR(20) NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[CreditRatingDocument] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [creditRatingId] INT NOT NULL,
     [analyticsDocumentId] INT NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [CreditRatingDocument_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [CreditRatingDocument_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [CreditRatingDocument_creditRatingId_analyticsDocumentId_key] UNIQUE NONCLUSTERED ([creditRatingId],[analyticsDocumentId])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [CreditRatingDocument_createdAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Debtors] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSClientID] UNIQUEIDENTIFIER NOT NULL,
     [PeriodRef] INT,
     [PeriodStart] DATETIME2,
@@ -592,14 +526,12 @@ CREATE TABLE [dbo].[Debtors] (
     [DebtorProvision] MONEY,
     [PTDDebtorProvision] MONEY,
     [YTDDebtorProvision] MONEY,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_Debtors_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [Debtors_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_Debtors_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[DrsTransactions] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSDebtorsTranID] UNIQUEIDENTIFIER NOT NULL,
     [GSClientID] UNIQUEIDENTIFIER NOT NULL,
     [ClientCode] NVARCHAR(10) NOT NULL,
@@ -633,30 +565,25 @@ CREATE TABLE [dbo].[DrsTransactions] (
     [ClientPartnerName] NVARCHAR(50) NOT NULL,
     [ClientManager] NVARCHAR(10) NOT NULL,
     [ClientManagerName] NVARCHAR(50) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DrsTransactions_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [DrsTransactions_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [DrsTransactions_GSDebtorsTranID_key] UNIQUE NONCLUSTERED ([GSDebtorsTranID])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DrsTransactions_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[EmailLog] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [recipientEmail] NVARCHAR(1000) NOT NULL,
     [recipientUserId] NVARCHAR(1000),
     [emailType] NVARCHAR(1000) NOT NULL,
     [subject] NVARCHAR(1000) NOT NULL,
     [status] NVARCHAR(1000) NOT NULL,
     [errorMessage] NVARCHAR(1000),
-    [metadata] NVARCHAR(max),
+    [metadata] NVARCHAR(Max),
     [sentAt] DATETIME2,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [EmailLog_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [EmailLog_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [EmailLog_createdAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Employee] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSEmployeeID] UNIQUEIDENTIFIER NOT NULL,
     [EmpCode] NVARCHAR(10) NOT NULL,
     [EmpName] NVARCHAR(50) NOT NULL,
@@ -676,46 +603,39 @@ CREATE TABLE [dbo].[Employee] (
     [EmpDateStarted] DATETIME2,
     [Team] NVARCHAR(100),
     [WinLogon] NVARCHAR(100),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__Employee__create__15C52FC4] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [Employee_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Employee_GSEmployeeID_key] UNIQUE NONCLUSTERED ([GSEmployeeID])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__Employee__create__15C52FC4] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ExternalLink] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [name] NVARCHAR(100) NOT NULL,
     [url] NVARCHAR(500) NOT NULL,
     [icon] NVARCHAR(50) NOT NULL,
-    [active] BIT NOT NULL CONSTRAINT [ExternalLink_active_df] DEFAULT 1,
-    [sortOrder] INT NOT NULL CONSTRAINT [ExternalLink_sortOrder_df] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ExternalLink_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ExternalLink_pkey] PRIMARY KEY CLUSTERED ([id])
+    [active] BIT NOT NULL CONSTRAINT [ExternalLink_active_df] DEFAULT ((1)),
+    [sortOrder] INT NOT NULL CONSTRAINT [ExternalLink_sortOrder_df] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ExternalLink_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[FilingStatus] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [filingType] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000),
-    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [FilingStatus_status_df] DEFAULT 'PENDING',
+    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [FilingStatus_status_df] DEFAULT ('PENDING'),
     [deadline] DATETIME2,
     [submittedDate] DATETIME2,
     [approvedDate] DATETIME2,
     [referenceNumber] NVARCHAR(1000),
-    [notes] NVARCHAR(max),
+    [notes] NVARCHAR(Max),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [FilingStatus_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [FilingStatus_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [FilingStatus_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[FiscalPeriod] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [periodKey] INT NOT NULL,
     [fiscalYear] INT NOT NULL,
     [fiscalQuarter] INT NOT NULL,
@@ -726,15 +646,12 @@ CREATE TABLE [dbo].[FiscalPeriod] (
     [endDate] DATETIME2 NOT NULL,
     [periodName] NVARCHAR(50) NOT NULL,
     [quarterName] NVARCHAR(50) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_FiscalPeriod_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [PK_FiscalPeriod] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [UQ_FiscalPeriod_periodKey] UNIQUE NONCLUSTERED ([periodKey])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_FiscalPeriod_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[GL] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSEntryID] UNIQUEIDENTIFIER NOT NULL,
     [GSAccountID] UNIQUEIDENTIFIER NOT NULL,
     [Account] NVARCHAR(30) NOT NULL,
@@ -757,26 +674,20 @@ CREATE TABLE [dbo].[GL] (
     [EntryTypeCode] NVARCHAR(3) NOT NULL,
     [EntryGroupCode] NVARCHAR(10) NOT NULL,
     [EntryGroupDesc] NVARCHAR(50),
-    [AccStatus] NVARCHAR(50),
-    CONSTRAINT [GL_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [GL_GSEntryID_key] UNIQUE NONCLUSTERED ([GSEntryID])
+    [AccStatus] NVARCHAR(50)
 );
 
--- CreateTable
 CREATE TABLE [dbo].[GLBudgets] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSBudgetID] UNIQUEIDENTIFIER NOT NULL,
     [GSBudgetTypeID] UNIQUEIDENTIFIER NOT NULL,
     [GSAccountID] UNIQUEIDENTIFIER NOT NULL,
     [BudgetCode] NVARCHAR(10) NOT NULL,
     [PeriodYear] INT NOT NULL,
     [PeriodNumber] INT NOT NULL,
-    [BudgetAmount] FLOAT(53),
-    CONSTRAINT [GLBudgets_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [GLBudgets_GSBudgetID_key] UNIQUE NONCLUSTERED ([GSBudgetID])
+    [BudgetAmount] FLOAT
 );
 
--- CreateTable
 CREATE TABLE [dbo].[GS_Stg_TSChargeable] (
     [TSID] UNIQUEIDENTIFIER NOT NULL,
     [TSDate] DATETIME NOT NULL,
@@ -793,11 +704,9 @@ CREATE TABLE [dbo].[GS_Stg_TSChargeable] (
     [TSValue] MONEY NOT NULL,
     [TSCost] MONEY NOT NULL,
     [TSNarr] NVARCHAR(4000),
-    [LastUpdated] DATETIME CONSTRAINT [DF_GS_Stg_TSChargeable_LastUpdated] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK_GS_Stg_TSChargeable] PRIMARY KEY CLUSTERED ([TSID])
+    [LastUpdated] DATETIME CONSTRAINT [DF_GS_Stg_TSChargeable_LastUpdated] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[GS_TSChargeable] (
     [TSID] UNIQUEIDENTIFIER NOT NULL,
     [TSDate] DATETIME NOT NULL,
@@ -814,349 +723,299 @@ CREATE TABLE [dbo].[GS_TSChargeable] (
     [TSValue] MONEY NOT NULL,
     [TSCost] MONEY NOT NULL,
     [TSNarr] NVARCHAR(4000),
-    [LastUpdated] DATETIME CONSTRAINT [DF_GS_TSChargeable_LastUpdated] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK_GS_TSChargeable] PRIMARY KEY CLUSTERED ([TSID])
+    [LastUpdated] DATETIME CONSTRAINT [DF_GS_TSChargeable_LastUpdated] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[InAppNotification] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
     [taskId] INT,
     [type] NVARCHAR(1000) NOT NULL,
     [title] NVARCHAR(1000) NOT NULL,
-    [message] NVARCHAR(max) NOT NULL,
+    [message] NVARCHAR(Max) NOT NULL,
     [actionUrl] NVARCHAR(1000),
-    [isRead] BIT NOT NULL CONSTRAINT [InAppNotification_isRead_df] DEFAULT 0,
+    [isRead] BIT NOT NULL CONSTRAINT [InAppNotification_isRead_df] DEFAULT ((0)),
     [readAt] DATETIME2,
-    [metadata] NVARCHAR(max),
+    [metadata] NVARCHAR(Max),
     [fromUserId] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [InAppNotification_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [InAppNotification_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [InAppNotification_createdAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[LeaderGroup] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [name] NVARCHAR(100) NOT NULL,
     [description] NVARCHAR(500),
     [createdById] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [LeaderGroup_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [LeaderGroup_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [type] NVARCHAR(20) NOT NULL CONSTRAINT [LeaderGroup_type_df] DEFAULT 'GROUP',
-    CONSTRAINT [LeaderGroup_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [LeaderGroup_name_key] UNIQUE NONCLUSTERED ([name])
+    [type] NVARCHAR(20) NOT NULL CONSTRAINT [LeaderGroup_type_df] DEFAULT ('GROUP')
 );
 
--- CreateTable
 CREATE TABLE [dbo].[LeaderGroupMember] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [leaderGroupId] INT NOT NULL,
     [employeeId] INT NOT NULL,
     [addedById] NVARCHAR(1000) NOT NULL,
-    [addedAt] DATETIME2 NOT NULL CONSTRAINT [LeaderGroupMember_addedAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [LeaderGroupMember_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [LeaderGroupMember_leaderGroupId_employeeId_key] UNIQUE NONCLUSTERED ([leaderGroupId],[employeeId])
+    [addedAt] DATETIME2 NOT NULL CONSTRAINT [LeaderGroupMember_addedAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[LegalPrecedent] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [caseName] NVARCHAR(1000) NOT NULL,
     [citation] NVARCHAR(1000) NOT NULL,
     [court] NVARCHAR(1000),
     [year] INT,
-    [summary] NVARCHAR(max) NOT NULL,
-    [relevance] NVARCHAR(max),
+    [summary] NVARCHAR(Max) NOT NULL,
+    [relevance] NVARCHAR(Max),
     [link] NVARCHAR(1000),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [LegalPrecedent_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [LegalPrecedent_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [LegalPrecedent_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[MappedAccount] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [accountCode] NVARCHAR(1000) NOT NULL,
     [accountName] NVARCHAR(1000) NOT NULL,
     [section] NVARCHAR(1000) NOT NULL,
     [subsection] NVARCHAR(1000) NOT NULL,
-    [balance] FLOAT(53) NOT NULL,
-    [priorYearBalance] FLOAT(53) NOT NULL CONSTRAINT [MappedAccount_priorYearBalance_df] DEFAULT 0,
+    [balance] FLOAT NOT NULL,
+    [priorYearBalance] FLOAT NOT NULL CONSTRAINT [MappedAccount_priorYearBalance_df] DEFAULT ((0)),
     [sarsItem] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [MappedAccount_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [MappedAccount_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [taskId] INT NOT NULL,
-    CONSTRAINT [MappedAccount_pkey] PRIMARY KEY CLUSTERED ([id])
+    [taskId] INT NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[NewsBulletin] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [title] NVARCHAR(255) NOT NULL,
     [summary] NVARCHAR(500) NOT NULL,
-    [body] NVARCHAR(max) NOT NULL,
+    [body] NVARCHAR(Max) NOT NULL,
     [category] NVARCHAR(50) NOT NULL,
     [serviceLine] NVARCHAR(50),
     [effectiveDate] DATETIME2 NOT NULL,
     [expiresAt] DATETIME2,
     [contactPerson] NVARCHAR(255),
-    [actionRequired] BIT NOT NULL CONSTRAINT [NewsBulletin_actionRequired_df] DEFAULT 0,
+    [actionRequired] BIT NOT NULL CONSTRAINT [NewsBulletin_actionRequired_df] DEFAULT ((0)),
     [callToActionUrl] NVARCHAR(500),
     [callToActionText] NVARCHAR(100),
-    [isPinned] BIT NOT NULL CONSTRAINT [NewsBulletin_isPinned_df] DEFAULT 0,
-    [isActive] BIT NOT NULL CONSTRAINT [NewsBulletin_isActive_df] DEFAULT 1,
+    [isPinned] BIT NOT NULL CONSTRAINT [NewsBulletin_isPinned_df] DEFAULT ((0)),
+    [isActive] BIT NOT NULL CONSTRAINT [NewsBulletin_isActive_df] DEFAULT ((1)),
     [createdById] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [NewsBulletin_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [NewsBulletin_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
     [documentFileName] NVARCHAR(255),
     [documentFilePath] NVARCHAR(500),
     [documentFileSize] INT,
     [documentUploadedAt] DATETIME2,
-    [showDocumentLink] BIT NOT NULL CONSTRAINT [NewsBulletin_showDocumentLink_df] DEFAULT 0,
-    CONSTRAINT [NewsBulletin_pkey] PRIMARY KEY CLUSTERED ([id])
+    [showDocumentLink] BIT NOT NULL CONSTRAINT [NewsBulletin_showDocumentLink_df] DEFAULT ((0))
 );
 
--- CreateTable
 CREATE TABLE [dbo].[NonClientAllocation] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [eventType] NVARCHAR(50) NOT NULL,
     [startDate] DATETIME2 NOT NULL,
     [endDate] DATETIME2 NOT NULL,
-    [allocatedHours] DECIMAL(10,2) NOT NULL,
-    [allocatedPercentage] INT NOT NULL CONSTRAINT [NonClientAllocation_allocatedPercentage_df] DEFAULT 100,
-    [notes] NVARCHAR(max),
+    [allocatedHours] DECIMAL(10, 2) NOT NULL,
+    [allocatedPercentage] INT NOT NULL CONSTRAINT [NonClientAllocation_allocatedPercentage_df] DEFAULT ((100)),
+    [notes] NVARCHAR(Max),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [NonClientAllocation_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [NonClientAllocation_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [employeeId] INT NOT NULL,
-    CONSTRAINT [NonClientAllocation_pkey] PRIMARY KEY CLUSTERED ([id])
+    [employeeId] INT NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[NotificationPreference] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
     [taskId] INT,
     [notificationType] NVARCHAR(1000) NOT NULL,
-    [emailEnabled] BIT NOT NULL CONSTRAINT [NotificationPreference_emailEnabled_df] DEFAULT 1,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [NotificationPreference_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [NotificationPreference_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [NotificationPreference_userId_taskId_notificationType_key] UNIQUE NONCLUSTERED ([userId],[taskId],[notificationType])
+    [emailEnabled] BIT NOT NULL CONSTRAINT [NotificationPreference_emailEnabled_df] DEFAULT ((1)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [NotificationPreference_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[OpinionChatMessage] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [opinionDraftId] INT NOT NULL,
     [role] NVARCHAR(1000) NOT NULL,
-    [content] NVARCHAR(max) NOT NULL,
-    [metadata] NVARCHAR(max),
+    [content] NVARCHAR(Max) NOT NULL,
+    [metadata] NVARCHAR(Max),
     [sectionGenerationId] NVARCHAR(1000),
     [sectionType] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [OpinionChatMessage_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [OpinionChatMessage_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [OpinionChatMessage_createdAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[OpinionDocument] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [opinionDraftId] INT NOT NULL,
     [fileName] NVARCHAR(1000) NOT NULL,
     [fileType] NVARCHAR(1000) NOT NULL,
     [fileSize] INT NOT NULL,
     [filePath] NVARCHAR(1000) NOT NULL,
     [category] NVARCHAR(1000) NOT NULL,
-    [extractedText] NVARCHAR(max),
-    [vectorized] BIT NOT NULL CONSTRAINT [OpinionDocument_vectorized_df] DEFAULT 0,
+    [extractedText] NVARCHAR(Max),
+    [vectorized] BIT NOT NULL CONSTRAINT [OpinionDocument_vectorized_df] DEFAULT ((0)),
     [uploadedBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [OpinionDocument_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [OpinionDocument_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [OpinionDocument_createdAt_df] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[OpinionDraft] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
-    [version] INT NOT NULL CONSTRAINT [OpinionDraft_version_df] DEFAULT 1,
+    [version] INT NOT NULL CONSTRAINT [OpinionDraft_version_df] DEFAULT ((1)),
     [title] NVARCHAR(1000) NOT NULL,
-    [content] NVARCHAR(max) NOT NULL,
-    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [OpinionDraft_status_df] DEFAULT 'DRAFT',
+    [content] NVARCHAR(Max) NOT NULL,
+    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [OpinionDraft_status_df] DEFAULT ('DRAFT'),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [OpinionDraft_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [OpinionDraft_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [OpinionDraft_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[OpinionSection] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [opinionDraftId] INT NOT NULL,
     [sectionType] NVARCHAR(1000) NOT NULL,
     [title] NVARCHAR(1000) NOT NULL,
-    [content] NVARCHAR(max) NOT NULL,
-    [aiGenerated] BIT NOT NULL CONSTRAINT [OpinionSection_aiGenerated_df] DEFAULT 0,
-    [reviewed] BIT NOT NULL CONSTRAINT [OpinionSection_reviewed_df] DEFAULT 0,
+    [content] NVARCHAR(Max) NOT NULL,
+    [aiGenerated] BIT NOT NULL CONSTRAINT [OpinionSection_aiGenerated_df] DEFAULT ((0)),
+    [reviewed] BIT NOT NULL CONSTRAINT [OpinionSection_reviewed_df] DEFAULT ((0)),
     [reviewedBy] NVARCHAR(1000),
     [reviewedAt] DATETIME2,
     [order] INT NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [OpinionSection_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [OpinionSection_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [OpinionSection_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[PagePermission] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [pathname] NVARCHAR(1000) NOT NULL,
     [role] NVARCHAR(1000) NOT NULL,
     [accessLevel] NVARCHAR(1000) NOT NULL,
-    [description] NVARCHAR(max),
-    [active] BIT NOT NULL CONSTRAINT [PagePermission_active_df] DEFAULT 1,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [PagePermission_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [description] NVARCHAR(Max),
+    [active] BIT NOT NULL CONSTRAINT [PagePermission_active_df] DEFAULT ((1)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [PagePermission_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [createdBy] NVARCHAR(1000),
-    CONSTRAINT [PagePermission_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [PagePermission_pathname_role_key] UNIQUE NONCLUSTERED ([pathname],[role])
+    [createdBy] NVARCHAR(1000)
 );
 
--- CreateTable
 CREATE TABLE [dbo].[PageRegistry] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [pathname] NVARCHAR(1000) NOT NULL,
     [pageTitle] NVARCHAR(1000),
     [category] NVARCHAR(1000),
-    [discovered] BIT NOT NULL CONSTRAINT [PageRegistry_discovered_df] DEFAULT 1,
-    [active] BIT NOT NULL CONSTRAINT [PageRegistry_active_df] DEFAULT 1,
-    [lastSeen] DATETIME2 NOT NULL CONSTRAINT [PageRegistry_lastSeen_df] DEFAULT CURRENT_TIMESTAMP,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [PageRegistry_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [PageRegistry_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [PageRegistry_pathname_key] UNIQUE NONCLUSTERED ([pathname])
+    [discovered] BIT NOT NULL CONSTRAINT [PageRegistry_discovered_df] DEFAULT ((1)),
+    [active] BIT NOT NULL CONSTRAINT [PageRegistry_active_df] DEFAULT ((1)),
+    [lastSeen] DATETIME2 NOT NULL CONSTRAINT [PageRegistry_lastSeen_df] DEFAULT (getdate()),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [PageRegistry_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ResearchNote] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [title] NVARCHAR(1000) NOT NULL,
-    [content] NVARCHAR(max) NOT NULL,
+    [content] NVARCHAR(Max) NOT NULL,
     [tags] NVARCHAR(1000),
     [category] NVARCHAR(1000),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ResearchNote_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ResearchNote_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ResearchNote_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ReviewCategory] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [name] NVARCHAR(100) NOT NULL,
     [description] NVARCHAR(500),
     [serviceLine] NVARCHAR(50),
-    [active] BIT NOT NULL CONSTRAINT [ReviewCategory_active_df] DEFAULT 1,
-    [sortOrder] INT NOT NULL CONSTRAINT [ReviewCategory_sortOrder_df] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ReviewCategory_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ReviewCategory_pkey] PRIMARY KEY CLUSTERED ([id])
+    [active] BIT NOT NULL CONSTRAINT [ReviewCategory_active_df] DEFAULT ((1)),
+    [sortOrder] INT NOT NULL CONSTRAINT [ReviewCategory_sortOrder_df] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ReviewCategory_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ReviewNote] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [title] NVARCHAR(255) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [referenceUrl] NVARCHAR(1000),
-    [referenceType] NVARCHAR(20) NOT NULL CONSTRAINT [ReviewNote_referenceType_df] DEFAULT 'EXTERNAL',
+    [referenceType] NVARCHAR(20) NOT NULL CONSTRAINT [ReviewNote_referenceType_df] DEFAULT ('EXTERNAL'),
     [referenceId] NVARCHAR(100),
     [section] NVARCHAR(255),
-    [status] NVARCHAR(20) NOT NULL CONSTRAINT [ReviewNote_status_df] DEFAULT 'OPEN',
-    [priority] NVARCHAR(20) NOT NULL CONSTRAINT [ReviewNote_priority_df] DEFAULT 'MEDIUM',
+    [status] NVARCHAR(20) NOT NULL CONSTRAINT [ReviewNote_status_df] DEFAULT ('OPEN'),
+    [priority] NVARCHAR(20) NOT NULL CONSTRAINT [ReviewNote_priority_df] DEFAULT ('MEDIUM'),
     [categoryId] INT,
     [dueDate] DATETIME2,
     [raisedBy] NVARCHAR(1000) NOT NULL,
     [assignedTo] NVARCHAR(1000),
     [addressedAt] DATETIME2,
     [addressedBy] NVARCHAR(1000),
-    [addressedComment] NVARCHAR(max),
+    [addressedComment] NVARCHAR(Max),
     [clearedAt] DATETIME2,
     [clearedBy] NVARCHAR(1000),
-    [clearanceComment] NVARCHAR(max),
+    [clearanceComment] NVARCHAR(Max),
     [rejectedAt] DATETIME2,
-    [rejectionReason] NVARCHAR(max),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ReviewNote_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [rejectionReason] NVARCHAR(Max),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ReviewNote_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
     [currentOwner] NVARCHAR(1000),
     [lastRespondedBy] NVARCHAR(1000),
-    [lastRespondedAt] DATETIME2,
-    CONSTRAINT [ReviewNote_pkey] PRIMARY KEY CLUSTERED ([id])
+    [lastRespondedAt] DATETIME2
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ReviewNoteAssignee] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [reviewNoteId] INT NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
-    [assignedAt] DATETIME2 NOT NULL CONSTRAINT [ReviewNoteAssignee_assignedAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [assignedAt] DATETIME2 NOT NULL CONSTRAINT [ReviewNoteAssignee_assignedAt_df] DEFAULT (getdate()),
     [assignedBy] NVARCHAR(1000) NOT NULL,
-    [isForwarded] BIT NOT NULL CONSTRAINT [ReviewNoteAssignee_isForwarded_df] DEFAULT 0,
-    CONSTRAINT [PK_ReviewNoteAssignee] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [ReviewNoteAssignee_reviewNoteId_userId_key] UNIQUE NONCLUSTERED ([reviewNoteId],[userId])
+    [isForwarded] BIT NOT NULL CONSTRAINT [ReviewNoteAssignee_isForwarded_df] DEFAULT ((0))
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ReviewNoteAttachment] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [reviewNoteId] INT NOT NULL,
     [fileName] NVARCHAR(255) NOT NULL,
     [filePath] NVARCHAR(1000) NOT NULL,
     [fileSize] INT NOT NULL,
     [fileType] NVARCHAR(100) NOT NULL,
     [uploadedBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ReviewNoteAttachment_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [commentId] INT,
-    CONSTRAINT [ReviewNoteAttachment_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ReviewNoteAttachment_createdAt_df] DEFAULT (getdate()),
+    [commentId] INT
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ReviewNoteComment] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [reviewNoteId] INT NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
-    [comment] NVARCHAR(max) NOT NULL,
-    [isInternal] BIT NOT NULL CONSTRAINT [ReviewNoteComment_isInternal_df] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ReviewNoteComment_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ReviewNoteComment_pkey] PRIMARY KEY CLUSTERED ([id])
+    [comment] NVARCHAR(Max) NOT NULL,
+    [isInternal] BIT NOT NULL CONSTRAINT [ReviewNoteComment_isInternal_df] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ReviewNoteComment_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[SarsResponse] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [referenceNumber] NVARCHAR(1000) NOT NULL,
     [subject] NVARCHAR(1000) NOT NULL,
-    [content] NVARCHAR(max) NOT NULL,
-    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [SarsResponse_status_df] DEFAULT 'PENDING',
+    [content] NVARCHAR(Max) NOT NULL,
+    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [SarsResponse_status_df] DEFAULT ('PENDING'),
     [responseType] NVARCHAR(1000) NOT NULL,
     [deadline] DATETIME2,
     [sentDate] DATETIME2,
     [receivedDate] DATETIME2,
     [documentPath] NVARCHAR(1000),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [SarsResponse_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [SarsResponse_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [SarsResponse_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ServiceLineExternal] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [ServLineCode] NVARCHAR(10),
     [ServLineDesc] NVARCHAR(150),
     [GLPrefix] NVARCHAR(10),
@@ -1164,76 +1023,61 @@ CREATE TABLE [dbo].[ServiceLineExternal] (
     [masterCode] NVARCHAR(50),
     [SubServlineGroupCode] NVARCHAR(10),
     [SubServlineGroupDesc] NVARCHAR(150),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ServiceLineExternal_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ServiceLineExternal_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [Active] BIT,
-    CONSTRAINT [ServiceLineExternal_pkey] PRIMARY KEY CLUSTERED ([id])
+    [Active] BIT
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ServiceLineMaster] (
     [code] NVARCHAR(50) NOT NULL,
     [name] NVARCHAR(200) NOT NULL,
     [description] NVARCHAR(500),
-    [active] BIT NOT NULL CONSTRAINT [ServiceLineMaster_active_df] DEFAULT 1,
-    [sortOrder] INT NOT NULL CONSTRAINT [ServiceLineMaster_sortOrder_df] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ServiceLineMaster_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ServiceLineMaster_pkey] PRIMARY KEY CLUSTERED ([code])
+    [active] BIT NOT NULL CONSTRAINT [ServiceLineMaster_active_df] DEFAULT ((1)),
+    [sortOrder] INT NOT NULL CONSTRAINT [ServiceLineMaster_sortOrder_df] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ServiceLineMaster_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ServiceLineTool] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [subServiceLineGroup] NVARCHAR(50) NOT NULL,
     [toolId] INT NOT NULL,
-    [active] BIT NOT NULL CONSTRAINT [ServiceLineTool_active_df] DEFAULT 1,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__ServiceLi__creat__08362A7C] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ServiceLineTool_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [ServiceLineTool_subServiceLineGroup_toolId_key] UNIQUE NONCLUSTERED ([subServiceLineGroup],[toolId])
+    [active] BIT NOT NULL CONSTRAINT [ServiceLineTool_active_df] DEFAULT ((1)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__ServiceLi__creat__08362A7C] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ServiceLineUser] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
     [subServiceLineGroup] NVARCHAR(1000) NOT NULL,
-    [role] NVARCHAR(1000) NOT NULL CONSTRAINT [ServiceLineUser_role_df] DEFAULT 'USER',
-    [assignmentType] NVARCHAR(1000) NOT NULL CONSTRAINT [ServiceLineUser_assignmentType_df] DEFAULT 'SPECIFIC_SUBGROUP',
+    [role] NVARCHAR(1000) NOT NULL CONSTRAINT [ServiceLineUser_role_df] DEFAULT ('USER'),
+    [assignmentType] NVARCHAR(1000) NOT NULL CONSTRAINT [ServiceLineUser_assignmentType_df] DEFAULT ('SPECIFIC_SUBGROUP'),
     [parentAssignmentId] INT,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ServiceLineUser_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [ServiceLineUser_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [masterCode] NVARCHAR(50),
-    CONSTRAINT [ServiceLineUser_pkey] PRIMARY KEY CLUSTERED ([id])
+    [masterCode] NVARCHAR(50)
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Session] (
     [id] NVARCHAR(1000) NOT NULL,
     [sessionToken] NVARCHAR(1000) NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
-    [expires] DATETIME2 NOT NULL,
-    CONSTRAINT [Session_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Session_sessionToken_key] UNIQUE NONCLUSTERED ([sessionToken])
+    [expires] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[StandardTask] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSStdTaskID] UNIQUEIDENTIFIER NOT NULL,
     [StdTaskCode] NVARCHAR(10) NOT NULL,
     [StdTaskDesc] NVARCHAR(150) NOT NULL,
     [ServLineCode] NVARCHAR(10) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_StandardTask_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [StandardTask_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [StandardTask_GSStdTaskID_key] UNIQUE NONCLUSTERED ([GSStdTaskID])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_StandardTask_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Task] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSTaskID] UNIQUEIDENTIFIER NOT NULL,
     [GSClientID] UNIQUEIDENTIFIER,
     [TaskCode] NVARCHAR(10) NOT NULL,
@@ -1250,32 +1094,26 @@ CREATE TABLE [dbo].[Task] (
     [TaskDateOpen] DATETIME2 NOT NULL,
     [TaskDateTerminate] DATETIME2,
     [createdBy] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [Task_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [Task_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [taskYear] INT NOT NULL,
-    CONSTRAINT [Task_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Task_GSTaskID_key] UNIQUE NONCLUSTERED ([GSTaskID])
+    [taskYear] INT NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskAcceptance] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
-    [acceptanceApproved] BIT NOT NULL CONSTRAINT [TaskAcceptance_acceptanceApproved_df] DEFAULT 0,
+    [acceptanceApproved] BIT NOT NULL CONSTRAINT [TaskAcceptance_acceptanceApproved_df] DEFAULT ((0)),
     [approvedBy] NVARCHAR(1000),
     [approvedAt] DATETIME2,
     [questionnaireType] NVARCHAR(1000),
-    [overallRiskScore] FLOAT(53),
+    [overallRiskScore] FLOAT,
     [riskRating] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskAcceptance_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [TaskAcceptance_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [TaskAcceptance_taskId_key] UNIQUE NONCLUSTERED ([taskId])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskAcceptance_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskBudget] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [TaskBudgetID] UNIQUEIDENTIFIER NOT NULL,
     [GSClientID] UNIQUEIDENTIFIER,
     [GSTaskID] UNIQUEIDENTIFIER,
@@ -1292,44 +1130,37 @@ CREATE TABLE [dbo].[TaskBudget] (
     [BudDetails] NVARCHAR(255),
     [LastUser] NVARCHAR(50),
     [LastUpdated] DATETIME2,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskBudget_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskBudget_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
     [BudApproveDate] DATETIME2,
     [BudDueDate] DATETIME2,
-    [BudStartDate] DATETIME2,
-    CONSTRAINT [TaskBudget_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [TaskBudget_TaskBudgetID_key] UNIQUE NONCLUSTERED ([TaskBudgetID])
+    [BudStartDate] DATETIME2
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskBudgetDisbursement] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [description] NVARCHAR(255) NOT NULL,
-    [amount] DECIMAL(18,2) NOT NULL,
+    [amount] DECIMAL(18, 2) NOT NULL,
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskBudgetDisbursement_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskBudgetDisbursement_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [expectedDate] DATETIME2 NOT NULL,
-    CONSTRAINT [TaskBudgetDisbursement_pkey] PRIMARY KEY CLUSTERED ([id])
+    [expectedDate] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskBudgetFee] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [description] NVARCHAR(255) NOT NULL,
-    [amount] DECIMAL(18,2) NOT NULL,
+    [amount] DECIMAL(18, 2) NOT NULL,
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskBudgetFee_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskBudgetFee_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [expectedDate] DATETIME2 NOT NULL,
-    CONSTRAINT [TaskBudgetFee_pkey] PRIMARY KEY CLUSTERED ([id])
+    [expectedDate] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskDocument] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [fileName] NVARCHAR(1000) NOT NULL,
     [fileType] NVARCHAR(1000) NOT NULL,
@@ -1337,246 +1168,210 @@ CREATE TABLE [dbo].[TaskDocument] (
     [filePath] NVARCHAR(1000) NOT NULL,
     [category] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000),
-    [version] INT NOT NULL CONSTRAINT [TaskDocument_version_df] DEFAULT 1,
+    [version] INT NOT NULL CONSTRAINT [TaskDocument_version_df] DEFAULT ((1)),
     [uploadedBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskDocument_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [TaskDocument_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskDocument_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskEngagementLetter] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
-    [generated] BIT NOT NULL CONSTRAINT [TaskEngagementLetter_generated_df] DEFAULT 0,
-    [uploaded] BIT NOT NULL CONSTRAINT [TaskEngagementLetter_uploaded_df] DEFAULT 0,
+    [generated] BIT NOT NULL CONSTRAINT [TaskEngagementLetter_generated_df] DEFAULT ((0)),
+    [uploaded] BIT NOT NULL CONSTRAINT [TaskEngagementLetter_uploaded_df] DEFAULT ((0)),
     [filePath] NVARCHAR(1000),
-    [content] NVARCHAR(max),
+    [content] NVARCHAR(Max),
     [templateId] INT,
     [generatedAt] DATETIME2,
     [generatedBy] NVARCHAR(1000),
     [uploadedAt] DATETIME2,
     [uploadedBy] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskEngagementLetter_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskEngagementLetter_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [dpaUploaded] BIT NOT NULL CONSTRAINT [DF_TaskEngagementLetter_dpaUploaded] DEFAULT 0,
-    [dpaFilePath] NVARCHAR(max),
+    [dpaUploaded] BIT NOT NULL CONSTRAINT [DF_TaskEngagementLetter_dpaUploaded] DEFAULT ((0)),
+    [dpaFilePath] NVARCHAR(Max),
     [dpaUploadedAt] DATETIME2,
-    [dpaUploadedBy] NVARCHAR(max),
+    [dpaUploadedBy] NVARCHAR(Max),
     [elExtractionStatus] NVARCHAR(20),
-    [elExtractionError] NVARCHAR(max),
+    [elExtractionError] NVARCHAR(Max),
     [elLetterDate] DATETIME2,
     [elLetterAge] INT,
     [elSigningPartner] NVARCHAR(100),
     [elSigningPartnerCode] NVARCHAR(10),
-    [elServicesCovered] NVARCHAR(max),
+    [elServicesCovered] NVARCHAR(Max),
     [elHasPartnerSignature] BIT,
     [elHasClientSignature] BIT,
     [elHasTermsConditions] BIT,
     [elHasTcPartnerSignature] BIT,
     [elHasTcClientSignature] BIT,
-    [elExtractedText] NVARCHAR(max),
+    [elExtractedText] NVARCHAR(Max),
     [dpaExtractionStatus] NVARCHAR(20),
-    [dpaExtractionError] NVARCHAR(max),
+    [dpaExtractionError] NVARCHAR(Max),
     [dpaLetterDate] DATETIME2,
     [dpaLetterAge] INT,
     [dpaSigningPartner] NVARCHAR(100),
     [dpaSigningPartnerCode] NVARCHAR(10),
     [dpaHasPartnerSignature] BIT,
     [dpaHasClientSignature] BIT,
-    [dpaExtractedText] NVARCHAR(max),
-    [templateVersionId] INT,
-    CONSTRAINT [TaskEngagementLetter_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [TaskEngagementLetter_taskId_key] UNIQUE NONCLUSTERED ([taskId])
+    [dpaExtractedText] NVARCHAR(Max),
+    [templateVersionId] INT
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskIndependenceConfirmation] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskTeamId] INT NOT NULL,
-    [confirmed] BIT NOT NULL CONSTRAINT [TaskIndependenceConfirmation_confirmed_df] DEFAULT 0,
+    [confirmed] BIT NOT NULL CONSTRAINT [TaskIndependenceConfirmation_confirmed_df] DEFAULT ((0)),
     [confirmedAt] DATETIME2,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskIndependenceConfirmation_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [TaskIndependenceConfirmation_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [TaskIndependenceConfirmation_taskTeamId_key] UNIQUE NONCLUSTERED ([taskTeamId])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskIndependenceConfirmation_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskStage] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [stage] NVARCHAR(50) NOT NULL,
-    [movedBy] NVARCHAR(max) NOT NULL,
+    [movedBy] NVARCHAR(Max) NOT NULL,
     [notes] NVARCHAR(500),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_TaskStage_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK_TaskStage] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_TaskStage_createdAt] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskTeam] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [userId] NVARCHAR(1000) NOT NULL,
-    [role] NVARCHAR(1000) NOT NULL CONSTRAINT [TaskTeam_role_df] DEFAULT 'VIEWER',
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskTeam_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [role] NVARCHAR(1000) NOT NULL CONSTRAINT [TaskTeam_role_df] DEFAULT ('VIEWER'),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaskTeam_createdAt_df] DEFAULT (getdate()),
     [startDate] DATETIME2,
     [endDate] DATETIME2,
-    [allocatedHours] DECIMAL(10,2),
+    [allocatedHours] DECIMAL(10, 2),
     [allocatedPercentage] INT,
-    [actualHours] DECIMAL(10,2),
-    CONSTRAINT [TaskTeam_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [TaskTeam_taskId_userId_key] UNIQUE NONCLUSTERED ([taskId],[userId])
+    [actualHours] DECIMAL(10, 2)
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaskTool] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [toolId] INT NOT NULL,
     [addedBy] NVARCHAR(1000) NOT NULL,
-    [sortOrder] INT NOT NULL CONSTRAINT [TaskTool_sortOrder_df] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__TaskTool__create__0EE3280B] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [TaskTool_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [TaskTool_taskId_toolId_key] UNIQUE NONCLUSTERED ([taskId],[toolId])
+    [sortOrder] INT NOT NULL CONSTRAINT [TaskTool_sortOrder_df] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__TaskTool__create__0EE3280B] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TaxAdjustment] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [taskId] INT NOT NULL,
     [type] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000) NOT NULL,
-    [amount] FLOAT(53) NOT NULL,
-    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [TaxAdjustment_status_df] DEFAULT 'SUGGESTED',
+    [amount] FLOAT NOT NULL,
+    [status] NVARCHAR(1000) NOT NULL CONSTRAINT [TaxAdjustment_status_df] DEFAULT ('SUGGESTED'),
     [sourceDocuments] NVARCHAR(1000),
     [extractedData] NVARCHAR(1000),
     [calculationDetails] NVARCHAR(1000),
     [notes] NVARCHAR(1000),
     [sarsSection] NVARCHAR(1000),
-    [confidenceScore] FLOAT(53),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaxAdjustment_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [TaxAdjustment_pkey] PRIMARY KEY CLUSTERED ([id])
+    [confidenceScore] FLOAT,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TaxAdjustment_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Template] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [name] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000),
     [type] NVARCHAR(1000) NOT NULL,
     [serviceLine] NVARCHAR(1000),
-    [active] BIT NOT NULL CONSTRAINT [Template_active_df] DEFAULT 1,
+    [active] BIT NOT NULL CONSTRAINT [Template_active_df] DEFAULT ((1)),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [Template_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [Template_createdAt_df] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [currentVersion] INT NOT NULL CONSTRAINT [Template_currentVersion_df] DEFAULT 1,
-    CONSTRAINT [Template_pkey] PRIMARY KEY CLUSTERED ([id])
+    [currentVersion] INT NOT NULL CONSTRAINT [Template_currentVersion_df] DEFAULT ((1))
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TemplateSection] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [templateId] INT NOT NULL,
     [sectionKey] NVARCHAR(1000) NOT NULL,
     [title] NVARCHAR(1000) NOT NULL,
-    [content] NVARCHAR(max) NOT NULL,
-    [isRequired] BIT NOT NULL CONSTRAINT [TemplateSection_isRequired_df] DEFAULT 1,
-    [isAiAdaptable] BIT NOT NULL CONSTRAINT [TemplateSection_isAiAdaptable_df] DEFAULT 0,
+    [content] NVARCHAR(Max) NOT NULL,
+    [isRequired] BIT NOT NULL CONSTRAINT [TemplateSection_isRequired_df] DEFAULT ((1)),
+    [isAiAdaptable] BIT NOT NULL CONSTRAINT [TemplateSection_isAiAdaptable_df] DEFAULT ((0)),
     [order] INT NOT NULL,
-    [applicableServiceLines] NVARCHAR(max),
-    [applicableProjectTypes] NVARCHAR(max),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TemplateSection_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [TemplateSection_pkey] PRIMARY KEY CLUSTERED ([id])
+    [applicableServiceLines] NVARCHAR(Max),
+    [applicableProjectTypes] NVARCHAR(Max),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [TemplateSection_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TemplateSectionVersion] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [templateVersionId] INT NOT NULL,
     [sectionKey] NVARCHAR(1000) NOT NULL,
     [title] NVARCHAR(1000) NOT NULL,
-    [content] NVARCHAR(max) NOT NULL,
-    [isRequired] BIT NOT NULL CONSTRAINT [TemplateSectionVersion_isRequired_df] DEFAULT 1,
-    [isAiAdaptable] BIT NOT NULL CONSTRAINT [TemplateSectionVersion_isAiAdaptable_df] DEFAULT 0,
+    [content] NVARCHAR(Max) NOT NULL,
+    [isRequired] BIT NOT NULL CONSTRAINT [TemplateSectionVersion_isRequired_df] DEFAULT ((1)),
+    [isAiAdaptable] BIT NOT NULL CONSTRAINT [TemplateSectionVersion_isAiAdaptable_df] DEFAULT ((0)),
     [order] INT NOT NULL,
-    [applicableServiceLines] NVARCHAR(max),
-    [applicableProjectTypes] NVARCHAR(max),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__TemplateS__creat__6359AB88] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [TemplateSectionVersion_pkey] PRIMARY KEY CLUSTERED ([id])
+    [applicableServiceLines] NVARCHAR(Max),
+    [applicableProjectTypes] NVARCHAR(Max),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__TemplateS__creat__6359AB88] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[TemplateVersion] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [templateId] INT NOT NULL,
     [version] INT NOT NULL,
     [name] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000),
     [type] NVARCHAR(1000) NOT NULL,
     [serviceLine] NVARCHAR(1000),
-    [isActive] BIT NOT NULL CONSTRAINT [TemplateVersion_isActive_df] DEFAULT 0,
+    [isActive] BIT NOT NULL CONSTRAINT [TemplateVersion_isActive_df] DEFAULT ((0)),
     [createdBy] NVARCHAR(1000) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__TemplateV__creat__5DA0D232] DEFAULT CURRENT_TIMESTAMP,
-    [changeNotes] NVARCHAR(max),
-    CONSTRAINT [TemplateVersion_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [UQ_TemplateVersion_Number] UNIQUE NONCLUSTERED ([templateId],[version])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__TemplateV__creat__5DA0D232] DEFAULT (getdate()),
+    [changeNotes] NVARCHAR(Max)
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Tool] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [name] NVARCHAR(200) NOT NULL,
     [code] NVARCHAR(50) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [icon] NVARCHAR(50),
     [componentPath] NVARCHAR(500) NOT NULL,
-    [active] BIT NOT NULL CONSTRAINT [Tool_active_df] DEFAULT 1,
-    [sortOrder] INT NOT NULL CONSTRAINT [Tool_sortOrder_df] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__Tool__createdAt__7ADC2F5E] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [Tool_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [Tool_code_key] UNIQUE NONCLUSTERED ([code])
+    [active] BIT NOT NULL CONSTRAINT [Tool_active_df] DEFAULT ((1)),
+    [sortOrder] INT NOT NULL CONSTRAINT [Tool_sortOrder_df] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__Tool__createdAt__7ADC2F5E] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[ToolSubTab] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [toolId] INT NOT NULL,
     [name] NVARCHAR(200) NOT NULL,
     [code] NVARCHAR(50) NOT NULL,
     [componentPath] NVARCHAR(500) NOT NULL,
     [icon] NVARCHAR(50),
-    [sortOrder] INT NOT NULL CONSTRAINT [ToolSubTab_sortOrder_df] DEFAULT 0,
-    [active] BIT NOT NULL CONSTRAINT [ToolSubTab_active_df] DEFAULT 1,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__ToolSubTa__creat__01892CED] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [ToolSubTab_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [ToolSubTab_toolId_code_key] UNIQUE NONCLUSTERED ([toolId],[code])
+    [sortOrder] INT NOT NULL CONSTRAINT [ToolSubTab_sortOrder_df] DEFAULT ((0)),
+    [active] BIT NOT NULL CONSTRAINT [ToolSubTab_active_df] DEFAULT ((1)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__ToolSubTa__creat__01892CED] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[User] (
     [id] NVARCHAR(1000) NOT NULL,
     [name] NVARCHAR(1000),
     [email] NVARCHAR(1000) NOT NULL,
     [emailVerified] DATETIME2,
     [image] NVARCHAR(1000),
-    [role] NVARCHAR(1000) NOT NULL CONSTRAINT [User_role_df] DEFAULT 'USER',
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [User_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [User_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [User_email_key] UNIQUE NONCLUSTERED ([email])
+    [role] NVARCHAR(1000) NOT NULL CONSTRAINT [User_role_df] DEFAULT ('USER'),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [User_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[VaultDocument] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [title] NVARCHAR(200) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [documentType] NVARCHAR(50) NOT NULL,
     [fileName] NVARCHAR(255) NOT NULL,
     [filePath] NVARCHAR(500) NOT NULL,
@@ -1585,85 +1380,72 @@ CREATE TABLE [dbo].[VaultDocument] (
     [categoryId] INT NOT NULL,
     [scope] NVARCHAR(50) NOT NULL,
     [serviceLine] NVARCHAR(50),
-    [version] INT NOT NULL CONSTRAINT [DF__VaultDocu__versi__72D0F942] DEFAULT 1,
+    [version] INT NOT NULL CONSTRAINT [DF__VaultDocu__versi__72D0F942] DEFAULT ((1)),
     [status] NVARCHAR(50) NOT NULL,
     [approvalId] INT,
-    [aiExtractionStatus] NVARCHAR(50) NOT NULL CONSTRAINT [DF__VaultDocu__aiExt__73C51D7B] DEFAULT 'PENDING',
-    [aiSummary] NVARCHAR(max),
-    [aiKeyPoints] NVARCHAR(max),
-    [aiExtractedText] NVARCHAR(max),
+    [aiExtractionStatus] NVARCHAR(50) NOT NULL CONSTRAINT [DF__VaultDocu__aiExt__73C51D7B] DEFAULT ('PENDING'),
+    [aiSummary] NVARCHAR(Max),
+    [aiKeyPoints] NVARCHAR(Max),
+    [aiExtractedText] NVARCHAR(Max),
     [effectiveDate] DATE,
     [expiryDate] DATE,
-    [tags] NVARCHAR(max),
+    [tags] NVARCHAR(Max),
     [uploadedBy] NVARCHAR(1000) NOT NULL,
     [publishedAt] DATETIME2,
     [archivedAt] DATETIME2,
     [archivedBy] NVARCHAR(1000),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__creat__74B941B4] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__updat__75AD65ED] DEFAULT CURRENT_TIMESTAMP,
-    [documentVersion] NVARCHAR(50),
-    CONSTRAINT [PK_VaultDocument] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__creat__74B941B4] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__updat__75AD65ED] DEFAULT (getdate()),
+    [documentVersion] NVARCHAR(50)
 );
 
--- CreateTable
 CREATE TABLE [dbo].[VaultDocumentCategory] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [name] NVARCHAR(200) NOT NULL,
     [description] NVARCHAR(500),
     [icon] NVARCHAR(50),
     [color] NVARCHAR(20),
     [documentType] NVARCHAR(50),
-    [active] BIT NOT NULL CONSTRAINT [DF__VaultDocu__activ__6D181FEC] DEFAULT 1,
-    [sortOrder] INT NOT NULL CONSTRAINT [DF__VaultDocu__sortO__6E0C4425] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__creat__6F00685E] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__updat__6FF48C97] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK_VaultDocumentCategory] PRIMARY KEY CLUSTERED ([id])
+    [active] BIT NOT NULL CONSTRAINT [DF__VaultDocu__activ__6D181FEC] DEFAULT ((1)),
+    [sortOrder] INT NOT NULL CONSTRAINT [DF__VaultDocu__sortO__6E0C4425] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__creat__6F00685E] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__updat__6FF48C97] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[VaultDocumentType] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [code] NVARCHAR(50) NOT NULL,
     [name] NVARCHAR(100) NOT NULL,
     [description] NVARCHAR(500),
     [icon] NVARCHAR(50),
     [color] NVARCHAR(20),
-    [active] BIT NOT NULL CONSTRAINT [DF__VaultDocu__activ__06D7F1EF] DEFAULT 1,
-    [sortOrder] INT NOT NULL CONSTRAINT [DF__VaultDocu__sortO__07CC1628] DEFAULT 0,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__creat__08C03A61] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__updat__09B45E9A] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [PK_VaultDocumentType] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [UQ_VaultDocumentType_Code] UNIQUE NONCLUSTERED ([code])
+    [active] BIT NOT NULL CONSTRAINT [DF__VaultDocu__activ__06D7F1EF] DEFAULT ((1)),
+    [sortOrder] INT NOT NULL CONSTRAINT [DF__VaultDocu__sortO__07CC1628] DEFAULT ((0)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__creat__08C03A61] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__updat__09B45E9A] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[VaultDocumentVersion] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [documentId] INT NOT NULL,
     [version] INT NOT NULL,
     [fileName] NVARCHAR(255) NOT NULL,
     [filePath] NVARCHAR(500) NOT NULL,
     [fileSize] INT NOT NULL,
     [uploadedBy] NVARCHAR(1000) NOT NULL,
-    [uploadedAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__uploa__011F1899] DEFAULT CURRENT_TIMESTAMP,
+    [uploadedAt] DATETIME2 NOT NULL CONSTRAINT [DF__VaultDocu__uploa__011F1899] DEFAULT (getdate()),
     [supersededAt] DATETIME2,
-    [changeNotes] NVARCHAR(max),
-    CONSTRAINT [PK_VaultDocumentVersion] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [UQ_VaultDocumentVersion_DocumentId_Version] UNIQUE NONCLUSTERED ([documentId],[version])
+    [changeNotes] NVARCHAR(Max)
 );
 
--- CreateTable
 CREATE TABLE [dbo].[VerificationToken] (
     [identifier] NVARCHAR(1000) NOT NULL,
     [token] NVARCHAR(1000) NOT NULL,
-    [expires] DATETIME2 NOT NULL,
-    CONSTRAINT [VerificationToken_token_key] UNIQUE NONCLUSTERED ([token]),
-    CONSTRAINT [VerificationToken_identifier_token_key] UNIQUE NONCLUSTERED ([identifier],[token])
+    [expires] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[Wip] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSClientID] UNIQUEIDENTIFIER NOT NULL,
     [GSTaskID] UNIQUEIDENTIFIER NOT NULL,
     [PeriodRef] INT,
@@ -1710,14 +1492,12 @@ CREATE TABLE [dbo].[Wip] (
     [LTDHours] MONEY,
     [YTDHours] MONEY,
     [PTDHours] MONEY,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_Wip_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [Wip_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_Wip_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[WIPAging] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSClientID] UNIQUEIDENTIFIER NOT NULL,
     [GSTaskID] UNIQUEIDENTIFIER NOT NULL,
     [PeriodRef] INT,
@@ -1739,14 +1519,12 @@ CREATE TABLE [dbo].[WIPAging] (
     [Provision] MONEY,
     [NettWip] MONEY,
     [PtdFeeAmt] MONEY,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_WIPAging_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [WIPAging_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_WIPAging_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[WIPTransactions] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [GSWIPTransID] UNIQUEIDENTIFIER NOT NULL,
     [GSTaskID] UNIQUEIDENTIFIER NOT NULL,
     [GSClientID] UNIQUEIDENTIFIER,
@@ -1790,18 +1568,15 @@ CREATE TABLE [dbo].[WIPTransactions] (
     [EmpMainServLineCode] NVARCHAR(10),
     [EmpMainServLineDesc] NVARCHAR(150),
     [EmpServLineGroup] NVARCHAR(10),
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [WIPTransactions_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [WIPTransactions_pkey] PRIMARY KEY CLUSTERED ([id]),
-    CONSTRAINT [WIPTransactions_GSWIPTransID_key] UNIQUE NONCLUSTERED ([GSWIPTransID])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [WIPTransactions_createdAt_df] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[WorkspaceFile] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [folderId] INT NOT NULL,
     [name] NVARCHAR(255) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [fileType] NVARCHAR(50) NOT NULL,
     [fileSize] BIGINT NOT NULL,
     [driveId] NVARCHAR(255) NOT NULL,
@@ -1812,40 +1587,34 @@ CREATE TABLE [dbo].[WorkspaceFile] (
     [uploadedBy] NVARCHAR(200) NOT NULL,
     [lastModifiedBy] NVARCHAR(200),
     [lastModifiedAt] DATETIME2,
-    [version] INT NOT NULL CONSTRAINT [WorkspaceFile_version_df] DEFAULT 1,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_WorkspaceFile_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    [updatedAt] DATETIME2 NOT NULL,
-    CONSTRAINT [WorkspaceFile_pkey] PRIMARY KEY CLUSTERED ([id])
+    [version] INT NOT NULL CONSTRAINT [WorkspaceFile_version_df] DEFAULT ((1)),
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_WorkspaceFile_createdAt] DEFAULT (getdate()),
+    [updatedAt] DATETIME2 NOT NULL
 );
 
--- CreateTable
 CREATE TABLE [dbo].[WorkspaceFileActivity] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [fileId] INT NOT NULL,
     [userId] NVARCHAR(200) NOT NULL,
     [action] NVARCHAR(50) NOT NULL,
     [description] NVARCHAR(500),
-    [timestamp] DATETIME2 NOT NULL CONSTRAINT [DF_WorkspaceFileActivity_timestamp] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [WorkspaceFileActivity_pkey] PRIMARY KEY CLUSTERED ([id])
+    [timestamp] DATETIME2 NOT NULL CONSTRAINT [DF_WorkspaceFileActivity_timestamp] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[WorkspaceFilePermission] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [fileId] INT NOT NULL,
     [userId] NVARCHAR(200),
     [role] NVARCHAR(50) NOT NULL,
     [serviceLine] NVARCHAR(50),
     [grantedBy] NVARCHAR(200) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_WorkspaceFilePermission_createdAt] DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT [WorkspaceFilePermission_pkey] PRIMARY KEY CLUSTERED ([id])
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_WorkspaceFilePermission_createdAt] DEFAULT (getdate())
 );
 
--- CreateTable
 CREATE TABLE [dbo].[WorkspaceFolder] (
-    [id] INT NOT NULL IDENTITY(1,1),
+    [id] INT IDENTITY(1,1) NOT NULL,
     [name] NVARCHAR(255) NOT NULL,
-    [description] NVARCHAR(max),
+    [description] NVARCHAR(Max),
     [serviceLine] NVARCHAR(50),
     [subServiceLineGroup] NVARCHAR(100),
     [parentFolderId] INT,
@@ -1853,1388 +1622,2334 @@ CREATE TABLE [dbo].[WorkspaceFolder] (
     [itemId] NVARCHAR(255),
     [sharepointUrl] NVARCHAR(500),
     [createdBy] NVARCHAR(200) NOT NULL,
-    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_WorkspaceFolder_createdAt] DEFAULT CURRENT_TIMESTAMP,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [DF_WorkspaceFolder_createdAt] DEFAULT (getdate()),
     [updatedAt] DATETIME2 NOT NULL,
-    [active] BIT NOT NULL CONSTRAINT [WorkspaceFolder_active_df] DEFAULT 1,
-    [taskId] INT,
-    CONSTRAINT [WorkspaceFolder_pkey] PRIMARY KEY CLUSTERED ([id])
+    [active] BIT NOT NULL CONSTRAINT [WorkspaceFolder_active_df] DEFAULT ((1)),
+    [taskId] INT
 );
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AcceptanceAnswer_questionId_idx] ON [dbo].[AcceptanceAnswer]([questionId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AcceptanceAnswer_responseId_idx] ON [dbo].[AcceptanceAnswer]([responseId]);
+-- ============================================================================
+-- PART 2: CREATE INDEXES
+-- ============================================================================
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AcceptanceDocument_documentType_idx] ON [dbo].[AcceptanceDocument]([documentType]);
+CREATE NONCLUSTERED INDEX [AcceptanceAnswer_questionId_idx]
+ON [dbo].[AcceptanceAnswer]([questionId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AcceptanceDocument_responseId_idx] ON [dbo].[AcceptanceDocument]([responseId]);
+CREATE NONCLUSTERED INDEX [AcceptanceAnswer_responseId_idx]
+ON [dbo].[AcceptanceAnswer]([responseId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_accquestion_type_order_covering] ON [dbo].[AcceptanceQuestion]([questionnaireType], [order]);
+CREATE UNIQUE NONCLUSTERED INDEX [AcceptanceAnswer_responseId_questionId_key]
+ON [dbo].[AcceptanceAnswer]([responseId], [questionId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Account_userId_idx] ON [dbo].[Account]([userId]);
+-- Primary Key: [PK__Acceptan__3213E83F4AB0FF4B] on [AcceptanceAnswer]
+ALTER TABLE [dbo].[AcceptanceAnswer] ADD CONSTRAINT [PK__Acceptan__3213E83F4AB0FF4B] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Accounts_Account_idx] ON [dbo].[Accounts]([Account]);
+CREATE NONCLUSTERED INDEX [AcceptanceDocument_documentType_idx]
+ON [dbo].[AcceptanceDocument]([documentType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Accounts_AccStatus_idx] ON [dbo].[Accounts]([AccStatus]);
+CREATE NONCLUSTERED INDEX [AcceptanceDocument_responseId_idx]
+ON [dbo].[AcceptanceDocument]([responseId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Accounts_Category_idx] ON [dbo].[Accounts]([Category]);
+-- Primary Key: [PK__Acceptan__3213E83FEBEE39E6] on [AcceptanceDocument]
+ALTER TABLE [dbo].[AcceptanceDocument] ADD CONSTRAINT [PK__Acceptan__3213E83FEBEE39E6] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Accounts_OfficeCode_idx] ON [dbo].[Accounts]([OfficeCode]);
+CREATE NONCLUSTERED INDEX [AcceptanceQuestion_questionnaireType_idx]
+ON [dbo].[AcceptanceQuestion]([questionnaireType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AdjustmentDocument_extractionStatus_idx] ON [dbo].[AdjustmentDocument]([extractionStatus]);
+CREATE NONCLUSTERED INDEX [AcceptanceQuestion_questionnaireType_order_idx]
+ON [dbo].[AcceptanceQuestion]([questionnaireType], [order]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AdjustmentDocument_extractionStatus_taskId_idx] ON [dbo].[AdjustmentDocument]([extractionStatus], [taskId]);
+CREATE UNIQUE NONCLUSTERED INDEX [AcceptanceQuestion_questionnaireType_questionKey_key]
+ON [dbo].[AcceptanceQuestion]([questionnaireType], [questionKey]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AdjustmentDocument_taskId_idx] ON [dbo].[AdjustmentDocument]([taskId]);
+CREATE NONCLUSTERED INDEX [AcceptanceQuestion_questionnaireType_sectionKey_idx]
+ON [dbo].[AcceptanceQuestion]([questionnaireType], [sectionKey]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AdjustmentDocument_taxAdjustmentId_idx] ON [dbo].[AdjustmentDocument]([taxAdjustmentId]);
+-- Primary Key: [PK__Acceptan__3213E83FB3075BED] on [AcceptanceQuestion]
+ALTER TABLE [dbo].[AcceptanceQuestion] ADD CONSTRAINT [PK__Acceptan__3213E83FB3075BED] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [AITaxReport_taskId_idx] ON [dbo].[AITaxReport]([taskId]);
+-- Primary Key: [Account_pkey] on [Account]
+ALTER TABLE [dbo].[Account] ADD CONSTRAINT [Account_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Approval_requestedById_idx] ON [dbo].[Approval]([requestedById]);
+CREATE UNIQUE NONCLUSTERED INDEX [Account_provider_providerAccountId_key]
+ON [dbo].[Account]([provider], [providerAccountId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Approval_status_idx] ON [dbo].[Approval]([status]);
+CREATE NONCLUSTERED INDEX [Account_userId_idx]
+ON [dbo].[Account]([userId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Approval_workflowType_idx] ON [dbo].[Approval]([workflowType]);
+CREATE NONCLUSTERED INDEX [Accounts_Account_idx]
+ON [dbo].[Accounts]([Account]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Approval_workflowType_workflowId_idx] ON [dbo].[Approval]([workflowType], [workflowId]);
+CREATE NONCLUSTERED INDEX [Accounts_AccStatus_idx]
+ON [dbo].[Accounts]([AccStatus]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ApprovalDelegation_fromUserId_idx] ON [dbo].[ApprovalDelegation]([fromUserId]);
+CREATE NONCLUSTERED INDEX [Accounts_Category_idx]
+ON [dbo].[Accounts]([Category]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ApprovalDelegation_fromUserId_isActive_idx] ON [dbo].[ApprovalDelegation]([fromUserId], [isActive]);
+CREATE UNIQUE NONCLUSTERED INDEX [Accounts_GSAccountID_key]
+ON [dbo].[Accounts]([GSAccountID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ApprovalDelegation_isActive_endDate_idx] ON [dbo].[ApprovalDelegation]([isActive], [endDate]);
+CREATE NONCLUSTERED INDEX [Accounts_OfficeCode_idx]
+ON [dbo].[Accounts]([OfficeCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ApprovalRoute_workflowType_isDefault_idx] ON [dbo].[ApprovalRoute]([workflowType], [isDefault]);
+-- Primary Key: [Accounts_pkey] on [Accounts]
+ALTER TABLE [dbo].[Accounts] ADD CONSTRAINT [Accounts_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_approvalstep_approval_order_status_covering] ON [dbo].[ApprovalStep]([approvalId], [stepOrder], [status]);
+CREATE NONCLUSTERED INDEX [AdjustmentDocument_extractionStatus_idx]
+ON [dbo].[AdjustmentDocument]([extractionStatus]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ApprovalStep_assignedToUserId_idx] ON [dbo].[ApprovalStep]([assignedToUserId]);
+CREATE NONCLUSTERED INDEX [AdjustmentDocument_extractionStatus_taskId_idx]
+ON [dbo].[AdjustmentDocument]([extractionStatus], [taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_bdactivity_assigned_status_due_covering] ON [dbo].[BDActivity]([assignedTo], [status], [dueDate]);
+-- Primary Key: [AdjustmentDocument_pkey] on [AdjustmentDocument]
+ALTER TABLE [dbo].[AdjustmentDocument] ADD CONSTRAINT [AdjustmentDocument_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_bdactivity_opp_created_covering] ON [dbo].[BDActivity]([opportunityId], [createdAt] DESC);
+CREATE NONCLUSTERED INDEX [AdjustmentDocument_taskId_idx]
+ON [dbo].[AdjustmentDocument]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDActivity_opportunityId_idx] ON [dbo].[BDActivity]([opportunityId]);
+CREATE NONCLUSTERED INDEX [AdjustmentDocument_taxAdjustmentId_idx]
+ON [dbo].[AdjustmentDocument]([taxAdjustmentId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDActivity_contactId_idx] ON [dbo].[BDActivity]([contactId]);
+-- Primary Key: [AITaxReport_pkey] on [AITaxReport]
+ALTER TABLE [dbo].[AITaxReport] ADD CONSTRAINT [AITaxReport_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDContact_companyName_idx] ON [dbo].[BDContact]([companyName]);
+CREATE NONCLUSTERED INDEX [AITaxReport_taskId_idx]
+ON [dbo].[AITaxReport]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDContact_createdAt_idx] ON [dbo].[BDContact]([createdAt] DESC);
+CREATE NONCLUSTERED INDEX [Approval_requestedById_idx]
+ON [dbo].[Approval]([requestedById]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDContact_email_idx] ON [dbo].[BDContact]([email]);
+CREATE NONCLUSTERED INDEX [Approval_status_idx]
+ON [dbo].[Approval]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDNote_createdAt_idx] ON [dbo].[BDNote]([createdAt] DESC);
+CREATE NONCLUSTERED INDEX [Approval_workflowType_idx]
+ON [dbo].[Approval]([workflowType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDNote_opportunityId_idx] ON [dbo].[BDNote]([opportunityId]);
+CREATE NONCLUSTERED INDEX [Approval_workflowType_workflowId_idx]
+ON [dbo].[Approval]([workflowType], [workflowId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_bdopp_assigned_status_covering] ON [dbo].[BDOpportunity]([assignedTo], [status]);
+-- Primary Key: [PK_Approval] on [Approval]
+ALTER TABLE [dbo].[Approval] ADD CONSTRAINT [PK_Approval] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_bdopp_serviceline_status_covering] ON [dbo].[BDOpportunity]([serviceLine], [status]);
+CREATE NONCLUSTERED INDEX [ApprovalDelegation_fromUserId_idx]
+ON [dbo].[ApprovalDelegation]([fromUserId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_bdopp_created_covering] ON [dbo].[BDOpportunity]([createdAt] DESC);
+CREATE NONCLUSTERED INDEX [ApprovalDelegation_fromUserId_isActive_idx]
+ON [dbo].[ApprovalDelegation]([fromUserId], [isActive]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_bdopp_updated_covering] ON [dbo].[BDOpportunity]([updatedAt] DESC);
+CREATE NONCLUSTERED INDEX [ApprovalDelegation_isActive_endDate_idx]
+ON [dbo].[ApprovalDelegation]([isActive], [endDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDOpportunity_clientId_idx] ON [dbo].[BDOpportunity]([clientId]);
+-- Primary Key: [PK_ApprovalDelegation] on [ApprovalDelegation]
+ALTER TABLE [dbo].[ApprovalDelegation] ADD CONSTRAINT [PK_ApprovalDelegation] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDOpportunity_stageId_idx] ON [dbo].[BDOpportunity]([stageId]);
+CREATE NONCLUSTERED INDEX [ApprovalRoute_workflowType_isDefault_idx]
+ON [dbo].[ApprovalRoute]([workflowType], [isDefault]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDOpportunity_expectedCloseDate_idx] ON [dbo].[BDOpportunity]([expectedCloseDate]);
+-- Primary Key: [PK_ApprovalRoute] on [ApprovalRoute]
+ALTER TABLE [dbo].[ApprovalRoute] ADD CONSTRAINT [PK_ApprovalRoute] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDProposal_opportunityId_idx] ON [dbo].[BDProposal]([opportunityId]);
+CREATE UNIQUE NONCLUSTERED INDEX [UQ_ApprovalRoute_workflowType_routeName]
+ON [dbo].[ApprovalRoute]([workflowType], [routeName]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDProposal_opportunityId_version_idx] ON [dbo].[BDProposal]([opportunityId], [version]);
+CREATE NONCLUSTERED INDEX [ApprovalStep_approvalId_idx]
+ON [dbo].[ApprovalStep]([approvalId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDProposal_sentAt_idx] ON [dbo].[BDProposal]([sentAt]);
+CREATE NONCLUSTERED INDEX [ApprovalStep_approvalId_stepOrder_idx]
+ON [dbo].[ApprovalStep]([approvalId], [stepOrder]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDProposal_status_idx] ON [dbo].[BDProposal]([status]);
+CREATE NONCLUSTERED INDEX [ApprovalStep_assignedToUserId_idx]
+ON [dbo].[ApprovalStep]([assignedToUserId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDStage_isActive_idx] ON [dbo].[BDStage]([isActive]);
+CREATE NONCLUSTERED INDEX [ApprovalStep_status_idx]
+ON [dbo].[ApprovalStep]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDStage_order_idx] ON [dbo].[BDStage]([order]);
+-- Primary Key: [PK_ApprovalStep] on [ApprovalStep]
+ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [PK_ApprovalStep] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BDStage_serviceLine_idx] ON [dbo].[BDStage]([serviceLine]);
+CREATE NONCLUSTERED INDEX [BDActivity_activityType_idx]
+ON [dbo].[BDActivity]([activityType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_bugreport_status_priority_covering] ON [dbo].[BugReport]([status], [priority], [reportedAt] DESC);
+CREATE NONCLUSTERED INDEX [BDActivity_assignedTo_idx]
+ON [dbo].[BDActivity]([assignedTo]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [BugReport_reportedBy_idx] ON [dbo].[BugReport]([reportedBy]);
+CREATE NONCLUSTERED INDEX [BDActivity_assignedTo_status_dueDate_idx]
+ON [dbo].[BDActivity]([assignedTo], [status], [dueDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_categoryapprover_category_steporder_covering] ON [dbo].[CategoryApprover]([categoryId], [stepOrder]);
+CREATE NONCLUSTERED INDEX [BDActivity_contactId_idx]
+ON [dbo].[BDActivity]([contactId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_CategoryApprover_UserId] ON [dbo].[CategoryApprover]([userId]);
+CREATE NONCLUSTERED INDEX [BDActivity_dueDate_idx]
+ON [dbo].[BDActivity]([dueDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Client_active_groupCode_idx] ON [dbo].[Client]([active], [groupCode]);
+CREATE NONCLUSTERED INDEX [BDActivity_opportunityId_createdAt_idx]
+ON [dbo].[BDActivity]([opportunityId], [createdAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Client_active_industry_idx] ON [dbo].[Client]([active], [industry]);
+CREATE NONCLUSTERED INDEX [BDActivity_opportunityId_idx]
+ON [dbo].[BDActivity]([opportunityId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Client_clientTaxFlag_idx] ON [dbo].[Client]([clientTaxFlag]);
+-- Primary Key: [BDActivity_pkey] on [BDActivity]
+ALTER TABLE [dbo].[BDActivity] ADD CONSTRAINT [BDActivity_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Client_groupDesc_clientNameFull_idx] ON [dbo].[Client]([groupDesc], [clientNameFull]);
+CREATE NONCLUSTERED INDEX [BDActivity_status_idx]
+ON [dbo].[BDActivity]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Client_industry_clientNameFull_idx] ON [dbo].[Client]([industry], [clientNameFull]);
+CREATE NONCLUSTERED INDEX [BDContact_companyName_idx]
+ON [dbo].[BDContact]([companyName]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Client_sector_idx] ON [dbo].[Client]([sector]);
+CREATE NONCLUSTERED INDEX [BDContact_createdAt_idx]
+ON [dbo].[BDContact]([createdAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Client_updatedAt_idx] ON [dbo].[Client]([updatedAt] DESC);
+CREATE NONCLUSTERED INDEX [BDContact_email_idx]
+ON [dbo].[BDContact]([email]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptance_approvalId_idx] ON [dbo].[ClientAcceptance]([approvalId]);
+-- Primary Key: [BDContact_pkey] on [BDContact]
+ALTER TABLE [dbo].[BDContact] ADD CONSTRAINT [BDContact_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptance_approvedAt_idx] ON [dbo].[ClientAcceptance]([approvedAt]);
+CREATE NONCLUSTERED INDEX [BDNote_createdAt_idx]
+ON [dbo].[BDNote]([createdAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptance_clientId_idx] ON [dbo].[ClientAcceptance]([clientId]);
+CREATE NONCLUSTERED INDEX [BDNote_opportunityId_idx]
+ON [dbo].[BDNote]([opportunityId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptance_riskRating_idx] ON [dbo].[ClientAcceptance]([riskRating]);
+-- Primary Key: [BDNote_pkey] on [BDNote]
+ALTER TABLE [dbo].[BDNote] ADD CONSTRAINT [BDNote_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_clientaccanswer_acceptance_covering] ON [dbo].[ClientAcceptanceAnswer]([clientAcceptanceId]);
+CREATE NONCLUSTERED INDEX [BDOpportunity_assignedTo_idx]
+ON [dbo].[BDOpportunity]([assignedTo]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_clientId_idx] ON [dbo].[ClientAcceptanceResponse]([clientId]);
+CREATE NONCLUSTERED INDEX [BDOpportunity_assignedTo_status_idx]
+ON [dbo].[BDOpportunity]([assignedTo], [status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_questionnaireType_idx] ON [dbo].[ClientAcceptanceResponse]([questionnaireType]);
+CREATE NONCLUSTERED INDEX [BDOpportunity_clientId_idx]
+ON [dbo].[BDOpportunity]([clientId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_riskRating_idx] ON [dbo].[ClientAcceptanceResponse]([riskRating]);
+CREATE NONCLUSTERED INDEX [BDOpportunity_convertedToClientId_idx]
+ON [dbo].[BDOpportunity]([convertedToClientId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_taskId_idx] ON [dbo].[ClientAcceptanceResponse]([taskId]);
+CREATE NONCLUSTERED INDEX [BDOpportunity_createdAt_idx]
+ON [dbo].[BDOpportunity]([createdAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_taskId_questionnaireType_idx] ON [dbo].[ClientAcceptanceResponse]([taskId], [questionnaireType]);
+CREATE NONCLUSTERED INDEX [BDOpportunity_expectedCloseDate_idx]
+ON [dbo].[BDOpportunity]([expectedCloseDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAnalyticsDocument_clientId_idx] ON [dbo].[ClientAnalyticsDocument]([clientId]);
+-- Primary Key: [BDOpportunity_pkey] on [BDOpportunity]
+ALTER TABLE [dbo].[BDOpportunity] ADD CONSTRAINT [BDOpportunity_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAnalyticsDocument_documentType_idx] ON [dbo].[ClientAnalyticsDocument]([documentType]);
+CREATE NONCLUSTERED INDEX [BDOpportunity_serviceLine_idx]
+ON [dbo].[BDOpportunity]([serviceLine]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientAnalyticsDocument_uploadedAt_idx] ON [dbo].[ClientAnalyticsDocument]([uploadedAt] DESC);
+CREATE NONCLUSTERED INDEX [BDOpportunity_serviceLine_status_idx]
+ON [dbo].[BDOpportunity]([serviceLine], [status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientCreditRating_clientId_idx] ON [dbo].[ClientCreditRating]([clientId]);
+CREATE NONCLUSTERED INDEX [BDOpportunity_stageId_idx]
+ON [dbo].[BDOpportunity]([stageId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientCreditRating_clientId_ratingDate_idx] ON [dbo].[ClientCreditRating]([clientId], [ratingDate] DESC);
+CREATE NONCLUSTERED INDEX [BDOpportunity_status_idx]
+ON [dbo].[BDOpportunity]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientCreditRating_ratingDate_idx] ON [dbo].[ClientCreditRating]([ratingDate] DESC);
+CREATE NONCLUSTERED INDEX [BDOpportunity_updatedAt_idx]
+ON [dbo].[BDOpportunity]([updatedAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientCreditRating_ratingGrade_idx] ON [dbo].[ClientCreditRating]([ratingGrade]);
+CREATE NONCLUSTERED INDEX [BDProposal_opportunityId_idx]
+ON [dbo].[BDProposal]([opportunityId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_approvalId_idx] ON [dbo].[ClientPartnerManagerChangeRequest]([approvalId]);
+CREATE NONCLUSTERED INDEX [BDProposal_opportunityId_version_idx]
+ON [dbo].[BDProposal]([opportunityId], [version]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_clientId_idx] ON [dbo].[ClientPartnerManagerChangeRequest]([clientId]);
+-- Primary Key: [BDProposal_pkey] on [BDProposal]
+ALTER TABLE [dbo].[BDProposal] ADD CONSTRAINT [BDProposal_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_currentEmployeeApprovedById_idx] ON [dbo].[ClientPartnerManagerChangeRequest]([currentEmployeeApprovedById]);
+CREATE NONCLUSTERED INDEX [BDProposal_sentAt_idx]
+ON [dbo].[BDProposal]([sentAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_proposedEmployeeApprovedById_idx] ON [dbo].[ClientPartnerManagerChangeRequest]([proposedEmployeeApprovedById]);
+CREATE NONCLUSTERED INDEX [BDProposal_status_idx]
+ON [dbo].[BDProposal]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_proposedEmployeeCode_status_idx] ON [dbo].[ClientPartnerManagerChangeRequest]([proposedEmployeeCode], [status]);
+CREATE NONCLUSTERED INDEX [BDStage_isActive_idx]
+ON [dbo].[BDStage]([isActive]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_requestedAt_idx] ON [dbo].[ClientPartnerManagerChangeRequest]([requestedAt] DESC);
+CREATE NONCLUSTERED INDEX [BDStage_order_idx]
+ON [dbo].[BDStage]([order]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_requiresDualApproval_idx] ON [dbo].[ClientPartnerManagerChangeRequest]([requiresDualApproval]);
+-- Primary Key: [BDStage_pkey] on [BDStage]
+ALTER TABLE [dbo].[BDStage] ADD CONSTRAINT [BDStage_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_status_idx] ON [dbo].[ClientPartnerManagerChangeRequest]([status]);
+CREATE NONCLUSTERED INDEX [BDStage_serviceLine_idx]
+ON [dbo].[BDStage]([serviceLine]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ComplianceChecklist_assignedTo_idx] ON [dbo].[ComplianceChecklist]([assignedTo]);
+CREATE UNIQUE NONCLUSTERED INDEX [BDStage_serviceLine_name_key]
+ON [dbo].[BDStage]([serviceLine], [name]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ComplianceChecklist_dueDate_idx] ON [dbo].[ComplianceChecklist]([dueDate]);
+-- Primary Key: [BugReport_pkey] on [BugReport]
+ALTER TABLE [dbo].[BugReport] ADD CONSTRAINT [BugReport_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ComplianceChecklist_status_idx] ON [dbo].[ComplianceChecklist]([status]);
+CREATE NONCLUSTERED INDEX [BugReport_priority_idx]
+ON [dbo].[BugReport]([priority]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ComplianceChecklist_taskId_idx] ON [dbo].[ComplianceChecklist]([taskId]);
+CREATE NONCLUSTERED INDEX [BugReport_reportedAt_idx]
+ON [dbo].[BugReport]([reportedAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Creditors_BatchNumber_idx] ON [dbo].[Creditors]([BatchNumber]);
+CREATE NONCLUSTERED INDEX [BugReport_reportedBy_idx]
+ON [dbo].[BugReport]([reportedBy]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Creditors_CreditorCode_idx] ON [dbo].[Creditors]([CreditorCode]);
+CREATE NONCLUSTERED INDEX [BugReport_status_idx]
+ON [dbo].[BugReport]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Creditors_GSTaskID_idx] ON [dbo].[Creditors]([GSTaskID]);
+CREATE NONCLUSTERED INDEX [IX_CategoryApprover_CategoryId]
+ON [dbo].[CategoryApprover]([categoryId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Creditors_InvNumber_idx] ON [dbo].[Creditors]([InvNumber]);
+CREATE NONCLUSTERED INDEX [IX_CategoryApprover_CategoryId_StepOrder]
+ON [dbo].[CategoryApprover]([categoryId], [stepOrder]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Creditors_MatchDate_idx] ON [dbo].[Creditors]([MatchDate]);
+CREATE NONCLUSTERED INDEX [IX_CategoryApprover_UserId]
+ON [dbo].[CategoryApprover]([userId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Creditors_OfficeCode_idx] ON [dbo].[Creditors]([OfficeCode]);
+-- Primary Key: [PK_CategoryApprover] on [CategoryApprover]
+ALTER TABLE [dbo].[CategoryApprover] ADD CONSTRAINT [PK_CategoryApprover] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Creditors_TranDate_idx] ON [dbo].[Creditors]([TranDate]);
+CREATE UNIQUE NONCLUSTERED INDEX [UQ_CategoryApprover_CategoryId_UserId]
+ON [dbo].[CategoryApprover]([categoryId], [userId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [CreditRatingDocument_analyticsDocumentId_idx] ON [dbo].[CreditRatingDocument]([analyticsDocumentId]);
+CREATE NONCLUSTERED INDEX [Client_active_groupCode_idx]
+ON [dbo].[Client]([active], [groupCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [CreditRatingDocument_creditRatingId_idx] ON [dbo].[CreditRatingDocument]([creditRatingId]);
+CREATE NONCLUSTERED INDEX [Client_active_industry_idx]
+ON [dbo].[Client]([active], [industry]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Debtors_Biller_idx] ON [dbo].[Debtors]([Biller]);
+CREATE UNIQUE NONCLUSTERED INDEX [Client_clientCode_key]
+ON [dbo].[Client]([clientCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Debtors_GSClientID_idx] ON [dbo].[Debtors]([GSClientID]);
+CREATE NONCLUSTERED INDEX [Client_clientTaxFlag_idx]
+ON [dbo].[Client]([clientTaxFlag]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Debtors_GSClientID_PeriodRef_idx] ON [dbo].[Debtors]([GSClientID], [PeriodRef]);
+CREATE NONCLUSTERED INDEX [Client_groupDesc_clientNameFull_idx]
+ON [dbo].[Client]([groupDesc], [clientNameFull]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Debtors_OfficeCode_idx] ON [dbo].[Debtors]([OfficeCode]);
+CREATE UNIQUE NONCLUSTERED INDEX [Client_GSClientID_key]
+ON [dbo].[Client]([GSClientID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Debtors_PeriodRef_idx] ON [dbo].[Debtors]([PeriodRef]);
+CREATE NONCLUSTERED INDEX [Client_industry_clientNameFull_idx]
+ON [dbo].[Client]([industry], [clientNameFull]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Debtors_ServLineCode_idx] ON [dbo].[Debtors]([ServLineCode]);
+-- Primary Key: [Client_pkey] on [Client]
+ALTER TABLE [dbo].[Client] ADD CONSTRAINT [Client_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [DrsTransactions_OfficeCode_idx] ON [dbo].[DrsTransactions]([OfficeCode]);
+CREATE NONCLUSTERED INDEX [Client_sector_idx]
+ON [dbo].[Client]([sector]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [DrsTransactions_PeriodKey_idx] ON [dbo].[DrsTransactions]([PeriodKey]);
+CREATE NONCLUSTERED INDEX [Client_updatedAt_idx]
+ON [dbo].[Client]([updatedAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [DrsTransactions_ServLineCode_idx] ON [dbo].[DrsTransactions]([ServLineCode]);
+CREATE NONCLUSTERED INDEX [ClientAcceptance_approvalId_idx]
+ON [dbo].[ClientAcceptance]([approvalId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [DrsTransactions_TranDate_idx] ON [dbo].[DrsTransactions]([TranDate]);
+CREATE NONCLUSTERED INDEX [ClientAcceptance_approvedAt_idx]
+ON [dbo].[ClientAcceptance]([approvedAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [EmailLog_emailType_idx] ON [dbo].[EmailLog]([emailType]);
+CREATE NONCLUSTERED INDEX [ClientAcceptance_clientId_idx]
+ON [dbo].[ClientAcceptance]([clientId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [EmailLog_recipientUserId_idx] ON [dbo].[EmailLog]([recipientUserId]);
+CREATE UNIQUE NONCLUSTERED INDEX [ClientAcceptance_clientId_key]
+ON [dbo].[ClientAcceptance]([clientId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [EmailLog_status_idx] ON [dbo].[EmailLog]([status]);
+CREATE NONCLUSTERED INDEX [ClientAcceptance_riskRating_idx]
+ON [dbo].[ClientAcceptance]([riskRating]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Employee_Active_idx] ON [dbo].[Employee]([Active]);
+-- Primary Key: [PK__ClientAc__3213E83F94B62F26] on [ClientAcceptance]
+ALTER TABLE [dbo].[ClientAcceptance] ADD CONSTRAINT [PK__ClientAc__3213E83F94B62F26] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Employee_EmpCatCode_idx] ON [dbo].[Employee]([EmpCatCode]);
+CREATE NONCLUSTERED INDEX [ClientAcceptanceAnswer_clientAcceptanceId_idx]
+ON [dbo].[ClientAcceptanceAnswer]([clientAcceptanceId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Employee_EmpCode_Active_idx] ON [dbo].[Employee]([EmpCode], [Active]);
+CREATE UNIQUE NONCLUSTERED INDEX [ClientAcceptanceAnswer_clientAcceptanceId_questionId_key]
+ON [dbo].[ClientAcceptanceAnswer]([clientAcceptanceId], [questionId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Employee_GSEmployeeID_idx] ON [dbo].[Employee]([GSEmployeeID]);
+CREATE NONCLUSTERED INDEX [ClientAcceptanceAnswer_questionId_idx]
+ON [dbo].[ClientAcceptanceAnswer]([questionId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Employee_OfficeCode_idx] ON [dbo].[Employee]([OfficeCode]);
+-- Primary Key: [PK__ClientAc__3213E83F4AB0FF4C] on [ClientAcceptanceAnswer]
+ALTER TABLE [dbo].[ClientAcceptanceAnswer] ADD CONSTRAINT [PK__ClientAc__3213E83F4AB0FF4C] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Employee_ServLineCode_idx] ON [dbo].[Employee]([ServLineCode]);
+CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_clientId_idx]
+ON [dbo].[ClientAcceptanceResponse]([clientId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Employee_SLGroup_idx] ON [dbo].[Employee]([SLGroup]);
+CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_questionnaireType_idx]
+ON [dbo].[ClientAcceptanceResponse]([questionnaireType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Employee_WinLogon_idx] ON [dbo].[Employee]([WinLogon]);
+CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_riskRating_idx]
+ON [dbo].[ClientAcceptanceResponse]([riskRating]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_employee_empcode_active] ON [dbo].[Employee]([EmpCode], [Active]);
+CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_taskId_idx]
+ON [dbo].[ClientAcceptanceResponse]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ExternalLink_active_idx] ON [dbo].[ExternalLink]([active]);
+CREATE NONCLUSTERED INDEX [ClientAcceptanceResponse_taskId_questionnaireType_idx]
+ON [dbo].[ClientAcceptanceResponse]([taskId], [questionnaireType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ExternalLink_name_idx] ON [dbo].[ExternalLink]([name]);
+-- Primary Key: [PK__ClientAc__3213E83F94B62F25] on [ClientAcceptanceResponse]
+ALTER TABLE [dbo].[ClientAcceptanceResponse] ADD CONSTRAINT [PK__ClientAc__3213E83F94B62F25] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [FilingStatus_deadline_idx] ON [dbo].[FilingStatus]([deadline]);
+CREATE NONCLUSTERED INDEX [ClientAnalyticsDocument_clientId_idx]
+ON [dbo].[ClientAnalyticsDocument]([clientId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [FilingStatus_status_idx] ON [dbo].[FilingStatus]([status]);
+CREATE NONCLUSTERED INDEX [ClientAnalyticsDocument_documentType_idx]
+ON [dbo].[ClientAnalyticsDocument]([documentType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [FilingStatus_taskId_idx] ON [dbo].[FilingStatus]([taskId]);
+-- Primary Key: [ClientAnalyticsDocument_pkey] on [ClientAnalyticsDocument]
+ALTER TABLE [dbo].[ClientAnalyticsDocument] ADD CONSTRAINT [ClientAnalyticsDocument_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_calendarYear_calendarMonth] ON [dbo].[FiscalPeriod]([calendarYear], [calendarMonth]);
+CREATE NONCLUSTERED INDEX [ClientAnalyticsDocument_uploadedAt_idx]
+ON [dbo].[ClientAnalyticsDocument]([uploadedAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_fiscalQuarter] ON [dbo].[FiscalPeriod]([fiscalQuarter]);
+CREATE NONCLUSTERED INDEX [ClientCreditRating_clientId_idx]
+ON [dbo].[ClientCreditRating]([clientId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_fiscalYear] ON [dbo].[FiscalPeriod]([fiscalYear]);
+CREATE NONCLUSTERED INDEX [ClientCreditRating_clientId_ratingDate_idx]
+ON [dbo].[ClientCreditRating]([clientId], [ratingDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_fiscalYear_fiscalMonth] ON [dbo].[FiscalPeriod]([fiscalYear], [fiscalMonth]);
+-- Primary Key: [ClientCreditRating_pkey] on [ClientCreditRating]
+ALTER TABLE [dbo].[ClientCreditRating] ADD CONSTRAINT [ClientCreditRating_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_fiscalYear_fiscalQuarter] ON [dbo].[FiscalPeriod]([fiscalYear], [fiscalQuarter]);
+CREATE NONCLUSTERED INDEX [ClientCreditRating_ratingDate_idx]
+ON [dbo].[ClientCreditRating]([ratingDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_startDate_endDate] ON [dbo].[FiscalPeriod]([startDate], [endDate]);
+CREATE NONCLUSTERED INDEX [ClientCreditRating_ratingGrade_idx]
+ON [dbo].[ClientCreditRating]([ratingGrade]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GL_Account_idx] ON [dbo].[GL]([Account]);
+CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_approvalId_idx]
+ON [dbo].[ClientPartnerManagerChangeRequest]([approvalId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GL_DatePosted_idx] ON [dbo].[GL]([DatePosted]);
+CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_clientId_idx]
+ON [dbo].[ClientPartnerManagerChangeRequest]([clientId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GL_EntryDate_idx] ON [dbo].[GL]([EntryDate]);
+CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_currentEmployeeApprovedById_idx]
+ON [dbo].[ClientPartnerManagerChangeRequest]([currentEmployeeApprovedById]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GL_EntryGroup_idx] ON [dbo].[GL]([EntryGroup]);
+CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_proposedEmployeeApprovedById_idx]
+ON [dbo].[ClientPartnerManagerChangeRequest]([proposedEmployeeApprovedById]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GL_GSAccountID_idx] ON [dbo].[GL]([GSAccountID]);
+CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_proposedEmployeeCode_status_idx]
+ON [dbo].[ClientPartnerManagerChangeRequest]([proposedEmployeeCode], [status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GL_OfficeCode_idx] ON [dbo].[GL]([OfficeCode]);
+CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_requestedAt_idx]
+ON [dbo].[ClientPartnerManagerChangeRequest]([requestedAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GL_SourceBatch_idx] ON [dbo].[GL]([SourceBatch]);
+CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_requiresDualApproval_idx]
+ON [dbo].[ClientPartnerManagerChangeRequest]([requiresDualApproval]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GLBudgets_BudgetCode_idx] ON [dbo].[GLBudgets]([BudgetCode]);
+CREATE NONCLUSTERED INDEX [ClientPartnerManagerChangeRequest_status_idx]
+ON [dbo].[ClientPartnerManagerChangeRequest]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GLBudgets_GSAccountID_idx] ON [dbo].[GLBudgets]([GSAccountID]);
+-- Primary Key: [PK_ClientPartnerManagerChangeRequest] on [ClientPartnerManagerChangeRequest]
+ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [PK_ClientPartnerManagerChangeRequest] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GLBudgets_GSBudgetTypeID_idx] ON [dbo].[GLBudgets]([GSBudgetTypeID]);
+CREATE NONCLUSTERED INDEX [ComplianceChecklist_assignedTo_idx]
+ON [dbo].[ComplianceChecklist]([assignedTo]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [GLBudgets_PeriodYear_PeriodNumber_idx] ON [dbo].[GLBudgets]([PeriodYear], [PeriodNumber]);
+CREATE NONCLUSTERED INDEX [ComplianceChecklist_dueDate_idx]
+ON [dbo].[ComplianceChecklist]([dueDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_notification_user_read_covering] ON [dbo].[InAppNotification]([userId], [isRead]);
+-- Primary Key: [ComplianceChecklist_pkey] on [ComplianceChecklist]
+ALTER TABLE [dbo].[ComplianceChecklist] ADD CONSTRAINT [ComplianceChecklist_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_notification_created_covering] ON [dbo].[InAppNotification]([createdAt] DESC);
+CREATE NONCLUSTERED INDEX [ComplianceChecklist_status_idx]
+ON [dbo].[ComplianceChecklist]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [LeaderGroup_name_idx] ON [dbo].[LeaderGroup]([name]);
+CREATE NONCLUSTERED INDEX [ComplianceChecklist_taskId_idx]
+ON [dbo].[ComplianceChecklist]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [LeaderGroup_type_idx] ON [dbo].[LeaderGroup]([type]);
+CREATE NONCLUSTERED INDEX [Creditors_BatchNumber_idx]
+ON [dbo].[Creditors]([BatchNumber]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [LeaderGroupMember_employeeId_idx] ON [dbo].[LeaderGroupMember]([employeeId]);
+CREATE NONCLUSTERED INDEX [Creditors_CreditorCode_idx]
+ON [dbo].[Creditors]([CreditorCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [LeaderGroupMember_leaderGroupId_idx] ON [dbo].[LeaderGroupMember]([leaderGroupId]);
+CREATE NONCLUSTERED INDEX [Creditors_GSTaskID_idx]
+ON [dbo].[Creditors]([GSTaskID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [LegalPrecedent_taskId_idx] ON [dbo].[LegalPrecedent]([taskId]);
+CREATE UNIQUE NONCLUSTERED INDEX [Creditors_GSTranID_key]
+ON [dbo].[Creditors]([GSTranID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [LegalPrecedent_year_idx] ON [dbo].[LegalPrecedent]([year]);
+CREATE NONCLUSTERED INDEX [Creditors_InvNumber_idx]
+ON [dbo].[Creditors]([InvNumber]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [MappedAccount_taskId_accountCode_idx] ON [dbo].[MappedAccount]([taskId], [accountCode]);
+CREATE NONCLUSTERED INDEX [Creditors_MatchDate_idx]
+ON [dbo].[Creditors]([MatchDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [MappedAccount_taskId_idx] ON [dbo].[MappedAccount]([taskId]);
+CREATE NONCLUSTERED INDEX [Creditors_OfficeCode_idx]
+ON [dbo].[Creditors]([OfficeCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [MappedAccount_taskId_section_idx] ON [dbo].[MappedAccount]([taskId], [section]);
+-- Primary Key: [Creditors_pkey] on [Creditors]
+ALTER TABLE [dbo].[Creditors] ADD CONSTRAINT [Creditors_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [MappedAccount_taskId_section_subsection_idx] ON [dbo].[MappedAccount]([taskId], [section], [subsection]);
+CREATE NONCLUSTERED INDEX [Creditors_TranDate_idx]
+ON [dbo].[Creditors]([TranDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NewsBulletin_category_idx] ON [dbo].[NewsBulletin]([category]);
+CREATE NONCLUSTERED INDEX [CreditRatingDocument_analyticsDocumentId_idx]
+ON [dbo].[CreditRatingDocument]([analyticsDocumentId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NewsBulletin_effectiveDate_idx] ON [dbo].[NewsBulletin]([effectiveDate]);
+CREATE UNIQUE NONCLUSTERED INDEX [CreditRatingDocument_creditRatingId_analyticsDocumentId_key]
+ON [dbo].[CreditRatingDocument]([creditRatingId], [analyticsDocumentId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NewsBulletin_isActive_effectiveDate_idx] ON [dbo].[NewsBulletin]([isActive], [effectiveDate] DESC);
+CREATE NONCLUSTERED INDEX [CreditRatingDocument_creditRatingId_idx]
+ON [dbo].[CreditRatingDocument]([creditRatingId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NewsBulletin_isActive_idx] ON [dbo].[NewsBulletin]([isActive]);
+-- Primary Key: [CreditRatingDocument_pkey] on [CreditRatingDocument]
+ALTER TABLE [dbo].[CreditRatingDocument] ADD CONSTRAINT [CreditRatingDocument_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NewsBulletin_isPinned_idx] ON [dbo].[NewsBulletin]([isPinned]);
+CREATE NONCLUSTERED INDEX [Debtors_Biller_idx]
+ON [dbo].[Debtors]([Biller]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NewsBulletin_serviceLine_idx] ON [dbo].[NewsBulletin]([serviceLine]);
+CREATE NONCLUSTERED INDEX [Debtors_GSClientID_idx]
+ON [dbo].[Debtors]([GSClientID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NonClientAllocation_employeeId_idx] ON [dbo].[NonClientAllocation]([employeeId]);
+CREATE NONCLUSTERED INDEX [Debtors_GSClientID_PeriodRef_idx]
+ON [dbo].[Debtors]([GSClientID], [PeriodRef]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NonClientAllocation_employeeId_startDate_endDate_idx] ON [dbo].[NonClientAllocation]([employeeId], [startDate], [endDate]);
+CREATE NONCLUSTERED INDEX [Debtors_OfficeCode_idx]
+ON [dbo].[Debtors]([OfficeCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NonClientAllocation_eventType_idx] ON [dbo].[NonClientAllocation]([eventType]);
+CREATE NONCLUSTERED INDEX [Debtors_PeriodRef_idx]
+ON [dbo].[Debtors]([PeriodRef]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NotificationPreference_taskId_idx] ON [dbo].[NotificationPreference]([taskId]);
+-- Primary Key: [Debtors_pkey] on [Debtors]
+ALTER TABLE [dbo].[Debtors] ADD CONSTRAINT [Debtors_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [NotificationPreference_userId_idx] ON [dbo].[NotificationPreference]([userId]);
+CREATE NONCLUSTERED INDEX [Debtors_ServLineCode_idx]
+ON [dbo].[Debtors]([ServLineCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [OpinionChatMessage_opinionDraftId_createdAt_idx] ON [dbo].[OpinionChatMessage]([opinionDraftId], [createdAt]);
+CREATE UNIQUE NONCLUSTERED INDEX [DrsTransactions_GSDebtorsTranID_key]
+ON [dbo].[DrsTransactions]([GSDebtorsTranID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [OpinionChatMessage_sectionGenerationId_idx] ON [dbo].[OpinionChatMessage]([sectionGenerationId]);
+CREATE NONCLUSTERED INDEX [DrsTransactions_OfficeCode_idx]
+ON [dbo].[DrsTransactions]([OfficeCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [OpinionDocument_category_idx] ON [dbo].[OpinionDocument]([category]);
+CREATE NONCLUSTERED INDEX [DrsTransactions_PeriodKey_idx]
+ON [dbo].[DrsTransactions]([PeriodKey]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [OpinionDocument_opinionDraftId_idx] ON [dbo].[OpinionDocument]([opinionDraftId]);
+-- Primary Key: [DrsTransactions_pkey] on [DrsTransactions]
+ALTER TABLE [dbo].[DrsTransactions] ADD CONSTRAINT [DrsTransactions_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [OpinionDraft_status_idx] ON [dbo].[OpinionDraft]([status]);
+CREATE NONCLUSTERED INDEX [DrsTransactions_ServLineCode_idx]
+ON [dbo].[DrsTransactions]([ServLineCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [OpinionDraft_taskId_idx] ON [dbo].[OpinionDraft]([taskId]);
+CREATE NONCLUSTERED INDEX [DrsTransactions_TranDate_idx]
+ON [dbo].[DrsTransactions]([TranDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [OpinionDraft_taskId_version_idx] ON [dbo].[OpinionDraft]([taskId], [version]);
+CREATE NONCLUSTERED INDEX [idx_drs_biller_super_covering]
+ON [dbo].[DrsTransactions]([Biller], [TranDate])
+INCLUDE ([Total], [EntryType], [ServLineCode], [InvNumber], [Reference])
+WHERE ([Biller] IS NOT NULL);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [OpinionSection_opinionDraftId_order_idx] ON [dbo].[OpinionSection]([opinionDraftId], [order]);
+CREATE NONCLUSTERED INDEX [idx_drs_gsclientid_super_covering]
+ON [dbo].[DrsTransactions]([GSClientID], [TranDate])
+INCLUDE ([Total], [EntryType], [InvNumber], [Reference], [ServLineCode], [Biller], [updatedAt])
+WHERE ([GSClientID] IS NOT NULL);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [PagePermission_active_idx] ON [dbo].[PagePermission]([active]);
+CREATE NONCLUSTERED INDEX [EmailLog_emailType_idx]
+ON [dbo].[EmailLog]([emailType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [PagePermission_pathname_idx] ON [dbo].[PagePermission]([pathname]);
+-- Primary Key: [EmailLog_pkey] on [EmailLog]
+ALTER TABLE [dbo].[EmailLog] ADD CONSTRAINT [EmailLog_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [PagePermission_role_idx] ON [dbo].[PagePermission]([role]);
+CREATE NONCLUSTERED INDEX [EmailLog_recipientUserId_idx]
+ON [dbo].[EmailLog]([recipientUserId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [PageRegistry_active_idx] ON [dbo].[PageRegistry]([active]);
+CREATE NONCLUSTERED INDEX [EmailLog_status_idx]
+ON [dbo].[EmailLog]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [PageRegistry_category_idx] ON [dbo].[PageRegistry]([category]);
+CREATE NONCLUSTERED INDEX [Employee_Active_idx]
+ON [dbo].[Employee]([Active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ResearchNote_category_idx] ON [dbo].[ResearchNote]([category]);
+CREATE NONCLUSTERED INDEX [Employee_EmpCatCode_idx]
+ON [dbo].[Employee]([EmpCatCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ResearchNote_taskId_idx] ON [dbo].[ResearchNote]([taskId]);
+CREATE NONCLUSTERED INDEX [Employee_EmpCode_Active_idx]
+ON [dbo].[Employee]([EmpCode], [Active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewCategory_active_idx] ON [dbo].[ReviewCategory]([active]);
+CREATE NONCLUSTERED INDEX [Employee_GSEmployeeID_idx]
+ON [dbo].[Employee]([GSEmployeeID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewCategory_serviceLine_idx] ON [dbo].[ReviewCategory]([serviceLine]);
+CREATE UNIQUE NONCLUSTERED INDEX [Employee_GSEmployeeID_key]
+ON [dbo].[Employee]([GSEmployeeID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewCategory_sortOrder_idx] ON [dbo].[ReviewCategory]([sortOrder]);
+CREATE NONCLUSTERED INDEX [Employee_OfficeCode_idx]
+ON [dbo].[Employee]([OfficeCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_reviewnote_assigned_status_covering] ON [dbo].[ReviewNote]([assignedTo], [status]);
+-- Primary Key: [Employee_pkey] on [Employee]
+ALTER TABLE [dbo].[Employee] ADD CONSTRAINT [Employee_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_reviewnote_task_status_covering] ON [dbo].[ReviewNote]([taskId], [status]);
+CREATE NONCLUSTERED INDEX [Employee_ServLineCode_idx]
+ON [dbo].[Employee]([ServLineCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_reviewnote_created_covering] ON [dbo].[ReviewNote]([createdAt] DESC);
+CREATE NONCLUSTERED INDEX [Employee_SLGroup_idx]
+ON [dbo].[Employee]([SLGroup]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNote_taskId_idx] ON [dbo].[ReviewNote]([taskId]);
+CREATE NONCLUSTERED INDEX [Employee_WinLogon_idx]
+ON [dbo].[Employee]([WinLogon]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNote_categoryId_idx] ON [dbo].[ReviewNote]([categoryId]);
+CREATE NONCLUSTERED INDEX [idx_employee_empcode_active]
+ON [dbo].[Employee]([EmpCode], [Active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNote_dueDate_idx] ON [dbo].[ReviewNote]([dueDate]);
+CREATE NONCLUSTERED INDEX [ExternalLink_active_idx]
+ON [dbo].[ExternalLink]([active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNoteAssignee_assignedBy_idx] ON [dbo].[ReviewNoteAssignee]([assignedBy]);
+CREATE NONCLUSTERED INDEX [ExternalLink_name_idx]
+ON [dbo].[ExternalLink]([name]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNoteAssignee_reviewNoteId_idx] ON [dbo].[ReviewNoteAssignee]([reviewNoteId]);
+-- Primary Key: [ExternalLink_pkey] on [ExternalLink]
+ALTER TABLE [dbo].[ExternalLink] ADD CONSTRAINT [ExternalLink_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNoteAssignee_userId_idx] ON [dbo].[ReviewNoteAssignee]([userId]);
+CREATE NONCLUSTERED INDEX [FilingStatus_deadline_idx]
+ON [dbo].[FilingStatus]([deadline]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNoteAttachment_reviewNoteId_idx] ON [dbo].[ReviewNoteAttachment]([reviewNoteId]);
+-- Primary Key: [FilingStatus_pkey] on [FilingStatus]
+ALTER TABLE [dbo].[FilingStatus] ADD CONSTRAINT [FilingStatus_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNoteAttachment_uploadedBy_idx] ON [dbo].[ReviewNoteAttachment]([uploadedBy]);
+CREATE NONCLUSTERED INDEX [FilingStatus_status_idx]
+ON [dbo].[FilingStatus]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNoteComment_createdAt_idx] ON [dbo].[ReviewNoteComment]([createdAt]);
+CREATE NONCLUSTERED INDEX [FilingStatus_taskId_idx]
+ON [dbo].[FilingStatus]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNoteComment_reviewNoteId_idx] ON [dbo].[ReviewNoteComment]([reviewNoteId]);
+CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_calendarYear_calendarMonth]
+ON [dbo].[FiscalPeriod]([calendarYear], [calendarMonth]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ReviewNoteComment_userId_idx] ON [dbo].[ReviewNoteComment]([userId]);
+CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_fiscalQuarter]
+ON [dbo].[FiscalPeriod]([fiscalQuarter]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [SarsResponse_deadline_idx] ON [dbo].[SarsResponse]([deadline]);
+CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_fiscalYear]
+ON [dbo].[FiscalPeriod]([fiscalYear]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [SarsResponse_status_idx] ON [dbo].[SarsResponse]([status]);
+CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_fiscalYear_fiscalMonth]
+ON [dbo].[FiscalPeriod]([fiscalYear], [fiscalMonth]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [SarsResponse_taskId_idx] ON [dbo].[SarsResponse]([taskId]);
+CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_fiscalYear_fiscalQuarter]
+ON [dbo].[FiscalPeriod]([fiscalYear], [fiscalQuarter]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_servline_code] ON [dbo].[ServiceLineExternal]([ServLineCode]);
+CREATE NONCLUSTERED INDEX [IX_FiscalPeriod_startDate_endDate]
+ON [dbo].[FiscalPeriod]([startDate], [endDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineExternal_masterCode_idx] ON [dbo].[ServiceLineExternal]([masterCode]);
+-- Primary Key: [PK_FiscalPeriod] on [FiscalPeriod]
+ALTER TABLE [dbo].[FiscalPeriod] ADD CONSTRAINT [PK_FiscalPeriod] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineExternal_ServLineCode_idx] ON [dbo].[ServiceLineExternal]([ServLineCode]);
+CREATE UNIQUE NONCLUSTERED INDEX [UQ_FiscalPeriod_periodKey]
+ON [dbo].[FiscalPeriod]([periodKey]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineExternal_SLGroup_idx] ON [dbo].[ServiceLineExternal]([SLGroup]);
+CREATE NONCLUSTERED INDEX [GL_Account_idx]
+ON [dbo].[GL]([Account]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineExternal_SubServlineGroupCode_idx] ON [dbo].[ServiceLineExternal]([SubServlineGroupCode]);
+CREATE NONCLUSTERED INDEX [GL_DatePosted_idx]
+ON [dbo].[GL]([DatePosted]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_master_sl_code] ON [dbo].[ServiceLineMaster]([code]);
+CREATE NONCLUSTERED INDEX [GL_EntryDate_idx]
+ON [dbo].[GL]([EntryDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineMaster_active_idx] ON [dbo].[ServiceLineMaster]([active]);
+CREATE NONCLUSTERED INDEX [GL_EntryGroup_idx]
+ON [dbo].[GL]([EntryGroup]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineMaster_sortOrder_idx] ON [dbo].[ServiceLineMaster]([sortOrder]);
+CREATE NONCLUSTERED INDEX [GL_GSAccountID_idx]
+ON [dbo].[GL]([GSAccountID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineTool_active_idx] ON [dbo].[ServiceLineTool]([active]);
+CREATE UNIQUE NONCLUSTERED INDEX [GL_GSEntryID_key]
+ON [dbo].[GL]([GSEntryID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineTool_subServiceLineGroup_idx] ON [dbo].[ServiceLineTool]([subServiceLineGroup]);
+CREATE NONCLUSTERED INDEX [GL_OfficeCode_idx]
+ON [dbo].[GL]([OfficeCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineTool_toolId_idx] ON [dbo].[ServiceLineTool]([toolId]);
+-- Primary Key: [GL_pkey] on [GL]
+ALTER TABLE [dbo].[GL] ADD CONSTRAINT [GL_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_ServiceLineUser_masterCode] ON [dbo].[ServiceLineUser]([masterCode]);
+CREATE NONCLUSTERED INDEX [GL_SourceBatch_idx]
+ON [dbo].[GL]([SourceBatch]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineUser_assignmentType_idx] ON [dbo].[ServiceLineUser]([assignmentType]);
+CREATE NONCLUSTERED INDEX [GLBudgets_BudgetCode_idx]
+ON [dbo].[GLBudgets]([BudgetCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineUser_parentAssignmentId_idx] ON [dbo].[ServiceLineUser]([parentAssignmentId]);
+CREATE NONCLUSTERED INDEX [GLBudgets_GSAccountID_idx]
+ON [dbo].[GLBudgets]([GSAccountID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineUser_subServiceLineGroup_idx] ON [dbo].[ServiceLineUser]([subServiceLineGroup]);
+CREATE UNIQUE NONCLUSTERED INDEX [GLBudgets_GSBudgetID_key]
+ON [dbo].[GLBudgets]([GSBudgetID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineUser_userId_assignmentType_idx] ON [dbo].[ServiceLineUser]([userId], [assignmentType]);
+CREATE NONCLUSTERED INDEX [GLBudgets_GSBudgetTypeID_idx]
+ON [dbo].[GLBudgets]([GSBudgetTypeID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ServiceLineUser_userId_idx] ON [dbo].[ServiceLineUser]([userId]);
+CREATE NONCLUSTERED INDEX [GLBudgets_PeriodYear_PeriodNumber_idx]
+ON [dbo].[GLBudgets]([PeriodYear], [PeriodNumber]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Session_userId_idx] ON [dbo].[Session]([userId]);
+-- Primary Key: [GLBudgets_pkey] on [GLBudgets]
+ALTER TABLE [dbo].[GLBudgets] ADD CONSTRAINT [GLBudgets_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [StandardTask_GSStdTaskID_idx] ON [dbo].[StandardTask]([GSStdTaskID]);
+-- Primary Key: [PK_GS_Stg_TSChargeable] on [GS_Stg_TSChargeable]
+ALTER TABLE [dbo].[GS_Stg_TSChargeable] ADD CONSTRAINT [PK_GS_Stg_TSChargeable] PRIMARY KEY CLUSTERED ([TSID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [StandardTask_ServLineCode_idx] ON [dbo].[StandardTask]([ServLineCode]);
+-- Primary Key: [PK_GS_TSChargeable] on [GS_TSChargeable]
+ALTER TABLE [dbo].[GS_TSChargeable] ADD CONSTRAINT [PK_GS_TSChargeable] PRIMARY KEY CLUSTERED ([TSID]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [StandardTask_StdTaskCode_idx] ON [dbo].[StandardTask]([StdTaskCode]);
+CREATE NONCLUSTERED INDEX [InAppNotification_createdAt_idx]
+ON [dbo].[InAppNotification]([createdAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_task_gsclientid] ON [dbo].[Task]([GSClientID]);
+CREATE NONCLUSTERED INDEX [InAppNotification_fromUserId_idx]
+ON [dbo].[InAppNotification]([fromUserId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_task_servlinecode_active] ON [dbo].[Task]([ServLineCode], [Active]);
+-- Primary Key: [InAppNotification_pkey] on [InAppNotification]
+ALTER TABLE [dbo].[InAppNotification] ADD CONSTRAINT [InAppNotification_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Task_GSClientID_Active_updatedAt_idx] ON [dbo].[Task]([GSClientID], [Active], [updatedAt] DESC);
+CREATE NONCLUSTERED INDEX [InAppNotification_taskId_idx]
+ON [dbo].[InAppNotification]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Task_GSClientID_idx] ON [dbo].[Task]([GSClientID]);
+CREATE NONCLUSTERED INDEX [InAppNotification_userId_idx]
+ON [dbo].[InAppNotification]([userId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Task_ServLineCode_Active_idx] ON [dbo].[Task]([ServLineCode], [Active]);
+CREATE NONCLUSTERED INDEX [InAppNotification_userId_isRead_idx]
+ON [dbo].[InAppNotification]([userId], [isRead]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Task_ServLineCode_Active_updatedAt_idx] ON [dbo].[Task]([ServLineCode], [Active], [updatedAt] DESC);
+CREATE NONCLUSTERED INDEX [LeaderGroup_name_idx]
+ON [dbo].[LeaderGroup]([name]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Task_ServLineCode_SLGroup_idx] ON [dbo].[Task]([ServLineCode], [SLGroup]);
+CREATE UNIQUE NONCLUSTERED INDEX [LeaderGroup_name_key]
+ON [dbo].[LeaderGroup]([name]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Task_TaskManager_Active_idx] ON [dbo].[Task]([TaskManager], [Active]);
+-- Primary Key: [LeaderGroup_pkey] on [LeaderGroup]
+ALTER TABLE [dbo].[LeaderGroup] ADD CONSTRAINT [LeaderGroup_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Task_TaskPartner_Active_idx] ON [dbo].[Task]([TaskPartner], [Active]);
+CREATE NONCLUSTERED INDEX [LeaderGroup_type_idx]
+ON [dbo].[LeaderGroup]([type]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Task_taskYear_idx] ON [dbo].[Task]([taskYear]);
+CREATE NONCLUSTERED INDEX [LeaderGroupMember_employeeId_idx]
+ON [dbo].[LeaderGroupMember]([employeeId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskAcceptance_riskRating_idx] ON [dbo].[TaskAcceptance]([riskRating]);
+CREATE UNIQUE NONCLUSTERED INDEX [LeaderGroupMember_leaderGroupId_employeeId_key]
+ON [dbo].[LeaderGroupMember]([leaderGroupId], [employeeId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskAcceptance_taskId_idx] ON [dbo].[TaskAcceptance]([taskId]);
+CREATE NONCLUSTERED INDEX [LeaderGroupMember_leaderGroupId_idx]
+ON [dbo].[LeaderGroupMember]([leaderGroupId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskBudget_GSClientID_idx] ON [dbo].[TaskBudget]([GSClientID]);
+-- Primary Key: [LeaderGroupMember_pkey] on [LeaderGroupMember]
+ALTER TABLE [dbo].[LeaderGroupMember] ADD CONSTRAINT [LeaderGroupMember_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskBudget_GSTaskID_idx] ON [dbo].[TaskBudget]([GSTaskID]);
+-- Primary Key: [LegalPrecedent_pkey] on [LegalPrecedent]
+ALTER TABLE [dbo].[LegalPrecedent] ADD CONSTRAINT [LegalPrecedent_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskBudget_TaskBudgetID_idx] ON [dbo].[TaskBudget]([TaskBudgetID]);
+CREATE NONCLUSTERED INDEX [LegalPrecedent_taskId_idx]
+ON [dbo].[LegalPrecedent]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskBudgetDisbursement_createdBy_idx] ON [dbo].[TaskBudgetDisbursement]([createdBy]);
+CREATE NONCLUSTERED INDEX [LegalPrecedent_year_idx]
+ON [dbo].[LegalPrecedent]([year]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskBudgetDisbursement_taskId_idx] ON [dbo].[TaskBudgetDisbursement]([taskId]);
+-- Primary Key: [MappedAccount_pkey] on [MappedAccount]
+ALTER TABLE [dbo].[MappedAccount] ADD CONSTRAINT [MappedAccount_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskBudgetFee_createdBy_idx] ON [dbo].[TaskBudgetFee]([createdBy]);
+CREATE NONCLUSTERED INDEX [MappedAccount_taskId_accountCode_idx]
+ON [dbo].[MappedAccount]([taskId], [accountCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskBudgetFee_taskId_idx] ON [dbo].[TaskBudgetFee]([taskId]);
+CREATE NONCLUSTERED INDEX [MappedAccount_taskId_idx]
+ON [dbo].[MappedAccount]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskDocument_category_idx] ON [dbo].[TaskDocument]([category]);
+CREATE NONCLUSTERED INDEX [MappedAccount_taskId_section_idx]
+ON [dbo].[MappedAccount]([taskId], [section]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskDocument_taskId_idx] ON [dbo].[TaskDocument]([taskId]);
+CREATE NONCLUSTERED INDEX [MappedAccount_taskId_section_subsection_idx]
+ON [dbo].[MappedAccount]([taskId], [section], [subsection]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_taskengagement_dpa_covering] ON [dbo].[TaskEngagementLetter]([dpaExtractionStatus]);
+CREATE NONCLUSTERED INDEX [NewsBulletin_category_idx]
+ON [dbo].[NewsBulletin]([category]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_taskengagement_el_covering] ON [dbo].[TaskEngagementLetter]([elExtractionStatus]);
+CREATE NONCLUSTERED INDEX [NewsBulletin_effectiveDate_idx]
+ON [dbo].[NewsBulletin]([effectiveDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskEngagementLetter_taskId_idx] ON [dbo].[TaskEngagementLetter]([taskId]);
+CREATE NONCLUSTERED INDEX [NewsBulletin_isActive_effectiveDate_idx]
+ON [dbo].[NewsBulletin]([isActive], [effectiveDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskEngagementLetter_templateVersionId_idx] ON [dbo].[TaskEngagementLetter]([templateVersionId]);
+CREATE NONCLUSTERED INDEX [NewsBulletin_isActive_idx]
+ON [dbo].[NewsBulletin]([isActive]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskIndependenceConfirmation_confirmed_idx] ON [dbo].[TaskIndependenceConfirmation]([confirmed]);
+CREATE NONCLUSTERED INDEX [NewsBulletin_isPinned_idx]
+ON [dbo].[NewsBulletin]([isPinned]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskIndependenceConfirmation_taskTeamId_idx] ON [dbo].[TaskIndependenceConfirmation]([taskTeamId]);
+-- Primary Key: [NewsBulletin_pkey] on [NewsBulletin]
+ALTER TABLE [dbo].[NewsBulletin] ADD CONSTRAINT [NewsBulletin_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_taskstage_taskid_created] ON [dbo].[TaskStage]([taskId], [createdAt] DESC);
+CREATE NONCLUSTERED INDEX [NewsBulletin_serviceLine_idx]
+ON [dbo].[NewsBulletin]([serviceLine]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskStage_stage_idx] ON [dbo].[TaskStage]([stage]);
+CREATE NONCLUSTERED INDEX [NonClientAllocation_employeeId_idx]
+ON [dbo].[NonClientAllocation]([employeeId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskStage_taskId_stage_idx] ON [dbo].[TaskStage]([taskId], [stage]);
+CREATE NONCLUSTERED INDEX [NonClientAllocation_employeeId_startDate_endDate_idx]
+ON [dbo].[NonClientAllocation]([employeeId], [startDate], [endDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [idx_taskteam_userid_taskid] ON [dbo].[TaskTeam]([userId], [taskId]);
+CREATE NONCLUSTERED INDEX [NonClientAllocation_eventType_idx]
+ON [dbo].[NonClientAllocation]([eventType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTeam_role_idx] ON [dbo].[TaskTeam]([role]);
+-- Primary Key: [NonClientAllocation_pkey] on [NonClientAllocation]
+ALTER TABLE [dbo].[NonClientAllocation] ADD CONSTRAINT [NonClientAllocation_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTeam_taskId_startDate_endDate_idx] ON [dbo].[TaskTeam]([taskId], [startDate], [endDate]);
+-- Primary Key: [NotificationPreference_pkey] on [NotificationPreference]
+ALTER TABLE [dbo].[NotificationPreference] ADD CONSTRAINT [NotificationPreference_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTeam_userId_startDate_endDate_idx] ON [dbo].[TaskTeam]([userId], [startDate], [endDate]);
+CREATE NONCLUSTERED INDEX [NotificationPreference_taskId_idx]
+ON [dbo].[NotificationPreference]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTeam_userId_taskId_idx] ON [dbo].[TaskTeam]([userId], [taskId]);
+CREATE NONCLUSTERED INDEX [NotificationPreference_userId_idx]
+ON [dbo].[NotificationPreference]([userId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTeam_userId_taskId_role_idx] ON [dbo].[TaskTeam]([userId], [taskId], [role]);
+CREATE UNIQUE NONCLUSTERED INDEX [NotificationPreference_userId_taskId_notificationType_key]
+ON [dbo].[NotificationPreference]([userId], [taskId], [notificationType]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTool_addedBy_idx] ON [dbo].[TaskTool]([addedBy]);
+CREATE NONCLUSTERED INDEX [OpinionChatMessage_opinionDraftId_createdAt_idx]
+ON [dbo].[OpinionChatMessage]([opinionDraftId], [createdAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTool_taskId_idx] ON [dbo].[TaskTool]([taskId]);
+-- Primary Key: [OpinionChatMessage_pkey] on [OpinionChatMessage]
+ALTER TABLE [dbo].[OpinionChatMessage] ADD CONSTRAINT [OpinionChatMessage_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTool_taskId_sortOrder_idx] ON [dbo].[TaskTool]([taskId], [sortOrder]);
+CREATE NONCLUSTERED INDEX [OpinionChatMessage_sectionGenerationId_idx]
+ON [dbo].[OpinionChatMessage]([sectionGenerationId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaskTool_toolId_idx] ON [dbo].[TaskTool]([toolId]);
+CREATE NONCLUSTERED INDEX [OpinionDocument_category_idx]
+ON [dbo].[OpinionDocument]([category]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaxAdjustment_createdAt_idx] ON [dbo].[TaxAdjustment]([createdAt]);
+CREATE NONCLUSTERED INDEX [OpinionDocument_opinionDraftId_idx]
+ON [dbo].[OpinionDocument]([opinionDraftId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaxAdjustment_status_idx] ON [dbo].[TaxAdjustment]([status]);
+-- Primary Key: [OpinionDocument_pkey] on [OpinionDocument]
+ALTER TABLE [dbo].[OpinionDocument] ADD CONSTRAINT [OpinionDocument_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaxAdjustment_status_taskId_idx] ON [dbo].[TaxAdjustment]([status], [taskId]);
+-- Primary Key: [OpinionDraft_pkey] on [OpinionDraft]
+ALTER TABLE [dbo].[OpinionDraft] ADD CONSTRAINT [OpinionDraft_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaxAdjustment_taskId_idx] ON [dbo].[TaxAdjustment]([taskId]);
+CREATE NONCLUSTERED INDEX [OpinionDraft_status_idx]
+ON [dbo].[OpinionDraft]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TaxAdjustment_taskId_status_createdAt_idx] ON [dbo].[TaxAdjustment]([taskId], [status], [createdAt] DESC);
+CREATE NONCLUSTERED INDEX [OpinionDraft_taskId_idx]
+ON [dbo].[OpinionDraft]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Template_active_idx] ON [dbo].[Template]([active]);
+CREATE NONCLUSTERED INDEX [OpinionDraft_taskId_version_idx]
+ON [dbo].[OpinionDraft]([taskId], [version]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Template_serviceLine_idx] ON [dbo].[Template]([serviceLine]);
+CREATE NONCLUSTERED INDEX [OpinionSection_opinionDraftId_order_idx]
+ON [dbo].[OpinionSection]([opinionDraftId], [order]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Template_type_idx] ON [dbo].[Template]([type]);
+-- Primary Key: [OpinionSection_pkey] on [OpinionSection]
+ALTER TABLE [dbo].[OpinionSection] ADD CONSTRAINT [OpinionSection_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TemplateSection_sectionKey_idx] ON [dbo].[TemplateSection]([sectionKey]);
+CREATE NONCLUSTERED INDEX [PagePermission_active_idx]
+ON [dbo].[PagePermission]([active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TemplateSection_templateId_idx] ON [dbo].[TemplateSection]([templateId]);
+CREATE NONCLUSTERED INDEX [PagePermission_pathname_idx]
+ON [dbo].[PagePermission]([pathname]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TemplateSectionVersion_templateVersionId_idx] ON [dbo].[TemplateSectionVersion]([templateVersionId]);
+CREATE UNIQUE NONCLUSTERED INDEX [PagePermission_pathname_role_key]
+ON [dbo].[PagePermission]([pathname], [role]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TemplateSectionVersion_templateVersionId_order_idx] ON [dbo].[TemplateSectionVersion]([templateVersionId], [order]);
+-- Primary Key: [PagePermission_pkey] on [PagePermission]
+ALTER TABLE [dbo].[PagePermission] ADD CONSTRAINT [PagePermission_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TemplateVersion_createdAt_idx] ON [dbo].[TemplateVersion]([createdAt]);
+CREATE NONCLUSTERED INDEX [PagePermission_role_idx]
+ON [dbo].[PagePermission]([role]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TemplateVersion_templateId_idx] ON [dbo].[TemplateVersion]([templateId]);
+CREATE NONCLUSTERED INDEX [PageRegistry_active_idx]
+ON [dbo].[PageRegistry]([active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [TemplateVersion_templateId_isActive_idx] ON [dbo].[TemplateVersion]([templateId], [isActive]);
+CREATE NONCLUSTERED INDEX [PageRegistry_category_idx]
+ON [dbo].[PageRegistry]([category]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Tool_active_idx] ON [dbo].[Tool]([active]);
+CREATE UNIQUE NONCLUSTERED INDEX [PageRegistry_pathname_key]
+ON [dbo].[PageRegistry]([pathname]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Tool_code_idx] ON [dbo].[Tool]([code]);
+-- Primary Key: [PageRegistry_pkey] on [PageRegistry]
+ALTER TABLE [dbo].[PageRegistry] ADD CONSTRAINT [PageRegistry_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Tool_sortOrder_idx] ON [dbo].[Tool]([sortOrder]);
+CREATE NONCLUSTERED INDEX [ResearchNote_category_idx]
+ON [dbo].[ResearchNote]([category]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ToolSubTab_active_idx] ON [dbo].[ToolSubTab]([active]);
+-- Primary Key: [ResearchNote_pkey] on [ResearchNote]
+ALTER TABLE [dbo].[ResearchNote] ADD CONSTRAINT [ResearchNote_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ToolSubTab_toolId_idx] ON [dbo].[ToolSubTab]([toolId]);
+CREATE NONCLUSTERED INDEX [ResearchNote_taskId_idx]
+ON [dbo].[ResearchNote]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [ToolSubTab_toolId_sortOrder_idx] ON [dbo].[ToolSubTab]([toolId], [sortOrder]);
+CREATE NONCLUSTERED INDEX [ReviewCategory_active_idx]
+ON [dbo].[ReviewCategory]([active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [User_role_idx] ON [dbo].[User]([role]);
+-- Primary Key: [ReviewCategory_pkey] on [ReviewCategory]
+ALTER TABLE [dbo].[ReviewCategory] ADD CONSTRAINT [ReviewCategory_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_ApprovalId] ON [dbo].[VaultDocument]([approvalId]);
+CREATE NONCLUSTERED INDEX [ReviewCategory_serviceLine_idx]
+ON [dbo].[ReviewCategory]([serviceLine]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_CategoryId] ON [dbo].[VaultDocument]([categoryId]);
+CREATE NONCLUSTERED INDEX [ReviewCategory_sortOrder_idx]
+ON [dbo].[ReviewCategory]([sortOrder]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_DocumentType] ON [dbo].[VaultDocument]([documentType]);
+CREATE NONCLUSTERED INDEX [ReviewNote_assignedTo_idx]
+ON [dbo].[ReviewNote]([assignedTo]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_DocumentType_CategoryId] ON [dbo].[VaultDocument]([documentType], [categoryId]);
+CREATE NONCLUSTERED INDEX [ReviewNote_assignedTo_status_idx]
+ON [dbo].[ReviewNote]([assignedTo], [status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_PublishedAt] ON [dbo].[VaultDocument]([publishedAt]);
+CREATE NONCLUSTERED INDEX [ReviewNote_categoryId_idx]
+ON [dbo].[ReviewNote]([categoryId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_Scope] ON [dbo].[VaultDocument]([scope]);
+CREATE NONCLUSTERED INDEX [ReviewNote_createdAt_idx]
+ON [dbo].[ReviewNote]([createdAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_ServiceLine] ON [dbo].[VaultDocument]([serviceLine]);
+CREATE NONCLUSTERED INDEX [ReviewNote_currentOwner_idx]
+ON [dbo].[ReviewNote]([currentOwner]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_Status] ON [dbo].[VaultDocument]([status]);
+CREATE NONCLUSTERED INDEX [ReviewNote_dueDate_idx]
+ON [dbo].[ReviewNote]([dueDate]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_Status_Scope_ServiceLine] ON [dbo].[VaultDocument]([status], [scope], [serviceLine]);
+-- Primary Key: [ReviewNote_pkey] on [ReviewNote]
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocument_UploadedBy] ON [dbo].[VaultDocument]([uploadedBy]);
+CREATE NONCLUSTERED INDEX [ReviewNote_priority_idx]
+ON [dbo].[ReviewNote]([priority]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocumentCategory_Active] ON [dbo].[VaultDocumentCategory]([active]);
+CREATE NONCLUSTERED INDEX [ReviewNote_raisedBy_idx]
+ON [dbo].[ReviewNote]([raisedBy]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocumentCategory_DocumentType] ON [dbo].[VaultDocumentCategory]([documentType]);
+CREATE NONCLUSTERED INDEX [ReviewNote_status_idx]
+ON [dbo].[ReviewNote]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocumentCategory_SortOrder] ON [dbo].[VaultDocumentCategory]([sortOrder]);
+CREATE NONCLUSTERED INDEX [ReviewNote_taskId_idx]
+ON [dbo].[ReviewNote]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocumentType_Active] ON [dbo].[VaultDocumentType]([active]);
+CREATE NONCLUSTERED INDEX [ReviewNote_taskId_status_idx]
+ON [dbo].[ReviewNote]([taskId], [status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocumentType_SortOrder] ON [dbo].[VaultDocumentType]([sortOrder]);
+-- Primary Key: [PK_ReviewNoteAssignee] on [ReviewNoteAssignee]
+ALTER TABLE [dbo].[ReviewNoteAssignee] ADD CONSTRAINT [PK_ReviewNoteAssignee] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocumentVersion_DocumentId] ON [dbo].[VaultDocumentVersion]([documentId]);
+CREATE NONCLUSTERED INDEX [ReviewNoteAssignee_assignedBy_idx]
+ON [dbo].[ReviewNoteAssignee]([assignedBy]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocumentVersion_DocumentId_Version] ON [dbo].[VaultDocumentVersion]([documentId], [version]);
+CREATE NONCLUSTERED INDEX [ReviewNoteAssignee_reviewNoteId_idx]
+ON [dbo].[ReviewNoteAssignee]([reviewNoteId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [IX_VaultDocumentVersion_Version] ON [dbo].[VaultDocumentVersion]([version]);
+CREATE UNIQUE NONCLUSTERED INDEX [ReviewNoteAssignee_reviewNoteId_userId_key]
+ON [dbo].[ReviewNoteAssignee]([reviewNoteId], [userId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Wip_GSClientID_idx] ON [dbo].[Wip]([GSClientID]);
+CREATE NONCLUSTERED INDEX [ReviewNoteAssignee_userId_idx]
+ON [dbo].[ReviewNoteAssignee]([userId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Wip_GSClientID_PeriodRef_idx] ON [dbo].[Wip]([GSClientID], [PeriodRef]);
+-- Primary Key: [ReviewNoteAttachment_pkey] on [ReviewNoteAttachment]
+ALTER TABLE [dbo].[ReviewNoteAttachment] ADD CONSTRAINT [ReviewNoteAttachment_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Wip_GSTaskID_idx] ON [dbo].[Wip]([GSTaskID]);
+CREATE NONCLUSTERED INDEX [ReviewNoteAttachment_reviewNoteId_idx]
+ON [dbo].[ReviewNoteAttachment]([reviewNoteId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Wip_GSTaskID_PeriodRef_idx] ON [dbo].[Wip]([GSTaskID], [PeriodRef]);
+CREATE NONCLUSTERED INDEX [ReviewNoteAttachment_uploadedBy_idx]
+ON [dbo].[ReviewNoteAttachment]([uploadedBy]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Wip_OfficeCode_idx] ON [dbo].[Wip]([OfficeCode]);
+CREATE NONCLUSTERED INDEX [ReviewNoteComment_createdAt_idx]
+ON [dbo].[ReviewNoteComment]([createdAt]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Wip_PeriodRef_idx] ON [dbo].[Wip]([PeriodRef]);
+-- Primary Key: [ReviewNoteComment_pkey] on [ReviewNoteComment]
+ALTER TABLE [dbo].[ReviewNoteComment] ADD CONSTRAINT [ReviewNoteComment_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Wip_ServLineCode_idx] ON [dbo].[Wip]([ServLineCode]);
+CREATE NONCLUSTERED INDEX [ReviewNoteComment_reviewNoteId_idx]
+ON [dbo].[ReviewNoteComment]([reviewNoteId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [Wip_TaskPartner_idx] ON [dbo].[Wip]([TaskPartner]);
+CREATE NONCLUSTERED INDEX [ReviewNoteComment_userId_idx]
+ON [dbo].[ReviewNoteComment]([userId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPAging_GSClientID_idx] ON [dbo].[WIPAging]([GSClientID]);
+CREATE NONCLUSTERED INDEX [SarsResponse_deadline_idx]
+ON [dbo].[SarsResponse]([deadline]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPAging_GSClientID_PeriodRef_idx] ON [dbo].[WIPAging]([GSClientID], [PeriodRef]);
+-- Primary Key: [SarsResponse_pkey] on [SarsResponse]
+ALTER TABLE [dbo].[SarsResponse] ADD CONSTRAINT [SarsResponse_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPAging_GSTaskID_idx] ON [dbo].[WIPAging]([GSTaskID]);
+CREATE NONCLUSTERED INDEX [SarsResponse_status_idx]
+ON [dbo].[SarsResponse]([status]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPAging_GSTaskID_PeriodRef_idx] ON [dbo].[WIPAging]([GSTaskID], [PeriodRef]);
+CREATE NONCLUSTERED INDEX [SarsResponse_taskId_idx]
+ON [dbo].[SarsResponse]([taskId]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPAging_OfficeCode_idx] ON [dbo].[WIPAging]([OfficeCode]);
+CREATE NONCLUSTERED INDEX [idx_servline_code]
+ON [dbo].[ServiceLineExternal]([ServLineCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPAging_PeriodRef_idx] ON [dbo].[WIPAging]([PeriodRef]);
+CREATE NONCLUSTERED INDEX [ServiceLineExternal_masterCode_idx]
+ON [dbo].[ServiceLineExternal]([masterCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPAging_ServLineCode_idx] ON [dbo].[WIPAging]([ServLineCode]);
+-- Primary Key: [ServiceLineExternal_pkey] on [ServiceLineExternal]
+ALTER TABLE [dbo].[ServiceLineExternal] ADD CONSTRAINT [ServiceLineExternal_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPAging_TaskPartner_idx] ON [dbo].[WIPAging]([TaskPartner]);
+CREATE NONCLUSTERED INDEX [ServiceLineExternal_ServLineCode_idx]
+ON [dbo].[ServiceLineExternal]([ServLineCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPTransactions_GSClientID_TranDate_TType_idx] ON [dbo].[WIPTransactions]([GSClientID], [TranDate], [TType]);
+CREATE NONCLUSTERED INDEX [ServiceLineExternal_SLGroup_idx]
+ON [dbo].[ServiceLineExternal]([SLGroup]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPTransactions_GSTaskID_TranDate_TType_idx] ON [dbo].[WIPTransactions]([GSTaskID], [TranDate], [TType]);
+CREATE NONCLUSTERED INDEX [ServiceLineExternal_SubServlineGroupCode_idx]
+ON [dbo].[ServiceLineExternal]([SubServlineGroupCode]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPTransactions_TaskManager_TranDate_idx] ON [dbo].[WIPTransactions]([TaskManager], [TranDate]);
+CREATE NONCLUSTERED INDEX [idx_master_sl_code]
+ON [dbo].[ServiceLineMaster]([code]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPTransactions_TaskPartner_TranDate_idx] ON [dbo].[WIPTransactions]([TaskPartner], [TranDate]);
+CREATE NONCLUSTERED INDEX [ServiceLineMaster_active_idx]
+ON [dbo].[ServiceLineMaster]([active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPTransactions_TranDate_idx] ON [dbo].[WIPTransactions]([TranDate]);
+-- Primary Key: [ServiceLineMaster_pkey] on [ServiceLineMaster]
+ALTER TABLE [dbo].[ServiceLineMaster] ADD CONSTRAINT [ServiceLineMaster_pkey] PRIMARY KEY CLUSTERED ([code]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPTransactions_EmpCode_idx] ON [dbo].[WIPTransactions]([EmpCode]);
+CREATE NONCLUSTERED INDEX [ServiceLineMaster_sortOrder_idx]
+ON [dbo].[ServiceLineMaster]([sortOrder]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPTransactions_OfficeCode_idx] ON [dbo].[WIPTransactions]([OfficeCode]);
+CREATE NONCLUSTERED INDEX [ServiceLineTool_active_idx]
+ON [dbo].[ServiceLineTool]([active]);
 
--- CreateIndex
-CREATE NONCLUSTERED INDEX [WIPTransactions_ServLineGroup_idx] ON [dbo].[WIPTransactions]([ServLineGroup]);
+-- Primary Key: [ServiceLineTool_pkey] on [ServiceLineTool]
+ALTER TABLE [dbo].[ServiceLineTool] ADD CONSTRAINT [ServiceLineTool_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[AcceptanceAnswer] ADD CONSTRAINT [FK_AcceptanceAnswer_EngagementResponse] FOREIGN KEY ([responseId]) REFERENCES [dbo].[ClientAcceptanceResponse]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [ServiceLineTool_subServiceLineGroup_idx]
+ON [dbo].[ServiceLineTool]([subServiceLineGroup]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[AcceptanceAnswer] ADD CONSTRAINT [FK_AcceptanceAnswer_Question] FOREIGN KEY ([questionId]) REFERENCES [dbo].[AcceptanceQuestion]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE UNIQUE NONCLUSTERED INDEX [ServiceLineTool_subServiceLineGroup_toolId_key]
+ON [dbo].[ServiceLineTool]([subServiceLineGroup], [toolId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[AcceptanceDocument] ADD CONSTRAINT [FK_AcceptanceDocument_Response] FOREIGN KEY ([responseId]) REFERENCES [dbo].[ClientAcceptanceResponse]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [ServiceLineTool_toolId_idx]
+ON [dbo].[ServiceLineTool]([toolId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Account] ADD CONSTRAINT [Account_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [idx_ServiceLineUser_masterCode]
+ON [dbo].[ServiceLineUser]([masterCode]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[AdjustmentDocument] ADD CONSTRAINT [AdjustmentDocument_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [ServiceLineUser_assignmentType_idx]
+ON [dbo].[ServiceLineUser]([assignmentType]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[AdjustmentDocument] ADD CONSTRAINT [AdjustmentDocument_taxAdjustmentId_fkey] FOREIGN KEY ([taxAdjustmentId]) REFERENCES [dbo].[TaxAdjustment]([id]) ON DELETE SET NULL ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [ServiceLineUser_parentAssignmentId_idx]
+ON [dbo].[ServiceLineUser]([parentAssignmentId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[AITaxReport] ADD CONSTRAINT [AITaxReport_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
+-- Primary Key: [ServiceLineUser_pkey] on [ServiceLineUser]
+ALTER TABLE [dbo].[ServiceLineUser] ADD CONSTRAINT [ServiceLineUser_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Approval] ADD CONSTRAINT [FK_Approval_CompletedBy] FOREIGN KEY ([completedById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [ServiceLineUser_subServiceLineGroup_idx]
+ON [dbo].[ServiceLineUser]([subServiceLineGroup]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Approval] ADD CONSTRAINT [FK_Approval_RequestedBy] FOREIGN KEY ([requestedById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [ServiceLineUser_userId_assignmentType_idx]
+ON [dbo].[ServiceLineUser]([userId], [assignmentType]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ApprovalDelegation] ADD CONSTRAINT [FK_ApprovalDelegation_From] FOREIGN KEY ([fromUserId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [ServiceLineUser_userId_idx]
+ON [dbo].[ServiceLineUser]([userId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ApprovalDelegation] ADD CONSTRAINT [FK_ApprovalDelegation_To] FOREIGN KEY ([toUserId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE UNIQUE NONCLUSTERED INDEX [ServiceLineUser_userId_subServiceLineGroup_masterCode_key]
+ON [dbo].[ServiceLineUser]([userId], [subServiceLineGroup], [masterCode])
+WHERE ([masterCode] IS NOT NULL);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [FK_ApprovalStep_Approval] FOREIGN KEY ([approvalId]) REFERENCES [dbo].[Approval]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+-- Primary Key: [Session_pkey] on [Session]
+ALTER TABLE [dbo].[Session] ADD CONSTRAINT [Session_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [FK_ApprovalStep_ApprovedBy] FOREIGN KEY ([approvedById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE UNIQUE NONCLUSTERED INDEX [Session_sessionToken_key]
+ON [dbo].[Session]([sessionToken]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [FK_ApprovalStep_AssignedTo] FOREIGN KEY ([assignedToUserId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Session_userId_idx]
+ON [dbo].[Session]([userId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [FK_ApprovalStep_DelegatedTo] FOREIGN KEY ([delegatedToUserId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [StandardTask_GSStdTaskID_idx]
+ON [dbo].[StandardTask]([GSStdTaskID]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BDActivity] ADD CONSTRAINT [BDActivity_contactId_fkey] FOREIGN KEY ([contactId]) REFERENCES [dbo].[BDContact]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE UNIQUE NONCLUSTERED INDEX [StandardTask_GSStdTaskID_key]
+ON [dbo].[StandardTask]([GSStdTaskID]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BDActivity] ADD CONSTRAINT [BDActivity_opportunityId_fkey] FOREIGN KEY ([opportunityId]) REFERENCES [dbo].[BDOpportunity]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [StandardTask_pkey] on [StandardTask]
+ALTER TABLE [dbo].[StandardTask] ADD CONSTRAINT [StandardTask_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BDNote] ADD CONSTRAINT [BDNote_opportunityId_fkey] FOREIGN KEY ([opportunityId]) REFERENCES [dbo].[BDOpportunity]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [StandardTask_ServLineCode_idx]
+ON [dbo].[StandardTask]([ServLineCode]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BDOpportunity] ADD CONSTRAINT [BDOpportunity_clientId_fkey] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [StandardTask_StdTaskCode_idx]
+ON [dbo].[StandardTask]([StdTaskCode]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BDOpportunity] ADD CONSTRAINT [BDOpportunity_contactId_fkey] FOREIGN KEY ([contactId]) REFERENCES [dbo].[BDContact]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Task_GSClientID_Active_updatedAt_idx]
+ON [dbo].[Task]([GSClientID], [Active], [updatedAt]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BDOpportunity] ADD CONSTRAINT [BDOpportunity_stageId_fkey] FOREIGN KEY ([stageId]) REFERENCES [dbo].[BDStage]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Task_GSClientID_idx]
+ON [dbo].[Task]([GSClientID]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BDProposal] ADD CONSTRAINT [BDProposal_opportunityId_fkey] FOREIGN KEY ([opportunityId]) REFERENCES [dbo].[BDOpportunity]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [Task_GSTaskID_key]
+ON [dbo].[Task]([GSTaskID]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BugReport] ADD CONSTRAINT [BugReport_reportedBy_fkey] FOREIGN KEY ([reportedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [Task_pkey] on [Task]
+ALTER TABLE [dbo].[Task] ADD CONSTRAINT [Task_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BugReport] ADD CONSTRAINT [BugReport_resolvedBy_fkey] FOREIGN KEY ([resolvedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Task_ServLineCode_Active_idx]
+ON [dbo].[Task]([ServLineCode], [Active]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[BugReport] ADD CONSTRAINT [BugReport_testedBy_fkey] FOREIGN KEY ([testedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Task_ServLineCode_Active_updatedAt_idx]
+ON [dbo].[Task]([ServLineCode], [Active], [updatedAt]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[CategoryApprover] ADD CONSTRAINT [FK_CategoryApprover_Category] FOREIGN KEY ([categoryId]) REFERENCES [dbo].[VaultDocumentCategory]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Task_ServLineCode_SLGroup_idx]
+ON [dbo].[Task]([ServLineCode], [SLGroup]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[CategoryApprover] ADD CONSTRAINT [FK_CategoryApprover_CreatedBy] FOREIGN KEY ([createdBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Task_TaskManager_Active_idx]
+ON [dbo].[Task]([TaskManager], [Active]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[CategoryApprover] ADD CONSTRAINT [FK_CategoryApprover_User] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Task_TaskPartner_Active_idx]
+ON [dbo].[Task]([TaskPartner], [Active]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientAcceptance] ADD CONSTRAINT [ClientAcceptance_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [Task_taskYear_idx]
+ON [dbo].[Task]([taskYear]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientAcceptance] ADD CONSTRAINT [FK_ClientAcceptance_Approval] FOREIGN KEY ([approvalId]) REFERENCES [dbo].[Approval]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [TaskAcceptance_pkey] on [TaskAcceptance]
+ALTER TABLE [dbo].[TaskAcceptance] ADD CONSTRAINT [TaskAcceptance_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientAcceptance] ADD CONSTRAINT [FK_ClientAcceptance_Client] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskAcceptance_riskRating_idx]
+ON [dbo].[TaskAcceptance]([riskRating]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientAcceptanceAnswer] ADD CONSTRAINT [FK_ClientAcceptanceAnswer_ClientAcceptance] FOREIGN KEY ([clientAcceptanceId]) REFERENCES [dbo].[ClientAcceptance]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskAcceptance_taskId_idx]
+ON [dbo].[TaskAcceptance]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientAcceptanceAnswer] ADD CONSTRAINT [FK_ClientAcceptanceAnswer_Question] FOREIGN KEY ([questionId]) REFERENCES [dbo].[AcceptanceQuestion]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE UNIQUE NONCLUSTERED INDEX [TaskAcceptance_taskId_key]
+ON [dbo].[TaskAcceptance]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientAcceptanceResponse] ADD CONSTRAINT [FK_ClientAcceptanceResponse_Client] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskBudget_GSClientID_idx]
+ON [dbo].[TaskBudget]([GSClientID]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientAcceptanceResponse] ADD CONSTRAINT [FK_ClientAcceptanceResponse_Task] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskBudget_GSTaskID_idx]
+ON [dbo].[TaskBudget]([GSTaskID]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientAnalyticsDocument] ADD CONSTRAINT [ClientAnalyticsDocument_clientId_fkey] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [TaskBudget_pkey] on [TaskBudget]
+ALTER TABLE [dbo].[TaskBudget] ADD CONSTRAINT [TaskBudget_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientCreditRating] ADD CONSTRAINT [ClientCreditRating_clientId_fkey] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskBudget_TaskBudgetID_idx]
+ON [dbo].[TaskBudget]([TaskBudgetID]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ChangeRequest_Approval] FOREIGN KEY ([approvalId]) REFERENCES [dbo].[Approval]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE UNIQUE NONCLUSTERED INDEX [TaskBudget_TaskBudgetID_key]
+ON [dbo].[TaskBudget]([TaskBudgetID]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_Client] FOREIGN KEY ([clientId]) REFERENCES [dbo].[Client]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskBudgetDisbursement_createdBy_idx]
+ON [dbo].[TaskBudgetDisbursement]([createdBy]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_CurrentApprover] FOREIGN KEY ([currentEmployeeApprovedById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [TaskBudgetDisbursement_pkey] on [TaskBudgetDisbursement]
+ALTER TABLE [dbo].[TaskBudgetDisbursement] ADD CONSTRAINT [TaskBudgetDisbursement_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_ProposedApprover] FOREIGN KEY ([proposedEmployeeApprovedById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskBudgetDisbursement_taskId_idx]
+ON [dbo].[TaskBudgetDisbursement]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_RequestedBy] FOREIGN KEY ([requestedById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskBudgetFee_createdBy_idx]
+ON [dbo].[TaskBudgetFee]([createdBy]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_ResolvedBy] FOREIGN KEY ([resolvedById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [TaskBudgetFee_pkey] on [TaskBudgetFee]
+ALTER TABLE [dbo].[TaskBudgetFee] ADD CONSTRAINT [TaskBudgetFee_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ComplianceChecklist] ADD CONSTRAINT [ComplianceChecklist_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TaskBudgetFee_taskId_idx]
+ON [dbo].[TaskBudgetFee]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[CreditRatingDocument] ADD CONSTRAINT [CreditRatingDocument_analyticsDocumentId_fkey] FOREIGN KEY ([analyticsDocumentId]) REFERENCES [dbo].[ClientAnalyticsDocument]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskDocument_category_idx]
+ON [dbo].[TaskDocument]([category]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[CreditRatingDocument] ADD CONSTRAINT [CreditRatingDocument_creditRatingId_fkey] FOREIGN KEY ([creditRatingId]) REFERENCES [dbo].[ClientCreditRating]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [TaskDocument_pkey] on [TaskDocument]
+ALTER TABLE [dbo].[TaskDocument] ADD CONSTRAINT [TaskDocument_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Debtors] ADD CONSTRAINT [Debtors_GSClientID_fkey] FOREIGN KEY ([GSClientID]) REFERENCES [dbo].[Client]([GSClientID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskDocument_taskId_idx]
+ON [dbo].[TaskDocument]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[DrsTransactions] ADD CONSTRAINT [DrsTransactions_GSClientID_fkey] FOREIGN KEY ([GSClientID]) REFERENCES [dbo].[Client]([GSClientID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [idx_taskengagementletter_dpaextractionstatus]
+ON [dbo].[TaskEngagementLetter]([dpaExtractionStatus]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[EmailLog] ADD CONSTRAINT [EmailLog_recipientUserId_fkey] FOREIGN KEY ([recipientUserId]) REFERENCES [dbo].[User]([id]) ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [idx_taskengagementletter_dpaletterdate]
+ON [dbo].[TaskEngagementLetter]([dpaLetterDate]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[FilingStatus] ADD CONSTRAINT [FilingStatus_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [idx_taskengagementletter_elextractionstatus]
+ON [dbo].[TaskEngagementLetter]([elExtractionStatus]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[InAppNotification] ADD CONSTRAINT [InAppNotification_fromUserId_fkey] FOREIGN KEY ([fromUserId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [idx_taskengagementletter_elletterdate]
+ON [dbo].[TaskEngagementLetter]([elLetterDate]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[InAppNotification] ADD CONSTRAINT [InAppNotification_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [TaskEngagementLetter_pkey] on [TaskEngagementLetter]
+ALTER TABLE [dbo].[TaskEngagementLetter] ADD CONSTRAINT [TaskEngagementLetter_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[InAppNotification] ADD CONSTRAINT [InAppNotification_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskEngagementLetter_taskId_idx]
+ON [dbo].[TaskEngagementLetter]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[LeaderGroup] ADD CONSTRAINT [LeaderGroup_createdById_fkey] FOREIGN KEY ([createdById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [TaskEngagementLetter_taskId_key]
+ON [dbo].[TaskEngagementLetter]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[LeaderGroupMember] ADD CONSTRAINT [LeaderGroupMember_addedById_fkey] FOREIGN KEY ([addedById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskEngagementLetter_templateVersionId_idx]
+ON [dbo].[TaskEngagementLetter]([templateVersionId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[LeaderGroupMember] ADD CONSTRAINT [LeaderGroupMember_employeeId_fkey] FOREIGN KEY ([employeeId]) REFERENCES [dbo].[Employee]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskIndependenceConfirmation_confirmed_idx]
+ON [dbo].[TaskIndependenceConfirmation]([confirmed]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[LeaderGroupMember] ADD CONSTRAINT [LeaderGroupMember_leaderGroupId_fkey] FOREIGN KEY ([leaderGroupId]) REFERENCES [dbo].[LeaderGroup]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [TaskIndependenceConfirmation_pkey] on [TaskIndependenceConfirmation]
+ALTER TABLE [dbo].[TaskIndependenceConfirmation] ADD CONSTRAINT [TaskIndependenceConfirmation_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[LegalPrecedent] ADD CONSTRAINT [LegalPrecedent_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TaskIndependenceConfirmation_taskTeamId_idx]
+ON [dbo].[TaskIndependenceConfirmation]([taskTeamId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[MappedAccount] ADD CONSTRAINT [MappedAccount_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [TaskIndependenceConfirmation_taskTeamId_key]
+ON [dbo].[TaskIndependenceConfirmation]([taskTeamId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[NewsBulletin] ADD CONSTRAINT [NewsBulletin_createdById_fkey] FOREIGN KEY ([createdById]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [idx_taskstage_taskid_created]
+ON [dbo].[TaskStage]([taskId], [createdAt]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[NonClientAllocation] ADD CONSTRAINT [NonClientAllocation_employeeId_fkey] FOREIGN KEY ([employeeId]) REFERENCES [dbo].[Employee]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [PK_TaskStage] on [TaskStage]
+ALTER TABLE [dbo].[TaskStage] ADD CONSTRAINT [PK_TaskStage] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[NotificationPreference] ADD CONSTRAINT [NotificationPreference_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TaskStage_stage_idx]
+ON [dbo].[TaskStage]([stage]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[NotificationPreference] ADD CONSTRAINT [NotificationPreference_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskStage_taskId_stage_idx]
+ON [dbo].[TaskStage]([taskId], [stage]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[OpinionChatMessage] ADD CONSTRAINT [OpinionChatMessage_opinionDraftId_fkey] FOREIGN KEY ([opinionDraftId]) REFERENCES [dbo].[OpinionDraft]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [idx_taskteam_userid_taskid]
+ON [dbo].[TaskTeam]([userId], [taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[OpinionDocument] ADD CONSTRAINT [OpinionDocument_opinionDraftId_fkey] FOREIGN KEY ([opinionDraftId]) REFERENCES [dbo].[OpinionDraft]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [TaskTeam_pkey] on [TaskTeam]
+ALTER TABLE [dbo].[TaskTeam] ADD CONSTRAINT [TaskTeam_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[OpinionDraft] ADD CONSTRAINT [OpinionDraft_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TaskTeam_role_idx]
+ON [dbo].[TaskTeam]([role]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[OpinionSection] ADD CONSTRAINT [OpinionSection_opinionDraftId_fkey] FOREIGN KEY ([opinionDraftId]) REFERENCES [dbo].[OpinionDraft]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TaskTeam_taskId_startDate_endDate_idx]
+ON [dbo].[TaskTeam]([taskId], [startDate], [endDate]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ResearchNote] ADD CONSTRAINT [ResearchNote_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [TaskTeam_taskId_userId_key]
+ON [dbo].[TaskTeam]([taskId], [userId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_addressedBy_fkey] FOREIGN KEY ([addressedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskTeam_userId_startDate_endDate_idx]
+ON [dbo].[TaskTeam]([userId], [startDate], [endDate]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_assignedTo_fkey] FOREIGN KEY ([assignedTo]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskTeam_userId_taskId_idx]
+ON [dbo].[TaskTeam]([userId], [taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_categoryId_fkey] FOREIGN KEY ([categoryId]) REFERENCES [dbo].[ReviewCategory]([id]) ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TaskTeam_userId_taskId_role_idx]
+ON [dbo].[TaskTeam]([userId], [taskId], [role]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_clearedBy_fkey] FOREIGN KEY ([clearedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskTool_addedBy_idx]
+ON [dbo].[TaskTool]([addedBy]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_currentOwner_fkey] FOREIGN KEY ([currentOwner]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [TaskTool_pkey] on [TaskTool]
+ALTER TABLE [dbo].[TaskTool] ADD CONSTRAINT [TaskTool_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_lastRespondedBy_fkey] FOREIGN KEY ([lastRespondedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskTool_taskId_idx]
+ON [dbo].[TaskTool]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_raisedBy_fkey] FOREIGN KEY ([raisedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskTool_taskId_sortOrder_idx]
+ON [dbo].[TaskTool]([taskId], [sortOrder]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [TaskTool_taskId_toolId_key]
+ON [dbo].[TaskTool]([taskId], [toolId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNoteAssignee] ADD CONSTRAINT [FK_ReviewNoteAssignee_ReviewNote] FOREIGN KEY ([reviewNoteId]) REFERENCES [dbo].[ReviewNote]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaskTool_toolId_idx]
+ON [dbo].[TaskTool]([toolId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNoteAssignee] ADD CONSTRAINT [FK_ReviewNoteAssignee_User_assignedBy] FOREIGN KEY ([assignedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaxAdjustment_createdAt_idx]
+ON [dbo].[TaxAdjustment]([createdAt]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNoteAssignee] ADD CONSTRAINT [FK_ReviewNoteAssignee_User_userId] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [TaxAdjustment_pkey] on [TaxAdjustment]
+ALTER TABLE [dbo].[TaxAdjustment] ADD CONSTRAINT [TaxAdjustment_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNoteAttachment] ADD CONSTRAINT [FK_ReviewNoteAttachment_Comment] FOREIGN KEY ([commentId]) REFERENCES [dbo].[ReviewNoteComment]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaxAdjustment_status_idx]
+ON [dbo].[TaxAdjustment]([status]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNoteAttachment] ADD CONSTRAINT [ReviewNoteAttachment_reviewNoteId_fkey] FOREIGN KEY ([reviewNoteId]) REFERENCES [dbo].[ReviewNote]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TaxAdjustment_status_taskId_idx]
+ON [dbo].[TaxAdjustment]([status], [taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNoteAttachment] ADD CONSTRAINT [ReviewNoteAttachment_uploadedBy_fkey] FOREIGN KEY ([uploadedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TaxAdjustment_taskId_idx]
+ON [dbo].[TaxAdjustment]([taskId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNoteComment] ADD CONSTRAINT [ReviewNoteComment_reviewNoteId_fkey] FOREIGN KEY ([reviewNoteId]) REFERENCES [dbo].[ReviewNote]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TaxAdjustment_taskId_status_createdAt_idx]
+ON [dbo].[TaxAdjustment]([taskId], [status], [createdAt]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ReviewNoteComment] ADD CONSTRAINT [ReviewNoteComment_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [Template_active_idx]
+ON [dbo].[Template]([active]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[SarsResponse] ADD CONSTRAINT [SarsResponse_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [Template_pkey] on [Template]
+ALTER TABLE [dbo].[Template] ADD CONSTRAINT [Template_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ServiceLineTool] ADD CONSTRAINT [ServiceLineTool_toolId_fkey] FOREIGN KEY ([toolId]) REFERENCES [dbo].[Tool]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [Template_serviceLine_idx]
+ON [dbo].[Template]([serviceLine]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ServiceLineUser] ADD CONSTRAINT [ServiceLineUser_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [Template_type_idx]
+ON [dbo].[Template]([type]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Session] ADD CONSTRAINT [Session_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [TemplateSection_pkey] on [TemplateSection]
+ALTER TABLE [dbo].[TemplateSection] ADD CONSTRAINT [TemplateSection_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Task] ADD CONSTRAINT [Task_createdBy_fkey] FOREIGN KEY ([createdBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TemplateSection_sectionKey_idx]
+ON [dbo].[TemplateSection]([sectionKey]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Task] ADD CONSTRAINT [Task_GSClientID_fkey] FOREIGN KEY ([GSClientID]) REFERENCES [dbo].[Client]([GSClientID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TemplateSection_templateId_idx]
+ON [dbo].[TemplateSection]([templateId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskAcceptance] ADD CONSTRAINT [TaskAcceptance_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [TemplateSectionVersion_pkey] on [TemplateSectionVersion]
+ALTER TABLE [dbo].[TemplateSectionVersion] ADD CONSTRAINT [TemplateSectionVersion_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskBudget] ADD CONSTRAINT [TaskBudget_GSClientID_fkey] FOREIGN KEY ([GSClientID]) REFERENCES [dbo].[Client]([GSClientID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TemplateSectionVersion_templateVersionId_idx]
+ON [dbo].[TemplateSectionVersion]([templateVersionId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskBudget] ADD CONSTRAINT [TaskBudget_GSTaskID_fkey] FOREIGN KEY ([GSTaskID]) REFERENCES [dbo].[Task]([GSTaskID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TemplateSectionVersion_templateVersionId_order_idx]
+ON [dbo].[TemplateSectionVersion]([templateVersionId], [order]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskBudgetDisbursement] ADD CONSTRAINT [TaskBudgetDisbursement_createdBy_fkey] FOREIGN KEY ([createdBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TemplateVersion_createdAt_idx]
+ON [dbo].[TemplateVersion]([createdAt]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskBudgetDisbursement] ADD CONSTRAINT [TaskBudgetDisbursement_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [TemplateVersion_pkey] on [TemplateVersion]
+ALTER TABLE [dbo].[TemplateVersion] ADD CONSTRAINT [TemplateVersion_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskBudgetFee] ADD CONSTRAINT [TaskBudgetFee_createdBy_fkey] FOREIGN KEY ([createdBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [TemplateVersion_templateId_idx]
+ON [dbo].[TemplateVersion]([templateId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskBudgetFee] ADD CONSTRAINT [TaskBudgetFee_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [TemplateVersion_templateId_isActive_idx]
+ON [dbo].[TemplateVersion]([templateId], [isActive]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskDocument] ADD CONSTRAINT [TaskDocument_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [UQ_TemplateVersion_Number]
+ON [dbo].[TemplateVersion]([templateId], [version]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskEngagementLetter] ADD CONSTRAINT [TaskEngagementLetter_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [Tool_active_idx]
+ON [dbo].[Tool]([active]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskEngagementLetter] ADD CONSTRAINT [TaskEngagementLetter_templateVersionId_fkey] FOREIGN KEY ([templateVersionId]) REFERENCES [dbo].[TemplateVersion]([id]) ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [Tool_code_idx]
+ON [dbo].[Tool]([code]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskIndependenceConfirmation] ADD CONSTRAINT [TaskIndependenceConfirmation_taskTeamId_fkey] FOREIGN KEY ([taskTeamId]) REFERENCES [dbo].[TaskTeam]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [Tool_code_key]
+ON [dbo].[Tool]([code]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskStage] ADD CONSTRAINT [FK_TaskStage_Task] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+-- Primary Key: [Tool_pkey] on [Tool]
+ALTER TABLE [dbo].[Tool] ADD CONSTRAINT [Tool_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskTeam] ADD CONSTRAINT [TaskTeam_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [Tool_sortOrder_idx]
+ON [dbo].[Tool]([sortOrder]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskTeam] ADD CONSTRAINT [TaskTeam_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [ToolSubTab_active_idx]
+ON [dbo].[ToolSubTab]([active]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskTool] ADD CONSTRAINT [TaskTool_addedBy_fkey] FOREIGN KEY ([addedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [ToolSubTab_pkey] on [ToolSubTab]
+ALTER TABLE [dbo].[ToolSubTab] ADD CONSTRAINT [ToolSubTab_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskTool] ADD CONSTRAINT [TaskTool_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [ToolSubTab_toolId_code_key]
+ON [dbo].[ToolSubTab]([toolId], [code]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaskTool] ADD CONSTRAINT [TaskTool_toolId_fkey] FOREIGN KEY ([toolId]) REFERENCES [dbo].[Tool]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [ToolSubTab_toolId_idx]
+ON [dbo].[ToolSubTab]([toolId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TaxAdjustment] ADD CONSTRAINT [TaxAdjustment_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [ToolSubTab_toolId_sortOrder_idx]
+ON [dbo].[ToolSubTab]([toolId], [sortOrder]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TemplateSection] ADD CONSTRAINT [TemplateSection_templateId_fkey] FOREIGN KEY ([templateId]) REFERENCES [dbo].[Template]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE UNIQUE NONCLUSTERED INDEX [User_email_key]
+ON [dbo].[User]([email]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TemplateSectionVersion] ADD CONSTRAINT [TemplateSectionVersion_templateVersionId_fkey] FOREIGN KEY ([templateVersionId]) REFERENCES [dbo].[TemplateVersion]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [User_pkey] on [User]
+ALTER TABLE [dbo].[User] ADD CONSTRAINT [User_pkey] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[TemplateVersion] ADD CONSTRAINT [TemplateVersion_templateId_fkey] FOREIGN KEY ([templateId]) REFERENCES [dbo].[Template]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [User_role_idx]
+ON [dbo].[User]([role]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[ToolSubTab] ADD CONSTRAINT [ToolSubTab_toolId_fkey] FOREIGN KEY ([toolId]) REFERENCES [dbo].[Tool]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_ApprovalId]
+ON [dbo].[VaultDocument]([approvalId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_Approval] FOREIGN KEY ([approvalId]) REFERENCES [dbo].[Approval]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_CategoryId]
+ON [dbo].[VaultDocument]([categoryId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_Category] FOREIGN KEY ([categoryId]) REFERENCES [dbo].[VaultDocumentCategory]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_DocumentType]
+ON [dbo].[VaultDocument]([documentType]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_DocumentType] FOREIGN KEY ([documentType]) REFERENCES [dbo].[VaultDocumentType]([code]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_DocumentType_CategoryId]
+ON [dbo].[VaultDocument]([documentType], [categoryId]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_ServiceLineMaster] FOREIGN KEY ([serviceLine]) REFERENCES [dbo].[ServiceLineMaster]([code]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_PublishedAt]
+ON [dbo].[VaultDocument]([publishedAt]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_User] FOREIGN KEY ([uploadedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_Scope]
+ON [dbo].[VaultDocument]([scope]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[VaultDocumentCategory] ADD CONSTRAINT [FK_VaultDocumentCategory_DocumentType] FOREIGN KEY ([documentType]) REFERENCES [dbo].[VaultDocumentType]([code]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_ServiceLine]
+ON [dbo].[VaultDocument]([serviceLine]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[VaultDocumentVersion] ADD CONSTRAINT [FK_VaultDocumentVersion_Document] FOREIGN KEY ([documentId]) REFERENCES [dbo].[VaultDocument]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_Status]
+ON [dbo].[VaultDocument]([status]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[VaultDocumentVersion] ADD CONSTRAINT [FK_VaultDocumentVersion_User] FOREIGN KEY ([uploadedBy]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_Status_Scope_ServiceLine]
+ON [dbo].[VaultDocument]([status], [scope], [serviceLine]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Wip] ADD CONSTRAINT [Wip_GSClientID_fkey] FOREIGN KEY ([GSClientID]) REFERENCES [dbo].[Client]([GSClientID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocument_UploadedBy]
+ON [dbo].[VaultDocument]([uploadedBy]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[Wip] ADD CONSTRAINT [Wip_GSTaskID_fkey] FOREIGN KEY ([GSTaskID]) REFERENCES [dbo].[Task]([GSTaskID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [PK_VaultDocument] on [VaultDocument]
+ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [PK_VaultDocument] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WIPAging] ADD CONSTRAINT [WIPAging_GSClientID_fkey] FOREIGN KEY ([GSClientID]) REFERENCES [dbo].[Client]([GSClientID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocumentCategory_Active]
+ON [dbo].[VaultDocumentCategory]([active]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WIPAging] ADD CONSTRAINT [WIPAging_GSTaskID_fkey] FOREIGN KEY ([GSTaskID]) REFERENCES [dbo].[Task]([GSTaskID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocumentCategory_DocumentType]
+ON [dbo].[VaultDocumentCategory]([documentType]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WIPTransactions] ADD CONSTRAINT [WIPTransactions_GSClientID_fkey] FOREIGN KEY ([GSClientID]) REFERENCES [dbo].[Client]([GSClientID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocumentCategory_SortOrder]
+ON [dbo].[VaultDocumentCategory]([sortOrder]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WIPTransactions] ADD CONSTRAINT [WIPTransactions_GSTaskID_fkey] FOREIGN KEY ([GSTaskID]) REFERENCES [dbo].[Task]([GSTaskID]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- Primary Key: [PK_VaultDocumentCategory] on [VaultDocumentCategory]
+ALTER TABLE [dbo].[VaultDocumentCategory] ADD CONSTRAINT [PK_VaultDocumentCategory] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WorkspaceFile] ADD CONSTRAINT [WorkspaceFile_folderId_fkey] FOREIGN KEY ([folderId]) REFERENCES [dbo].[WorkspaceFolder]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [IX_VaultDocumentType_Active]
+ON [dbo].[VaultDocumentType]([active]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WorkspaceFileActivity] ADD CONSTRAINT [WorkspaceFileActivity_fileId_fkey] FOREIGN KEY ([fileId]) REFERENCES [dbo].[WorkspaceFile]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE NONCLUSTERED INDEX [IX_VaultDocumentType_SortOrder]
+ON [dbo].[VaultDocumentType]([sortOrder]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WorkspaceFilePermission] ADD CONSTRAINT [WorkspaceFilePermission_fileId_fkey] FOREIGN KEY ([fileId]) REFERENCES [dbo].[WorkspaceFile]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+-- Primary Key: [PK_VaultDocumentType] on [VaultDocumentType]
+ALTER TABLE [dbo].[VaultDocumentType] ADD CONSTRAINT [PK_VaultDocumentType] PRIMARY KEY CLUSTERED ([id]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WorkspaceFolder] ADD CONSTRAINT [WorkspaceFolder_parentFolderId_fkey] FOREIGN KEY ([parentFolderId]) REFERENCES [dbo].[WorkspaceFolder]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE UNIQUE NONCLUSTERED INDEX [UQ_VaultDocumentType_Code]
+ON [dbo].[VaultDocumentType]([code]);
 
--- AddForeignKey
-ALTER TABLE [dbo].[WorkspaceFolder] ADD CONSTRAINT [WorkspaceFolder_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+CREATE NONCLUSTERED INDEX [IX_VaultDocumentVersion_DocumentId]
+ON [dbo].[VaultDocumentVersion]([documentId]);
 
-COMMIT TRAN;
+CREATE NONCLUSTERED INDEX [IX_VaultDocumentVersion_DocumentId_Version]
+ON [dbo].[VaultDocumentVersion]([documentId], [version]);
 
-END TRY
-BEGIN CATCH
+CREATE NONCLUSTERED INDEX [IX_VaultDocumentVersion_Version]
+ON [dbo].[VaultDocumentVersion]([version]);
 
-IF @@TRANCOUNT > 0
+-- Primary Key: [PK_VaultDocumentVersion] on [VaultDocumentVersion]
+ALTER TABLE [dbo].[VaultDocumentVersion] ADD CONSTRAINT [PK_VaultDocumentVersion] PRIMARY KEY CLUSTERED ([id]);
+
+CREATE UNIQUE NONCLUSTERED INDEX [UQ_VaultDocumentVersion_DocumentId_Version]
+ON [dbo].[VaultDocumentVersion]([documentId], [version]);
+
+CREATE UNIQUE NONCLUSTERED INDEX [VerificationToken_identifier_token_key]
+ON [dbo].[VerificationToken]([identifier], [token]);
+
+CREATE UNIQUE NONCLUSTERED INDEX [VerificationToken_token_key]
+ON [dbo].[VerificationToken]([token]);
+
+CREATE NONCLUSTERED INDEX [Wip_GSClientID_idx]
+ON [dbo].[Wip]([GSClientID]);
+
+CREATE NONCLUSTERED INDEX [Wip_GSClientID_PeriodRef_idx]
+ON [dbo].[Wip]([GSClientID], [PeriodRef]);
+
+CREATE NONCLUSTERED INDEX [Wip_GSTaskID_idx]
+ON [dbo].[Wip]([GSTaskID]);
+
+CREATE NONCLUSTERED INDEX [Wip_GSTaskID_PeriodRef_idx]
+ON [dbo].[Wip]([GSTaskID], [PeriodRef]);
+
+CREATE NONCLUSTERED INDEX [Wip_OfficeCode_idx]
+ON [dbo].[Wip]([OfficeCode]);
+
+CREATE NONCLUSTERED INDEX [Wip_PeriodRef_idx]
+ON [dbo].[Wip]([PeriodRef]);
+
+-- Primary Key: [Wip_pkey] on [Wip]
+ALTER TABLE [dbo].[Wip] ADD CONSTRAINT [Wip_pkey] PRIMARY KEY CLUSTERED ([id]);
+
+CREATE NONCLUSTERED INDEX [Wip_ServLineCode_idx]
+ON [dbo].[Wip]([ServLineCode]);
+
+CREATE NONCLUSTERED INDEX [Wip_TaskPartner_idx]
+ON [dbo].[Wip]([TaskPartner]);
+
+CREATE NONCLUSTERED INDEX [WIPAging_GSClientID_idx]
+ON [dbo].[WIPAging]([GSClientID]);
+
+CREATE NONCLUSTERED INDEX [WIPAging_GSClientID_PeriodRef_idx]
+ON [dbo].[WIPAging]([GSClientID], [PeriodRef]);
+
+CREATE NONCLUSTERED INDEX [WIPAging_GSTaskID_idx]
+ON [dbo].[WIPAging]([GSTaskID]);
+
+CREATE NONCLUSTERED INDEX [WIPAging_GSTaskID_PeriodRef_idx]
+ON [dbo].[WIPAging]([GSTaskID], [PeriodRef]);
+
+CREATE NONCLUSTERED INDEX [WIPAging_OfficeCode_idx]
+ON [dbo].[WIPAging]([OfficeCode]);
+
+CREATE NONCLUSTERED INDEX [WIPAging_PeriodRef_idx]
+ON [dbo].[WIPAging]([PeriodRef]);
+
+-- Primary Key: [WIPAging_pkey] on [WIPAging]
+ALTER TABLE [dbo].[WIPAging] ADD CONSTRAINT [WIPAging_pkey] PRIMARY KEY CLUSTERED ([id]);
+
+CREATE NONCLUSTERED INDEX [WIPAging_ServLineCode_idx]
+ON [dbo].[WIPAging]([ServLineCode]);
+
+CREATE NONCLUSTERED INDEX [WIPAging_TaskPartner_idx]
+ON [dbo].[WIPAging]([TaskPartner]);
+
+CREATE NONCLUSTERED INDEX [idx_wip_gsclientid_super_covering]
+ON [dbo].[WIPTransactions]([GSClientID], [TranDate])
+INCLUDE ([TType], [TranType], [Amount], [Cost], [Hour], [MainServLineCode], [TaskPartner], [TaskManager], [updatedAt])
+WHERE ([GSClientID] IS NOT NULL);
+
+CREATE NONCLUSTERED INDEX [idx_wip_gstaskid_super_covering]
+ON [dbo].[WIPTransactions]([GSTaskID], [TranDate])
+INCLUDE ([TType], [TranType], [Amount], [Cost], [Hour], [MainServLineCode], [TaskPartner], [TaskManager], [updatedAt])
+WHERE ([GSTaskID] IS NOT NULL);
+
+CREATE NONCLUSTERED INDEX [WIPTransactions_GSClientID_TranDate_TType_idx]
+ON [dbo].[WIPTransactions]([GSClientID], [TranDate], [TType]);
+
+CREATE NONCLUSTERED INDEX [WIPTransactions_GSTaskID_TranDate_TType_idx]
+ON [dbo].[WIPTransactions]([GSTaskID], [TranDate], [TType]);
+
+CREATE UNIQUE NONCLUSTERED INDEX [WIPTransactions_GSWIPTransID_key]
+ON [dbo].[WIPTransactions]([GSWIPTransID]);
+
+-- Primary Key: [WIPTransactions_pkey] on [WIPTransactions]
+ALTER TABLE [dbo].[WIPTransactions] ADD CONSTRAINT [WIPTransactions_pkey] PRIMARY KEY CLUSTERED ([id]);
+
+CREATE NONCLUSTERED INDEX [WIPTransactions_TaskManager_TranDate_idx]
+ON [dbo].[WIPTransactions]([TaskManager], [TranDate]);
+
+CREATE NONCLUSTERED INDEX [WIPTransactions_TaskPartner_TranDate_idx]
+ON [dbo].[WIPTransactions]([TaskPartner], [TranDate]);
+
+CREATE NONCLUSTERED INDEX [WIPTransactions_TranDate_idx]
+ON [dbo].[WIPTransactions]([TranDate]);
+
+-- Primary Key: [WorkspaceFile_pkey] on [WorkspaceFile]
+ALTER TABLE [dbo].[WorkspaceFile] ADD CONSTRAINT [WorkspaceFile_pkey] PRIMARY KEY CLUSTERED ([id]);
+
+-- Primary Key: [WorkspaceFileActivity_pkey] on [WorkspaceFileActivity]
+ALTER TABLE [dbo].[WorkspaceFileActivity] ADD CONSTRAINT [WorkspaceFileActivity_pkey] PRIMARY KEY CLUSTERED ([id]);
+
+-- Primary Key: [WorkspaceFilePermission_pkey] on [WorkspaceFilePermission]
+ALTER TABLE [dbo].[WorkspaceFilePermission] ADD CONSTRAINT [WorkspaceFilePermission_pkey] PRIMARY KEY CLUSTERED ([id]);
+
+-- Primary Key: [WorkspaceFolder_pkey] on [WorkspaceFolder]
+ALTER TABLE [dbo].[WorkspaceFolder] ADD CONSTRAINT [WorkspaceFolder_pkey] PRIMARY KEY CLUSTERED ([id]);
+
+
+-- ============================================================================
+-- PART 3: FOREIGN KEY CONSTRAINTS
+-- ============================================================================
+
+ALTER TABLE [dbo].[AcceptanceAnswer] ADD CONSTRAINT [FK_AcceptanceAnswer_EngagementResponse]
+    FOREIGN KEY ([responseId])
+    REFERENCES [dbo].[ClientAcceptanceResponse]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[AcceptanceAnswer] ADD CONSTRAINT [FK_AcceptanceAnswer_Question]
+    FOREIGN KEY ([questionId])
+    REFERENCES [dbo].[AcceptanceQuestion]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[AcceptanceDocument] ADD CONSTRAINT [FK_AcceptanceDocument_Response]
+    FOREIGN KEY ([responseId])
+    REFERENCES [dbo].[ClientAcceptanceResponse]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[Account] ADD CONSTRAINT [Account_userId_fkey]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[AdjustmentDocument] ADD CONSTRAINT [AdjustmentDocument_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[AdjustmentDocument] ADD CONSTRAINT [AdjustmentDocument_taxAdjustmentId_fkey]
+    FOREIGN KEY ([taxAdjustmentId])
+    REFERENCES [dbo].[TaxAdjustment]([id])
+    ON DELETE SET_NULL ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[AITaxReport] ADD CONSTRAINT [AITaxReport_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE NO_ACTION ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[Approval] ADD CONSTRAINT [FK_Approval_CompletedBy]
+    FOREIGN KEY ([completedById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[Approval] ADD CONSTRAINT [FK_Approval_RequestedBy]
+    FOREIGN KEY ([requestedById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ApprovalDelegation] ADD CONSTRAINT [FK_ApprovalDelegation_From]
+    FOREIGN KEY ([fromUserId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ApprovalDelegation] ADD CONSTRAINT [FK_ApprovalDelegation_To]
+    FOREIGN KEY ([toUserId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [FK_ApprovalStep_Approval]
+    FOREIGN KEY ([approvalId])
+    REFERENCES [dbo].[Approval]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [FK_ApprovalStep_ApprovedBy]
+    FOREIGN KEY ([approvedById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [FK_ApprovalStep_AssignedTo]
+    FOREIGN KEY ([assignedToUserId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ApprovalStep] ADD CONSTRAINT [FK_ApprovalStep_DelegatedTo]
+    FOREIGN KEY ([delegatedToUserId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[BDActivity] ADD CONSTRAINT [BDActivity_contactId_fkey]
+    FOREIGN KEY ([contactId])
+    REFERENCES [dbo].[BDContact]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[BDActivity] ADD CONSTRAINT [BDActivity_opportunityId_fkey]
+    FOREIGN KEY ([opportunityId])
+    REFERENCES [dbo].[BDOpportunity]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[BDNote] ADD CONSTRAINT [BDNote_opportunityId_fkey]
+    FOREIGN KEY ([opportunityId])
+    REFERENCES [dbo].[BDOpportunity]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[BDOpportunity] ADD CONSTRAINT [BDOpportunity_clientId_fkey]
+    FOREIGN KEY ([clientId])
+    REFERENCES [dbo].[Client]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[BDOpportunity] ADD CONSTRAINT [BDOpportunity_contactId_fkey]
+    FOREIGN KEY ([contactId])
+    REFERENCES [dbo].[BDContact]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[BDOpportunity] ADD CONSTRAINT [BDOpportunity_stageId_fkey]
+    FOREIGN KEY ([stageId])
+    REFERENCES [dbo].[BDStage]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[BDProposal] ADD CONSTRAINT [BDProposal_opportunityId_fkey]
+    FOREIGN KEY ([opportunityId])
+    REFERENCES [dbo].[BDOpportunity]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[BugReport] ADD CONSTRAINT [BugReport_reportedBy_fkey]
+    FOREIGN KEY ([reportedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[BugReport] ADD CONSTRAINT [BugReport_resolvedBy_fkey]
+    FOREIGN KEY ([resolvedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[BugReport] ADD CONSTRAINT [BugReport_testedBy_fkey]
+    FOREIGN KEY ([testedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[CategoryApprover] ADD CONSTRAINT [FK_CategoryApprover_Category]
+    FOREIGN KEY ([categoryId])
+    REFERENCES [dbo].[VaultDocumentCategory]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[CategoryApprover] ADD CONSTRAINT [FK_CategoryApprover_CreatedBy]
+    FOREIGN KEY ([createdBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[CategoryApprover] ADD CONSTRAINT [FK_CategoryApprover_User]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientAcceptance] ADD CONSTRAINT [ClientAcceptance_userId_fkey]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE SET_NULL ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ClientAcceptance] ADD CONSTRAINT [FK_ClientAcceptance_Approval]
+    FOREIGN KEY ([approvalId])
+    REFERENCES [dbo].[Approval]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientAcceptance] ADD CONSTRAINT [FK_ClientAcceptance_Client]
+    FOREIGN KEY ([clientId])
+    REFERENCES [dbo].[Client]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientAcceptanceAnswer] ADD CONSTRAINT [FK_ClientAcceptanceAnswer_ClientAcceptance]
+    FOREIGN KEY ([clientAcceptanceId])
+    REFERENCES [dbo].[ClientAcceptance]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientAcceptanceAnswer] ADD CONSTRAINT [FK_ClientAcceptanceAnswer_Question]
+    FOREIGN KEY ([questionId])
+    REFERENCES [dbo].[AcceptanceQuestion]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientAcceptanceResponse] ADD CONSTRAINT [FK_ClientAcceptanceResponse_Client]
+    FOREIGN KEY ([clientId])
+    REFERENCES [dbo].[Client]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientAcceptanceResponse] ADD CONSTRAINT [FK_ClientAcceptanceResponse_Task]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientAnalyticsDocument] ADD CONSTRAINT [ClientAnalyticsDocument_clientId_fkey]
+    FOREIGN KEY ([clientId])
+    REFERENCES [dbo].[Client]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ClientCreditRating] ADD CONSTRAINT [ClientCreditRating_clientId_fkey]
+    FOREIGN KEY ([clientId])
+    REFERENCES [dbo].[Client]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ChangeRequest_Approval]
+    FOREIGN KEY ([approvalId])
+    REFERENCES [dbo].[Approval]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_Client]
+    FOREIGN KEY ([clientId])
+    REFERENCES [dbo].[Client]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_CurrentApprover]
+    FOREIGN KEY ([currentEmployeeApprovedById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_ProposedApprover]
+    FOREIGN KEY ([proposedEmployeeApprovedById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_RequestedBy]
+    FOREIGN KEY ([requestedById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ClientPartnerManagerChangeRequest] ADD CONSTRAINT [FK_ClientPartnerManagerChangeRequest_ResolvedBy]
+    FOREIGN KEY ([resolvedById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ComplianceChecklist] ADD CONSTRAINT [ComplianceChecklist_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[CreditRatingDocument] ADD CONSTRAINT [CreditRatingDocument_analyticsDocumentId_fkey]
+    FOREIGN KEY ([analyticsDocumentId])
+    REFERENCES [dbo].[ClientAnalyticsDocument]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[CreditRatingDocument] ADD CONSTRAINT [CreditRatingDocument_creditRatingId_fkey]
+    FOREIGN KEY ([creditRatingId])
+    REFERENCES [dbo].[ClientCreditRating]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[Debtors] ADD CONSTRAINT [Debtors_GSClientID_fkey]
+    FOREIGN KEY ([GSClientID])
+    REFERENCES [dbo].[Client]([GSClientID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[DrsTransactions] ADD CONSTRAINT [DrsTransactions_GSClientID_fkey]
+    FOREIGN KEY ([GSClientID])
+    REFERENCES [dbo].[Client]([GSClientID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[EmailLog] ADD CONSTRAINT [EmailLog_recipientUserId_fkey]
+    FOREIGN KEY ([recipientUserId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE SET_NULL ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[FilingStatus] ADD CONSTRAINT [FilingStatus_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[InAppNotification] ADD CONSTRAINT [InAppNotification_fromUserId_fkey]
+    FOREIGN KEY ([fromUserId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[InAppNotification] ADD CONSTRAINT [InAppNotification_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[InAppNotification] ADD CONSTRAINT [InAppNotification_userId_fkey]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[LeaderGroup] ADD CONSTRAINT [LeaderGroup_createdById_fkey]
+    FOREIGN KEY ([createdById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[LeaderGroupMember] ADD CONSTRAINT [LeaderGroupMember_addedById_fkey]
+    FOREIGN KEY ([addedById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[LeaderGroupMember] ADD CONSTRAINT [LeaderGroupMember_employeeId_fkey]
+    FOREIGN KEY ([employeeId])
+    REFERENCES [dbo].[Employee]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[LeaderGroupMember] ADD CONSTRAINT [LeaderGroupMember_leaderGroupId_fkey]
+    FOREIGN KEY ([leaderGroupId])
+    REFERENCES [dbo].[LeaderGroup]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[LegalPrecedent] ADD CONSTRAINT [LegalPrecedent_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[MappedAccount] ADD CONSTRAINT [MappedAccount_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE NO_ACTION ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[NewsBulletin] ADD CONSTRAINT [NewsBulletin_createdById_fkey]
+    FOREIGN KEY ([createdById])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[NonClientAllocation] ADD CONSTRAINT [NonClientAllocation_employeeId_fkey]
+    FOREIGN KEY ([employeeId])
+    REFERENCES [dbo].[Employee]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[NotificationPreference] ADD CONSTRAINT [NotificationPreference_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[NotificationPreference] ADD CONSTRAINT [NotificationPreference_userId_fkey]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[OpinionChatMessage] ADD CONSTRAINT [OpinionChatMessage_opinionDraftId_fkey]
+    FOREIGN KEY ([opinionDraftId])
+    REFERENCES [dbo].[OpinionDraft]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[OpinionDocument] ADD CONSTRAINT [OpinionDocument_opinionDraftId_fkey]
+    FOREIGN KEY ([opinionDraftId])
+    REFERENCES [dbo].[OpinionDraft]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[OpinionDraft] ADD CONSTRAINT [OpinionDraft_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[OpinionSection] ADD CONSTRAINT [OpinionSection_opinionDraftId_fkey]
+    FOREIGN KEY ([opinionDraftId])
+    REFERENCES [dbo].[OpinionDraft]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ResearchNote] ADD CONSTRAINT [ResearchNote_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_addressedBy_fkey]
+    FOREIGN KEY ([addressedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_assignedTo_fkey]
+    FOREIGN KEY ([assignedTo])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_categoryId_fkey]
+    FOREIGN KEY ([categoryId])
+    REFERENCES [dbo].[ReviewCategory]([id])
+    ON DELETE SET_NULL ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_clearedBy_fkey]
+    FOREIGN KEY ([clearedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_currentOwner_fkey]
+    FOREIGN KEY ([currentOwner])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_lastRespondedBy_fkey]
+    FOREIGN KEY ([lastRespondedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_raisedBy_fkey]
+    FOREIGN KEY ([raisedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNote] ADD CONSTRAINT [ReviewNote_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ReviewNoteAssignee] ADD CONSTRAINT [FK_ReviewNoteAssignee_ReviewNote]
+    FOREIGN KEY ([reviewNoteId])
+    REFERENCES [dbo].[ReviewNote]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNoteAssignee] ADD CONSTRAINT [FK_ReviewNoteAssignee_User_assignedBy]
+    FOREIGN KEY ([assignedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNoteAssignee] ADD CONSTRAINT [FK_ReviewNoteAssignee_User_userId]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNoteAttachment] ADD CONSTRAINT [FK_ReviewNoteAttachment_Comment]
+    FOREIGN KEY ([commentId])
+    REFERENCES [dbo].[ReviewNoteComment]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNoteAttachment] ADD CONSTRAINT [ReviewNoteAttachment_reviewNoteId_fkey]
+    FOREIGN KEY ([reviewNoteId])
+    REFERENCES [dbo].[ReviewNote]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ReviewNoteAttachment] ADD CONSTRAINT [ReviewNoteAttachment_uploadedBy_fkey]
+    FOREIGN KEY ([uploadedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[ReviewNoteComment] ADD CONSTRAINT [ReviewNoteComment_reviewNoteId_fkey]
+    FOREIGN KEY ([reviewNoteId])
+    REFERENCES [dbo].[ReviewNote]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ReviewNoteComment] ADD CONSTRAINT [ReviewNoteComment_userId_fkey]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[SarsResponse] ADD CONSTRAINT [SarsResponse_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ServiceLineTool] ADD CONSTRAINT [ServiceLineTool_toolId_fkey]
+    FOREIGN KEY ([toolId])
+    REFERENCES [dbo].[Tool]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ServiceLineUser] ADD CONSTRAINT [ServiceLineUser_userId_fkey]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[Session] ADD CONSTRAINT [Session_userId_fkey]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[Task] ADD CONSTRAINT [Task_createdBy_fkey]
+    FOREIGN KEY ([createdBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[Task] ADD CONSTRAINT [Task_GSClientID_fkey]
+    FOREIGN KEY ([GSClientID])
+    REFERENCES [dbo].[Client]([GSClientID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[TaskAcceptance] ADD CONSTRAINT [TaskAcceptance_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskBudget] ADD CONSTRAINT [TaskBudget_GSClientID_fkey]
+    FOREIGN KEY ([GSClientID])
+    REFERENCES [dbo].[Client]([GSClientID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[TaskBudget] ADD CONSTRAINT [TaskBudget_GSTaskID_fkey]
+    FOREIGN KEY ([GSTaskID])
+    REFERENCES [dbo].[Task]([GSTaskID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[TaskBudgetDisbursement] ADD CONSTRAINT [TaskBudgetDisbursement_createdBy_fkey]
+    FOREIGN KEY ([createdBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[TaskBudgetDisbursement] ADD CONSTRAINT [TaskBudgetDisbursement_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskBudgetFee] ADD CONSTRAINT [TaskBudgetFee_createdBy_fkey]
+    FOREIGN KEY ([createdBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[TaskBudgetFee] ADD CONSTRAINT [TaskBudgetFee_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskDocument] ADD CONSTRAINT [TaskDocument_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskEngagementLetter] ADD CONSTRAINT [TaskEngagementLetter_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskEngagementLetter] ADD CONSTRAINT [TaskEngagementLetter_templateVersionId_fkey]
+    FOREIGN KEY ([templateVersionId])
+    REFERENCES [dbo].[TemplateVersion]([id])
+    ON DELETE SET_NULL ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskIndependenceConfirmation] ADD CONSTRAINT [TaskIndependenceConfirmation_taskTeamId_fkey]
+    FOREIGN KEY ([taskTeamId])
+    REFERENCES [dbo].[TaskTeam]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskStage] ADD CONSTRAINT [FK_TaskStage_Task]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[TaskTeam] ADD CONSTRAINT [TaskTeam_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskTeam] ADD CONSTRAINT [TaskTeam_userId_fkey]
+    FOREIGN KEY ([userId])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskTool] ADD CONSTRAINT [TaskTool_addedBy_fkey]
+    FOREIGN KEY ([addedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[TaskTool] ADD CONSTRAINT [TaskTool_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaskTool] ADD CONSTRAINT [TaskTool_toolId_fkey]
+    FOREIGN KEY ([toolId])
+    REFERENCES [dbo].[Tool]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TaxAdjustment] ADD CONSTRAINT [TaxAdjustment_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE NO_ACTION ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TemplateSection] ADD CONSTRAINT [TemplateSection_templateId_fkey]
+    FOREIGN KEY ([templateId])
+    REFERENCES [dbo].[Template]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TemplateSectionVersion] ADD CONSTRAINT [TemplateSectionVersion_templateVersionId_fkey]
+    FOREIGN KEY ([templateVersionId])
+    REFERENCES [dbo].[TemplateVersion]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[TemplateVersion] ADD CONSTRAINT [TemplateVersion_templateId_fkey]
+    FOREIGN KEY ([templateId])
+    REFERENCES [dbo].[Template]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[ToolSubTab] ADD CONSTRAINT [ToolSubTab_toolId_fkey]
+    FOREIGN KEY ([toolId])
+    REFERENCES [dbo].[Tool]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_Approval]
+    FOREIGN KEY ([approvalId])
+    REFERENCES [dbo].[Approval]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_Category]
+    FOREIGN KEY ([categoryId])
+    REFERENCES [dbo].[VaultDocumentCategory]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_DocumentType]
+    FOREIGN KEY ([documentType])
+    REFERENCES [dbo].[VaultDocumentType]([code])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_ServiceLineMaster]
+    FOREIGN KEY ([serviceLine])
+    REFERENCES [dbo].[ServiceLineMaster]([code])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[VaultDocument] ADD CONSTRAINT [FK_VaultDocument_User]
+    FOREIGN KEY ([uploadedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[VaultDocumentCategory] ADD CONSTRAINT [FK_VaultDocumentCategory_DocumentType]
+    FOREIGN KEY ([documentType])
+    REFERENCES [dbo].[VaultDocumentType]([code])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[VaultDocumentVersion] ADD CONSTRAINT [FK_VaultDocumentVersion_Document]
+    FOREIGN KEY ([documentId])
+    REFERENCES [dbo].[VaultDocument]([id])
+    ON DELETE CASCADE ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[VaultDocumentVersion] ADD CONSTRAINT [FK_VaultDocumentVersion_User]
+    FOREIGN KEY ([uploadedBy])
+    REFERENCES [dbo].[User]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[Wip] ADD CONSTRAINT [Wip_GSClientID_fkey]
+    FOREIGN KEY ([GSClientID])
+    REFERENCES [dbo].[Client]([GSClientID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[Wip] ADD CONSTRAINT [Wip_GSTaskID_fkey]
+    FOREIGN KEY ([GSTaskID])
+    REFERENCES [dbo].[Task]([GSTaskID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[WIPAging] ADD CONSTRAINT [WIPAging_GSClientID_fkey]
+    FOREIGN KEY ([GSClientID])
+    REFERENCES [dbo].[Client]([GSClientID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[WIPAging] ADD CONSTRAINT [WIPAging_GSTaskID_fkey]
+    FOREIGN KEY ([GSTaskID])
+    REFERENCES [dbo].[Task]([GSTaskID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[WIPTransactions] ADD CONSTRAINT [WIPTransactions_GSClientID_fkey]
+    FOREIGN KEY ([GSClientID])
+    REFERENCES [dbo].[Client]([GSClientID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[WIPTransactions] ADD CONSTRAINT [WIPTransactions_GSTaskID_fkey]
+    FOREIGN KEY ([GSTaskID])
+    REFERENCES [dbo].[Task]([GSTaskID])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[WorkspaceFile] ADD CONSTRAINT [WorkspaceFile_folderId_fkey]
+    FOREIGN KEY ([folderId])
+    REFERENCES [dbo].[WorkspaceFolder]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[WorkspaceFileActivity] ADD CONSTRAINT [WorkspaceFileActivity_fileId_fkey]
+    FOREIGN KEY ([fileId])
+    REFERENCES [dbo].[WorkspaceFile]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[WorkspaceFilePermission] ADD CONSTRAINT [WorkspaceFilePermission_fileId_fkey]
+    FOREIGN KEY ([fileId])
+    REFERENCES [dbo].[WorkspaceFile]([id])
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE [dbo].[WorkspaceFolder] ADD CONSTRAINT [WorkspaceFolder_parentFolderId_fkey]
+    FOREIGN KEY ([parentFolderId])
+    REFERENCES [dbo].[WorkspaceFolder]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+ALTER TABLE [dbo].[WorkspaceFolder] ADD CONSTRAINT [WorkspaceFolder_taskId_fkey]
+    FOREIGN KEY ([taskId])
+    REFERENCES [dbo].[Task]([id])
+    ON DELETE NO_ACTION ON UPDATE NO_ACTION;
+
+
+-- ============================================================================
+-- PART 4: STORED PROCEDURES
+-- ============================================================================
+
+-- Stored Procedure: sp_GetProfitabilityByTasks
+
+CREATE PROCEDURE sp_GetProfitabilityByTasks
+  @TaskIds NVARCHAR(MAX),
+  @StartDate DATE,
+  @EndDate DATE
+AS
 BEGIN
-    ROLLBACK TRAN;
-END;
-THROW
+  SET NOCOUNT ON;
+  SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+  
+  DECLARE @TaskTable TABLE (GSTaskID UNIQUEIDENTIFIER);
+  INSERT INTO @TaskTable
+  SELECT CAST(value AS UNIQUEIDENTIFIER) 
+  FROM OPENJSON(@TaskIds);
+  
+  SELECT 
+    w.GSTaskID,
+    SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdTime,
+    SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Hour, 0) ELSE 0 END) as ltdHours,
+    SUM(CASE WHEN w.TType = 'D' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdDisb,
+    SUM(CASE WHEN w.TType = 'ADJ' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdAdj,
+    SUM(CASE WHEN w.TType = 'F' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdFee,
+    SUM(CASE WHEN w.TType = 'P' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdProvision,
+    SUM(CASE WHEN w.TType != 'P' THEN ISNULL(w.Cost, 0) ELSE 0 END) as ltdCost
+  FROM WIPTransactions w
+  INNER JOIN @TaskTable t ON w.GSTaskID = t.GSTaskID
+  WHERE w.TranDate >= @StartDate AND w.TranDate <= @EndDate
+  GROUP BY w.GSTaskID
+  OPTION (RECOMPILE);
+END
 
-END CATCH
+
+-- Stored Procedure: WipLTD
+
+--Select * from Client
+--select * from Task
+
+
+--select 
+--	top 50 *
+--from WipTransactions w
+
+CREATE procedure [dbo].[WipLTD] 
+		 @ServLineCode nvarchar(max)	= '*'
+		,@PartnerCode nvarchar(max)		= 'BLAW001'
+		,@ManagerCode nvarchar(max)		= '*'
+		,@GroupCode nvarchar(max)		= '*'
+		,@ClientCode nvarchar(max)		= '*'
+		,@TaskCode nvarchar(max)		= '*'
+		,@DateTo datetime				= '2025/01/01'
+as
+
+set nocount on
+
+;with Tsk as (
+	select
+		c.clientCode
+		,c.clientNameFull
+		,c.groupCode
+		,c.groupDesc
+		,t.TaskCode
+		,t.OfficeCode
+		,t.ServLineCode
+		,t.ServLineDesc
+		,t.TaskPartner
+		,t.TaskPartnerName
+		,t.TaskManager
+		,t.TaskManagerName
+		,t.GSTaskID
+	from Task t
+		cross apply (
+				select 
+					c.clientCode
+					,c.clientNameFull
+					,c.groupCode
+					,c.groupDesc
+				from Client c
+				where (t.GSClientID = c.GSClientID)
+					and (c.clientCode = @ClientCode or @ClientCode = '*')
+					and (c.groupCode = @GroupCode or @GroupCode = '*')
+			) c
+	where (t.ServLineCode = @ServLineCode or @ServLineCode = '*')
+		and (t.TaskPartner = @PartnerCode or @PartnerCode = '*')
+		and (t.TaskManager = @ManagerCode or @ManagerCode = '*')
+		and (t.TaskCode = @TaskCode or @TaskCode = '*')
+
+)
+, WipTran as (
+	select 
+		w.GSTaskID
+		,case when w.TType = 'T' then w.Amount else 0 end TimeCharged
+		,case when w.TType = 'D' then w.Amount else 0 end DisbCharged
+		,case when w.TType = 'F' then 0 - w.Amount else 0 end FeesBilled
+		,case when w.TType = 'ADJ' then w.Amount else 0 end Adjustments
+		,case when w.TType = 'P' then w.Amount else 0 end WipProvision
+		,case when w.TType = 'F' then 0 - w.Amount else w.Amount end BalWip
+	from WipTransactions w
+		cross apply (
+				select 
+					t.GSTaskID
+				from Tsk t 
+				where w.GSTaskID = t.GSTaskID
+			) t
+	where w.TranDate <= @DateTo
+)
+, WipLTD as (
+	select 
+		w.GSTaskID
+		,sum(TimeCharged)  LTDTimeCharged
+		,sum(DisbCharged)  LTDDisbCharged
+		,sum(FeesBilled)   LTDFeesBilled
+		,sum(Adjustments)  LTDAdjustments
+		,sum(WipProvision) LTDWipProvision
+		,sum(w.BalWip)	   BalWip
+	from WipTran w
+	group by w.GSTaskID
+)
+
+Select *
+from Tsk t
+	join WIPLTD w on t.GSTaskID = w.GSTaskID
+
+-- Stored Procedure: WipLTD_V2
+
+create PROCEDURE dbo.WipLTD_V2
+      @ServLineCode nvarchar(10) = N'AUD'
+    , @PartnerCode  nvarchar(10) = N'*'
+    , @ManagerCode  nvarchar(10) = N'*'
+    , @GroupCode    nvarchar(10) = N'*'
+    , @ClientCode   nvarchar(10) = N'*'
+    , @TaskCode     nvarchar(10) = N'*'
+    , @DateTo       datetime2(7) = '2025-01-01'
+AS
+BEGIN
+  SET NOCOUNT ON;
+
+  ;WITH Tsk AS (
+    SELECT
+        c.ClientCode, c.ClientNameFull, c.GroupCode, c.GroupDesc,
+        t.TaskCode, t.OfficeCode, t.ServLineCode, t.ServLineDesc,
+        t.TaskPartner, t.TaskPartnerName, t.TaskManager, t.TaskManagerName,
+        t.GSTaskID
+    FROM dbo.Task t
+    JOIN dbo.Client c
+      ON c.GSClientID = t.GSClientID
+    WHERE (@ServLineCode = N'*' OR t.ServLineCode = @ServLineCode)
+      AND (@PartnerCode  = N'*' OR t.TaskPartner  = @PartnerCode)
+      AND (@ManagerCode  = N'*' OR t.TaskManager  = @ManagerCode)
+      AND (@TaskCode     = N'*' OR t.TaskCode     = @TaskCode)
+      AND (@ClientCode   = N'*' OR c.ClientCode   = @ClientCode)
+      AND (@GroupCode    = N'*' OR c.GroupCode    = @GroupCode)
+  ),
+  WipLTD AS (
+    SELECT
+        w.GSTaskID,
+        SUM(CASE WHEN w.TType = 'T'   THEN w.Amount ELSE 0 END) AS LTDTimeCharged,
+        SUM(CASE WHEN w.TType = 'D'   THEN w.Amount ELSE 0 END) AS LTDDisbCharged,
+        SUM(CASE WHEN w.TType = 'F'   THEN 0 - w.Amount ELSE 0 END) AS LTDFeesBilled,
+        SUM(CASE WHEN w.TType = 'ADJ' THEN w.Amount ELSE 0 END) AS LTDAdjustments,
+        SUM(CASE WHEN w.TType = 'P'   THEN w.Amount ELSE 0 END) AS LTDWipProvision,
+        SUM(CASE WHEN w.TType = 'F'   THEN 0 - w.Amount ELSE w.Amount END) AS BalWip
+    FROM dbo.WipTransactions w
+    JOIN Tsk t
+      ON t.GSTaskID = w.GSTaskID
+    WHERE w.TranDate <= @DateTo
+    GROUP BY w.GSTaskID
+  )
+  SELECT t.*, w.*
+  FROM Tsk t
+  JOIN WipLTD w
+    ON w.GSTaskID = t.GSTaskID
+  OPTION (RECOMPILE);  -- helps with optional filters
+END
+
 
