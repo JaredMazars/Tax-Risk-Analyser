@@ -15,6 +15,7 @@ import { ApprovalActions } from '@/components/shared/ApprovalActions';
 import { ClientRiskResearchStep } from './ClientRiskResearchStep';
 import { ClientTeamSelectionStep, type TeamSelections } from './ClientTeamSelectionStep';
 import type { CompanyResearchResult } from '@/lib/services/bd/companyResearchAgent';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface ClientAcceptanceQuestionnaireProps {
   GSClientID: string;
@@ -416,9 +417,9 @@ export function ClientAcceptanceQuestionnaire({
           </h3>
           <div className="flex items-center space-x-2">
             {completionPercentage === 100 ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-forvis-success-600" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <AlertCircle className="h-5 w-5 text-forvis-warning-600" />
             )}
             <span className="text-sm font-semibold text-forvis-gray-700">
               {completionPercentage}% Complete
@@ -430,7 +431,7 @@ export function ClientAcceptanceQuestionnaire({
             className="h-2 rounded-full transition-all duration-300"
             style={{
               width: `${completionPercentage}%`,
-              background: 'linear-gradient(to right, #5B93D7, #2E5AAC)',
+              background: GRADIENTS.primary.horizontal,
             }}
           />
         </div>
@@ -459,7 +460,7 @@ export function ClientAcceptanceQuestionnaire({
             >
               Team Selection
               {(teamSelections.selectedPartnerCode && teamSelections.selectedManagerCode && teamSelections.selectedInchargeCode) && (
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-forvis-success-600" />
               )}
             </button>
 
@@ -474,7 +475,7 @@ export function ClientAcceptanceQuestionnaire({
             >
               Research
               {(researchCompleted || researchSkipped || researchData) && (
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-forvis-success-600" />
               )}
             </button>
 
@@ -496,7 +497,7 @@ export function ClientAcceptanceQuestionnaire({
                 >
                   {section.title}
                   {isComplete && (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <CheckCircle className="h-4 w-4 text-forvis-success-600" />
                   )}
                 </button>
               );
@@ -513,7 +514,7 @@ export function ClientAcceptanceQuestionnaire({
                 }`}
               >
                 Approval Decision
-                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                <AlertCircle className="h-4 w-4 text-forvis-warning-600" />
               </button>
             )}
           </div>
@@ -597,7 +598,7 @@ export function ClientAcceptanceQuestionnaire({
               {/* Assessment Summary Card */}
               <div
                 className="rounded-lg border-2 border-forvis-blue-100 p-6"
-                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+                style={{ background: GRADIENTS.dashboard.card }}
               >
                 <h4 className="text-lg font-semibold text-forvis-blue-900 mb-4">
                   Assessment Summary
@@ -608,9 +609,9 @@ export function ClientAcceptanceQuestionnaire({
                     <div className="flex items-baseline gap-2">
                       <p className="text-3xl font-bold text-forvis-blue-600">{completionPercentage}%</p>
                       {completionPercentage === 100 ? (
-                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <CheckCircle className="h-5 w-5 text-forvis-success-600" />
                       ) : (
-                        <AlertCircle className="h-5 w-5 text-yellow-600" />
+                        <AlertCircle className="h-5 w-5 text-forvis-warning-600" />
                       )}
                     </div>
                   </div>
@@ -640,9 +641,9 @@ export function ClientAcceptanceQuestionnaire({
                         const score = maxPossibleRisk > 0 ? (totalRisk / maxPossibleRisk) * 100 : 0;
                         const rating = score < 30 ? 'LOW' : score < 60 ? 'MEDIUM' : 'HIGH';
                         const colors = {
-                          LOW: 'bg-green-100 text-green-800 border-green-300',
-                          MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-                          HIGH: 'bg-red-100 text-red-800 border-red-300',
+                          LOW: 'bg-forvis-success-100 text-forvis-success-800 border-forvis-success-300',
+                          MEDIUM: 'bg-forvis-warning-100 text-forvis-warning-800 border-forvis-warning-300',
+                          HIGH: 'bg-forvis-error-100 text-forvis-error-800 border-forvis-error-300',
                         };
 
                         return (
@@ -758,8 +759,8 @@ export function ClientAcceptanceQuestionnaire({
       </div>
 
       {error && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="bg-forvis-error-50 border-2 border-forvis-error-200 rounded-lg p-4">
+          <p className="text-sm text-forvis-error-700">{error}</p>
         </div>
       )}
 

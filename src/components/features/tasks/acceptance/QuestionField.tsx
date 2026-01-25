@@ -57,7 +57,7 @@ export function QuestionField({ question, value, comment, onChange, disabled }: 
       <div className="flex items-start gap-2">
         <label className="block text-sm font-semibold text-forvis-gray-900 flex-1">
           {question.questionText}
-          {question.required && <span className="text-red-600 ml-1">*</span>}
+          {question.required && <span className="text-forvis-error-600 ml-1">*</span>}
         </label>
       </div>
 

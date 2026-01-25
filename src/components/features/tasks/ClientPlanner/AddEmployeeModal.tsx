@@ -7,6 +7,7 @@ import { X, Calendar, Clock, Percent, Search, Building2, Briefcase, User, UserPl
 import { format, startOfDay } from 'date-fns';
 import { ServiceLineRole } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface Employee {
   id: string;
@@ -340,7 +341,7 @@ export function AddEmployeeModal({
         <div className="p-6 space-y-6">
           {/* Error message */}
           {error && (
-            <div className="p-4 bg-red-50 border-2 border-red-300 text-red-700 rounded-lg">
+            <div className="p-4 bg-forvis-error-50 border-2 border-forvis-error-300 text-forvis-error-700 rounded-lg">
               {error}
             </div>
           )}
@@ -426,7 +427,7 @@ export function AddEmployeeModal({
 
           {/* Warning if no business days in range */}
           {formData.startDate && formData.endDate && calculatedInfo.businessDays === 0 && (
-            <div className="p-3 bg-yellow-50 border-2 border-yellow-300 text-yellow-800 rounded-lg text-sm">
+            <div className="p-3 bg-forvis-warning-50 border-2 border-forvis-warning-300 text-forvis-warning-800 rounded-lg text-sm">
               ⚠️ Selected date range contains no business days (only weekends). Please select a range that includes at least one weekday.
             </div>
           )}

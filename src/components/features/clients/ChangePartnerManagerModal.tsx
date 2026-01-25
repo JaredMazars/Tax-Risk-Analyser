@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { EmployeeAutocomplete } from '../users/EmployeeAutocomplete';
 import { Button } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface ChangePartnerManagerModalProps {
   isOpen: boolean;
@@ -119,7 +120,7 @@ export function ChangePartnerManagerModal({
         {/* Header */}
         <div
           className="px-6 py-4 border-b border-forvis-gray-200 rounded-t-lg"
-          style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+          style={{ background: GRADIENTS.primary.horizontal }}
         >
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">
@@ -196,15 +197,15 @@ export function ChangePartnerManagerModal({
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="mb-4 p-3 bg-forvis-error-50 border border-forvis-error-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-forvis-error-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-forvis-error-800">{error}</p>
             </div>
           )}
 
           {/* Info Message */}
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-800">
+          <div className="mb-4 p-3 bg-forvis-blue-50 border border-forvis-blue-200 rounded-lg">
+            <p className="text-xs text-forvis-blue-800">
               <strong>Note:</strong> This change requires approval from the proposed {roleLabel.toLowerCase()}.
               Both the current and proposed {roleLabel.toLowerCase()} will be notified.
             </p>

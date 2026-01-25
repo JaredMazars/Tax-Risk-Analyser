@@ -3,6 +3,7 @@
 import { useState, Fragment } from 'react';
 import { ShieldCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface IndependenceConfirmationModalProps {
   isOpen: boolean;
@@ -41,7 +42,7 @@ export function IndependenceConfirmationModal({
         {/* Header */}
         <div
           className="px-6 py-4 rounded-t-lg"
-          style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+          style={{ background: GRADIENTS.primary.diagonal }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -65,8 +66,8 @@ export function IndependenceConfirmationModal({
           <div
             className="rounded-lg p-4 border-2"
             style={{ 
-              background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)', 
-              borderColor: '#2E5AAC' 
+              background: GRADIENTS.dashboard.card, 
+              borderColor: '#2E5AAC'
             }}
           >
             <h4 className="text-sm font-semibold text-forvis-blue-900 mb-2">

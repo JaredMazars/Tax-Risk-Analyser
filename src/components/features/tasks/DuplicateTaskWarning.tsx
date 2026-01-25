@@ -2,6 +2,7 @@
 
 import { AlertTriangle, X } from 'lucide-react';
 import { ExistingTask } from '@/hooks/tasks/useCheckDuplicateTaskCode';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface DuplicateTaskWarningProps {
   isOpen: boolean;
@@ -97,7 +98,7 @@ export function DuplicateTaskWarning({
           {/* New Task Code Info */}
           <div
             className="p-4 rounded-lg border-2 border-forvis-blue-200"
-            style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+            style={{ background: GRADIENTS.dashboard.card }}
           >
             <p className="text-sm text-gray-700 mb-2">
               If you continue, the new task will be created with code:
@@ -124,7 +125,7 @@ export function DuplicateTaskWarning({
               type="button"
               onClick={onContinue}
               className="px-6 py-2 rounded-lg text-white font-medium transition-all"
-              style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+              style={{ background: GRADIENTS.primary.horizontal }}
             >
               Continue with {nextTaskCode}
             </button>

@@ -14,6 +14,7 @@ import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLi
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
 import { LoadingSpinner } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import { GlobalPlannerFilters } from '@/components/features/planning/GlobalPlannerFilters';
 import { GanttTimeline } from '@/components/features/tasks/TeamPlanner';
 import { ClientPlannerTimeline } from '@/components/features/tasks/ClientPlanner';
@@ -304,7 +305,7 @@ export default function StaffPlannerPage() {
           <div className="flex items-center gap-4 mb-2">
             <div
               className="w-12 h-12 rounded-lg flex items-center justify-center shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <Calendar className="h-6 w-6 text-white" />
             </div>

@@ -34,8 +34,9 @@ import { useWorkspaceCounts } from '@/hooks/workspace/useWorkspaceCounts';
 import { useApprovalsCount } from '@/hooks/approvals/useApprovals';
 import { ServiceLineSelector } from '@/components/features/service-lines/ServiceLineSelector';
 import { SubServiceLineQuickNav } from '@/components/features/service-lines/SubServiceLineQuickNav';
-import { Button, LoadingSpinner, Card, MultiSelect } from '@/components/ui';
+import { Button, LoadingSpinner, Card, MultiSelect, Banner } from '@/components/ui';
 import { Pagination } from '@/components/shared/Pagination';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import { MyPlanningView, PlannerFilters } from '@/components/features/planning';
 import { EmployeePlannerList } from '@/components/features/planning/EmployeePlannerList';
 import { ClientPlannerList } from '@/components/features/planning/ClientPlannerList';
@@ -117,9 +118,12 @@ function VaultDocumentsView({ serviceLine }: { serviceLine: string }) {
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
-        {error}
-      </div>
+      <Banner 
+        variant="error" 
+        message={error}
+        dismissible
+        onDismiss={() => setError(null)}
+      />
     );
   }
 
@@ -690,7 +694,7 @@ export default function SubServiceLineWorkspacePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-forvis-gray-50">
         <div className="text-center max-w-md px-4">
-          <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+          <AlertTriangle className="mx-auto h-12 w-12 text-forvis-warning-500 mb-4" />
           <h1 className="text-2xl font-bold text-forvis-gray-900 mb-2">Access Denied</h1>
           <p className="text-forvis-gray-600 mb-4">
             You don't have access to this sub-service-line group. Redirecting to dashboard...
@@ -746,7 +750,7 @@ export default function SubServiceLineWorkspacePage() {
           {/* Header with Inline Tab Sections */}
           <div 
             className="px-6 py-4 border-b border-forvis-gray-200 flex flex-col lg:flex-row lg:items-center gap-4"
-            style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+            style={{ background: GRADIENTS.primary.horizontal }}
           >
             {/* Left: Page Title */}
             <div className="lg:flex-shrink-0">
@@ -898,7 +902,7 @@ export default function SubServiceLineWorkspacePage() {
                         : 'text-white hover:bg-white/20'
                     }`}
                     style={activeTab === 'my-tasks' ? { 
-                      background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                      background: GRADIENTS.premium.gold,
                       color: 'white'
                     } : {}}
                   >
@@ -924,7 +928,7 @@ export default function SubServiceLineWorkspacePage() {
                         : 'text-white hover:bg-white/20'
                     }`}
                     style={activeTab === 'my-planning' ? { 
-                      background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                      background: GRADIENTS.premium.gold,
                       color: 'white'
                     } : {}}
                   >
@@ -941,7 +945,7 @@ export default function SubServiceLineWorkspacePage() {
                         : 'text-white hover:bg-white/20'
                     }`}
                     style={activeTab === 'my-reports' ? { 
-                      background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                      background: GRADIENTS.premium.gold,
                       color: 'white'
                     } : {}}
                   >
@@ -958,7 +962,7 @@ export default function SubServiceLineWorkspacePage() {
                         : 'text-white hover:bg-white/20'
                     }`}
                     style={activeTab === 'my-approvals' ? { 
-                      background: 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)',
+                      background: GRADIENTS.premium.gold,
                       color: 'white'
                     } : {}}
                   >
@@ -1194,7 +1198,7 @@ export default function SubServiceLineWorkspacePage() {
                       <col style={{ width: '10%' }} />
                     </colgroup>
                     <thead>
-                      <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+                      <tr style={{ background: GRADIENTS.primary.horizontal }}>
                         <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Group Name
                         </th>
@@ -1298,7 +1302,7 @@ export default function SubServiceLineWorkspacePage() {
                     <col style={{ width: '5%' }} />
                   </colgroup>
                   <thead>
-                    <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+                    <tr style={{ background: GRADIENTS.primary.horizontal }}>
                       <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Client
                       </th>
@@ -1486,7 +1490,7 @@ export default function SubServiceLineWorkspacePage() {
                       <col style={{ width: activeTab === 'my-tasks' ? '8%' : '10%' }} />
                     </colgroup>
                     <thead>
-                      <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+                      <tr style={{ background: GRADIENTS.primary.horizontal }}>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                           Task Name
                         </th>

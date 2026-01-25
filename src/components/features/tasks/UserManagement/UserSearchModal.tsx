@@ -376,7 +376,7 @@ export function UserSearchModal({ taskId, isOpen, onClose, onUserAdded }: UserSe
                             <div className="flex items-center gap-2">
                               <div className="font-semibold text-forvis-gray-900 text-sm">{user.displayName}</div>
                               {!hasAccount && (
-                                <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded border border-amber-300 whitespace-nowrap">
+                                <span className="text-xs px-2 py-0.5 bg-forvis-warning-100 text-forvis-warning-800 rounded border border-forvis-warning-300 whitespace-nowrap">
                                   Will create account
                                 </span>
                               )}

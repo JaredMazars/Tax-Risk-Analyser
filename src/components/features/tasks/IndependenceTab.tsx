@@ -7,6 +7,7 @@ import { LoadingSpinner, Button, Card, Banner } from '@/components/ui';
 import { IndependenceConfirmationModal } from './IndependenceConfirmationModal';
 import { formatDate } from '@/lib/utils/taskUtils';
 import { useTask } from '@/hooks/tasks/useTaskData';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface IndependenceTabProps {
   taskId: string;
@@ -125,7 +126,7 @@ export function IndependenceTab({ taskId, currentUserId, autoOpenConfirmation = 
               {/* Status Badge */}
               <div
                 className="ml-6 rounded-lg p-4 shadow-corporate border border-forvis-blue-100 flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+                style={{ background: GRADIENTS.dashboard.card }}
               >
                 <div className="text-center">
                   <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Confirmations</p>
@@ -276,12 +277,12 @@ export function IndependenceTab({ taskId, currentUserId, autoOpenConfirmation = 
                         {/* Status */}
                         <td className="px-6 py-4 whitespace-nowrap">
                           {isConfirmed ? (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-forvis-success-100 text-forvis-success-800">
                               <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                               Confirmed
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-forvis-warning-100 text-forvis-warning-800">
                               <Clock className="h-3.5 w-3.5 mr-1" />
                               Pending
                             </span>

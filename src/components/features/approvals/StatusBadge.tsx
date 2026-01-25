@@ -14,15 +14,15 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
     switch (statusUpper) {
       case 'APPROVED':
         return {
-          bgColor: 'bg-green-100',
-          textColor: 'text-green-700',
+          bgColor: 'bg-forvis-success-100',
+          textColor: 'text-forvis-success-800',
           icon: CheckCircle,
           label: 'Approved',
         };
       case 'REJECTED':
         return {
-          bgColor: 'bg-red-100',
-          textColor: 'text-red-700',
+          bgColor: 'bg-forvis-error-100',
+          textColor: 'text-forvis-error-800',
           icon: XCircle,
           label: 'Rejected',
         };

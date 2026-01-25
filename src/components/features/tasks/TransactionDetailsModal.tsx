@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { X, ArrowUpDown, ArrowUp, ArrowDown, Calendar, User, Filter } from 'lucide-react';
 import { useTaskTransactions, TaskTransaction } from '@/hooks/tasks/useTaskTransactions';
 import { MetricType } from '@/types';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface TransactionDetailsModalProps {
   isOpen: boolean;
@@ -245,7 +246,7 @@ export function TransactionDetailsModal({
           {/* Header */}
           <div 
             className="px-6 py-4 rounded-t-lg"
-            style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+            style={{ background: GRADIENTS.primary.horizontal }}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -342,7 +343,7 @@ export function TransactionDetailsModal({
                   <thead className="sticky top-0 z-10">
                     <tr 
                       className="text-left text-white text-sm"
-                      style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+                      style={{ background: GRADIENTS.primary.horizontal }}
                     >
                       <th 
                         className="px-4 py-3 cursor-pointer hover:bg-white/10"
@@ -432,7 +433,7 @@ export function TransactionDetailsModal({
           {!isLoading && !error && sortedTransactions.length > 0 && (
             <div 
               className="px-6 py-4 rounded-b-lg"
-              style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+              style={{ background: GRADIENTS.primary.horizontal }}
             >
               <div className="flex items-center justify-between text-white text-sm font-medium">
                 <div className="flex items-center gap-6">

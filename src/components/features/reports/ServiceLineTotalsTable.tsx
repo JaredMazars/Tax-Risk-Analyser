@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
 import type { TaskWithWIPAndServiceLine } from '@/types/api';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface ServiceLineTotal {
   code: string;
@@ -146,7 +147,7 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
         <div
           className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
-            background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+            background: GRADIENTS.primary.horizontal,
             gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
@@ -187,17 +188,17 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
                   {formatCurrency(sl.grossProduction)}
                 </div>
                 <div className={`text-right tabular-nums font-medium ${
-                  sl.ltdAdj < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                  sl.ltdAdj < 0 ? 'text-forvis-error-600' : 'text-forvis-gray-700'
                 }`}>
                   {formatCurrency(sl.ltdAdj)}
                 </div>
                 <div className={`text-right tabular-nums font-semibold ${
-                  sl.netRevenue < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+                  sl.netRevenue < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-600'
                 }`}>
                   {formatCurrency(sl.netRevenue)}
                 </div>
                 <div className={`text-right tabular-nums ${
-                  adjustmentPercentage < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                  adjustmentPercentage < 0 ? 'text-forvis-error-600' : 'text-forvis-gray-700'
                 }`}>
                   {formatPercentage(adjustmentPercentage)}
                 </div>
@@ -205,14 +206,14 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
                   {formatCurrency(sl.ltdCost)}
                 </div>
                 <div className={`text-right tabular-nums font-semibold ${
-                  sl.grossProfit < 0 ? 'text-red-600' : 'text-green-600'
+                  sl.grossProfit < 0 ? 'text-forvis-error-600' : 'text-forvis-success-600'
                 }`}>
                   {formatCurrency(sl.grossProfit)}
                 </div>
                 <div className={`text-right tabular-nums font-bold ${
-                  grossProfitPercentage >= 60 ? 'text-green-600' : 
-                  grossProfitPercentage >= 50 ? 'text-yellow-600' : 
-                  'text-red-600'
+                  grossProfitPercentage >= 60 ? 'text-forvis-success-600' : 
+                  grossProfitPercentage >= 50 ? 'text-forvis-warning-600' : 
+                  'text-forvis-error-600'
                 }`}>
                   {formatPercentage(grossProfitPercentage)}
                 </div>
@@ -222,9 +223,8 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
 
           {/* Totals Row */}
           <div
-            className="grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
+            className="bg-gradient-dashboard-card grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
-              background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
               gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px'
             }}
           >

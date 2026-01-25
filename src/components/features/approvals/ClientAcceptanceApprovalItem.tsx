@@ -2,6 +2,7 @@
 
 import { Building, AlertTriangle, Calendar, CheckCircle, Eye, User, FileCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import type { ApprovalWithSteps } from '@/types/approval';
 import { Button, LoadingSpinner } from '@/components/ui';
 import { StatusBadge } from './StatusBadge';
@@ -45,11 +46,11 @@ export function ClientAcceptanceApprovalItem({
   const getRiskColor = (rating: string) => {
     switch (rating.toUpperCase()) {
       case 'HIGH':
-        return 'text-red-600';
+        return 'text-forvis-error-600';
       case 'MEDIUM':
-        return 'text-yellow-600';
+        return 'text-forvis-warning-600';
       case 'LOW':
-        return 'text-green-600';
+        return 'text-forvis-success-600';
       default:
         return 'text-forvis-gray-600';
     }
@@ -125,7 +126,7 @@ export function ClientAcceptanceApprovalItem({
     <>
       <div
         className="rounded-lg border border-forvis-blue-100 p-4 shadow-sm hover:shadow-md transition-all duration-200 relative"
-        style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+        style={{ background: GRADIENTS.dashboard.card }}
       >
         {/* Status Badge - Top Right */}
         {showArchived && (
@@ -139,7 +140,7 @@ export function ClientAcceptanceApprovalItem({
             {/* Icon */}
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <Building className="h-5 w-5 text-white" />
             </div>
@@ -252,7 +253,7 @@ export function ClientAcceptanceApprovalItem({
                     />
                   ) : (
                     <div className="text-center py-12">
-                      <p className="text-sm text-red-600">Failed to load client data</p>
+                      <p className="text-sm text-forvis-error-600">Failed to load client data</p>
                     </div>
                   )}
                 </div>

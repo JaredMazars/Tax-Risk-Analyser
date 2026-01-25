@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useQuestionnaire } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { QuestionSection } from '@/constants/acceptance-questions';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface AcceptanceReviewProps {
   taskId: string;
@@ -56,8 +57,8 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
 
   if (!response?.completedAt) {
     return (
-      <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-        <p className="text-sm text-yellow-800">Questionnaire has not been submitted yet.</p>
+      <div className="p-6 bg-forvis-warning-50 border-2 border-forvis-warning-200 rounded-lg">
+        <p className="text-sm text-forvis-warning-800">Questionnaire has not been submitted yet.</p>
       </div>
     );
   }
@@ -67,7 +68,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
       {/* Header */}
       <div
         className="p-6 rounded-lg shadow-corporate text-white"
-        style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+        style={{ background: GRADIENTS.primary.diagonal }}
       >
         <h2 className="text-2xl font-bold mb-2">Review Questionnaire</h2>
         <div className="flex items-center justify-between">
@@ -93,10 +94,10 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
             <span
               className={`px-4 py-2 rounded-lg text-sm font-bold ${
                 riskAssessment.riskRating === 'LOW'
-                  ? 'bg-green-100 text-green-800'
+                  ? 'bg-forvis-success-100 text-forvis-success-800'
                   : riskAssessment.riskRating === 'MEDIUM'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-red-100 text-red-800'
+                  ? 'bg-forvis-warning-100 text-forvis-warning-800'
+                  : 'bg-forvis-error-100 text-forvis-error-800'
               }`}
             >
               {riskAssessment.riskRating}
@@ -106,7 +107,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
           {/* Risk Summary */}
           <div
             className="p-4 rounded-lg text-xs whitespace-pre-line"
-            style={{ background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}
+            style={{ background: GRADIENTS.dashboard.card }}
           >
             {riskAssessment.riskSummary}
           </div>
@@ -114,15 +115,15 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
           {/* High Risk Questions */}
           {riskAssessment.highRiskQuestions && riskAssessment.highRiskQuestions.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-forvis-error-700 mb-2 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 High Risk Indicators ({riskAssessment.highRiskQuestions.length})
               </h4>
               <div className="space-y-2">
                 {riskAssessment.highRiskQuestions.map((hrq: { questionText: string; answer: string; questionKey: string }, idx: number) => (
-                  <div key={idx} className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-xs font-medium text-red-900">{hrq.questionText}</p>
-                    <p className="text-xs text-red-700 mt-1">Answer: {hrq.answer}</p>
+                  <div key={idx} className="p-3 bg-forvis-error-50 border border-forvis-error-200 rounded-lg">
+                    <p className="text-xs font-medium text-forvis-error-900">{hrq.questionText}</p>
+                    <p className="text-xs text-forvis-error-700 mt-1">Answer: {hrq.answer}</p>
                   </div>
                 ))}
               </div>
@@ -179,7 +180,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
                         <span className="text-xs font-medium text-forvis-gray-600">Answer: </span>
                         <span
                           className={`text-xs font-bold ${
-                            isHighRisk ? 'text-red-700' : 'text-forvis-blue-700'
+                            isHighRisk ? 'text-forvis-error-700' : 'text-forvis-blue-700'
                           }`}
                         >
                           {answer?.answer || 'Not answered'}
@@ -192,7 +193,7 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
                         </div>
                       )}
                     </div>
-                    {isHighRisk && <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />}
+                    {isHighRisk && <AlertTriangle className="h-5 w-5 text-forvis-error-600 flex-shrink-0" />}
                   </div>
                 </div>
               );
@@ -268,12 +269,12 @@ export function AcceptanceReview({ taskId, onApprove, canApprove, isApproving = 
 
       {/* Already Reviewed */}
       {response.reviewedAt && !hideReviewedMessage && (
-        <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+        <div className="p-4 bg-forvis-success-50 border-2 border-forvis-success-200 rounded-lg">
           <div className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
+            <CheckCircle className="h-5 w-5 text-forvis-success-600" />
             <div>
-              <p className="text-sm font-semibold text-green-900">Reviewed and Approved</p>
-              <p className="text-xs text-green-700 mt-1">
+              <p className="text-sm font-semibold text-forvis-success-900">Reviewed and Approved</p>
+              <p className="text-xs text-forvis-success-700 mt-1">
                 Reviewed on {new Date(response.reviewedAt).toLocaleString()} by {response.reviewedBy}
               </p>
             </div>

@@ -1,6 +1,7 @@
 import { ButtonHTMLAttributes, forwardRef, ReactNode } from 'react';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'gradient' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'gradient' | 'danger' | 'success';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -37,7 +38,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       primary: 'text-white bg-forvis-blue-500 hover:bg-forvis-blue-600 shadow-corporate hover:shadow-corporate-md',
       secondary: 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 shadow-corporate',
       gradient: 'text-white font-bold shadow-lg hover:shadow-xl',
-      danger: 'text-white bg-red-600 hover:bg-red-700 shadow-corporate hover:shadow-corporate-md',
+      danger: 'text-white bg-forvis-error-600 hover:bg-forvis-error-700 shadow-corporate hover:shadow-corporate-md',
+      success: 'text-white bg-forvis-success-600 hover:bg-forvis-success-700 shadow-corporate hover:shadow-corporate-md',
     };
 
     const disabledStyles = 'disabled:opacity-50 disabled:cursor-not-allowed';
@@ -45,7 +47,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const combinedClassName = `${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${disabledStyles} ${className}`.trim();
 
     const gradientStyle = variant === 'gradient' 
-      ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+      ? { background: GRADIENTS.dashboard.iconBackground }
       : undefined;
 
     return (

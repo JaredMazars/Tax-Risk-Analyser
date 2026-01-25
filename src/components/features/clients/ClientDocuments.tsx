@@ -111,7 +111,7 @@ export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
   if (error) {
     return (
       <div className="p-6 text-center">
-        <p className="text-red-600">Failed to load documents. Please try again.</p>
+        <p className="text-forvis-error-600">Failed to load documents. Please try again.</p>
       </div>
     );
   }
@@ -324,10 +324,10 @@ export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
                         <span
                           className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             doc.extractionStatus === 'COMPLETED'
-                              ? 'bg-green-100 text-green-700'
+                              ? 'bg-forvis-success-100 text-forvis-success-700'
                               : doc.extractionStatus === 'PENDING'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-red-100 text-red-700'
+                              ? 'bg-forvis-warning-100 text-forvis-warning-700'
+                              : 'bg-forvis-error-100 text-forvis-error-700'
                           }`}
                         >
                           {doc.extractionStatus || 'N/A'}

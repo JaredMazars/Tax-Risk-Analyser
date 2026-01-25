@@ -21,7 +21,9 @@ import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
 import { useQuery } from '@tanstack/react-query';
 import type { ActivityWithRelations } from '@/lib/services/bd/activityService';
 import { AlertModal } from '@/components/shared/AlertModal';
-import { LoadingSpinner } from '@/components/ui';
+import { LoadingSpinner, Button } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
+import { FileCheck } from 'lucide-react';
 
 export default function OpportunityDetailPage() {
   const params = useParams();
@@ -220,19 +222,16 @@ export default function OpportunityDetailPage() {
             Edit
           </button>
           {opportunity.status !== 'WON' && !opportunity.convertedToGSClientID && (
-            <button
+            <Button
+              variant="gradient"
               onClick={() => setIsConvertModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+              <FileCheck className="w-5 h-5" />
               Convert to Client
-            </button>
+            </Button>
           )}
           {opportunity.convertedToGSClientID && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg">
+            <div className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-forvis-success-700 bg-forvis-success-50 border border-forvis-success-200 rounded-lg">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -445,8 +444,8 @@ export default function OpportunityDetailPage() {
                   {opportunity.Client ? ` linked to "${opportunity.Client.clientNameFull}"` : ''}.
                 </p>
                 {!opportunity.Client && !opportunity.companyName && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                    <p className="text-xs text-yellow-800">
+                  <div className="bg-forvis-warning-50 border border-forvis-warning-200 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-forvis-warning-800">
                       <strong>Warning:</strong> This opportunity has no company name. Please edit the opportunity to add a company name before converting.
                     </p>
                   </div>
@@ -487,7 +486,7 @@ export default function OpportunityDetailPage() {
                   onClick={handleConvertToClient}
                   disabled={convertOpportunity.isPending || (!opportunity.Client && !opportunity.companyName)}
                   className="flex-1 px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  style={{ background: GRADIENTS.primary.diagonal }}
                 >
                   {convertOpportunity.isPending ? 'Converting...' : 'Convert to Client'}
                 </button>
@@ -554,7 +553,7 @@ export default function OpportunityDetailPage() {
                   onClick={handleServiceLineChange}
                   disabled={updateOpportunity.isPending}
                   className="flex-1 px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  style={{ background: GRADIENTS.primary.diagonal }}
                 >
                   {updateOpportunity.isPending ? 'Saving...' : 'Save Change'}
                 </button>

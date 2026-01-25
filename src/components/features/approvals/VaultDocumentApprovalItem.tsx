@@ -1,6 +1,7 @@
 'use client';
 
 import { FileText, FolderOpen, Calendar, Tag } from 'lucide-react';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface VaultDocumentApprovalItemProps {
   workflowData: any;
@@ -16,7 +17,7 @@ export function VaultDocumentApprovalItem({ workflowData }: VaultDocumentApprova
         <div className="flex items-start gap-3">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            style={{ background: GRADIENTS.icon.standard }}
           >
             <FileText className="h-5 w-5 text-white" />
           </div>

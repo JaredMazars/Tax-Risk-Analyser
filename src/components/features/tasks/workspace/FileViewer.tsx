@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface FileViewerProps {
   fileId: number;
@@ -37,7 +38,7 @@ export function FileViewer({ fileId, fileName, embedUrl, webUrl, onClose }: File
         {/* Header */}
         <div
           className="flex items-center justify-between p-4 border-b border-forvis-gray-200 rounded-t-lg"
-          style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+          style={{ background: GRADIENTS.primary.horizontal }}
         >
           <h2 className="text-lg font-semibold text-white truncate flex-1">{fileName}</h2>
           <div className="flex items-center gap-2">

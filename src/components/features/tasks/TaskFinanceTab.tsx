@@ -10,6 +10,7 @@ import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { TaskBudgetTab } from './TaskBudgetTab';
 import { MetricType } from '@/types';
 import { LoadingSpinner } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 // Lazy load TaskGraphsTab for better performance
 const TaskGraphsTab = dynamic(
@@ -67,8 +68,8 @@ function ProfitabilityCard({
   };
 
   const isPositive = value >= 0;
-  const trendColor = customTextColor || (isPositive ? 'text-green-600' : 'text-red-600');
-  const bgColor = customBgColor || (showTrend ? (isPositive ? 'bg-green-50' : 'bg-red-50') : 'bg-forvis-gray-50');
+  const trendColor = customTextColor || (isPositive ? 'text-forvis-success-600' : 'text-forvis-error-600');
+  const bgColor = customBgColor || (showTrend ? (isPositive ? 'bg-forvis-success-50' : 'bg-forvis-error-50') : 'bg-forvis-gray-50');
 
   return (
     <div 
@@ -82,9 +83,9 @@ function ProfitabilityCard({
         </p>
         {showTrend && !customBgColor && (
           isPositive ? (
-            <TrendingUp className="w-5 h-5 text-green-600" />
+            <TrendingUp className="w-5 h-5 text-forvis-success-600" />
           ) : (
-            <TrendingDown className="w-5 h-5 text-red-600" />
+            <TrendingDown className="w-5 h-5 text-forvis-error-600" />
           )
         )}
       </div>
@@ -163,10 +164,10 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
 
   if (error) {
     return (
-      <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#EF4444', borderWidth: '3px', background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)' }}>
-        <BarChart3 className="mx-auto h-16 w-16 text-red-600" />
-        <h3 className="mt-4 text-lg font-bold text-red-900">Error loading WIP data</h3>
-        <p className="mt-2 text-sm font-medium text-red-600">
+      <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#EF4444', borderWidth: '3px', background: GRADIENTS.semantic.error.light }}>
+        <BarChart3 className="mx-auto h-16 w-16 text-forvis-error-600" />
+        <h3 className="mt-4 text-lg font-bold text-forvis-error-900">Error loading WIP data</h3>
+        <p className="mt-2 text-sm font-medium text-forvis-error-600">
           {error instanceof Error ? error.message : 'An error occurred while loading WIP data'}
         </p>
       </div>
@@ -175,7 +176,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
 
   if (!wipData) {
     return (
-      <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
+      <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: GRADIENTS.dashboard.card }}>
         <BarChart3 className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
         <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>No profitability data available</h3>
         <p className="mt-2 text-sm font-medium" style={{ color: '#2E5AAC' }}>
@@ -240,9 +241,9 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
       {activeTab === 'profitability' && (
         <div className="space-y-6 p-6">
       {/* Key Performance Summary - Section Header */}
-      <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+      <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: GRADIENTS.dashboard.card }}>
         <div className="flex items-center gap-3">
-          <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+          <div className="rounded-full p-2" style={{ background: GRADIENTS.icon.standard }}>
             <BarChart3 className="h-5 w-5 text-white" />
           </div>
           <h2 className="text-xl font-bold text-forvis-gray-900">Key Performance Metrics</h2>
@@ -252,7 +253,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div 
           className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
-          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          style={{ background: GRADIENTS.dashboard.card }}
           onMouseEnter={handleCardHover}
           onClick={() => handleCardClick('netRevenue', 'Net Revenue', metrics.netRevenue)}
         >
@@ -264,7 +265,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
             </div>
             <div
               className="rounded-full p-2.5"
-              style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
@@ -273,7 +274,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
 
         <div 
           className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
-          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          style={{ background: GRADIENTS.dashboard.card }}
           onMouseEnter={handleCardHover}
           onClick={() => handleCardClick('grossProfit', 'Gross Profit', metrics.grossProfit)}
         >
@@ -282,10 +283,10 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
               <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Gross Profit</p>
               <p className={`text-2xl font-bold mt-2 ${
                 metrics.grossProfitPercentage >= 60
-                  ? 'text-green-600'
+                  ? 'text-forvis-success-600'
                   : metrics.grossProfitPercentage >= 50
-                  ? 'text-yellow-600'
-                  : 'text-red-600'
+                  ? 'text-forvis-warning-600'
+                  : 'text-forvis-error-600'
               }`}>
                 {formatCurrency(metrics.grossProfit)}
               </p>
@@ -294,10 +295,10 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
             <div
               className={`rounded-full p-2.5 ${
                 metrics.grossProfitPercentage >= 60
-                  ? 'bg-green-600'
+                  ? 'bg-forvis-success-600'
                   : metrics.grossProfitPercentage >= 50
-                  ? 'bg-yellow-600'
-                  : 'bg-red-600'
+                  ? 'bg-forvis-warning-600'
+                  : 'bg-forvis-error-600'
               }`}
             >
               <DollarSign className="w-5 h-5 text-white" />
@@ -307,7 +308,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
 
         <div 
           className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
-          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          style={{ background: GRADIENTS.dashboard.card }}
           onMouseEnter={handleCardHover}
           onClick={() => handleCardClick('balWIP', 'WIP Balance', metrics.balWIP)}
         >
@@ -319,7 +320,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
             </div>
             <div
               className="rounded-full p-2.5"
-              style={{ background: 'linear-gradient(to bottom right, #EC4899, #DB2777)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <Briefcase className="w-5 h-5 text-white" />
             </div>
@@ -328,7 +329,7 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
 
         <div 
           className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100 cursor-pointer hover:shadow-lg transition-shadow"
-          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          style={{ background: GRADIENTS.dashboard.card }}
           onMouseEnter={handleCardHover}
           onClick={() => handleCardClick('grossProfitPercentage', 'Gross Profit %', metrics.grossProfitPercentage)}
         >
@@ -337,20 +338,20 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
               <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Gross Profit %</p>
               <p className={`text-2xl font-bold mt-2 ${
                 metrics.grossProfitPercentage >= 60
-                  ? 'text-green-600'
+                  ? 'text-forvis-success-600'
                   : metrics.grossProfitPercentage >= 50
-                  ? 'text-yellow-600'
-                  : 'text-red-600'
+                  ? 'text-forvis-warning-600'
+                  : 'text-forvis-error-600'
               }`}>
                 {metrics.grossProfitPercentage.toFixed(2)}%
               </p>
               <div className="mt-2">
                 <div className={`inline-flex items-center text-xs font-bold px-3 py-1 rounded-full ${
                   metrics.grossProfitPercentage >= 60
-                    ? 'bg-green-100 text-green-700 border border-green-200'
+                    ? 'bg-forvis-success-100 text-forvis-success-700 border border-forvis-success-200'
                     : metrics.grossProfitPercentage >= 50
-                    ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                    : 'bg-red-100 text-red-700 border border-red-200'
+                    ? 'bg-forvis-warning-100 text-forvis-warning-700 border border-forvis-warning-200'
+                    : 'bg-forvis-error-100 text-forvis-error-700 border border-forvis-error-200'
                 }`}>
                   {metrics.grossProfitPercentage >= 60
                     ? '✓ Above 60%'
@@ -363,10 +364,10 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
             <div
               className={`rounded-full p-2.5 ${
                 metrics.grossProfitPercentage >= 60
-                  ? 'bg-green-600'
+                  ? 'bg-forvis-success-600'
                   : metrics.grossProfitPercentage >= 50
-                  ? 'bg-yellow-600'
-                  : 'bg-red-600'
+                  ? 'bg-forvis-warning-600'
+                  : 'bg-forvis-error-600'
               }`}
             >
               <BarChart3 className="w-5 h-5 text-white" />
@@ -383,9 +384,9 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
         
         <div className="p-6 space-y-6">
           {/* Production & Revenue Flow Section Header */}
-          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: GRADIENTS.dashboard.card }}>
             <div className="flex items-center gap-3">
-              <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+              <div className="rounded-full p-2" style={{ background: GRADIENTS.icon.standard }}>
                 <TrendingUp className="h-5 w-5 text-white" />
               </div>
               <h2 className="text-xl font-bold text-forvis-gray-900">Revenue Flow</h2>
@@ -435,9 +436,9 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
           </div>
 
           {/* Rate Metrics Section Header */}
-          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: GRADIENTS.dashboard.card }}>
             <div className="flex items-center gap-3">
-              <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+              <div className="rounded-full p-2" style={{ background: GRADIENTS.icon.standard }}>
                 <Clock className="h-5 w-5 text-white" />
               </div>
               <h2 className="text-xl font-bold text-forvis-gray-900">Hourly Rates</h2>
@@ -469,9 +470,9 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
           </div>
 
           {/* WIP Balances Section Header */}
-          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: GRADIENTS.dashboard.card }}>
             <div className="flex items-center gap-3">
-              <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+              <div className="rounded-full p-2" style={{ background: GRADIENTS.icon.standard }}>
                 <Briefcase className="h-5 w-5 text-white" />
               </div>
               <h2 className="text-xl font-bold text-forvis-gray-900">WIP Balances</h2>
@@ -508,9 +509,9 @@ export function TaskFinanceTab({ taskId }: TaskFinanceTabProps) {
           </div>
 
           {/* Additional Details Section Header */}
-          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+          <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: GRADIENTS.dashboard.card }}>
             <div className="flex items-center gap-3">
-              <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+              <div className="rounded-full p-2" style={{ background: GRADIENTS.icon.standard }}>
                 <Wallet className="h-5 w-5 text-white" />
               </div>
               <h2 className="text-xl font-bold text-forvis-gray-900">Additional Metrics</h2>

@@ -7,6 +7,8 @@ import { ChevronRight, AlertTriangle, Clock } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
+import { GRADIENTS } from '@/lib/design-system/gradients';
+import { Button } from '@/components/ui';
 
 export default function RiskRegisterPage() {
   const router = useRouter();
@@ -54,16 +56,15 @@ export default function RiskRegisterPage() {
 
         {/* Coming Soon Card */}
         <div 
-          className="rounded-lg border-2 p-8"
+          className="bg-gradient-dashboard-card rounded-lg border-2 p-8"
           style={{
-            background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
             borderColor: '#2E5AAC',
           }}
         >
           <div className="text-center max-w-lg mx-auto">
             <div 
               className="w-16 h-16 rounded-xl mx-auto mb-6 flex items-center justify-center shadow-md"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <AlertTriangle className="h-8 w-8 text-white" />
             </div>
@@ -85,7 +86,7 @@ export default function RiskRegisterPage() {
             <Link
               href={`/dashboard/${serviceLine.toLowerCase()}/exco-reporting/risk-compliance`}
               className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               Back to Risk & Compliance
             </Link>

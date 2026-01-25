@@ -2,6 +2,7 @@
 
 import { FileText, Briefcase, Building2, Calendar } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import type { EngagementLetterApproval } from '@/types/approvals';
 import { Button } from '@/components/ui';
 
@@ -20,14 +21,14 @@ export function EngagementLetterApprovalItem({ letter, onOpenTaskModal }: Engage
   return (
     <div
       className="rounded-lg border border-forvis-blue-100 p-4 shadow-sm hover:shadow-md transition-all duration-200"
-      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+      style={{ background: GRADIENTS.dashboard.card }}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3 flex-1">
           {/* Icon */}
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            style={{ background: GRADIENTS.icon.standard }}
           >
             <FileText className="h-5 w-5 text-white" />
           </div>

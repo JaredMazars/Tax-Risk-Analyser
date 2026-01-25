@@ -3,6 +3,7 @@
 import { useState, useRef, DragEvent, ChangeEvent } from 'react';
 import { Upload, X, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface FileUploaderProps {
   folderId: number;
@@ -140,8 +141,8 @@ export function FileUploader({ folderId, taskId, onUploadComplete, onClose }: Fi
         }`}
         style={{
           background: isDragging
-            ? 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)'
-            : 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)',
+            ? GRADIENTS.dashboard.card
+            : GRADIENTS.dashboard.card,
           borderWidth: '3px',
         }}
       >

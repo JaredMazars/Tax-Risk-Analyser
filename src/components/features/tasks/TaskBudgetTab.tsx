@@ -18,6 +18,7 @@ import { AddFeeModal } from './AddFeeModal';
 import { EditAllocationModal } from './EditAllocationModal';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { BudgetDisbursement, BudgetFee, BudgetMember } from '@/types/budget';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface TaskBudgetTabProps {
   taskId: number;
@@ -223,7 +224,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
       {/* Summary Card - Top Priority */}
       <div 
         className="rounded-lg p-6 shadow-corporate-lg border border-forvis-blue-200"
-        style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+        style={{ background: GRADIENTS.primary.diagonal }}
       >
         <h3 className="text-xl font-semibold text-white mb-6">Budget Summary</h3>
         <div className="space-y-3">
@@ -245,12 +246,12 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
           <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 140px 160px' }}>
             <span className="text-white">Adjustment:</span>
             <span className={`text-right text-sm opacity-90 tabular-nums ${
-              budgetData.summary.adjustment >= 0 ? 'text-green-600' : 'text-red-600'
+              budgetData.summary.adjustment >= 0 ? 'text-forvis-success-600' : 'text-forvis-error-600'
             }`}>
               {budgetData.summary.adjustment >= 0 ? '-' : '+'}{Math.abs(budgetData.summary.adjustmentPercentage).toFixed(2)}%
             </span>
             <span className={`text-right font-semibold tabular-nums ${
-              budgetData.summary.adjustment >= 0 ? 'text-green-600' : 'text-red-600'
+              budgetData.summary.adjustment >= 0 ? 'text-forvis-success-600' : 'text-forvis-error-600'
             }`}>
               {budgetData.summary.adjustment >= 0 ? '-' : '+'}{formatCurrency(Math.abs(budgetData.summary.adjustment))}
             </span>
@@ -267,9 +268,9 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
 
       {/* PRODUCTION SECTION */}
       <div className="space-y-6">
-        <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}>
+        <div className="rounded-lg p-4 border border-forvis-blue-200 shadow-sm" style={{ background: GRADIENTS.dashboard.card }}>
           <div className="flex items-center gap-3">
-            <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}>
+            <div className="rounded-full p-2" style={{ background: GRADIENTS.icon.standard }}>
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <h2 className="text-xl font-bold text-forvis-gray-900">Production</h2>
@@ -295,13 +296,13 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
                   {/* Category Header */}
                   <div 
                     className="p-4 border-b border-forvis-gray-200"
-                    style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+                    style={{ background: GRADIENTS.dashboard.card }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
                           className="rounded-full p-2"
-                          style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                          style={{ background: GRADIENTS.icon.standard }}
                         >
                           <Calculator className="w-4 h-4 text-white" />
                         </div>
@@ -316,7 +317,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
 
                   {/* Staff Members Table */}
                   <div className="bg-white">
-                    <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 120px 120px 160px', background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+                    <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 120px 120px 160px', background: GRADIENTS.primary.horizontal }}>
                       <div>Actions</div>
                       <div>Staff Member</div>
                       <div className="text-right">Hours</div>
@@ -393,7 +394,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
             </div>
           ) : (
             <div className="rounded-lg shadow-sm border border-forvis-gray-200 overflow-hidden">
-              <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 160px 160px', background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+              <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 160px 160px', background: GRADIENTS.primary.horizontal }}>
                 <div>Actions</div>
                 <div>Description</div>
                 <div className="text-right">Expected Date</div>
@@ -417,7 +418,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
                     </button>
                     <button
                       onClick={() => setDeletingDisbursementId(disbursement.id)}
-                      className="p-1.5 text-forvis-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      className="p-1.5 text-forvis-gray-600 hover:text-forvis-error-600 hover:bg-forvis-error-50 rounded transition-colors"
                       title="Delete disbursement"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -442,9 +443,9 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
 
       {/* FEES SECTION */}
       <div className="space-y-6">
-        <div className="rounded-lg p-4 border border-green-200 shadow-sm" style={{ background: 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)' }}>
+        <div className="rounded-lg p-4 border border-forvis-success-200 shadow-sm" style={{ background: GRADIENTS.semantic.success.light }}>
           <div className="flex items-center gap-3">
-            <div className="rounded-full p-2" style={{ background: 'linear-gradient(to bottom right, #10B981, #059669)' }}>
+            <div className="rounded-full p-2" style={{ background: GRADIENTS.semantic.success.button }}>
               <DollarSign className="h-5 w-5 text-white" />
             </div>
             <h2 className="text-xl font-bold text-forvis-gray-900">Fees</h2>
@@ -455,7 +456,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
         <div>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-green-600" />
+              <DollarSign className="h-5 w-5 text-forvis-success-600" />
               <h3 className="text-lg font-bold text-forvis-gray-900">Fee Items</h3>
             </div>
             <Button
@@ -473,8 +474,8 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
               No fees added yet
             </div>
           ) : (
-            <div className="rounded-lg shadow-sm border border-green-200 overflow-hidden">
-              <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 160px 160px', background: 'linear-gradient(to right, #10B981, #059669)' }}>
+            <div className="rounded-lg shadow-sm border border-forvis-success-200 overflow-hidden">
+              <div className="grid gap-4 px-4 py-3 text-xs font-medium text-white uppercase tracking-wider shadow-sm" style={{ gridTemplateColumns: '80px 1fr 160px 160px', background: GRADIENTS.semantic.success.button }}>
                 <div>Actions</div>
                 <div>Description</div>
                 <div className="text-right">Expected Date</div>
@@ -484,7 +485,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
                 <div
                   key={fee.id}
                   className={`grid gap-4 px-4 py-3 items-center ${
-                    idx % 2 === 0 ? 'bg-white' : 'bg-green-50/30'
+                    idx % 2 === 0 ? 'bg-white' : 'bg-forvis-success-50/30'
                   }`}
                   style={{ gridTemplateColumns: '80px 1fr 160px 160px' }}
                 >
@@ -498,7 +499,7 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
                     </button>
                     <button
                       onClick={() => setDeletingFeeId(fee.id)}
-                      className="p-1.5 text-forvis-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      className="p-1.5 text-forvis-gray-600 hover:text-forvis-error-600 hover:bg-forvis-error-50 rounded transition-colors"
                       title="Delete fee"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -506,15 +507,15 @@ export function TaskBudgetTab({ taskId }: TaskBudgetTabProps) {
                   </div>
                   <div className="font-medium text-forvis-gray-900">{fee.description}</div>
                   <div className="text-right text-forvis-gray-700 text-sm tabular-nums">{formatDate(fee.expectedDate)}</div>
-                  <div className="text-right font-semibold text-green-600 tabular-nums">{formatCurrency(fee.amount)}</div>
+                  <div className="text-right font-semibold text-forvis-success-600 tabular-nums">{formatCurrency(fee.amount)}</div>
                 </div>
               ))}
               {/* Fees Subtotal */}
-              <div className="grid gap-4 px-4 py-3 border-t-2 border-green-300 bg-green-50 font-semibold" style={{ gridTemplateColumns: '80px 1fr 160px 160px' }}>
+              <div className="grid gap-4 px-4 py-3 border-t-2 border-forvis-success-300 bg-forvis-success-50 font-semibold" style={{ gridTemplateColumns: '80px 1fr 160px 160px' }}>
                 <div></div>
                 <div className="text-forvis-gray-900">Subtotal - Fees</div>
                 <div></div>
-                <div className="text-right text-green-600 tabular-nums">{formatCurrency(budgetData.summary.totalFees)}</div>
+                <div className="text-right text-forvis-success-600 tabular-nums">{formatCurrency(budgetData.summary.totalFees)}</div>
               </div>
             </div>
           )}

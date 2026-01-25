@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Loader2, Folder } from 'lucide-react';
 import { Button } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface CreateFolderModalProps {
   parentFolderId?: number;
@@ -64,7 +65,7 @@ export function CreateFolderModal({ parentFolderId, taskId, onSuccess, onClose }
           <div className="flex items-center gap-2">
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <Folder className="w-5 h-5 text-white" />
             </div>

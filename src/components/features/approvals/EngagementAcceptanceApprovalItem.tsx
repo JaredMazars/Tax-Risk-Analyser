@@ -2,6 +2,7 @@
 
 import { CheckCircle, Briefcase, Building2, Calendar, AlertTriangle, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import type { EngagementAcceptanceApproval } from '@/types/approvals';
 import { Button } from '@/components/ui';
 import { StatusBadge } from './StatusBadge';
@@ -24,11 +25,11 @@ export function EngagementAcceptanceApprovalItem({ acceptance, onOpenTaskModal, 
     if (!rating) return 'text-forvis-gray-600';
     switch (rating.toUpperCase()) {
       case 'HIGH':
-        return 'text-red-600';
+        return 'text-forvis-error-600';
       case 'MEDIUM':
-        return 'text-yellow-600';
+        return 'text-forvis-warning-600';
       case 'LOW':
-        return 'text-green-600';
+        return 'text-forvis-success-600';
       default:
         return 'text-forvis-gray-600';
     }
@@ -64,7 +65,7 @@ export function EngagementAcceptanceApprovalItem({ acceptance, onOpenTaskModal, 
   return (
     <div
       className="rounded-lg border border-forvis-blue-100 p-4 shadow-sm hover:shadow-md transition-all duration-200 relative"
-      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+      style={{ background: GRADIENTS.dashboard.card }}
     >
       {/* Status Badge - Top Right */}
       {showArchived && (
@@ -77,7 +78,7 @@ export function EngagementAcceptanceApprovalItem({ acceptance, onOpenTaskModal, 
           {/* Icon */}
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            style={{ background: GRADIENTS.icon.standard }}
           >
             <CheckCircle className="h-5 w-5 text-white" />
           </div>

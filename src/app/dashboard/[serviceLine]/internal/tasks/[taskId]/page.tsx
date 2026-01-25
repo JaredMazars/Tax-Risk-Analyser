@@ -71,7 +71,7 @@ export default function InternalTaskPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-forvis-gray-50">
         <div className="text-center max-w-md px-4">
-          <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+          <AlertTriangle className="mx-auto h-12 w-12 text-forvis-warning-500 mb-4" />
           <h1 className="text-2xl font-bold text-forvis-gray-900 mb-2">Access Denied</h1>
           <p className="text-forvis-gray-600 mb-4">
             {accessError || 'You do not have access to this task.'}

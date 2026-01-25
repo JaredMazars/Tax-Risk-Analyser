@@ -2,6 +2,7 @@
 
 import { MessageSquare, Briefcase, Building2, Calendar, AlertCircle, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import type { ReviewNoteApproval } from '@/types/approvals';
 import { Button } from '@/components/ui';
 import { WorkflowTimeline } from './WorkflowTimeline';
@@ -40,28 +41,28 @@ export function ReviewNoteApprovalItem({ note, onOpenTaskModal, showArchived = f
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case 'OPEN':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-forvis-blue-100 text-forvis-blue-800';
       case 'IN_PROGRESS':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-forvis-warning-100 text-forvis-warning-800';
       case 'ADDRESSED':
-        return 'bg-green-100 text-green-800';
+        return 'bg-forvis-success-100 text-forvis-success-800';
       case 'CLEARED':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-forvis-gray-100 text-forvis-gray-800';
       case 'REJECTED':
-        return 'bg-red-100 text-red-800';
+        return 'bg-forvis-error-100 text-forvis-error-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-forvis-gray-100 text-forvis-gray-800';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toUpperCase()) {
       case 'HIGH':
-        return 'text-red-600';
+        return 'text-forvis-error-600';
       case 'MEDIUM':
-        return 'text-yellow-600';
+        return 'text-forvis-warning-600';
       case 'LOW':
-        return 'text-green-600';
+        return 'text-forvis-success-600';
       default:
         return 'text-forvis-gray-600';
     }
@@ -77,14 +78,14 @@ export function ReviewNoteApprovalItem({ note, onOpenTaskModal, showArchived = f
   return (
     <div
       className="rounded-lg border border-forvis-blue-100 p-4 shadow-sm hover:shadow-md transition-all duration-200"
-      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+      style={{ background: GRADIENTS.dashboard.card }}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3 flex-1">
           {/* Icon */}
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            style={{ background: GRADIENTS.icon.standard }}
           >
             <MessageSquare className="h-5 w-5 text-white" />
           </div>

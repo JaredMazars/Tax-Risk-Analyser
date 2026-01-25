@@ -15,6 +15,7 @@ import {
 import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 const sections = [
   {
@@ -93,7 +94,7 @@ export default function ExcoReportingPage() {
           <div className="flex items-center gap-4 mb-2">
             <div 
               className="w-12 h-12 rounded-lg flex items-center justify-center shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <FileBarChart className="h-6 w-6 text-white" />
             </div>

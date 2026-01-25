@@ -36,6 +36,7 @@ import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { ClientAcceptanceCard } from '@/components/features/clients/ClientAcceptanceCard';
 import { Banner } from '@/components/ui';
 import { useClientAcceptanceStatus } from '@/hooks/acceptance/useClientAcceptanceStatus';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 export default function ServiceLineClientDetailPage() {
   const params = useParams();
@@ -102,14 +103,14 @@ export default function ServiceLineClientDetailPage() {
       case CreditRatingGrade.AAA:
       case CreditRatingGrade.AA:
       case CreditRatingGrade.A:
-        return 'bg-green-100 text-green-800';
+        return 'bg-forvis-success-100 text-forvis-success-800';
       case CreditRatingGrade.BBB:
       case CreditRatingGrade.BB:
       case CreditRatingGrade.B:
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-forvis-warning-100 text-forvis-warning-800';
       case CreditRatingGrade.CCC:
       case CreditRatingGrade.D:
-        return 'bg-red-100 text-red-800';
+        return 'bg-forvis-error-100 text-forvis-error-800';
       default:
         return 'bg-forvis-gray-100 text-forvis-gray-800';
     }
@@ -259,7 +260,7 @@ export default function ServiceLineClientDetailPage() {
               ? `/dashboard/${serviceLine.toLowerCase()}/clients` 
               : `/dashboard/${serviceLine.toLowerCase()}`
             } 
-            className="mt-4 inline-block text-blue-600 hover:text-blue-700"
+            className="mt-4 inline-block text-forvis-blue-600 hover:text-forvis-blue-700"
           >
             Back to Clients
           </Link>
@@ -348,8 +349,8 @@ export default function ServiceLineClientDetailPage() {
                         <dd className="mt-0.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             client.active === 'Yes' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-red-100 text-red-700'
+                              ? 'bg-forvis-success-100 text-forvis-success-700' 
+                              : 'bg-forvis-error-100 text-forvis-error-700'
                           }`}>
                             {client.active === 'Yes' ? 'Active' : 'Inactive'}
                           </span>
@@ -360,7 +361,7 @@ export default function ServiceLineClientDetailPage() {
                         <dd className="mt-0.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             client.clientOCFlag 
-                              ? 'bg-green-100 text-green-700' 
+                              ? 'bg-forvis-success-100 text-forvis-success-700' 
                               : 'bg-forvis-gray-100 text-forvis-gray-700'
                           }`}>
                             {client.clientOCFlag ? 'Yes' : 'No'}
@@ -372,7 +373,7 @@ export default function ServiceLineClientDetailPage() {
                         <dd className="mt-0.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             client.clientTaxFlag 
-                              ? 'bg-green-100 text-green-700' 
+                              ? 'bg-forvis-success-100 text-forvis-success-700' 
                               : 'bg-forvis-gray-100 text-forvis-gray-700'
                           }`}>
                             {client.clientTaxFlag ? 'Yes' : 'No'}
@@ -384,7 +385,7 @@ export default function ServiceLineClientDetailPage() {
                         <dd className="mt-0.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             client.clientSecFlag 
-                              ? 'bg-green-100 text-green-700' 
+                              ? 'bg-forvis-success-100 text-forvis-success-700' 
                               : 'bg-forvis-gray-100 text-forvis-gray-700'
                           }`}>
                             {client.clientSecFlag ? 'Yes' : 'No'}
@@ -679,7 +680,7 @@ export default function ServiceLineClientDetailPage() {
                 <div className="p-4 text-center">
                   <div 
                     className="w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3 shadow-sm transition-transform duration-200 group-hover:scale-110"
-                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <FileText className="h-6 w-6 text-white" />
                   </div>
@@ -729,7 +730,7 @@ export default function ServiceLineClientDetailPage() {
                 <div className="p-4 text-center">
                   <div 
                     className="w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3 shadow-sm transition-transform duration-200 group-hover:scale-110"
-                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <ChartSpline className="h-6 w-6 text-white" />
                   </div>

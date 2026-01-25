@@ -2,6 +2,7 @@
 
 import { ShieldCheck, Briefcase, Building2, Calendar, Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import type { IndependenceConfirmationApproval } from '@/types/approvals';
 import { Button } from '@/components/ui';
 
@@ -20,14 +21,14 @@ export function IndependenceConfirmationItem({ confirmation, onOpenTaskModal }: 
   return (
     <div
       className="rounded-lg border border-forvis-blue-100 p-4 shadow-sm hover:shadow-md transition-all duration-200"
-      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+      style={{ background: GRADIENTS.dashboard.card }}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3 flex-1">
           {/* Icon */}
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            style={{ background: GRADIENTS.icon.standard }}
           >
             <ShieldCheck className="h-5 w-5 text-white" />
           </div>
@@ -40,7 +41,7 @@ export function IndependenceConfirmationItem({ confirmation, onOpenTaskModal }: 
                   <h4 className="text-sm font-semibold text-forvis-gray-900">
                     Independence Confirmation Required
                   </h4>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-warning-100 text-forvis-warning-800">
                     <Clock className="h-3 w-3 mr-1" />
                     Pending
                   </span>
@@ -81,8 +82,8 @@ export function IndependenceConfirmationItem({ confirmation, onOpenTaskModal }: 
             </div>
 
             {/* Independence Message */}
-            <div className="mt-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-              <p className="text-xs text-yellow-900">
+            <div className="mt-3 p-3 rounded-lg bg-forvis-warning-50 border border-forvis-warning-200">
+              <p className="text-xs text-forvis-warning-900">
                 <span className="font-semibold">Action Required:</span> You must confirm your independence 
                 from this client before starting work on this engagement.
               </p>

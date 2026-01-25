@@ -10,6 +10,7 @@ import { Search, Building2, CheckCircle, AlertTriangle, SkipForward } from 'luci
 import { Button, LoadingSpinner } from '@/components/ui';
 import { CompanyResearchModal } from '@/components/features/bd/CompanyResearchModal';
 import type { CompanyResearchResult } from '@/lib/services/bd/companyResearchAgent';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface ClientRiskResearchStepProps {
   GSClientID: string;
@@ -67,9 +68,9 @@ export function ClientRiskResearchStep({
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
-      case 'LOW': return 'text-green-600 bg-green-50 border-green-200';
-      case 'MEDIUM': return 'text-amber-600 bg-amber-50 border-amber-200';
-      case 'HIGH': return 'text-red-600 bg-red-50 border-red-200';
+      case 'LOW': return 'text-forvis-success-600 bg-forvis-success-50 border-forvis-success-200';
+      case 'MEDIUM': return 'text-forvis-warning-600 bg-forvis-warning-50 border-forvis-warning-200';
+      case 'HIGH': return 'text-forvis-error-600 bg-forvis-error-50 border-forvis-error-200';
       default: return 'text-forvis-gray-600 bg-forvis-gray-50 border-forvis-gray-200';
     }
   };
@@ -79,12 +80,12 @@ export function ClientRiskResearchStep({
       {/* Step Header */}
       <div
         className="rounded-lg p-6 border border-forvis-blue-100"
-        style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+        style={{ background: GRADIENTS.dashboard.card }}
       >
         <div className="flex items-center gap-3 mb-4">
           <div
             className="w-12 h-12 rounded-lg flex items-center justify-center shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            style={{ background: GRADIENTS.icon.standard }}
           >
             <Building2 className="h-6 w-6 text-white" />
           </div>
@@ -125,7 +126,7 @@ export function ClientRiskResearchStep({
         {researchSkipped && !researchResult && !isResearching && (
           <div className="bg-white rounded-lg p-5 border border-forvis-gray-200">
             <div className="flex items-center gap-3 mb-3">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+              <CheckCircle className="h-6 w-6 text-forvis-success-600" />
               <div>
                 <h3 className="text-sm font-semibold text-forvis-gray-900">Research Skipped</h3>
                 <p className="text-xs text-forvis-gray-600">
@@ -167,8 +168,8 @@ export function ClientRiskResearchStep({
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="bg-forvis-error-50 border border-forvis-error-200 rounded-lg p-4">
+            <p className="text-sm text-forvis-error-700">{error}</p>
             <div className="mt-3 flex gap-3">
               <Button
                 variant="secondary"
@@ -191,7 +192,7 @@ export function ClientRiskResearchStep({
             <div className="bg-white rounded-lg p-5 border border-forvis-gray-200">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <CheckCircle className="h-6 w-6 text-forvis-success-600" />
                   <div>
                     <h3 className="text-sm font-semibold text-forvis-gray-900">Research Complete</h3>
                     <p className="text-xs text-forvis-gray-600">
@@ -217,7 +218,7 @@ export function ClientRiskResearchStep({
                     <ul className="space-y-1">
                       {researchResult.riskAssessment.concerns.slice(0, 3).map((concern, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-forvis-gray-700">
-                          <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                          <AlertTriangle className="h-4 w-4 text-forvis-warning-500 mt-0.5 flex-shrink-0" />
                           {concern}
                         </li>
                       ))}
@@ -231,7 +232,7 @@ export function ClientRiskResearchStep({
                     <ul className="space-y-1">
                       {researchResult.riskAssessment.positiveIndicators.slice(0, 2).map((indicator, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-forvis-gray-700">
-                          <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <CheckCircle className="h-4 w-4 text-forvis-success-500 mt-0.5 flex-shrink-0" />
                           {indicator}
                         </li>
                       ))}

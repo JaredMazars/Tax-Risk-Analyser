@@ -5,9 +5,10 @@ import { FolderPlus, Upload, Grid3x3, List } from 'lucide-react';
 import { FileGrid, CreateFolderModal, FileUploader, FileViewer, FolderTree, BreadcrumbNav } from './workspace';
 import { useFeature } from '@/hooks/permissions/useFeature';
 import { Feature } from '@/lib/permissions/features';
-import { Button } from '@/components/ui';
+import { Button, Banner } from '@/components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getChildFolders } from '@/lib/utils/folderPath';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface WorkspaceFolder {
   id: number;
@@ -43,6 +44,8 @@ export function TaskWorkspaceTab({ taskId }: TaskWorkspaceTabProps) {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ isOpen: boolean; file: WorkspaceFile | null }>({ isOpen: false, file: null });
   const queryClient = useQueryClient();
 
   // Fetch workspace folders for this task
@@ -134,17 +137,19 @@ export function TaskWorkspaceTab({ taskId }: TaskWorkspaceTabProps) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to download file');
+      setError(error instanceof Error ? error.message : 'Failed to download file');
     }
   };
 
-  const handleDelete = async (file: WorkspaceFile) => {
-    if (!confirm(`Are you sure you want to delete "${file.name}"?`)) {
-      return;
-    }
+  const handleDelete = (file: WorkspaceFile) => {
+    setDeleteConfirmModal({ isOpen: true, file });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmModal.file) return;
 
     try {
-      const response = await fetch(`/api/tasks/${taskId}/workspace/files/${file.id}`, {
+      const response = await fetch(`/api/tasks/${taskId}/workspace/files/${deleteConfirmModal.file.id}`, {
         method: 'DELETE',
       });
 
@@ -156,8 +161,10 @@ export function TaskWorkspaceTab({ taskId }: TaskWorkspaceTabProps) {
       // Invalidate queries to refresh the file list
       queryClient.invalidateQueries({ queryKey: ['workspace', 'task-files', taskId] });
       refetchFiles();
+      setDeleteConfirmModal({ isOpen: false, file: null });
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to delete file');
+      setError(error instanceof Error ? error.message : 'Failed to delete file');
+      setDeleteConfirmModal({ isOpen: false, file: null });
     }
   };
 
@@ -173,6 +180,17 @@ export function TaskWorkspaceTab({ taskId }: TaskWorkspaceTabProps) {
 
   return (
     <div className="h-full flex flex-col">
+      {error && (
+        <div className="px-6 pt-4">
+          <Banner
+            variant="error"
+            message={error}
+            dismissible
+            onDismiss={() => setError(null)}
+          />
+        </div>
+      )}
+      
       {/* Header */}
       <div className="px-6 py-4 border-b border-forvis-gray-200 bg-white">
         <div className="flex items-center justify-between">
@@ -343,6 +361,17 @@ export function TaskWorkspaceTab({ taskId }: TaskWorkspaceTabProps) {
           }}
         />
       )}
+
+      <ConfirmModal
+        isOpen={deleteConfirmModal.isOpen}
+        onClose={() => setDeleteConfirmModal({ isOpen: false, file: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete File"
+        message={`Are you sure you want to delete "${deleteConfirmModal.file?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

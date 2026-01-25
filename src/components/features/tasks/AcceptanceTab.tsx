@@ -15,6 +15,7 @@ import { Banner } from '@/components/ui';
 import { AcceptanceQuestionnaire } from './acceptance/AcceptanceQuestionnaire';
 import { AcceptanceReview } from './acceptance/AcceptanceReview';
 import { AcceptanceTabSkeleton } from './acceptance/AcceptanceTabSkeleton';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface AcceptanceTabProps {
   task: Task;
@@ -158,9 +159,9 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
             </div>
             
             {isApproved ? (
-              <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 border-2 border-green-200 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-semibold text-green-700">Approved</span>
+              <div className="flex items-center space-x-2 px-4 py-2 bg-forvis-success-50 border-2 border-forvis-success-200 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-forvis-success-600" />
+                <span className="text-sm font-semibold text-forvis-success-700">Approved</span>
               </div>
             ) : status.completed ? (
               <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg">
@@ -168,9 +169,9 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
                 <span className="text-sm font-semibold text-blue-700">Submitted</span>
               </div>
             ) : status.exists ? (
-              <div className="flex items-center space-x-2 px-4 py-2 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-                <Clock className="h-5 w-5 text-yellow-600" />
-                <span className="text-sm font-semibold text-yellow-700">In Progress ({status.completionPercentage || 0}%)</span>
+              <div className="flex items-center space-x-2 px-4 py-2 bg-forvis-warning-50 border-2 border-forvis-warning-200 rounded-lg">
+                <Clock className="h-5 w-5 text-forvis-warning-600" />
+                <span className="text-sm font-semibold text-forvis-warning-700">In Progress ({status.completionPercentage || 0}%)</span>
               </div>
             ) : (
               <div className="flex items-center space-x-2 px-4 py-2 bg-forvis-gray-100 border-2 border-forvis-gray-300 rounded-lg">
@@ -247,7 +248,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
               style={
                 task?.GSClientID && (!clientAcceptanceStatus?.approved || (clientAcceptanceStatus.validUntil && new Date(clientAcceptanceStatus.validUntil) < new Date()))
                   ? {}
-                  : { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                  : { background: GRADIENTS.icon.standard }
               }
             >
               <Play className="h-5 w-5" />
@@ -297,7 +298,7 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
                   <button
                     onClick={() => setViewMode('review')}
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
-                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <FileCheck className="h-4 w-4" />
                     Review and Approve
@@ -310,19 +311,19 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
 
         {workflowState === 'approved' && (
           <>
-            <div className="bg-green-50 rounded-lg border-2 border-green-200 shadow-corporate overflow-hidden">
+            <div className="bg-forvis-success-50 rounded-lg border-2 border-forvis-success-200 shadow-corporate overflow-hidden">
               <div className="px-6 py-4">
                 <div className="flex items-start">
-                  <CheckCircle className="h-6 w-6 text-green-600 mt-1 mr-3" />
+                  <CheckCircle className="h-6 w-6 text-forvis-success-600 mt-1 mr-3" />
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-green-900 mb-2">
+                    <h3 className="text-lg font-semibold text-forvis-success-900 mb-2">
                       Engagement Acceptance Approved
                     </h3>
                     <dl className="space-y-2">
                       {task.acceptanceApprovedAt && (
                         <div>
-                          <dt className="text-sm font-medium text-green-800 inline">Approved on: </dt>
-                          <dd className="text-sm text-green-700 inline">
+                          <dt className="text-sm font-medium text-forvis-success-800 inline">Approved on: </dt>
+                          <dd className="text-sm text-forvis-success-700 inline">
                             {new Date(task.acceptanceApprovedAt).toLocaleString('en-US', {
                               year: 'numeric',
                               month: 'long',
@@ -335,22 +336,22 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
                       )}
                       {task.acceptanceApprovedBy && (
                         <div>
-                          <dt className="text-sm font-medium text-green-800 inline">Approved by: </dt>
-                          <dd className="text-sm text-green-700 inline">
+                          <dt className="text-sm font-medium text-forvis-success-800 inline">Approved by: </dt>
+                          <dd className="text-sm text-forvis-success-700 inline">
                             {task.acceptanceApprovedBy}
                           </dd>
                         </div>
                       )}
                       {status.riskRating && (
                         <div>
-                          <dt className="text-sm font-medium text-green-800 inline">Final Risk Rating: </dt>
-                          <dd className="text-sm text-green-700 inline">
+                          <dt className="text-sm font-medium text-forvis-success-800 inline">Final Risk Rating: </dt>
+                          <dd className="text-sm text-forvis-success-700 inline">
                             {status.riskRating} ({status.overallRiskScore}%)
                           </dd>
                         </div>
                       )}
                     </dl>
-                    <p className="text-sm text-green-700 mt-3">
+                    <p className="text-sm text-forvis-success-700 mt-3">
                       You can now proceed to generate and upload the engagement letter.
                     </p>
                   </div>
@@ -370,8 +371,8 @@ export function AcceptanceTab({ task, currentUserRole, onApprovalComplete, onNav
         )}
 
         {error && (
-          <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="p-4 bg-forvis-error-50 border-2 border-forvis-error-200 rounded-lg">
+            <p className="text-sm text-forvis-error-700">{error}</p>
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { QuestionField } from './QuestionField';
 import { DocumentUpload } from './DocumentUpload';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import { useQuestionnaire, useSaveAnswers, useSubmitQuestionnaire } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { QuestionSection } from '@/constants/acceptance-questions';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -224,8 +225,8 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
 
   if (!sections || sections.length === 0) {
     return (
-      <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-        <p className="text-sm text-yellow-800">No questionnaire configured for this task type.</p>
+      <div className="p-6 bg-forvis-warning-50 border-2 border-forvis-warning-200 rounded-lg">
+        <p className="text-sm text-forvis-warning-800">No questionnaire configured for this task type.</p>
       </div>
     );
   }
@@ -279,14 +280,14 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
         )}
 
         {saveAnswersMutation.isSuccess && !hasChanges && !isSavingBeforeSubmit && (
-          <div className="mt-3 text-xs text-green-600 flex items-center gap-2">
+          <div className="mt-3 text-xs text-forvis-success-600 flex items-center gap-2">
             <CheckCircle className="h-3 w-3" />
             <span>All changes saved</span>
           </div>
         )}
 
         {saveError && (
-          <div className="mt-3 text-xs text-red-600 flex items-center gap-2">
+          <div className="mt-3 text-xs text-forvis-error-600 flex items-center gap-2">
             <AlertCircle className="h-3 w-3" />
             <span>{saveError}</span>
           </div>
@@ -448,12 +449,12 @@ export function AcceptanceQuestionnaire({ taskId, onSubmitSuccess }: AcceptanceQ
 
       {/* Completion Message */}
       {isCompleted && (
-        <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+        <div className="p-4 bg-forvis-success-50 border-2 border-forvis-success-200 rounded-lg">
           <div className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
+            <CheckCircle className="h-5 w-5 text-forvis-success-600" />
             <div>
-              <p className="text-sm font-semibold text-green-900">Questionnaire Submitted</p>
-              <p className="text-xs text-green-700 mt-1">
+              <p className="text-sm font-semibold text-forvis-success-900">Questionnaire Submitted</p>
+              <p className="text-xs text-forvis-success-700 mt-1">
                 Submitted on {new Date(response.completedAt).toLocaleString()} by {response.completedBy}
               </p>
             </div>

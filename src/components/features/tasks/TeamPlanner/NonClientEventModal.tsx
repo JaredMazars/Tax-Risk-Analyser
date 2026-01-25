@@ -6,6 +6,7 @@ import { X, Calendar, Clock, Percent, FileText } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { NonClientEventType, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours } from './utils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface NonClientEventModalProps {
   isOpen: boolean;
@@ -174,7 +175,7 @@ export function NonClientEventModal({
         {/* Header */}
         <div 
           className="px-6 py-4 border-b-2 border-forvis-gray-200 flex items-center justify-between sticky top-0 z-10 bg-white"
-          style={{ background: 'linear-gradient(to right, #EBF2FA, #D6E4F5)' }}
+          style={{ background: GRADIENTS.dashboard.card }}
         >
           <div>
             <h2 className="text-xl font-bold text-forvis-blue-900">

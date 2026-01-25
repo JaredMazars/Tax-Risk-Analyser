@@ -7,6 +7,7 @@ import { X, Calendar, Clock, Percent, AlertCircle } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface AllocationModalProps {
   allocation: AllocationData | null;
@@ -193,7 +194,7 @@ export function AllocationModal({ allocation, isOpen, onClose, onSave, onClear, 
         <div className="bg-white rounded-lg shadow-corporate-lg max-w-md w-full border-2 border-forvis-gray-200">
           <div 
             className="px-6 py-4 border-b-2 border-forvis-gray-200 flex items-center justify-between"
-            style={{ background: 'linear-gradient(to right, #EBF2FA, #D6E4F5)' }}
+            style={{ background: GRADIENTS.dashboard.card }}
           >
             <h2 className="text-xl font-bold text-forvis-blue-900">Non-Client Event</h2>
             <button

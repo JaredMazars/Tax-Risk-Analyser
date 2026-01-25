@@ -47,6 +47,7 @@ import { TaskFinanceTab } from '@/components/features/tasks/TaskFinanceTab';
 import { canAccessWorkTabs, isClientTask, getBlockedTabMessage } from '@/lib/utils/taskWorkflow';
 import { DollarSign, Briefcase, FolderOpen, FileClock } from 'lucide-react';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface TabProps {
   selected: boolean;
@@ -256,9 +257,9 @@ function SettingsTab({ task, onUpdate, onArchive }: SettingsTabProps) {
       </Card>
 
       {/* Danger Zone */}
-      <Card variant="standard" className="border-red-200 overflow-hidden">
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50">
-          <h2 className="text-base font-semibold text-red-900">Danger Zone</h2>
+      <Card variant="standard" className="border-forvis-error-200 overflow-hidden">
+        <div className="px-4 py-2 border-b border-forvis-error-200 bg-forvis-error-50">
+          <h2 className="text-base font-semibold text-forvis-error-900">Danger Zone</h2>
         </div>
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
@@ -756,7 +757,7 @@ export function TaskDetailContent({
                   <div className="ml-6 flex-shrink-0">
                     <div
                       className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
-                      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+                      style={{ background: GRADIENTS.dashboard.card }}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -772,7 +773,7 @@ export function TaskDetailContent({
                         </div>
                         <div
                           className="rounded-full p-2.5 ml-3"
-                          style={{ background: 'linear-gradient(135deg, #5B93D7, #2E5AAC)' }}
+                          style={{ background: GRADIENTS.icon.standard }}
                         >
                           <FileClock className="w-5 h-5 text-white" />
                         </div>

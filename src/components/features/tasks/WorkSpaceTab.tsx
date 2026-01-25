@@ -242,7 +242,7 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup, initialNoteId }: Wor
                       p-1 rounded transition-colors cursor-pointer
                       ${isActive
                         ? 'hover:bg-white/20 text-white'
-                        : 'hover:bg-red-100 text-forvis-gray-500 hover:text-red-600'
+                        : 'hover:bg-forvis-error-100 text-forvis-gray-500 hover:text-forvis-error-600'
                       }
                       ${removeToolMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}
                     `}
@@ -359,8 +359,8 @@ export function WorkSpaceTab({ taskId, subServiceLineGroup, initialNoteId }: Wor
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-corporate-lg space-y-4">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <X className="w-5 h-5 text-red-600" />
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-forvis-error-100 flex items-center justify-center">
+                <X className="w-5 h-5 text-forvis-error-600" />
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-semibold text-forvis-gray-900">Remove Tool</h2>

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Filter, Check, ChevronDown } from 'lucide-react';
-import { Button, LoadingSpinner } from '@/components/ui';
+import { Button, LoadingSpinner, Banner } from '@/components/ui';
 
 interface ServiceLine {
   code: string;
@@ -131,9 +131,7 @@ export function ServiceLineFilterSelector({
         <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
           Service Line Filter
         </label>
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
-          {error}
-        </div>
+        <Banner variant="error" message={error} />
       </div>
     );
   }

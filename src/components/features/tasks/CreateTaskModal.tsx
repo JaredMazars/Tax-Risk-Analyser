@@ -12,6 +12,7 @@ import { useCreateTask } from '@/hooks/tasks/useCreateTask';
 import { useStandardTasks } from '@/hooks/tasks/useStandardTasks';
 import { useCheckDuplicateTaskCode, CheckDuplicateResult } from '@/hooks/tasks/useCheckDuplicateTaskCode';
 import { DuplicateTaskWarning } from './DuplicateTaskWarning';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface TaskCreatedResult {
   id: number;
@@ -574,7 +575,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
         {/* Header */}
         <div 
           className="px-6 py-4 border-b border-gray-200"
-          style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+          style={{ background: GRADIENTS.primary.horizontal }}
         >
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">Create New Task</h2>
@@ -603,7 +604,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {createTaskMutation.error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+            <div className="mb-4 p-3 bg-forvis-error-50 border border-forvis-error-200 text-forvis-error-700 rounded-lg">
               {createTaskMutation.error.message}
             </div>
           )}
@@ -613,7 +614,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Service Line <span className="text-red-500">*</span>
+                  Service Line <span className="text-forvis-error-500">*</span>
                 </label>
                 {loadingExternalServiceLines ? (
                   <div className="animate-pulse h-10 bg-gray-200 rounded-lg"></div>
@@ -636,7 +637,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Year <span className="text-red-500">*</span>
+                  Year <span className="text-forvis-error-500">*</span>
                 </label>
                 <select
                   value={formData.taskYear}
@@ -654,7 +655,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Standard Task <span className="text-red-500">*</span>
+                  Standard Task <span className="text-forvis-error-500">*</span>
                 </label>
                 {loadingStandardTasks ? (
                   <div className="animate-pulse h-10 bg-gray-200 rounded-lg"></div>
@@ -663,7 +664,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                     Please select a service line first
                   </div>
                 ) : standardTasks.length === 0 ? (
-                  <div className="px-3 py-2 bg-yellow-50 border border-yellow-300 rounded-lg text-sm text-yellow-700">
+                  <div className="px-3 py-2 bg-forvis-warning-50 border border-forvis-warning-300 rounded-lg text-sm text-forvis-warning-700">
                     No standard tasks available for this service line
                   </div>
                 ) : (
@@ -689,7 +690,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Task Name <span className="text-red-500">*</span>
+                  Task Name <span className="text-forvis-error-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -705,7 +706,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Task Code <span className="text-red-500">*</span>
+                  Task Code <span className="text-forvis-error-500">*</span>
                 </label>
                 {!formData.stdTaskCode ? (
                   <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-500 italic">
@@ -773,7 +774,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
               {officeAutoPopulated ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Office Code <span className="text-red-500">*</span>
+                    Office Code <span className="text-forvis-error-500">*</span>
                   </label>
                   <div className="px-3 py-2 bg-gray-50 border-2 border-gray-300 rounded-lg">
                     <div className="flex items-center justify-between">
@@ -797,7 +798,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
             <div className="space-y-4">
               <div 
                 className="p-4 rounded-lg border border-forvis-blue-200"
-                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+                style={{ background: GRADIENTS.dashboard.card }}
               >
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Task Summary</h3>
                 
@@ -878,7 +879,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                   disabled={isTransitioning || !isStepValid(step)}
                   className="px-6 py-2 rounded-lg text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ 
-                    background: isStepValid(step) ? 'linear-gradient(to right, #2E5AAC, #25488A)' : '#9CA3AF' 
+                    background: isStepValid(step) ? GRADIENTS.primary.horizontal : '#9CA3AF' 
                   }}
                 >
                   Next
@@ -889,7 +890,7 @@ export function CreateTaskModal({ isOpen, onClose, onSuccess, initialClientId, i
                   onClick={handleSubmit}
                   disabled={createTaskMutation.isPending}
                   className="px-6 py-2 rounded-lg text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+                  style={{ background: GRADIENTS.primary.horizontal }}
                 >
                   {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
                 </button>

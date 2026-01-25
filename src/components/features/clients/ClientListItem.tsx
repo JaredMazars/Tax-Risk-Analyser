@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useClientBalances } from '@/hooks/clients/useClientBalances';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface ClientListItemProps {
   client: {
@@ -92,7 +93,7 @@ export function ClientListItem({ client, serviceLine, subServiceLineGroup }: Cli
       {balancesData && (
         <div 
           className="mt-2 pt-3 pb-2 px-3 rounded-lg border border-forvis-blue-100"
-          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          style={{ background: GRADIENTS.dashboard.card }}
         >
           {/* Header */}
           <p className="text-xs font-semibold uppercase tracking-wider mb-2 text-forvis-gray-700">
@@ -124,7 +125,7 @@ export function ClientListItem({ client, serviceLine, subServiceLineGroup }: Cli
             
             <div className="flex items-center text-xs">
               <span className="text-forvis-gray-600">Fees:</span>
-              <span className="ml-1 font-medium text-red-600">
+              <span className="ml-1 font-medium text-forvis-error-600">
                 ({formatCurrency(balancesData.fees)})
               </span>
               {balancesData.provision !== 0 && (

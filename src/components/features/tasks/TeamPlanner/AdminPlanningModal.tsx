@@ -9,6 +9,7 @@ import { NonClientEventType, ServiceLineRole } from '@/types';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 import { NonClientEventModal } from './NonClientEventModal';
 import { useCreateNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface Client {
   id: number;
@@ -425,15 +426,15 @@ export function AdminPlanningModal({
         {/* Progress Indicator */}
         <div className="px-6 py-3 border-b border-forvis-gray-200 bg-forvis-gray-50">
           <div className="flex items-center justify-between text-sm">
-            <div className={`flex items-center gap-2 ${step === 'client' ? 'text-forvis-blue-600 font-semibold' : step === 'task' || step === 'allocation' ? 'text-green-600' : 'text-forvis-gray-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${step === 'client' ? 'bg-forvis-blue-100' : 'bg-green-100'}`}>
+            <div className={`flex items-center gap-2 ${step === 'client' ? 'text-forvis-blue-600 font-semibold' : step === 'task' || step === 'allocation' ? 'text-forvis-success-600' : 'text-forvis-gray-400'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${step === 'client' ? 'bg-forvis-blue-100' : 'bg-forvis-success-100'}`}>
                 {step === 'client' ? '1' : '✓'}
               </div>
               <span>Select Client</span>
             </div>
             <ChevronRight className="w-4 h-4 text-forvis-gray-400" />
-            <div className={`flex items-center gap-2 ${step === 'task' ? 'text-forvis-blue-600 font-semibold' : step === 'allocation' ? 'text-green-600' : 'text-forvis-gray-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${step === 'task' ? 'bg-forvis-blue-100' : step === 'allocation' ? 'bg-green-100' : 'bg-forvis-gray-100'}`}>
+            <div className={`flex items-center gap-2 ${step === 'task' ? 'text-forvis-blue-600 font-semibold' : step === 'allocation' ? 'text-forvis-success-600' : 'text-forvis-gray-400'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${step === 'task' ? 'bg-forvis-blue-100' : step === 'allocation' ? 'bg-forvis-success-100' : 'bg-forvis-gray-100'}`}>
                 {step === 'allocation' ? '✓' : '2'}
               </div>
               <span>Select Task</span>
@@ -451,7 +452,7 @@ export function AdminPlanningModal({
         {/* Content */}
         <div className="p-6 space-y-4">
           {error && (
-            <div className="p-4 bg-red-50 border-2 border-red-300 text-red-700 rounded-lg">
+            <div className="p-4 bg-forvis-error-50 border-2 border-forvis-error-300 text-forvis-error-700 rounded-lg">
               {error}
             </div>
           )}
@@ -520,14 +521,14 @@ export function AdminPlanningModal({
           {step === 'task' && selectedClient && (
             <div className="space-y-4">
               {/* Selected Client Display */}
-              <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg flex items-center justify-between">
+              <div className="p-4 bg-forvis-success-50 border-2 border-forvis-success-300 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-green-600" />
+                  <div className="w-10 h-10 rounded-lg bg-forvis-success-100 flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-forvis-success-600" />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-green-900">{selectedClient.clientNameFull}</div>
-                    <div className="text-xs text-green-700">{selectedClient.clientCode}</div>
+                    <div className="text-sm font-medium text-forvis-success-900">{selectedClient.clientNameFull}</div>
+                    <div className="text-xs text-forvis-success-700">{selectedClient.clientCode}</div>
                   </div>
                 </div>
                 <button
@@ -535,7 +536,7 @@ export function AdminPlanningModal({
                     setSelectedClient(null);
                     setStep('client');
                   }}
-                  className="text-xs text-green-700 hover:text-green-900 underline"
+                  className="text-xs text-forvis-success-700 hover:text-forvis-success-900 underline"
                 >
                   Change
                 </button>
@@ -599,14 +600,14 @@ export function AdminPlanningModal({
           {step === 'allocation' && selectedTask && (
             <div className="space-y-4">
               {/* Selected Task Display */}
-              <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg flex items-center justify-between">
+              <div className="p-4 bg-forvis-success-50 border-2 border-forvis-success-300 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                    <Briefcase className="w-5 h-5 text-green-600" />
+                  <div className="w-10 h-10 rounded-lg bg-forvis-success-100 flex items-center justify-center">
+                    <Briefcase className="w-5 h-5 text-forvis-success-600" />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-green-900">{selectedTask.name}</div>
-                    <div className="text-xs text-green-700">
+                    <div className="text-sm font-medium text-forvis-success-900">{selectedTask.name}</div>
+                    <div className="text-xs text-forvis-success-700">
                       {(selectedTask as unknown as { TaskCode?: string }).TaskCode || 'No code'} • {selectedClient?.clientCode} • {selectedTask.serviceLine}
                     </div>
                   </div>
@@ -616,7 +617,7 @@ export function AdminPlanningModal({
                     setSelectedTask(null);
                     setStep('task');
                   }}
-                  className="text-xs text-green-700 hover:text-green-900 underline"
+                  className="text-xs text-forvis-success-700 hover:text-forvis-success-900 underline"
                 >
                   Change
                 </button>
@@ -681,7 +682,7 @@ export function AdminPlanningModal({
 
               {/* Warning if no business days */}
               {formData.startDate && formData.endDate && calculatedInfo.businessDays === 0 && (
-                <div className="p-3 bg-yellow-50 border-2 border-yellow-300 text-yellow-800 rounded-lg text-sm">
+                <div className="p-3 bg-forvis-warning-50 border-2 border-forvis-warning-300 text-forvis-warning-800 rounded-lg text-sm">
                   ⚠️ Selected date range contains no business days (only weekends).
                 </div>
               )}

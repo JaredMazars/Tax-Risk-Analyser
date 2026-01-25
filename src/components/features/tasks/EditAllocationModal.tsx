@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Clock } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface EditAllocationModalProps {
   isOpen: boolean;
@@ -61,7 +62,7 @@ export function EditAllocationModal({
           <div className="flex items-center gap-3">
             <div
               className="rounded-full p-2"
-              style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <Clock className="w-5 h-5 text-white" />
             </div>

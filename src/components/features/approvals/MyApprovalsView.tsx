@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ClipboardCheck, Bell, Archive, ShieldCheck } from 'lucide-react';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import { useApprovals } from '@/hooks/approvals/useApprovals';
 import { LoadingSpinner } from '@/components/ui';
 import { ChangeRequestApprovalItem } from './ChangeRequestApprovalItem';
@@ -128,7 +129,7 @@ export function MyApprovalsView() {
                 }`}
                 style={
                   activeSubTab === 'approvals'
-                    ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                    ? { background: GRADIENTS.icon.standard }
                     : {}
                 }
               >
@@ -155,7 +156,7 @@ export function MyApprovalsView() {
                 }`}
                 style={
                   activeSubTab === 'notifications'
-                    ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                    ? { background: GRADIENTS.icon.standard }
                     : {}
                 }
               >
@@ -178,7 +179,7 @@ export function MyApprovalsView() {
                 }`}
                 style={
                   showArchived
-                    ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                    ? { background: GRADIENTS.icon.standard }
                     : {}
                 }
               >
@@ -230,7 +231,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           activeApprovalType === 'all'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -260,7 +261,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           activeApprovalType === 'changeRequests'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -290,7 +291,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           activeApprovalType === 'clientAcceptance'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -320,7 +321,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           activeApprovalType === 'engagementAcceptance'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -350,7 +351,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           activeApprovalType === 'reviewNotes'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -380,7 +381,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           activeApprovalType === 'independenceConfirmations'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -411,7 +412,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           activeApprovalType === 'vaultDocuments'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -623,7 +624,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           notificationReadFilter === 'all'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -638,7 +639,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           notificationReadFilter === 'unread'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -653,7 +654,7 @@ export function MyApprovalsView() {
                         }`}
                         style={
                           notificationReadFilter === 'read'
-                            ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                            ? { background: GRADIENTS.icon.standard }
                             : {}
                         }
                       >
@@ -686,7 +687,7 @@ export function MyApprovalsView() {
                             }`}
                             style={
                               activeNotificationType === category
-                                ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                                ? { background: GRADIENTS.icon.standard }
                                 : {}
                             }
                           >

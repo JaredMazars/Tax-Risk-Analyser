@@ -8,6 +8,7 @@ import { AlertModal } from '@/components/shared/AlertModal';
 import { TaskWorkflowStatus } from '@/components/features/tasks/TaskWorkflowStatus';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
 import { EmployeeStatus } from '@/types';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface TaskListItemProps {
   task: {
@@ -114,7 +115,7 @@ export function TaskListItem({
       <div className="flex items-start justify-between gap-4 mb-2">
         <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            {isLocked && <Lock className="h-4 w-4 text-yellow-600" />}
+            {isLocked && <Lock className="h-4 w-4 text-forvis-warning-600" />}
             <h3 className={`text-sm font-semibold ${isLocked || !isAccessible ? 'text-forvis-gray-500' : 'text-forvis-gray-900'}`}>
               {task.TaskDesc}
             </h3>
@@ -132,12 +133,12 @@ export function TaskListItem({
             </span>
           )}
           {isLocked && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-warning-100 text-forvis-warning-700 border border-forvis-warning-200">
               Locked
             </span>
           )}
           {!isAccessible && !isLocked && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-forvis-warning-100 text-forvis-warning-700 border border-forvis-warning-200">
               Different Group
             </span>
           )}
@@ -232,7 +233,7 @@ export function TaskListItem({
       {balancesData && (
         <div 
           className="mt-2 pt-3 pb-2 px-3 rounded-lg border border-forvis-blue-100"
-          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          style={{ background: GRADIENTS.dashboard.card }}
         >
           {/* Header */}
           <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isAccessible ? 'text-forvis-gray-700' : 'text-forvis-gray-500'}`}>
@@ -264,7 +265,7 @@ export function TaskListItem({
             
             <div className="flex items-center text-xs">
               <span className={`${isAccessible ? 'text-forvis-gray-600' : 'text-forvis-gray-400'}`}>Fees:</span>
-              <span className={`ml-1 font-medium ${isAccessible ? 'text-red-600' : 'text-forvis-gray-500'}`}>
+              <span className={`ml-1 font-medium ${isAccessible ? 'text-forvis-error-600' : 'text-forvis-gray-500'}`}>
                 ({formatCurrency(balancesData.fees ?? 0)})
               </span>
               {balancesData.provision !== 0 && (

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, User, Eye, Download, FileText } from 'lucide-react';
 import { Button, LoadingSpinner } from '@/components/ui';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import type { ApprovalWithSteps, WorkflowType } from '@/types/approval';
 import { getWorkflowRegistry, getWorkflowDisplayTitle, getWorkflowDisplayDescription } from '@/lib/services/approvals/workflowRegistry';
 import { useDownloadApprovalDocument } from '@/hooks/documentVault/useDocuments';
@@ -140,14 +141,14 @@ export function UnifiedApprovalCard({
   return (
     <div
       className="rounded-lg border border-forvis-blue-100 p-4 shadow-sm hover:shadow-md transition-all duration-200"
-      style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+      style={{ background: GRADIENTS.dashboard.card }}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3 flex-1">
           {/* Icon */}
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            style={{ background: GRADIENTS.icon.standard }}
           >
             <IconComponent className="h-5 w-5 text-white" />
           </div>
@@ -164,8 +165,8 @@ export function UnifiedApprovalCard({
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                         approval.priority === 'URGENT' || approval.priority === 'HIGH'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-forvis-error-100 text-forvis-error-800'
+                          : 'bg-forvis-gray-100 text-forvis-gray-800'
                       }`}
                     >
                       {approval.priority}
@@ -187,7 +188,7 @@ export function UnifiedApprovalCard({
                     <span>Loading document...</span>
                   </div>
                 ) : downloadError ? (
-                  <div className="text-xs text-red-600">
+                  <div className="text-xs text-forvis-error-600">
                     Failed to load document preview
                   </div>
                 ) : downloadData ? (
@@ -235,7 +236,7 @@ export function UnifiedApprovalCard({
                       className="h-2 rounded-full transition-all duration-300"
                       style={{
                         width: `${(completedSteps / totalSteps) * 100}%`,
-                        background: 'linear-gradient(90deg, #5B93D7 0%, #2E5AAC 100%)',
+                        background: GRADIENTS.primary.horizontal,
                       }}
                     />
                   </div>

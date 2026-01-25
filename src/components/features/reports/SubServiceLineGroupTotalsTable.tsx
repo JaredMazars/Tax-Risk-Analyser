@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
 import type { TaskWithWIPAndServiceLine } from '@/types/api';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface SubServiceLineGroupTotal {
   code: string;
@@ -146,7 +147,7 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
         <div
           className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
-            background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+            background: GRADIENTS.primary.horizontal,
             gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
@@ -187,17 +188,17 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
                   {formatCurrency(sslg.grossProduction)}
                 </div>
                 <div className={`text-right tabular-nums font-medium ${
-                  sslg.ltdAdj < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                  sslg.ltdAdj < 0 ? 'text-forvis-error-600' : 'text-forvis-gray-700'
                 }`}>
                   {formatCurrency(sslg.ltdAdj)}
                 </div>
                 <div className={`text-right tabular-nums font-semibold ${
-                  sslg.netRevenue < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+                  sslg.netRevenue < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-600'
                 }`}>
                   {formatCurrency(sslg.netRevenue)}
                 </div>
                 <div className={`text-right tabular-nums ${
-                  adjustmentPercentage < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                  adjustmentPercentage < 0 ? 'text-forvis-error-600' : 'text-forvis-gray-700'
                 }`}>
                   {formatPercentage(adjustmentPercentage)}
                 </div>
@@ -205,14 +206,14 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
                   {formatCurrency(sslg.ltdCost)}
                 </div>
                 <div className={`text-right tabular-nums font-semibold ${
-                  sslg.grossProfit < 0 ? 'text-red-600' : 'text-green-600'
+                  sslg.grossProfit < 0 ? 'text-forvis-error-600' : 'text-forvis-success-600'
                 }`}>
                   {formatCurrency(sslg.grossProfit)}
                 </div>
                 <div className={`text-right tabular-nums font-bold ${
-                  grossProfitPercentage >= 60 ? 'text-green-600' : 
-                  grossProfitPercentage >= 50 ? 'text-yellow-600' : 
-                  'text-red-600'
+                  grossProfitPercentage >= 60 ? 'text-forvis-success-600' : 
+                  grossProfitPercentage >= 50 ? 'text-forvis-warning-600' : 
+                  'text-forvis-error-600'
                 }`}>
                   {formatPercentage(grossProfitPercentage)}
                 </div>
@@ -222,9 +223,8 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
 
           {/* Totals Row */}
           <div
-            className="grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
+            className="bg-gradient-dashboard-card grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
-              background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
               gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px'
             }}
           >

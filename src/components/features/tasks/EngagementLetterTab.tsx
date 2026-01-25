@@ -20,6 +20,7 @@ import { kanbanKeys } from '@/hooks/tasks/useKanbanBoard';
 import { clientKeys } from '@/hooks/clients/useClients';
 import { useCanApproveAcceptance } from '@/hooks/auth/usePermissions';
 import { TemplateSelector } from '@/components/features/templates/TemplateSelector';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface EngagementLetterTabProps {
   task: Task;
@@ -40,11 +41,11 @@ function SignatureIndicator({ label, present }: { label: string; present: boolea
   return (
     <div className="flex items-center space-x-2 text-xs">
       {present ? (
-        <CheckCircle className="h-4 w-4 text-green-600" />
+        <CheckCircle className="h-4 w-4 text-forvis-success-600" />
       ) : (
-        <XCircle className="h-4 w-4 text-red-600" />
+        <XCircle className="h-4 w-4 text-forvis-error-600" />
       )}
-      <span className={present ? 'text-green-700' : 'text-red-700'}>
+      <span className={present ? 'text-forvis-success-700' : 'text-forvis-error-700'}>
         {label}
       </span>
     </div>
@@ -370,17 +371,17 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
     return (
       <div className="p-6 bg-forvis-gray-50 min-h-screen">
         <div>
-          <div className="bg-yellow-50 rounded-lg border-2 border-yellow-200 shadow-corporate p-6">
+          <div className="bg-forvis-warning-50 rounded-lg border-2 border-forvis-warning-200 shadow-corporate p-6">
             <div className="flex items-start">
-              <AlertTriangle className="h-6 w-6 text-yellow-600 mt-1 mr-3" />
+              <AlertTriangle className="h-6 w-6 text-forvis-warning-600 mt-1 mr-3" />
               <div>
-                <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+                <h3 className="text-lg font-semibold text-forvis-warning-900 mb-2">
                   Client Acceptance Required
                 </h3>
-                <p className="text-sm text-yellow-800">
+                <p className="text-sm text-forvis-warning-800">
                   You must complete and approve the client acceptance and continuance before generating or uploading an engagement letter.
                 </p>
-                <p className="text-sm text-yellow-700 mt-2">
+                <p className="text-sm text-forvis-warning-700 mt-2">
                   Please navigate to the <strong>Acceptance</strong> tab to complete this step.
                 </p>
               </div>
@@ -407,9 +408,9 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
             </div>
             
             {isFullyComplete && (
-              <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 border-2 border-green-200 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-semibold text-green-700">Complete</span>
+              <div className="flex items-center space-x-2 px-4 py-2 bg-forvis-success-50 border-2 border-forvis-success-200 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-forvis-success-600" />
+                <span className="text-sm font-semibold text-forvis-success-700">Complete</span>
               </div>
             )}
           </div>
@@ -427,7 +428,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
               }`}
               style={
                 activeTab === 'upload'
-                  ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                  ? { background: GRADIENTS.icon.standard }
                   : {}
               }
             >
@@ -435,7 +436,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                 <Upload className="h-5 w-5" />
                 <span>Upload Letter</span>
                 {isUploaded && (
-                  <CheckCircle className="h-4 w-4 text-green-400" />
+                  <CheckCircle className="h-4 w-4 text-forvis-success-400" />
                 )}
               </div>
             </button>
@@ -448,7 +449,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
               }`}
               style={
                 activeTab === 'generate'
-                  ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }
+                  ? { background: GRADIENTS.icon.standard }
                   : {}
               }
             >
@@ -463,22 +464,22 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
           </div>
 
         {error && (
-          <div className="m-6 bg-red-50 border-2 border-red-200 rounded-lg p-4">
+          <div className="m-6 bg-forvis-error-50 border-2 border-forvis-error-200 rounded-lg p-4">
             <div className="flex items-start">
-              <XCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+              <XCircle className="h-5 w-5 text-forvis-error-600 mt-0.5 mr-3 flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-red-800">{error}</p>
+                <p className="text-sm font-semibold text-forvis-error-800">{error}</p>
                 {errorDetails.length > 0 && (
-                  <ul className="mt-2 text-xs text-red-700 list-disc list-inside space-y-1">
+                  <ul className="mt-2 text-xs text-forvis-error-700 list-disc list-inside space-y-1">
                     {errorDetails.map((detail, i) => (
                       <li key={i}>{detail}</li>
                     ))}
                   </ul>
                 )}
                 {requirements.length > 0 && (
-                  <div className="mt-3 p-2 bg-red-100 rounded">
-                    <p className="text-xs font-medium text-red-800 mb-1">Requirements:</p>
-                    <ul className="text-xs text-red-700 list-disc list-inside space-y-1">
+                  <div className="mt-3 p-2 bg-forvis-error-100 rounded">
+                    <p className="text-xs font-medium text-forvis-error-800 mb-1">Requirements:</p>
+                    <ul className="text-xs text-forvis-error-700 list-disc list-inside space-y-1">
                       {requirements.map((req, i) => (
                         <li key={i}>{req}</li>
                       ))}
@@ -545,33 +546,33 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           onClick={handleUpload}
                           disabled={!selectedFile || isUploading}
                           className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                          style={{ background: GRADIENTS.icon.standard }}
                         >
                           <Upload className="h-5 w-5 mr-2" />
                           {isUploading ? 'Processing...' : 'Upload Letter'}
                         </button>
                       </div>
                     ) : (
-                      <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">
+                      <div className="p-4 bg-forvis-warning-50 border-2 border-forvis-warning-200 rounded-lg">
+                        <p className="text-sm text-forvis-warning-800">
                           Only Partners and System Administrators can upload engagement letters.
                         </p>
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="bg-green-50 rounded-lg border-2 border-green-200 p-6">
+                  <div className="bg-forvis-success-50 rounded-lg border-2 border-forvis-success-200 p-6">
                     <div className="flex items-start">
-                      <CheckCircle className="h-6 w-6 text-green-600 mt-1 mr-3 flex-shrink-0" />
+                      <CheckCircle className="h-6 w-6 text-forvis-success-600 mt-1 mr-3 flex-shrink-0" />
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-green-900 mb-2">
+                        <h3 className="text-lg font-semibold text-forvis-success-900 mb-2">
                           Engagement Letter Uploaded
                         </h3>
                         <dl className="space-y-2">
                           {task.engagementLetterUploadedAt && (
                             <div>
-                              <dt className="text-sm font-medium text-green-800 inline">Uploaded on: </dt>
-                              <dd className="text-sm text-green-700 inline">
+                              <dt className="text-sm font-medium text-forvis-success-800 inline">Uploaded on: </dt>
+                              <dd className="text-sm text-forvis-success-700 inline">
                                 {new Date(task.engagementLetterUploadedAt).toLocaleString('en-US', {
                                   year: 'numeric',
                                   month: 'long',
@@ -584,13 +585,13 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           )}
                           {task.engagementLetterPath && (
                             <div className="flex items-center gap-3">
-                              <dt className="text-sm font-medium text-green-800">File: </dt>
-                              <dd className="text-sm text-green-700">
+                              <dt className="text-sm font-medium text-forvis-success-800">File: </dt>
+                              <dd className="text-sm text-forvis-success-700">
                                 {task.engagementLetterPath.split('/').pop()}
                               </dd>
                               <button
                                 onClick={handleDownloadUploaded}
-                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 border border-green-700 rounded-lg hover:bg-green-700 transition-colors"
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-forvis-success-600 border border-forvis-success-700 rounded-lg hover:bg-forvis-success-700 transition-colors"
                               >
                                 <Download className="h-4 w-4 mr-1" />
                                 Download
@@ -598,31 +599,31 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                             </div>
                           )}
                         </dl>
-                        <p className="text-sm text-green-700 mt-3">
+                        <p className="text-sm text-forvis-success-700 mt-3">
                           Engagement letter uploaded. Next, upload the Data Processing Agreement below.
                         </p>
                         
                         {/* Extracted Metadata Section */}
                         {task.elExtractionStatus === 'SUCCESS' && (
-                          <div className="mt-4 border-t-2 border-green-300 pt-4">
-                            <h4 className="text-sm font-semibold text-green-900 mb-3">
+                          <div className="mt-4 border-t-2 border-forvis-success-300 pt-4">
+                            <h4 className="text-sm font-semibold text-forvis-success-900 mb-3">
                               Extracted Information
                             </h4>
                             <dl className="grid grid-cols-2 gap-3 text-sm">
                               <div>
-                                <dt className="font-medium text-green-800">Letter Date:</dt>
-                                <dd className="text-green-700">
+                                <dt className="font-medium text-forvis-success-800">Letter Date:</dt>
+                                <dd className="text-forvis-success-700">
                                   {formatDate(task.elLetterDate)}
                                   {task.elLetterAge !== null && task.elLetterAge !== undefined && (
-                                    <span className="ml-2 text-xs text-green-600">
+                                    <span className="ml-2 text-xs text-forvis-success-600">
                                       ({task.elLetterAge} days old)
                                     </span>
                                   )}
                                 </dd>
                               </div>
                               <div>
-                                <dt className="font-medium text-green-800">Signing Partner:</dt>
-                                <dd className="text-green-700">
+                                <dt className="font-medium text-forvis-success-800">Signing Partner:</dt>
+                                <dd className="text-forvis-success-700">
                                   {task.elSigningPartner || 'Not identified'}
                                   {task.elSigningPartnerCode && (
                                     <span className="ml-2 text-xs">({task.elSigningPartnerCode})</span>
@@ -631,13 +632,13 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                               </div>
                               {task.elServicesCovered && (
                                 <div className="col-span-2">
-                                  <dt className="font-medium text-green-800">Services Covered:</dt>
-                                  <dd className="text-green-700">
+                                  <dt className="font-medium text-forvis-success-800">Services Covered:</dt>
+                                  <dd className="text-forvis-success-700">
                                     <div className="flex flex-wrap gap-2 mt-1">
                                       {JSON.parse(task.elServicesCovered || '[]').map((service: string, i: number) => (
                                         <span
                                           key={i}
-                                          className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs"
+                                          className="px-2 py-1 bg-forvis-success-100 text-forvis-success-800 rounded text-xs"
                                         >
                                           {service}
                                         </span>
@@ -647,7 +648,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                                 </div>
                               )}
                               <div className="col-span-2">
-                                <dt className="font-medium text-green-800 mb-2">Signature Verification:</dt>
+                                <dt className="font-medium text-forvis-success-800 mb-2">Signature Verification:</dt>
                                 <dd className="grid grid-cols-2 gap-2">
                                   <SignatureIndicator
                                     label="Partner Signature (EL)"
@@ -687,29 +688,29 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           Upload the signed Data Processing Agreement (DPA) for POPIA compliance (PDF or DOCX format).
                         </p>
                         {!isUploaded && (
-                          <p className="text-sm text-yellow-700 mt-2">
+                          <p className="text-sm text-forvis-warning-700 mt-2">
                             ⚠️ Please upload the Engagement Letter first before uploading the DPA.
                           </p>
                         )}
                       </div>
 
                       {dpaError && (
-                        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                        <div className="bg-forvis-error-50 border-2 border-forvis-error-200 rounded-lg p-4">
                           <div className="flex items-start">
-                            <XCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                            <XCircle className="h-5 w-5 text-forvis-error-600 mt-0.5 mr-3 flex-shrink-0" />
                             <div className="flex-1">
-                              <p className="text-sm font-semibold text-red-800">{dpaError}</p>
+                              <p className="text-sm font-semibold text-forvis-error-800">{dpaError}</p>
                               {errorDetails.length > 0 && (
-                                <ul className="mt-2 text-xs text-red-700 list-disc list-inside space-y-1">
+                                <ul className="mt-2 text-xs text-forvis-error-700 list-disc list-inside space-y-1">
                                   {errorDetails.map((detail, i) => (
                                     <li key={i}>{detail}</li>
                                   ))}
                                 </ul>
                               )}
                               {requirements.length > 0 && (
-                                <div className="mt-3 p-2 bg-red-100 rounded">
-                                  <p className="text-xs font-medium text-red-800 mb-1">Requirements:</p>
-                                  <ul className="text-xs text-red-700 list-disc list-inside space-y-1">
+                                <div className="mt-3 p-2 bg-forvis-error-100 rounded">
+                                  <p className="text-xs font-medium text-forvis-error-800 mb-1">Requirements:</p>
+                                  <ul className="text-xs text-forvis-error-700 list-disc list-inside space-y-1">
                                     {requirements.map((req, i) => (
                                       <li key={i}>{req}</li>
                                     ))}
@@ -760,7 +761,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                             onClick={handleDpaUpload}
                             disabled={!selectedDpaFile || isUploadingDpa}
                             className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                            style={{ background: GRADIENTS.icon.standard }}
                           >
                             <Upload className="h-5 w-5 mr-2" />
                             {isUploadingDpa ? 'Processing...' : 'Upload DPA'}
@@ -931,7 +932,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                           onClick={handleGenerate}
                           disabled={isGenerating || !selectedTemplateId}
                           className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                          style={{ background: GRADIENTS.icon.standard }}
                         >
                           <FileText className="h-5 w-5 mr-2" />
                           {isGenerating ? 'Generating...' : 'Generate Letter'}
@@ -1025,7 +1026,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                 <button
                   onClick={handleUpload}
                   className="px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  style={{ background: GRADIENTS.icon.standard }}
                 >
                   Replace Letter
                 </button>
@@ -1070,7 +1071,7 @@ export function EngagementLetterTab({ task, currentUserRole, onUploadComplete }:
                 <button
                   onClick={handleDpaUpload}
                   className="px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-corporate hover:shadow-corporate-md"
-                  style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                  style={{ background: GRADIENTS.icon.standard }}
                 >
                   Replace DPA
                 </button>

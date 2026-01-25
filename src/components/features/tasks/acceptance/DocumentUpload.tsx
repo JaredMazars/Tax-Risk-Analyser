@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { CloudUpload, File, Trash2 } from 'lucide-react';
 import { useUploadDocument, useAcceptanceDocuments, useDeleteDocument } from '@/hooks/acceptance/useAcceptanceQuestionnaire';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface DocumentUploadProps {
   taskId: string;
@@ -94,7 +95,7 @@ export function DocumentUpload({ taskId, documentType = 'OTHER', disabled }: Doc
         style={{
           borderColor: '#2E5AAC',
           borderWidth: '3px',
-          background: isDragging ? undefined : 'linear-gradient(135deg, #F0F7FD 0%, #E5F1FB 100%)',
+          background: isDragging ? undefined : GRADIENTS.dashboard.card,
         }}
         onDragOver={(e) => {
           e.preventDefault();

@@ -11,6 +11,7 @@ import { Users, AlertCircle } from 'lucide-react';
 import { Button, Banner, Card, SearchCombobox } from '@/components/ui';
 import type { SearchComboboxOption } from '@/components/ui';
 import { EmployeeStatusBadge } from '@/components/shared/EmployeeStatusBadge';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 export interface TeamSelections {
   selectedPartnerCode: string;
@@ -400,7 +401,7 @@ export function ClientTeamSelectionStep({
         <div className="flex items-center gap-3 mb-6">
           <div
             className="w-12 h-12 rounded-lg flex items-center justify-center shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+            style={{ background: GRADIENTS.icon.standard }}
           >
             <Users className="h-6 w-6 text-white" />
           </div>
@@ -424,7 +425,7 @@ export function ClientTeamSelectionStep({
         {/* Client Information */}
         <div
           className="rounded-lg p-4 mb-6 border border-forvis-blue-100"
-          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+          style={{ background: GRADIENTS.dashboard.card }}
         >
           <h3 className="text-sm font-semibold text-forvis-gray-900 mb-3">Client Information</h3>
           <div className="grid grid-cols-2 gap-3 text-sm">

@@ -15,6 +15,7 @@ import {
 import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 const reports = [
   {
@@ -94,7 +95,7 @@ export default function FinancialAnalysisPage() {
           <div className="flex items-center gap-4 mb-2">
             <div 
               className="w-12 h-12 rounded-lg flex items-center justify-center shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              style={{ background: GRADIENTS.icon.standard }}
             >
               <TrendingUp className="h-6 w-6 text-white" />
             </div>
@@ -118,15 +119,13 @@ export default function FinancialAnalysisPage() {
                 key={report.id}
                 href={`/dashboard/${serviceLine.toLowerCase()}/exco-reporting/financial-analysis/${report.id}`}
                 className="group block rounded-lg border border-forvis-gray-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-                }}
+                className="bg-gradient-dashboard-card"
               >
                 {/* Hover gradient overlay */}
                 <div 
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(91, 147, 215, 0.06) 0%, rgba(46, 90, 172, 0.08) 100%)',
+                    background: GRADIENTS.dashboard.hover,
                   }}
                 />
 
@@ -135,7 +134,7 @@ export default function FinancialAnalysisPage() {
                     {/* Icon */}
                     <div 
                       className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110 shadow-sm"
-                      style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                      style={{ background: GRADIENTS.icon.standard }}
                     >
                       <Icon className="h-5 w-5 text-white" />
                     </div>

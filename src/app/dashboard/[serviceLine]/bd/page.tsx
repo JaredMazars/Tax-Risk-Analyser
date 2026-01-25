@@ -15,7 +15,9 @@ import { PipelineBoard } from '@/components/features/bd/PipelineBoard';
 import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
 import { CreateBDOpportunityInput } from '@/lib/validation/schemas';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
-import { LoadingSpinner } from '@/components/ui';
+import { LoadingSpinner, Button } from '@/components/ui';
+import { GRADIENTS } from '@/lib/design-system/gradients';
+import { Plus } from 'lucide-react';
 
 export default function BDPipelinePage() {
   const params = useParams();
@@ -95,30 +97,19 @@ export default function BDPipelinePage() {
                   : `Track opportunities for ${formatServiceLineName(serviceLine.toUpperCase())}`}
               </p>
             </div>
-            <button
+            <Button
+              variant="gradient"
               onClick={() => setShowCreateForm(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
-              style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
+              <Plus className="w-5 h-5" />
               New Opportunity
-            </button>
+            </Button>
           </div>
 
           {/* Stats Cards */}
           {analytics && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div
-                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
-                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-              >
+              <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border border-forvis-blue-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Total Pipeline Value</p>
@@ -132,7 +123,7 @@ export default function BDPipelinePage() {
                   </div>
                   <div
                     className="rounded-full p-2.5"
-                    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -146,10 +137,7 @@ export default function BDPipelinePage() {
                 </div>
               </div>
 
-              <div
-                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
-                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-              >
+              <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border border-forvis-blue-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Weighted Value</p>
@@ -163,7 +151,7 @@ export default function BDPipelinePage() {
                   </div>
                   <div
                     className="rounded-full p-2.5"
-                    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -177,10 +165,7 @@ export default function BDPipelinePage() {
                 </div>
               </div>
 
-              <div
-                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
-                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-              >
+              <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border border-forvis-blue-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Open Opportunities</p>
@@ -188,7 +173,7 @@ export default function BDPipelinePage() {
                   </div>
                   <div
                     className="rounded-full p-2.5"
-                    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -202,10 +187,7 @@ export default function BDPipelinePage() {
                 </div>
               </div>
 
-              <div
-                className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
-                style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
-              >
+              <div className="bg-gradient-dashboard-card rounded-lg p-4 shadow-corporate border border-forvis-blue-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Active Stages</p>
@@ -213,7 +195,7 @@ export default function BDPipelinePage() {
                   </div>
                   <div
                     className="rounded-full p-2.5"
-                    style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path

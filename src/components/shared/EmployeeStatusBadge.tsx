@@ -41,8 +41,8 @@ export function EmployeeStatusBadge({
   const getStatusConfig = () => {
     if (!isActive) {
       return {
-        textColor: 'text-red-600',
-        borderColor: 'border-red-500',
+        textColor: 'text-forvis-error-600',
+        borderColor: 'border-forvis-error-500',
         icon: CircleX,
         title: 'Employee is inactive',
       };
@@ -50,16 +50,16 @@ export function EmployeeStatusBadge({
     
     if (hasUserAccount) {
       return {
-        textColor: 'text-green-600',
-        borderColor: 'border-green-500',
+        textColor: 'text-forvis-success-600',
+        borderColor: 'border-forvis-success-500',
         icon: CircleCheck,
         title: 'Employee is active with user account',
       };
     }
     
     return {
-      textColor: 'text-yellow-600',
-      borderColor: 'border-yellow-500',
+      textColor: 'text-forvis-warning-600',
+      borderColor: 'border-forvis-warning-500',
       icon: CircleHelp,
       title: 'Employee is active but has no user account',
     };
@@ -79,10 +79,10 @@ export function EmployeeStatusBadge({
   if (variant === 'kanban' && role) {
     const gradient = getRoleGradient(role);
     const statusBorderClass = !isActive 
-      ? 'border-red-500' 
+      ? 'border-forvis-error-500' 
       : !hasUserAccount 
-        ? 'border-yellow-500' 
-        : 'border-green-500';
+        ? 'border-forvis-warning-500' 
+        : 'border-forvis-success-500';
     
     return (
       <div

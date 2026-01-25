@@ -2,6 +2,7 @@
 
 import { CheckCircle, Circle, XCircle, UserCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import type { ChangeRequestApproval, EngagementAcceptanceApproval, ReviewNoteApproval, VaultDocumentTimelineData } from '@/types/approvals';
 import type { ApprovalWithSteps } from '@/types/approval';
 
@@ -191,9 +192,9 @@ export function WorkflowTimeline({ type, request, acceptance, note, vaultDocumen
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
-        return 'bg-green-500 border-green-500';
+        return 'bg-forvis-success-500 border-forvis-success-500';
       case 'rejected':
-        return 'bg-red-500 border-red-500';
+        return 'bg-forvis-error-500 border-forvis-error-500';
       case 'pending':
       default:
         return 'bg-white border-forvis-gray-300';
@@ -218,14 +219,14 @@ export function WorkflowTimeline({ type, request, acceptance, note, vaultDocumen
     
     if (!currentStep || !nextStep) return '';
 
-    // If current is approved and next is approved, line is green
+    // If current is approved and next is approved, line is success green
     if (currentStep.status === 'approved' && nextStep.status === 'approved') {
-      return 'bg-green-500';
+      return 'bg-forvis-success-500';
     }
     
-    // If current is approved and next is rejected, line is red
+    // If current is approved and next is rejected, line is error red
     if (currentStep.status === 'approved' && nextStep.status === 'rejected') {
-      return 'bg-red-500';
+      return 'bg-forvis-error-500';
     }
     
     // Otherwise, line is gray (pending)
@@ -235,7 +236,7 @@ export function WorkflowTimeline({ type, request, acceptance, note, vaultDocumen
   return (
     <div
       className="mt-3 px-4 py-3 rounded-lg"
-      style={{ background: 'linear-gradient(135deg, #F8F9FA 0%, #F0F1F3 100%)' }}
+      style={{ background: GRADIENTS.dashboard.card }}
     >
       <div className="flex items-center justify-between">
         {steps.map((step, index) => {

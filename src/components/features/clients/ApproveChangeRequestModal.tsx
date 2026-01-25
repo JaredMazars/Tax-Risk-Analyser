@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Building2, X, User, Calendar, AlertCircle } from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui';
+import { LoadingSpinner, Button } from '@/components/ui';
 import { useApproveChangeRequest, useRejectChangeRequest } from '@/hooks/clients/useChangeRequests';
 import { formatDate } from '@/lib/utils/taskUtils';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface ChangeRequest {
   id: number;
@@ -143,7 +144,7 @@ export function ApproveChangeRequestModal({
         {/* Header */}
         <div
           className="px-6 py-4 rounded-t-lg"
-          style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+          style={{ background: GRADIENTS.primary.horizontal }}
         >
           <div className="flex items-center justify-between">
             <div>
@@ -173,8 +174,8 @@ export function ApproveChangeRequestModal({
           )}
 
           {error && !loading && !request && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center space-x-3 text-red-600">
+            <div className="p-4 bg-forvis-error-50 border border-forvis-error-200 rounded-lg">
+              <div className="flex items-center space-x-3 text-forvis-error-600">
                 <AlertCircle className="h-5 w-5 flex-shrink-0" />
                 <p className="text-sm font-medium">{error}</p>
               </div>
@@ -199,7 +200,7 @@ export function ApproveChangeRequestModal({
                 <div className="flex items-start space-x-3">
                   <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
-                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <Building2 className="h-6 w-6 text-white" />
                   </div>
@@ -233,31 +234,31 @@ export function ApproveChangeRequestModal({
 
               {/* Partial Approval Status */}
               {isPartiallyApproved && (
-                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="mb-6 p-4 bg-forvis-warning-50 border border-forvis-warning-200 rounded-lg">
                   <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="h-5 w-5 text-forvis-warning-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-yellow-900">
+                      <p className="text-sm font-medium text-forvis-warning-900">
                         First Approval Received
                       </p>
                       <div className="mt-2 space-y-2">
                         {request.currentEmployeeApprovedAt && (
-                          <div className="text-sm text-yellow-700">
+                          <div className="text-sm text-forvis-warning-700">
                             <span className="font-medium">Current {roleLabel}:</span> Approved by {request.CurrentApprover?.name || 'Unknown'} on {formatDate(request.currentEmployeeApprovedAt)}
                           </div>
                         )}
                         {request.proposedEmployeeApprovedAt && (
-                          <div className="text-sm text-yellow-700">
+                          <div className="text-sm text-forvis-warning-700">
                             <span className="font-medium">Proposed {roleLabel}:</span> Approved by {request.ProposedApprover?.name || 'Unknown'} on {formatDate(request.proposedEmployeeApprovedAt)}
                           </div>
                         )}
                         {!request.currentEmployeeApprovedAt && (
-                          <div className="text-sm text-yellow-700">
+                          <div className="text-sm text-forvis-warning-700">
                             <span className="font-medium">Waiting for:</span> Current {roleLabel} ({request.currentEmployeeName || request.currentEmployeeCode})
                           </div>
                         )}
                         {!request.proposedEmployeeApprovedAt && (
-                          <div className="text-sm text-yellow-700">
+                          <div className="text-sm text-forvis-warning-700">
                             <span className="font-medium">Waiting for:</span> Proposed {roleLabel} ({request.proposedEmployeeName || request.proposedEmployeeCode})
                           </div>
                         )}
@@ -284,7 +285,7 @@ export function ApproveChangeRequestModal({
                   </label>
                   <div
                     className="text-sm text-white px-4 py-3 rounded-lg font-medium shadow-sm"
-                    style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+                    style={{ background: GRADIENTS.icon.standard }}
                   >
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4" />
@@ -341,10 +342,10 @@ export function ApproveChangeRequestModal({
 
               {/* Error Message */}
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="mb-4 p-3 bg-forvis-error-50 border border-forvis-error-200 rounded-lg">
                   <div className="flex items-center space-x-2">
-                    <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                    <p className="text-sm text-red-600">{error}</p>
+                    <AlertCircle className="h-4 w-4 text-forvis-error-600 flex-shrink-0" />
+                    <p className="text-sm text-forvis-error-600">{error}</p>
                   </div>
                 </div>
               )}
@@ -353,75 +354,60 @@ export function ApproveChangeRequestModal({
               <div className="flex space-x-3">
                 {!rejectMode ? (
                   <>
-                    <button
+                    <Button
                       onClick={handleApprove}
                       disabled={
                         approveRequest.isPending || 
                         rejectRequest.isPending || 
                         userHasApproved
                       }
-                      className="flex-1 flex items-center justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      variant="success"
+                      className="flex-1"
+                      loading={approveRequest.isPending}
+                      icon={userHasApproved || !approveRequest.isPending ? <CheckCircle className="h-5 w-5" /> : undefined}
                     >
-                      {userHasApproved ? (
-                        <>
-                          <CheckCircle className="h-5 w-5 mr-2" />
-                          You Have Approved
-                        </>
-                      ) : approveRequest.isPending ? (
-                        <>
-                          <LoadingSpinner size="sm" className="mr-2" />
-                          Approving...
-                        </>
-                      ) : isPartiallyApproved ? (
-                        <>
-                          <CheckCircle className="h-5 w-5 mr-2" />
-                          Final Approval - Apply Change
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-5 w-5 mr-2" />
-                          Approve Request
-                        </>
-                      )}
-                    </button>
-                    <button
+                      {userHasApproved 
+                        ? 'You Have Approved'
+                        : approveRequest.isPending 
+                        ? 'Approving...'
+                        : isPartiallyApproved 
+                        ? 'Final Approval - Apply Change'
+                        : 'Approve Request'
+                      }
+                    </Button>
+                    <Button
                       onClick={() => setRejectMode(true)}
                       disabled={approveRequest.isPending || rejectRequest.isPending}
-                      className="flex-1 flex items-center justify-center px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      variant="danger"
+                      className="flex-1"
+                      icon={<XCircle className="h-5 w-5" />}
                     >
-                      <XCircle className="h-5 w-5 mr-2" />
                       Reject Request
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <>
-                    <button
+                    <Button
                       onClick={() => {
                         setRejectMode(false);
                         setError(null);
                       }}
                       disabled={approveRequest.isPending || rejectRequest.isPending}
-                      className="flex-1 px-4 py-3 bg-forvis-gray-200 hover:bg-forvis-gray-300 text-forvis-gray-700 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-forvis-gray-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      variant="secondary"
+                      className="flex-1"
                     >
                       Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={handleReject}
                       disabled={approveRequest.isPending || rejectRequest.isPending}
-                      className="flex-1 flex items-center justify-center px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      variant="danger"
+                      className="flex-1"
+                      loading={rejectRequest.isPending}
+                      icon={!rejectRequest.isPending ? <XCircle className="h-5 w-5" /> : undefined}
                     >
-                      {rejectRequest.isPending ? (
-                        <>
-                          <LoadingSpinner size="sm" className="mr-2" />
-                          Rejecting...
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="h-5 w-5 mr-2" />
-                          Confirm Rejection
-                        </>
-                      )}
-                    </button>
+                      {rejectRequest.isPending ? 'Rejecting...' : 'Confirm Rejection'}
+                    </Button>
                   </>
                 )}
               </div>

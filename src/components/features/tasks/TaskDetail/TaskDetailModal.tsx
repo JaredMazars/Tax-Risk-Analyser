@@ -80,7 +80,7 @@ export function TaskDetailModal({
         {/* Modal Header */}
         <div 
           className="px-6 py-4 rounded-t-lg flex items-center justify-between flex-shrink-0 border-b border-forvis-gray-200"
-          style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}
+          style={{ background: GRADIENTS.primary.diagonal }}
         >
           <h2 className="text-xl font-semibold text-white">Task Details</h2>
           <button

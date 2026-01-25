@@ -51,7 +51,7 @@ export function TaskWorkflowStatus({
         <UserRoundCheck
           className={`${iconSize} ${
             acceptanceApproved
-              ? 'text-green-600'
+              ? 'text-forvis-success-600'
               : 'text-forvis-gray-400'
           }`}
           strokeWidth={2}
@@ -70,7 +70,7 @@ export function TaskWorkflowStatus({
         <FilePen
           className={`${iconSize} ${
             engagementLetterUploaded
-              ? 'text-green-600'
+              ? 'text-forvis-success-600'
               : 'text-forvis-gray-400'
           }`}
           strokeWidth={2}
@@ -89,7 +89,7 @@ export function TaskWorkflowStatus({
         <EyeOff
           className={`${iconSize} ${
             dpaUploaded
-              ? 'text-green-600'
+              ? 'text-forvis-success-600'
               : 'text-forvis-gray-400'
           }`}
           strokeWidth={2}
