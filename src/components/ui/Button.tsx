@@ -47,7 +47,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const combinedClassName = `${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${disabledStyles} ${className}`.trim();
 
     const gradientStyle = variant === 'gradient' 
-      ? { background: GRADIENTS.dashboard.iconBackground }
+      ? { background: GRADIENTS.primary.diagonal }
       : undefined;
 
     return (
