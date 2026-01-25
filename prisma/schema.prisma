@@ -796,14 +796,15 @@ model DrsTransactions {
   updatedAt         DateTime @updatedAt
   Client            Client   @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
+  // Super covering indexes (created via SQL migration - INCLUDE columns not supported in Prisma)
+  // idx_drs_gsclientid_super_covering: (GSClientID, TranDate) INCLUDE (Total, EntryType, InvNumber, Reference, Narration, ServLineCode, Biller, updatedAt)
+  // idx_drs_biller_super_covering: (Biller, TranDate) INCLUDE (Total, EntryType, ServLineCode, TranYearMonth, InvNumber, Reference)
+
+  // Single column indexes (kept)
   @@index([OfficeCode])
   @@index([PeriodKey])
   @@index([ServLineCode])
   @@index([TranDate])
-  @@index([Biller, TranDate], map: "idx_drs_biller_trandate")
-  @@index([GSClientID, TranDate, EntryType], map: "idx_drs_gsclientid_trandate_entrytype")
-  @@index([ServLineCode], map: "idx_drs_servlinecode")
-  @@index([TranDate], map: "idx_drs_trandate")
 }
 
 model EmailLog {
