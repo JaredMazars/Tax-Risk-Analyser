@@ -266,7 +266,31 @@ export function GanttTimeline({
       return;
     }
 
+    // For planner view (taskId === 0), show admin planning modal to select client/task
+    // This check MUST come before placeholder handling to avoid calling /api/tasks/0/users
+    // Works for both global planner (serviceLine/subServiceLineGroup undefined) and service-line planner
+    if (canEdit && taskId === 0) {
+      setSelectedUserId(userId);
+      // Get the employeeId from the member
+      const employeeId = (member as any).employeeId;
+      setSelectedEmployeeId(employeeId || null);
+      // Store the selected dates or use defaults
+      const allocationStartDate = startDate || new Date();
+      const allocationEndDate = endDate || (() => {
+        const nextWeek = new Date(allocationStartDate);
+        nextWeek.setDate(allocationStartDate.getDate() + 7);
+        return nextWeek;
+      })();
+      setAdminModalInitialDates({ 
+        startDate: startOfDay(allocationStartDate), 
+        endDate: startOfDay(allocationEndDate) 
+      });
+      setIsAdminPlanningModalOpen(true);
+      return;
+    }
+
     // If this is a placeholder team member (id <= 0 or pending userId), create TaskTeam record first
+    // This only runs for task-specific views (taskId > 0) since planner view returns early above
     if (!member.id || member.id <= 0 || userId.startsWith('pending-')) {
       setIsSaving(true);
       try {
@@ -317,28 +341,6 @@ export function GanttTimeline({
       } finally {
         setIsSaving(false);
       }
-    }
-
-    // For planner view (taskId === 0), show admin planning modal to select client/task
-    // Works for both global planner (serviceLine/subServiceLineGroup undefined) and service-line planner
-    if (canEdit && taskId === 0) {
-      setSelectedUserId(userId);
-      // Get the employeeId from the member
-      const employeeId = (member as any).employeeId;
-      setSelectedEmployeeId(employeeId || null);
-      // Store the selected dates or use defaults
-      const allocationStartDate = startDate || new Date();
-      const allocationEndDate = endDate || (() => {
-        const nextWeek = new Date(allocationStartDate);
-        nextWeek.setDate(allocationStartDate.getDate() + 7);
-        return nextWeek;
-      })();
-      setAdminModalInitialDates({ 
-        startDate: startOfDay(allocationStartDate), 
-        endDate: startOfDay(allocationEndDate) 
-      });
-      setIsAdminPlanningModalOpen(true);
-      return;
     }
 
     // Otherwise, use existing flow for current task
