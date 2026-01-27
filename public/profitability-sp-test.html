@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profitability Stored Procedure Test</title>
+  <style>
+    :root {
+      --primary-blue: #2E5AAC;
+      --primary-blue-light: #5B93D7;
+      --primary-blue-dark: #1C3667;
+      --success: #2F6A5F;
+      --success-light: #E8F3F1;
+      --error: #872F48;
+      --error-light: #F7EBF0;
+      --warning: #8F6A2F;
+      --warning-light: #F8F3E8;
+      --gray-50: #F8F9FA;
+      --gray-100: #F0F7FD;
+      --gray-200: #E0EDFB;
+      --gray-600: #6C757D;
+      --gray-700: #495057;
+      --gray-800: #343A40;
+      --gray-900: #212529;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%);
+      min-height: 100vh;
+      padding: 2rem;
+      color: var(--gray-900);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--primary-blue-light) 0%, var(--primary-blue) 50%, var(--primary-blue-dark) 100%);
+      color: white;
+      padding: 1.5rem 2rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .header h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 0.9rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(46, 90, 172, 0.1);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gray-700);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-input, .form-textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 3px rgba(46, 90, 172, 0.1);
+    }
+
+    .form-textarea {
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.8rem;
+      resize: vertical;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-blue-light) 0%, var(--primary-blue) 100%);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(46, 90, 172, 0.3);
+    }
+
+    .btn-secondary {
+      background: var(--gray-100);
+      color: var(--gray-800);
+      border: 1px solid #ddd;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--gray-200);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #4E9B8E 0%, var(--success) 100%);
+      color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(47, 106, 95, 0.3);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary-blue);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th {
+      background: linear-gradient(to right, var(--primary-blue), #25488A);
+      color: white;
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+    }
+
+    tr:nth-child(even) {
+      background: var(--gray-50);
+    }
+
+    tr:hover {
+      background: var(--gray-100);
+    }
+
+    .number {
+      text-align: right;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.8rem;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      color: var(--gray-600);
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--gray-200);
+      border-top-color: var(--primary-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.75rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .alert-error {
+      background: var(--error-light);
+      border: 1px solid rgba(135, 47, 72, 0.2);
+      color: var(--error);
+    }
+
+    .alert-success {
+      background: var(--success-light);
+      border: 1px solid rgba(47, 106, 95, 0.2);
+      color: var(--success);
+    }
+
+    .alert-warning {
+      background: var(--warning-light);
+      border: 1px solid rgba(143, 106, 47, 0.2);
+      color: var(--warning);
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .comparison-card {
+      background: var(--gray-50);
+      border-radius: 8px;
+      padding: 1rem;
+      border: 1px solid #e0e0e0;
+    }
+
+    .comparison-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--gray-800);
+    }
+
+    .comparison-time {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary-blue);
+    }
+
+    .comparison-diff {
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .comparison-diff.faster {
+      color: var(--success);
+    }
+
+    .comparison-diff.slower {
+      color: var(--error);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .code-block {
+      background: var(--gray-900);
+      color: #e0e0e0;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>Profitability Stored Procedure Test</h1>
+      <p>Test and benchmark sp_GetProfitabilityByTasks against direct SQL queries</p>
+    </div>
+
+    <!-- Alert Area -->
+    <div id="alertArea"></div>
+
+    <!-- Parameters Card -->
+    <div class="card">
+      <h2 class="card-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3v18M3 12h18"/>
+        </svg>
+        Parameters
+      </h2>
+
+      <div class="form-group">
+        <label class="form-label">Task IDs (JSON Array)</label>
+        <textarea id="taskIds" class="form-textarea" rows="4" placeholder='["guid1", "guid2", ...]'>[]</textarea>
+        <div style="margin-top: 0.5rem;">
+          <button class="btn btn-secondary" onclick="fetchSampleTaskIds()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            Fetch 50 Sample Task IDs
+          </button>
+          <span id="taskIdCount" style="margin-left: 1rem; color: var(--gray-600); font-size: 0.85rem;"></span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Start Date</label>
+          <input type="date" id="startDate" class="form-input" value="2024-01-01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">End Date</label>
+          <input type="date" id="endDate" class="form-input" value="2024-06-30">
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="runStoredProcedure()" id="btnRunSP">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Run Stored Procedure
+        </button>
+        <button class="btn btn-secondary" onclick="runDirectQuery()" id="btnRunDirect">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M9 9h6M9 12h6M9 15h4"/>
+          </svg>
+          Run Direct Query
+        </button>
+        <button class="btn btn-success" onclick="runComparison()" id="btnCompare">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 20V10M12 20V4M6 20v-6"/>
+          </svg>
+          Run Both &amp; Compare
+        </button>
+      </div>
+    </div>
+
+    <!-- Comparison Results -->
+    <div class="card hidden" id="comparisonCard">
+      <h2 class="card-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 20V10M12 20V4M6 20v-6"/>
+        </svg>
+        Performance Comparison
+      </h2>
+      <div class="comparison-grid">
+        <div class="comparison-card">
+          <div class="comparison-title">Stored Procedure</div>
+          <div class="comparison-time" id="spTime">-</div>
+          <div class="comparison-diff" id="spDiff"></div>
+        </div>
+        <div class="comparison-card">
+          <div class="comparison-title">Direct Query</div>
+          <div class="comparison-time" id="directTime">-</div>
+          <div class="comparison-diff" id="directDiff"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Card -->
+    <div class="card hidden" id="resultsCard">
+      <div class="results-header">
+        <h2 class="card-title" style="margin-bottom: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+          Results
+        </h2>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value" id="rowCount">0</div>
+            <div class="stat-label">Rows</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="execTime">0ms</div>
+            <div class="stat-label">Execution Time</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="exportToCSV()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          Export CSV
+        </button>
+      </div>
+
+      <div id="loadingIndicator" class="loading hidden">
+        <div class="spinner"></div>
+        <span>Executing query...</span>
+      </div>
+
+      <div class="table-container" id="tableContainer">
+        <table id="resultsTable">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Query Preview -->
+    <div class="card">
+      <h2 class="card-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="16 18 22 12 16 6"/>
+          <polyline points="8 6 2 12 8 18"/>
+        </svg>
+        Query Preview
+      </h2>
+      <div style="margin-bottom: 1rem;">
+        <strong>Stored Procedure:</strong>
+        <div class="code-block" id="spQueryPreview">EXEC sp_GetProfitabilityByTasks @TaskIds = '[]', @StartDate = '2024-01-01', @EndDate = '2024-06-30'</div>
+      </div>
+      <div>
+        <strong>Direct Query:</strong>
+        <div class="code-block" id="directQueryPreview">-- Select task IDs first</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const API_BASE = '/api/admin/database/query/execute';
+    let currentResults = null;
+
+    // Update query preview whenever inputs change
+    document.getElementById('taskIds').addEventListener('input', updateQueryPreview);
+    document.getElementById('startDate').addEventListener('input', updateQueryPreview);
+    document.getElementById('endDate').addEventListener('input', updateQueryPreview);
+
+    function updateQueryPreview() {
+      const taskIds = document.getElementById('taskIds').value.trim();
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      // Stored Procedure Query
+      const spQuery = `EXEC sp_GetProfitabilityByTasks 
+  @TaskIds = '${taskIds}',
+  @StartDate = '${startDate}',
+  @EndDate = '${endDate}'`;
+      document.getElementById('spQueryPreview').textContent = spQuery;
+
+      // Direct Query
+      let taskIdsList = '-- No task IDs';
+      try {
+        const parsed = JSON.parse(taskIds);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          taskIdsList = parsed.map(id => `'${id}'`).join(',\n    ');
+        }
+      } catch (e) {}
+
+      const directQuery = `DECLARE @TaskTable TABLE (GSTaskID UNIQUEIDENTIFIER);
+INSERT INTO @TaskTable VALUES
+    (${taskIdsList});
+
+SELECT 
+  w.GSTaskID,
+  SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdTime,
+  SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Hour, 0) ELSE 0 END) as ltdHours,
+  SUM(CASE WHEN w.TType = 'D' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdDisb,
+  SUM(CASE WHEN w.TType = 'ADJ' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdAdj,
+  SUM(CASE WHEN w.TType = 'F' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdFee,
+  SUM(CASE WHEN w.TType = 'P' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdProvision,
+  SUM(CASE WHEN w.TType != 'P' THEN ISNULL(w.Cost, 0) ELSE 0 END) as ltdCost
+FROM WIPTransactions w
+INNER JOIN @TaskTable t ON w.GSTaskID = t.GSTaskID
+WHERE w.TranDate >= '${startDate}' AND w.TranDate <= '${endDate}'
+GROUP BY w.GSTaskID`;
+      document.getElementById('directQueryPreview').textContent = directQuery;
+
+      // Update task count
+      try {
+        const parsed = JSON.parse(taskIds);
+        if (Array.isArray(parsed)) {
+          document.getElementById('taskIdCount').textContent = `${parsed.length} task(s) selected`;
+        }
+      } catch (e) {
+        document.getElementById('taskIdCount').textContent = 'Invalid JSON';
+      }
+    }
+
+    // Show alert
+    function showAlert(message, type = 'error') {
+      const alertArea = document.getElementById('alertArea');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          ${type === 'error' 
+            ? '<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>'
+            : type === 'success'
+            ? '<circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/>'
+            : '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>'}
+        </svg>
+        <span>${message}</span>
+      `;
+      alertArea.innerHTML = '';
+      alertArea.appendChild(alert);
+      
+      if (type === 'success') {
+        setTimeout(() => alert.remove(), 5000);
+      }
+    }
+
+    // Clear alerts
+    function clearAlerts() {
+      document.getElementById('alertArea').innerHTML = '';
+    }
+
+    // Execute query via API
+    async function executeQuery(query) {
+      const response = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ query })
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Query execution failed');
+      }
+
+      return data.data;
+    }
+
+    // Fetch sample task IDs
+    async function fetchSampleTaskIds() {
+      clearAlerts();
+      const btn = document.querySelector('[onclick="fetchSampleTaskIds()"]');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;margin:0;"></div> Fetching...';
+
+      try {
+        const query = `SELECT TOP 50 GSTaskID FROM Task WHERE Active = 'Yes' ORDER BY NEWID()`;
+        const result = await executeQuery(query);
+        
+        const taskIds = result.rows.map(row => row.GSTaskID);
+        document.getElementById('taskIds').value = JSON.stringify(taskIds, null, 2);
+        updateQueryPreview();
+        
+        showAlert(`Fetched ${taskIds.length} task IDs`, 'success');
+      } catch (error) {
+        showAlert(`Failed to fetch task IDs: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg> Fetch 50 Sample Task IDs`;
+      }
+    }
+
+    // Run stored procedure
+    async function runStoredProcedure() {
+      clearAlerts();
+      const taskIds = document.getElementById('taskIds').value.trim();
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      try {
+        JSON.parse(taskIds);
+      } catch (e) {
+        showAlert('Invalid Task IDs JSON format');
+        return;
+      }
+
+      setLoading(true, 'btnRunSP');
+      
+      try {
+        const query = `EXEC sp_GetProfitabilityByTasks @TaskIds = '${taskIds}', @StartDate = '${startDate}', @EndDate = '${endDate}'`;
+        const result = await executeQuery(query);
+        
+        displayResults(result, 'Stored Procedure');
+        showAlert(`Query completed in ${result.executionTimeMs}ms`, 'success');
+      } catch (error) {
+        showAlert(`Stored procedure failed: ${error.message}`);
+      } finally {
+        setLoading(false, 'btnRunSP');
+      }
+    }
+
+    // Run direct query
+    async function runDirectQuery() {
+      clearAlerts();
+      const taskIdsJson = document.getElementById('taskIds').value.trim();
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      let taskIds;
+      try {
+        taskIds = JSON.parse(taskIdsJson);
+        if (!Array.isArray(taskIds) || taskIds.length === 0) {
+          showAlert('Task IDs must be a non-empty array');
+          return;
+        }
+      } catch (e) {
+        showAlert('Invalid Task IDs JSON format');
+        return;
+      }
+
+      setLoading(true, 'btnRunDirect');
+      
+      try {
+        const taskIdsList = taskIds.map(id => `('${id}')`).join(',');
+        const query = `
+          DECLARE @TaskTable TABLE (GSTaskID UNIQUEIDENTIFIER);
+          INSERT INTO @TaskTable VALUES ${taskIdsList};
+          
+          SELECT 
+            w.GSTaskID,
+            SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdTime,
+            SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Hour, 0) ELSE 0 END) as ltdHours,
+            SUM(CASE WHEN w.TType = 'D' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdDisb,
+            SUM(CASE WHEN w.TType = 'ADJ' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdAdj,
+            SUM(CASE WHEN w.TType = 'F' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdFee,
+            SUM(CASE WHEN w.TType = 'P' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdProvision,
+            SUM(CASE WHEN w.TType != 'P' THEN ISNULL(w.Cost, 0) ELSE 0 END) as ltdCost
+          FROM WIPTransactions w
+          INNER JOIN @TaskTable t ON w.GSTaskID = t.GSTaskID
+          WHERE w.TranDate >= '${startDate}' AND w.TranDate <= '${endDate}'
+          GROUP BY w.GSTaskID
+        `;
+        const result = await executeQuery(query);
+        
+        displayResults(result, 'Direct Query');
+        showAlert(`Query completed in ${result.executionTimeMs}ms`, 'success');
+      } catch (error) {
+        showAlert(`Direct query failed: ${error.message}`);
+      } finally {
+        setLoading(false, 'btnRunDirect');
+      }
+    }
+
+    // Run comparison
+    async function runComparison() {
+      clearAlerts();
+      const taskIdsJson = document.getElementById('taskIds').value.trim();
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      let taskIds;
+      try {
+        taskIds = JSON.parse(taskIdsJson);
+        if (!Array.isArray(taskIds) || taskIds.length === 0) {
+          showAlert('Task IDs must be a non-empty array');
+          return;
+        }
+      } catch (e) {
+        showAlert('Invalid Task IDs JSON format');
+        return;
+      }
+
+      setLoading(true, 'btnCompare');
+      document.getElementById('comparisonCard').classList.remove('hidden');
+      document.getElementById('spTime').textContent = '...';
+      document.getElementById('directTime').textContent = '...';
+      document.getElementById('spDiff').textContent = '';
+      document.getElementById('directDiff').textContent = '';
+
+      try {
+        // Run stored procedure
+        const spQuery = `EXEC sp_GetProfitabilityByTasks @TaskIds = '${taskIdsJson}', @StartDate = '${startDate}', @EndDate = '${endDate}'`;
+        const spResult = await executeQuery(spQuery);
+        document.getElementById('spTime').textContent = `${spResult.executionTimeMs}ms`;
+
+        // Run direct query
+        const taskIdsList = taskIds.map(id => `('${id}')`).join(',');
+        const directQuery = `
+          DECLARE @TaskTable TABLE (GSTaskID UNIQUEIDENTIFIER);
+          INSERT INTO @TaskTable VALUES ${taskIdsList};
+          
+          SELECT 
+            w.GSTaskID,
+            SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdTime,
+            SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Hour, 0) ELSE 0 END) as ltdHours,
+            SUM(CASE WHEN w.TType = 'D' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdDisb,
+            SUM(CASE WHEN w.TType = 'ADJ' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdAdj,
+            SUM(CASE WHEN w.TType = 'F' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdFee,
+            SUM(CASE WHEN w.TType = 'P' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdProvision,
+            SUM(CASE WHEN w.TType != 'P' THEN ISNULL(w.Cost, 0) ELSE 0 END) as ltdCost
+          FROM WIPTransactions w
+          INNER JOIN @TaskTable t ON w.GSTaskID = t.GSTaskID
+          WHERE w.TranDate >= '${startDate}' AND w.TranDate <= '${endDate}'
+          GROUP BY w.GSTaskID
+        `;
+        const directResult = await executeQuery(directQuery);
+        document.getElementById('directTime').textContent = `${directResult.executionTimeMs}ms`;
+
+        // Calculate difference
+        const diff = spResult.executionTimeMs - directResult.executionTimeMs;
+        const diffPercent = ((diff / directResult.executionTimeMs) * 100).toFixed(1);
+
+        if (diff < 0) {
+          document.getElementById('spDiff').textContent = `${Math.abs(diffPercent)}% faster`;
+          document.getElementById('spDiff').className = 'comparison-diff faster';
+          document.getElementById('directDiff').textContent = `${Math.abs(diffPercent)}% slower`;
+          document.getElementById('directDiff').className = 'comparison-diff slower';
+        } else if (diff > 0) {
+          document.getElementById('spDiff').textContent = `${diffPercent}% slower`;
+          document.getElementById('spDiff').className = 'comparison-diff slower';
+          document.getElementById('directDiff').textContent = `${Math.abs(diffPercent)}% faster`;
+          document.getElementById('directDiff').className = 'comparison-diff faster';
+        } else {
+          document.getElementById('spDiff').textContent = 'Same';
+          document.getElementById('directDiff').textContent = 'Same';
+        }
+
+        // Show SP results in table
+        displayResults(spResult, 'Stored Procedure (Comparison)');
+        showAlert(`Comparison complete - SP: ${spResult.executionTimeMs}ms, Direct: ${directResult.executionTimeMs}ms`, 'success');
+
+      } catch (error) {
+        showAlert(`Comparison failed: ${error.message}`);
+      } finally {
+        setLoading(false, 'btnCompare');
+      }
+    }
+
+    // Set loading state
+    function setLoading(loading, buttonId) {
+      const btn = document.getElementById(buttonId);
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      
+      if (loading) {
+        btn.disabled = true;
+        loadingIndicator.classList.remove('hidden');
+        document.getElementById('tableContainer').classList.add('hidden');
+      } else {
+        btn.disabled = false;
+        loadingIndicator.classList.add('hidden');
+        document.getElementById('tableContainer').classList.remove('hidden');
+      }
+    }
+
+    // Display results in table
+    function displayResults(result, queryType) {
+      currentResults = result;
+      
+      document.getElementById('resultsCard').classList.remove('hidden');
+      document.getElementById('rowCount').textContent = result.rowCount;
+      document.getElementById('execTime').textContent = `${result.executionTimeMs}ms`;
+
+      // Build table header
+      const thead = document.getElementById('tableHead');
+      thead.innerHTML = `<tr>${result.columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
+
+      // Build table body
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = result.rows.map(row => {
+        return `<tr>${result.columns.map(col => {
+          const value = row[col];
+          const isNumber = typeof value === 'number';
+          const formatted = isNumber ? parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (value || '-');
+          return `<td class="${isNumber ? 'number' : ''}">${formatted}</td>`;
+        }).join('')}</tr>`;
+      }).join('');
+    }
+
+    // Export to CSV
+    function exportToCSV() {
+      if (!currentResults || currentResults.rows.length === 0) {
+        showAlert('No results to export', 'warning');
+        return;
+      }
+
+      const csv = [
+        currentResults.columns.join(','),
+        ...currentResults.rows.map(row => 
+          currentResults.columns.map(col => JSON.stringify(row[col] ?? '')).join(',')
+        )
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `profitability-results-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showAlert('CSV exported successfully', 'success');
+    }
+
+    // Initialize
+    updateQueryPreview();
+  </script>
+</body>
+</html>

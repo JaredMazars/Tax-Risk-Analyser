@@ -126,6 +126,9 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
+    // Transaction limit to prevent unbounded queries
+    const TRANSACTION_LIMIT = 100000;
+
     // Get CARL partner employee codes and WIP transactions in parallel
     const [carlPartnerCodes, wipTransactions] = await Promise.all([
       getCarlPartnerCodes(),
@@ -141,9 +144,12 @@ export const GET = secureRoute.queryWithParams({
           EmpCode: true,
           updatedAt: true,
         },
-        take: 100000, // Reasonable upper bound - prevents unbounded queries
+        take: TRANSACTION_LIMIT, // Reasonable upper bound - prevents unbounded queries
       }),
     ]);
+
+    // Check if we hit the transaction limit
+    const limitReached = wipTransactions.length >= TRANSACTION_LIMIT;
 
     // Set cost to 0 for Carl Partner transactions
     const processedTransactions = wipTransactions.map(txn => ({
@@ -209,6 +215,10 @@ export const GET = secureRoute.queryWithParams({
       })),
       taskCount: taskCount,
       lastUpdated: latestWipTransaction?.updatedAt || null,
+      // Limit warning: indicates if transaction limit was reached (data may be incomplete)
+      transactionCount: wipTransactions.length,
+      transactionLimit: TRANSACTION_LIMIT,
+      limitReached,
     };
 
     return NextResponse.json(successResponse(responseData));

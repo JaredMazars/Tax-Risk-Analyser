@@ -100,6 +100,9 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 
     const carlPartnerCodes = await getCarlPartnerCodes();
 
+    // Transaction limit to prevent unbounded queries
+    const TRANSACTION_LIMIT = 50000;
+
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: { GSTaskID: task.GSTaskID },
       select: {
@@ -111,8 +114,11 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
         EmpCode: true,
         updatedAt: true,
       },
-      take: 50000,
+      take: TRANSACTION_LIMIT,
     });
+
+    // Check if we hit the transaction limit
+    const limitReached = wipTransactions.length >= TRANSACTION_LIMIT;
 
     const processedTransactions = wipTransactions.map(txn => ({
       ...txn,
@@ -135,6 +141,10 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
       taskDesc: task.TaskDesc,
       metrics,
       lastUpdated: latestWipTransaction?.updatedAt || null,
+      // Limit warning: indicates if transaction limit was reached (data may be incomplete)
+      transactionCount: wipTransactions.length,
+      transactionLimit: TRANSACTION_LIMIT,
+      limitReached,
     };
 
     return NextResponse.json(successResponse(responseData));

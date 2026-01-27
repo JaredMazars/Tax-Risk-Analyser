@@ -1,8 +1,20 @@
 # WIPTransactions Index Analysis & Optimization Plan
 
-**Date:** January 25, 2026  
-**Status:** Analysis Complete - Awaiting Database Verification  
+**Date:** January 27, 2026 (Updated)  
+**Status:** Implementation Complete  
 **Table:** `WIPTransactions` (large transaction table with ~46 columns)
+
+---
+
+## Update Log
+
+### January 27, 2026
+- **Restored Essential Indexes**: Created migration `20260127_restore_essential_wip_indexes` to restore:
+  - `WIPTransactions_TaskPartner_TranDate_idx` - Essential for My Reports partner mode
+  - `WIPTransactions_TaskManager_TranDate_idx` - Essential for My Reports manager mode
+  - `WIPTransactions_TranDate_idx` - Essential for fiscal period queries
+- **Added Limit Warnings**: Updated WIP endpoints to include `limitReached`, `transactionCount`, and `transactionLimit` fields
+- **Updated Schema Documentation**: Added comprehensive index documentation to Prisma schema
 
 ---
 

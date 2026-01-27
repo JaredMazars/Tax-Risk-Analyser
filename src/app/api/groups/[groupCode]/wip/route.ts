@@ -184,7 +184,10 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
     // Get CARL partner employee codes from cache
     const carlPartnerCodes = await getCarlPartnerCodes();
 
-    // Fetch WIP transactions for all clients in the group (limited to 100000)
+    // Transaction limit to prevent unbounded queries
+    const TRANSACTION_LIMIT = 100000;
+
+    // Fetch WIP transactions for all clients in the group
     const wipTransactions = await prisma.wIPTransactions.findMany({
       where: {
         GSClientID: {
@@ -201,8 +204,11 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
         EmpCode: true,
         updatedAt: true,
       },
-      take: 100000,
+      take: TRANSACTION_LIMIT,
     });
+
+    // Check if we hit the transaction limit
+    const limitReached = wipTransactions.length >= TRANSACTION_LIMIT;
 
     // Set cost to 0 for Carl Partner transactions
     const processedTransactions = wipTransactions.map(txn => ({
@@ -268,6 +274,10 @@ export const GET = secureRoute.queryWithParams<{ groupCode: string }>({
       })),
       taskCount: taskCount,
       lastUpdated: latestWipTransaction?.updatedAt || null,
+      // Limit warning: indicates if transaction limit was reached (data may be incomplete)
+      transactionCount: wipTransactions.length,
+      transactionLimit: TRANSACTION_LIMIT,
+      limitReached,
     };
 
     // Cache for 10 minutes (600 seconds)
