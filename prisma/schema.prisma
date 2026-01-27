@@ -2269,17 +2269,38 @@ model WIPTransactions {
   Client              Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   Task                Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
-  // Super covering indexes (created via SQL migration - INCLUDE columns not supported in Prisma)
-  // idx_wip_gsclientid_super_covering: (GSClientID, TranDate) INCLUDE (TType, TranType, Amount, Cost, Hour, MainServLineCode, TaskPartner, TaskManager, updatedAt) WHERE GSClientID IS NOT NULL
-  // idx_wip_gstaskid_super_covering: (GSTaskID, TranDate) INCLUDE (TType, TranType, Amount, Cost, Hour, MainServLineCode, TaskPartner, TaskManager, updatedAt)
-  // These super covering indexes replace the composite indexes that were removed in migration 20260125215455
+  // ============================================================================
+  // SUPER COVERING INDEXES (Client/Task Query Indexes)
+  // Created via SQL migration - INCLUDE columns not supported in Prisma
+  // ============================================================================
+  // idx_wip_gsclientid_super_covering: 
+  //   Keys: (GSClientID, TranDate) 
+  //   INCLUDE: (TType, TranType, Amount, Cost, Hour, MainServLineCode, TaskPartner, TaskManager, TaskServLine, updatedAt) 
+  //   WHERE GSClientID IS NOT NULL
+  //   Used by: /api/clients/[id]/wip, /api/clients/[id]/balances, /api/clients/[id]/analytics/graphs
+  //
+  // idx_wip_gstaskid_super_covering: 
+  //   Keys: (GSTaskID, TranDate) 
+  //   INCLUDE: (TType, TranType, Amount, Cost, Hour, MainServLineCode, TaskPartner, TaskManager, TaskServLine, updatedAt)
+  //   Used by: /api/tasks/[id]/wip, /api/tasks/[id]/balances, /api/tasks/[id]/analytics/graphs
+  // ============================================================================
 
-  // Composite indexes for other query patterns
-  @@index([TaskManager, TranDate])
-  @@index([TaskPartner, TranDate])
-  @@index([TranDate])
+  // ============================================================================
+  // ESSENTIAL COMPOSITE INDEXES (My Reports / Fiscal Period Queries)
+  // These CANNOT be removed - super covering indexes only work when filtering by GSClientID/GSTaskID
+  // My Reports queries filter by TaskPartner/TaskManager directly (not via GSClientID/GSTaskID)
+  // Restored via migration: 20260127_restore_essential_wip_indexes
+  // ============================================================================
+  @@index([TaskManager, TranDate])  // Required for: /api/my-reports/* (manager mode)
+  @@index([TaskPartner, TranDate])  // Required for: /api/my-reports/* (partner mode)
+  @@index([TranDate])               // Required for: /api/reports/fiscal-transactions
 
-  // Conditional indexes (kept unless verified unused via check_wip_indexes.sql)
+  // ============================================================================
+  // CONDITIONAL INDEXES (Pending Stakeholder Verification)
+  // Keep until HR/Finance/Analytics teams confirm no external usage
+  // Run prisma/scripts/check_wip_indexes.sql to verify
+  // See prisma/scripts/STAKEHOLDER_CHECK.md for approval process
+  // ============================================================================
   @@index([EmpCode])
   @@index([OfficeCode])
   @@index([ServLineGroup])
