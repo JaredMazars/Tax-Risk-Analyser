@@ -52,6 +52,10 @@ export function GanttTimeline({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
   const [adminModalInitialDates, setAdminModalInitialDates] = useState<{ startDate?: Date; endDate?: Date }>({});
   const [overlayScrollTop, setOverlayScrollTop] = useState(0);
+  const [scrollToEarliest, setScrollToEarliest] = useState(false);
+  
+  // Ref to track if we've initialized the view to earliest allocation date
+  const hasInitializedView = useRef(false);
   
   // Delete confirmation modal state
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
@@ -106,6 +110,28 @@ export function GanttTimeline({
     const newDate = scale === 'day' ? addDays(referenceDate, amount) : addWeeks(referenceDate, amount);
     setReferenceDate(newDate);
   }, [scale, referenceDate]);
+
+  // Helper to find earliest allocation date across all team members
+  const getEarliestAllocationDate = useCallback((members: any[]): Date | null => {
+    let earliestDate: Date | null = null;
+    
+    members.forEach(member => {
+      const allocations = (member as any).allocations?.length > 0
+        ? (member as any).allocations
+        : member.startDate && member.endDate ? [{ startDate: member.startDate }] : [];
+      
+      allocations.forEach((alloc: any) => {
+        if (alloc.startDate) {
+          const allocDate = new Date(alloc.startDate);
+          if (!isNaN(allocDate.getTime()) && (!earliestDate || allocDate < earliestDate)) {
+            earliestDate = allocDate;
+          }
+        }
+      });
+    });
+    
+    return earliestDate;
+  }, []);
 
   // Generate date range and columns
   const dateRange = useMemo(() => getDateRange(scale, referenceDate), [scale, referenceDate]);
@@ -454,6 +480,41 @@ export function GanttTimeline({
       setScrollToToday(false);
     }
   }, [scrollToToday, columns, scale]);
+
+  // Initialize view to earliest allocation date on first data load
+  useEffect(() => {
+    // Only run once on initial data load
+    if (hasInitializedView.current || !teamMembers || teamMembers.length === 0) {
+      return;
+    }
+    
+    const earliestDate = getEarliestAllocationDate(teamMembers);
+    
+    // If allocations exist, center view on earliest date
+    if (earliestDate) {
+      hasInitializedView.current = true;
+      setReferenceDate(startOfDay(earliestDate));
+      setScrollToEarliest(true);
+    }
+  }, [teamMembers, getEarliestAllocationDate]);
+
+  // Scroll to earliest allocation date when initialized
+  useEffect(() => {
+    if (scrollToEarliest && timelineContainerRef.current && columns.length > 0) {
+      // Get column width based on scale
+      const columnWidth = getColumnWidth(scale);
+      
+      // Scroll to show earliest date near the start of viewport with some padding
+      const scrollLeft = Math.max(0, columnWidth * 2); // Show 2 columns before for context
+      
+      timelineContainerRef.current.scrollTo({
+        left: scrollLeft,
+        behavior: 'smooth'
+      });
+      
+      setScrollToEarliest(false);
+    }
+  }, [scrollToEarliest, columns, scale]);
 
   // Handle global mouse up for drag selection
   useEffect(() => {

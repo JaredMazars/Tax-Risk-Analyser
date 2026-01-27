@@ -504,6 +504,23 @@ export async function invalidateRecoverabilityCache(userId?: string): Promise<vo
   }
 }
 
+/**
+ * Invalidate time accumulation cache for a task
+ * Use this after WIP transaction mutations or team member allocation changes
+ * 
+ * @param taskId - The task ID to invalidate cache for
+ */
+export async function invalidateTaskTimeAccumulation(taskId: number): Promise<void> {
+  try {
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}task-time-accumulation:${taskId}`;
+    await cache.delete(cacheKey);
+    logger.debug('Task time accumulation cache invalidated', { taskId });
+  } catch (error) {
+    logger.error('Failed to invalidate task time accumulation cache', { taskId, error });
+    // Silent fail - cache invalidation errors are not critical
+  }
+}
+
 
 
 

@@ -676,7 +676,8 @@ export const POST = secureRoute.mutationWithParams({
       throw new AppError(404, 'User not found in system', ErrorCodes.NOT_FOUND);
     }
 
-    // Check if user is already on this task (prevent duplicates)
+    // Check if user is already on this task
+    // If they are, return the existing team member (idempotent behavior)
     const existingTeamMember = await prisma.taskTeam.findUnique({
       where: {
         taskId_userId: {
@@ -684,11 +685,38 @@ export const POST = secureRoute.mutationWithParams({
           userId: targetUserId,
         },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        taskId: true,
+        userId: true,
+        role: true,
+        startDate: true,
+        endDate: true,
+        allocatedHours: true,
+        allocatedPercentage: true,
+        actualHours: true,
+        createdAt: true,
+        User: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
     });
 
     if (existingTeamMember) {
-      throw new AppError(409, 'User is already a member of this project team', ErrorCodes.VALIDATION_ERROR);
+      // Return existing team member instead of error (idempotent behavior)
+      // This handles race conditions and frontend/backend sync issues
+      logger.info('User already on task team, returning existing member', {
+        taskId,
+        userId: targetUserId,
+        existingTeamMemberId: existingTeamMember.id,
+      });
+      
+      return NextResponse.json(successResponse(existingTeamMember));
     }
 
     // Auto-assign role based on user's ServiceLineRole for the task's sub-service line group

@@ -163,4 +163,74 @@ export interface RatioComparison {
   status: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
 }
 
+// ============================================
+// Time Accumulation Types (Task Finance Graphs)
+// ============================================
 
+/**
+ * A single data point for cumulative time charts
+ */
+export interface CumulativeDataPoint {
+  /** Date in YYYY-MM-DD format */
+  date: string;
+  /** Cumulative time amount at this date */
+  cumulativeTime: number;
+  /** Budget amount (flat line value) */
+  budget: number;
+}
+
+/**
+ * Time accumulation data for a single employee
+ */
+export interface EmployeeTimeAccumulation {
+  /** User ID (from User table) */
+  userId: string;
+  /** Display name of the employee */
+  userName: string;
+  /** Employee code (from Employee table) */
+  empCode: string;
+  /** Employee category description (e.g., "Partner", "Manager") */
+  empCatDesc: string;
+  /** Total allocated budget for this employee (hours × rate) */
+  allocatedBudget: number;
+  /** Actual time amount used */
+  actualTime: number;
+  /** Whether this employee is an assigned team member (vs just booked time) */
+  isTeamMember: boolean;
+  /** Cumulative data points for charting */
+  cumulativeData: CumulativeDataPoint[];
+}
+
+/**
+ * Complete time accumulation data for a task
+ */
+export interface TaskTimeAccumulationData {
+  /** Internal task ID */
+  taskId: number;
+  /** External GUID for task */
+  GSTaskID: string;
+  /** Task code for display */
+  taskCode: string;
+  /** Task description */
+  taskDesc: string;
+  /** Task start date (TaskDateOpen) */
+  startDate: string;
+  /** Current date (end of analysis period) */
+  endDate: string;
+  /** Total budget for the task (sum of all employee budgets) */
+  totalBudget: number;
+  /** Total actual time used */
+  actualTime: number;
+  /** Overall cumulative data points for charting */
+  cumulativeData: CumulativeDataPoint[];
+  /** Per-employee time accumulation data */
+  employeeData: EmployeeTimeAccumulation[];
+}
+
+/**
+ * API response wrapper for time accumulation data
+ */
+export interface TaskTimeAccumulationResponse {
+  success: boolean;
+  data: TaskTimeAccumulationData;
+}
