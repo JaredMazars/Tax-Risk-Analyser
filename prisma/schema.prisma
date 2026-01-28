@@ -2270,40 +2270,35 @@ model WIPTransactions {
   Task                Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
   // ============================================================================
-  // SUPER COVERING INDEXES (Client/Task Query Indexes)
-  // Created via SQL migration - INCLUDE columns not supported in Prisma
+  // COMPREHENSIVE COVERING INDEXES (Optimized 2-Index Strategy)
+  // Created via SQL migration - INCLUDE columns not supported in Prisma schema
+  // Migration: 20260127_wiptransactions_2_covering_indexes
+  // Table Size: 5.7 million rows | Total Index Size: 1,190 MB
   // ============================================================================
-  // idx_wip_gsclientid_super_covering: 
-  //   Keys: (GSClientID, TranDate) 
-  //   INCLUDE: (TType, TranType, Amount, Cost, Hour, MainServLineCode, TaskPartner, TaskManager, TaskServLine, updatedAt) 
-  //   WHERE GSClientID IS NOT NULL
-  //   Used by: /api/clients/[id]/wip, /api/clients/[id]/balances, /api/clients/[id]/analytics/graphs
   //
-  // idx_wip_gstaskid_super_covering: 
-  //   Keys: (GSTaskID, TranDate) 
-  //   INCLUDE: (TType, TranType, Amount, Cost, Hour, MainServLineCode, TaskPartner, TaskManager, TaskServLine, updatedAt)
-  //   Used by: /api/tasks/[id]/wip, /api/tasks/[id]/balances, /api/tasks/[id]/analytics/graphs
+  // Index 1: idx_WIPTransactions_Task_Covering (395 MB)
+  //   Keys: (GSTaskID, TranDate)
+  //   INCLUDE: (GSClientID, EmpCode, Amount, Cost, Hour, TType, TaskServLine,
+  //             TaskPartner, TaskManager, OfficeCode, ClientCode, ClientName,
+  //             TaskCode, TaskDesc, PartnerName, ManagerName, updatedAt,
+  //             TranType, Ref, ServLineGroup) -- 20 columns
+  //   Note: Narr (Text type) excluded - requires key lookup if needed
+  //   Serves: Single task queries, task transactions, task WIP aggregations
+  //   APIs: /api/tasks/[id]/wip, /api/tasks/[id]/transactions, /api/tasks/[id]/balances
+  //
+  // Index 2: idx_WIPTransactions_Date_EmpCode_Client_Covering (795 MB)
+  //   Keys: (TranDate, EmpCode, GSClientID)
+  //   INCLUDE: (GSTaskID, Amount, Cost, Hour, TType, TaskServLine, TaskPartner,
+  //             TaskManager, OfficeCode, ServLineGroup, updatedAt, ClientCode,
+  //             ClientName, TaskCode) -- 14 columns
+  //   Serves: Date ranges, employee filtering, client/group rollups, fiscal reports
+  //   APIs: /api/clients/[id]/wip, /api/groups/[groupCode]/wip,
+  //         /api/reports/fiscal-transactions, Enhanced WipLTD SP
+  //
+  // Removed Indexes (replaced by above 2 comprehensive indexes):
+  //   - TaskManager/TranDate, TaskPartner/TranDate, TranDate, EmpCode,
+  //     OfficeCode, ServLineGroup, GSTaskID, GSClientID (8 indexes → 2)
   // ============================================================================
-
-  // ============================================================================
-  // ESSENTIAL COMPOSITE INDEXES (My Reports / Fiscal Period Queries)
-  // These CANNOT be removed - super covering indexes only work when filtering by GSClientID/GSTaskID
-  // My Reports queries filter by TaskPartner/TaskManager directly (not via GSClientID/GSTaskID)
-  // Restored via migration: 20260127_restore_essential_wip_indexes
-  // ============================================================================
-  @@index([TaskManager, TranDate])  // Required for: /api/my-reports/* (manager mode)
-  @@index([TaskPartner, TranDate])  // Required for: /api/my-reports/* (partner mode)
-  @@index([TranDate])               // Required for: /api/reports/fiscal-transactions
-
-  // ============================================================================
-  // CONDITIONAL INDEXES (Pending Stakeholder Verification)
-  // Keep until HR/Finance/Analytics teams confirm no external usage
-  // Run prisma/scripts/check_wip_indexes.sql to verify
-  // See prisma/scripts/STAKEHOLDER_CHECK.md for approval process
-  // ============================================================================
-  @@index([EmpCode])
-  @@index([OfficeCode])
-  @@index([ServLineGroup])
 }
 
 model WorkspaceFile {
