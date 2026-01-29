@@ -32,11 +32,63 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
-import type { ProfitabilityReportData, TaskWithWIPAndServiceLine } from '@/types/api';
+import type { ProfitabilityReportData, TaskWithWIPAndServiceLine, WipLTDResult } from '@/types/api';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { getCurrentFiscalPeriod, getFiscalYearRange, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
+import { fetchProfitabilityFromSP } from '@/lib/services/reports/storedProcedureService';
 
 export const dynamic = 'force-dynamic';
+
+// Feature flag to use stored procedures instead of inline SQL
+// Set USE_SP_FOR_REPORTS=true in .env to enable
+const USE_STORED_PROCEDURES = process.env.USE_SP_FOR_REPORTS === 'true';
+
+/**
+ * Convert WipLTD SP result to TaskWithWIPAndServiceLine format
+ */
+function mapWipLTDToTask(row: WipLTDResult): TaskWithWIPAndServiceLine {
+  const netWip = row.LTDTimeCharged + row.LTDDisbCharged + row.LTDAdjustments - row.LTDFeesBilled;
+  const netRevenue = row.LTDTimeCharged + row.LTDAdjustments;
+  const grossProduction = row.LTDTimeCharged;
+  const grossProfit = netRevenue - row.LTDCost;
+  const adjustmentPercentage = grossProduction !== 0 ? (row.LTDAdjustments / grossProduction) * 100 : 0;
+  const grossProfitPercentage = netRevenue !== 0 ? (grossProfit / netRevenue) * 100 : 0;
+
+  return {
+    id: 0, // SP doesn't return id, but it's not used in UI
+    TaskCode: row.TaskCode,
+    TaskDesc: '', // SP doesn't return TaskDesc
+    TaskPartner: row.TaskPartner,
+    TaskPartnerName: row.TaskPartnerName,
+    TaskManager: row.TaskManager,
+    TaskManagerName: row.TaskManagerName,
+    GSClientID: row.GSClientID,
+    clientCode: row.clientCode,
+    clientNameFull: row.clientNameFull,
+    groupCode: row.groupCode,
+    groupDesc: row.groupDesc,
+    servLineCode: row.ServLineCode,
+    serviceLineName: row.ServLineDesc,
+    // Service line hierarchy - populated separately via ServiceLineExternal
+    masterServiceLineCode: '',
+    masterServiceLineName: '',
+    subServlineGroupCode: '',
+    subServlineGroupDesc: '',
+    // WIP metrics
+    netWip,
+    ltdHours: row.LTDHours,
+    ltdTime: row.LTDTimeCharged,
+    ltdDisb: row.LTDDisbCharged,
+    ltdAdj: row.LTDAdjustments,
+    ltdCost: row.LTDCost,
+    // Calculated metrics
+    grossProduction,
+    netRevenue,
+    adjustmentPercentage,
+    grossProfit,
+    grossProfitPercentage,
+  };
+}
 
 /**
  * Background cache helper - cache past fiscal years after returning current FY
@@ -183,6 +235,80 @@ export const GET = secureRoute.query({
       if (cached) {
         logger.info('Returning cached profitability report', { userId: user.id, filterMode, mode, fiscalYear, fiscalMonth: fiscalMonthParam });
         return NextResponse.json(successResponse(cached));
+      }
+
+      // Use stored procedure implementation if feature flag is enabled
+      if (USE_STORED_PROCEDURES) {
+        logger.info('Using stored procedure implementation for profitability', { fiscalYear, isPartnerReport });
+        
+        const spResults = await fetchProfitabilityFromSP(
+          employee.EmpCode,
+          isPartnerReport,
+          startDate,
+          endDate
+        );
+
+        // Get service line mappings
+        const uniqueServLineCodes = [...new Set(spResults.map(r => r.ServLineCode))];
+        const serviceLineMappings = await prisma.serviceLineExternal.findMany({
+          where: { ServLineCode: { in: uniqueServLineCodes } },
+          select: {
+            ServLineCode: true,
+            masterCode: true,
+            SubServlineGroupCode: true,
+            SubServlineGroupDesc: true,
+          },
+        });
+        
+        // Get master service line names
+        const uniqueMasterCodes = [...new Set(serviceLineMappings.map(sl => sl.masterCode).filter(Boolean))] as string[];
+        const masterServiceLines = await prisma.serviceLineMaster.findMany({
+          where: { code: { in: uniqueMasterCodes } },
+          select: { code: true, name: true },
+        });
+        const masterNameMap = new Map(masterServiceLines.map(m => [m.code, m.name]));
+        
+        const serviceLineMap = new Map(
+          serviceLineMappings.map(sl => [sl.ServLineCode, sl])
+        );
+
+        // Map SP results to expected format
+        const tasks: TaskWithWIPAndServiceLine[] = spResults.map(row => {
+          const slMapping = serviceLineMap.get(row.ServLineCode);
+          const task = mapWipLTDToTask(row);
+          return {
+            ...task,
+            masterServiceLineCode: slMapping?.masterCode || '',
+            masterServiceLineName: slMapping?.masterCode ? (masterNameMap.get(slMapping.masterCode) || '') : '',
+            subServlineGroupCode: slMapping?.SubServlineGroupCode || '',
+            subServlineGroupDesc: slMapping?.SubServlineGroupDesc || '',
+          };
+        });
+
+        const report: ProfitabilityReportData = {
+          tasks,
+          filterMode,
+          employeeCode: employee.EmpCode,
+          fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+          fiscalMonth: mode === 'fiscal' && fiscalMonthParam ? fiscalMonthParam : undefined,
+          dateRange: mode === 'custom' ? {
+            start: format(startDate, 'yyyy-MM-dd'),
+            end: format(endDate, 'yyyy-MM-dd'),
+          } : undefined,
+          isPeriodFiltered,
+        };
+
+        // Cache based on mode
+        const cacheTTL = mode === 'fiscal' && fiscalYear < getCurrentFiscalPeriod().fiscalYear ? 1800 : 600;
+        await cache.set(cacheKey, report, cacheTTL);
+
+        logger.info('Profitability report generated via SP', {
+          userId: user.id,
+          filterMode,
+          taskCount: tasks.length,
+        });
+
+        return NextResponse.json(successResponse(report));
       }
 
       // 3. Query tasks with WIP using database-level filtering (OPTIMIZED)

@@ -38,6 +38,11 @@ import {
   type NetBillingsMonthlyResult,
 } from '@/lib/utils/sql';
 import { getCurrentFiscalPeriod, getFiscalYearRange } from '@/lib/utils/fiscalPeriod';
+import { fetchOverviewMetricsFromSP } from '@/lib/services/reports/storedProcedureService';
+
+// Feature flag to use stored procedures instead of inline SQL
+// Set USE_SP_FOR_REPORTS=true in .env to enable
+const USE_STORED_PROCEDURES = process.env.USE_SP_FOR_REPORTS === 'true';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +84,10 @@ async function cachePastFiscalYearsInBackground(
 /**
  * Core logic to fetch metrics for a single fiscal year
  * Extracted to be reusable for multi-year comparison
+ * 
+ * Supports two implementations:
+ * 1. Inline SQL queries (default)
+ * 2. Stored Procedures (when USE_SP_FOR_REPORTS=true)
  */
 async function fetchMetricsForFiscalYear(
   employee: { EmpCode: string; EmpCatCode: string },
@@ -88,6 +97,23 @@ async function fetchMetricsForFiscalYear(
 ): Promise<MonthlyMetrics[]> {
   const { start: startDate, end: endDate } = getFiscalYearRange(fiscalYear);
   const isCumulative = true;
+
+  // Use stored procedure implementation if feature flag is enabled
+  if (USE_STORED_PROCEDURES) {
+    logger.info('Using stored procedure implementation for overview', { fiscalYear });
+    const partnerCategories = ['CARL', 'Local', 'DIR'];
+    const isPartnerReport = partnerCategories.includes(employee.EmpCatCode);
+    
+    return fetchOverviewMetricsFromSP({
+      empCode: employee.EmpCode,
+      isPartnerReport,
+      dateFrom: startDate,
+      dateTo: endDate,
+      servLineCode: serviceLines?.length === 1 ? serviceLines[0] : undefined,
+    });
+  }
+
+  // Original inline SQL implementation follows...
 
   // Execute all queries in parallel
   const [

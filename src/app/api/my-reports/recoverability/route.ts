@@ -28,10 +28,50 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
-import { RecoverabilityReportData, ClientDebtorData, MonthlyReceiptData } from '@/types/api';
+import { RecoverabilityReportData, ClientDebtorData, MonthlyReceiptData, DrsLTDResult, DrsMonthlyResult } from '@/types/api';
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, addMonths } from 'date-fns';
 import { getCurrentFiscalPeriod, getFiscalYearRange, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 import type { AgingBuckets } from '@/lib/services/analytics/debtorAggregation';
+import { fetchRecoverabilityFromSP, executeDrsMonthly } from '@/lib/services/reports/storedProcedureService';
+
+// Feature flag to use stored procedures instead of inline SQL
+// Set USE_SP_FOR_REPORTS=true in .env to enable
+const USE_STORED_PROCEDURES = process.env.USE_SP_FOR_REPORTS === 'true';
+
+/**
+ * Convert DrsLTD SP result to ClientDebtorData format
+ */
+function mapDrsLTDToClientDebtor(
+  row: DrsLTDResult,
+  monthlyReceipts: MonthlyReceiptData[]
+): ClientDebtorData {
+  return {
+    GSClientID: row.GSClientID,
+    clientCode: row.ClientCode,
+    clientNameFull: row.ClientNameFull,
+    groupCode: row.GroupCode,
+    groupDesc: row.GroupDesc,
+    servLineCode: row.ServLineCode,
+    serviceLineName: row.ServLineDesc,
+    masterServiceLineCode: '', // Will be populated separately
+    masterServiceLineName: '',
+    subServlineGroupCode: '',
+    subServlineGroupDesc: '',
+    totalBalance: row.BalDrs,
+    aging: {
+      current: row.AgingCurrent,
+      days31_60: row.Aging31_60,
+      days61_90: row.Aging61_90,
+      days91_120: row.Aging91_120,
+      days120Plus: row.Aging120Plus,
+    },
+    currentPeriodReceipts: row.LTDReceipts,
+    priorMonthBalance: 0, // Would need separate calculation
+    invoiceCount: row.InvoiceCount,
+    avgPaymentDaysOutstanding: row.AvgDaysOutstanding,
+    monthlyReceipts,
+  };
+}
 
 /**
  * Generate list of months for fiscal year (Sep-Aug)
@@ -233,6 +273,127 @@ export const GET = secureRoute.query({
       if (cached) {
         logger.info('Returning cached recoverability report', { userId: user.id, mode, fiscalYear, fiscalMonth: fiscalMonthParam });
         return NextResponse.json(successResponse(cached));
+      }
+
+      // Use stored procedure implementation if feature flag is enabled
+      if (USE_STORED_PROCEDURES) {
+        logger.info('Using stored procedure implementation for recoverability', { fiscalYear });
+        
+        // Fetch aging data from DrsLTD
+        const spAgingResults = await fetchRecoverabilityFromSP(
+          employee.EmpCode,
+          new Date('1900-01-01'), // From inception
+          endDate,
+          endDate // As of date for aging
+        );
+
+        // Fetch monthly receipts data for fiscal year
+        const { start: fyStart, end: fyEnd } = getFiscalYearRange(fiscalYear);
+        const spMonthlyResults = await executeDrsMonthly({
+          billerCode: employee.EmpCode,
+          dateFrom: fyStart,
+          dateTo: fyEnd,
+          isCumulative: false,
+        });
+
+        // Get service line mappings
+        const uniqueServLineCodes = [...new Set(spAgingResults.map(r => r.ServLineCode))];
+        const serviceLineMappings = await prisma.serviceLineExternal.findMany({
+          where: { ServLineCode: { in: uniqueServLineCodes } },
+          select: {
+            ServLineCode: true,
+            masterCode: true,
+            SubServlineGroupCode: true,
+            SubServlineGroupDesc: true,
+          },
+        });
+        
+        // Get master service line names
+        const uniqueMasterCodes = [...new Set(serviceLineMappings.map(sl => sl.masterCode).filter(Boolean))] as string[];
+        const masterServiceLines = await prisma.serviceLineMaster.findMany({
+          where: { code: { in: uniqueMasterCodes } },
+          select: { code: true, name: true },
+        });
+        const masterNameMap = new Map(masterServiceLines.map(m => [m.code, m.name]));
+        
+        const serviceLineMap = new Map(
+          serviceLineMappings.map(sl => [sl.ServLineCode, sl])
+        );
+
+        // Build monthly receipts data
+        const monthNames = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+        const monthlyReceiptsByClient = new Map<string, MonthlyReceiptData[]>();
+        
+        // Create empty monthly receipts array for each client
+        spAgingResults.forEach(client => {
+          const clientMonthly: MonthlyReceiptData[] = monthNames.map((label, idx) => {
+            const monthDate = addMonths(new Date(fiscalYear - 1, 8, 1), idx);
+            return {
+              month: label,
+              monthYear: format(monthDate, 'yyyy-MM'),
+              openingBalance: 0,
+              receipts: 0,
+              variance: 0,
+              recoveryPercent: 0,
+              billings: 0,
+              closingBalance: 0,
+            };
+          });
+          monthlyReceiptsByClient.set(client.GSClientID, clientMonthly);
+        });
+
+        // Map SP results to expected format
+        const clients: ClientDebtorData[] = spAgingResults.map(row => {
+          const slMapping = serviceLineMap.get(row.ServLineCode);
+          const clientMonthly = monthlyReceiptsByClient.get(row.GSClientID) || [];
+          const client = mapDrsLTDToClientDebtor(row, clientMonthly);
+          return {
+            ...client,
+            masterServiceLineCode: slMapping?.masterCode || '',
+            masterServiceLineName: slMapping?.masterCode ? (masterNameMap.get(slMapping.masterCode) || '') : '',
+            subServlineGroupCode: slMapping?.SubServlineGroupCode || '',
+            subServlineGroupDesc: slMapping?.SubServlineGroupDesc || '',
+          };
+        });
+
+        // Calculate totals
+        const totalAging: AgingBuckets = {
+          current: clients.reduce((sum, c) => sum + c.aging.current, 0),
+          days31_60: clients.reduce((sum, c) => sum + c.aging.days31_60, 0),
+          days61_90: clients.reduce((sum, c) => sum + c.aging.days61_90, 0),
+          days91_120: clients.reduce((sum, c) => sum + c.aging.days91_120, 0),
+          days120Plus: clients.reduce((sum, c) => sum + c.aging.days120Plus, 0),
+        };
+
+        const totalReceipts = spMonthlyResults.reduce((sum, m) => sum + m.Collections, 0);
+
+        const report: RecoverabilityReportData = {
+          clients,
+          totalAging,
+          receiptsComparison: {
+            currentPeriodReceipts: totalReceipts,
+            priorMonthBalance: 0,
+            variance: totalReceipts,
+          },
+          employeeCode: employee.EmpCode,
+          fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+          fiscalMonth: mode === 'fiscal' && fiscalMonthParam ? fiscalMonthParam : undefined,
+          dateRange: mode === 'custom' ? {
+            start: format(startDate, 'yyyy-MM-dd'),
+            end: format(endDate, 'yyyy-MM-dd'),
+          } : undefined,
+        };
+
+        // Cache based on mode
+        const cacheTTL = mode === 'fiscal' && fiscalYear < getCurrentFiscalPeriod().fiscalYear ? 1800 : 600;
+        await cache.set(cacheKey, report, cacheTTL);
+
+        logger.info('Recoverability report generated via SP', {
+          userId: user.id,
+          clientCount: clients.length,
+        });
+
+        return NextResponse.json(successResponse(report));
       }
 
       // 2. Query all DrsTransactions for this biller (LIFETIME TO DATE up to endDate)

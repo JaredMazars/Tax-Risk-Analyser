@@ -341,8 +341,168 @@ export interface ClientDebtorData {
   monthlyReceipts: MonthlyReceiptData[];  // Monthly breakdown for receipts view
 }
 
+// ============================================================================
+// Stored Procedure Result Types
+// ============================================================================
 
+/**
+ * WipLTD stored procedure result
+ * Task-level WIP aggregations with profitability metrics
+ */
+export interface WipLTDResult {
+  clientCode: string;
+  clientNameFull: string | null;
+  groupCode: string;
+  groupDesc: string;
+  TaskCode: string;
+  OfficeCode: string;
+  ServLineCode: string;
+  ServLineDesc: string;
+  TaskPartner: string;
+  TaskPartnerName: string;
+  TaskManager: string;
+  TaskManagerName: string;
+  GSTaskID: string;
+  GSClientID: string;
+  // WIP metrics
+  LTDTimeCharged: number;
+  LTDDisbCharged: number;
+  LTDFeesBilled: number;
+  LTDAdjustments: number;
+  LTDPositiveAdj: number;
+  LTDNegativeAdj: number;
+  LTDWipProvision: number;
+  LTDHours: number;
+  LTDCost: number;
+  BalWip: number;
+  // Calculated fields
+  NetWIP: number;
+  NetRevenue: number;
+  GrossProfit: number;
+}
 
+/**
+ * WipMonthly stored procedure result
+ * Monthly WIP aggregations for Overview charts
+ */
+export interface WipMonthlyResult {
+  Month: Date;
+  LTDTime: number;
+  LTDDisb: number;
+  LTDAdj: number;
+  LTDNegativeAdj: number;
+  LTDProvision: number;
+  LTDCost: number;
+  LTDHours: number;
+  BalWip: number;
+}
+
+/**
+ * DrsLTD stored procedure result
+ * Client-level debtors aggregations with aging buckets
+ */
+export interface DrsLTDResult {
+  GSClientID: string;
+  ClientCode: string;
+  ClientNameFull: string | null;
+  GroupCode: string;
+  GroupDesc: string;
+  ServLineCode: string;
+  ServLineDesc: string;
+  OfficeCode: string;
+  OfficeDesc: string;
+  Biller: string;
+  BillerName: string;
+  ClientPartner: string;
+  ClientPartnerName: string;
+  ClientManager: string;
+  ClientManagerName: string;
+  // LTD metrics
+  LTDInvoiced: number;
+  LTDCreditNotes: number;
+  LTDReceipts: number;
+  LTDJournals: number;
+  LTDWriteOffs: number;
+  BalDrs: number;
+  // Aging buckets
+  InvoiceCount: number;
+  AgingCurrent: number;
+  Aging31_60: number;
+  Aging61_90: number;
+  Aging91_120: number;
+  Aging120Plus: number;
+  AvgDaysOutstanding: number;
+}
+
+/**
+ * DrsMonthly stored procedure result
+ * Monthly debtors aggregations for Overview charts
+ */
+export interface DrsMonthlyResult {
+  Month: Date;
+  LTDInvoiced: number;
+  LTDCreditNotes: number;
+  Collections: number;
+  LTDJournals: number;
+  LTDWriteOffs: number;
+  NetBillings: number;
+  BalDrs: number;
+  // Non-cumulative values for receipts tab
+  MonthlyReceipts: number;
+  MonthlyInvoiced: number;
+  MonthlyNetBillings: number;
+}
+
+/**
+ * Helper type to convert SP result to existing MonthlyMetrics
+ */
+export function mapWipMonthlyToMetrics(
+  wipRow: WipMonthlyResult,
+  drsRow: DrsMonthlyResult | null
+): Partial<MonthlyMetrics> {
+  const netRevenue = wipRow.LTDTime + wipRow.LTDAdj;
+  const grossProfit = netRevenue - wipRow.LTDCost;
+  const writeoffAmount = wipRow.LTDNegativeAdj + wipRow.LTDProvision;
+  const writeoffPercentage = wipRow.LTDTime !== 0 ? (writeoffAmount / wipRow.LTDTime) * 100 : 0;
+
+  return {
+    month: wipRow.Month.toISOString().slice(0, 7), // 'YYYY-MM'
+    netRevenue,
+    grossProfit,
+    writeoffPercentage,
+    negativeAdj: wipRow.LTDNegativeAdj,
+    provisions: wipRow.LTDProvision,
+    grossTime: wipRow.LTDTime,
+    wipBalance: wipRow.BalWip,
+    collections: drsRow?.Collections ?? 0,
+    debtorsBalance: drsRow?.BalDrs ?? 0,
+  };
+}
+
+/**
+ * Helper type to convert DrsLTD result to existing ClientDebtorData
+ */
+export function mapDrsLTDToClientDebtor(row: DrsLTDResult): Partial<ClientDebtorData> {
+  return {
+    GSClientID: row.GSClientID,
+    clientCode: row.ClientCode,
+    clientNameFull: row.ClientNameFull,
+    groupCode: row.GroupCode,
+    groupDesc: row.GroupDesc,
+    servLineCode: row.ServLineCode,
+    serviceLineName: row.ServLineDesc,
+    totalBalance: row.BalDrs,
+    aging: {
+      current: row.AgingCurrent,
+      days31_60: row.Aging31_60,
+      days61_90: row.Aging61_90,
+      days91_120: row.Aging91_120,
+      days120Plus: row.Aging120Plus,
+    },
+    invoiceCount: row.InvoiceCount,
+    avgPaymentDaysOutstanding: row.AvgDaysOutstanding,
+  };
+}
 
 
 

@@ -796,15 +796,17 @@ model DrsTransactions {
   updatedAt         DateTime @updatedAt
   Client            Client   @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
-  // Super covering indexes (created via SQL migration - INCLUDE columns not supported in Prisma)
-  // idx_drs_gsclientid_super_covering: (GSClientID, TranDate) INCLUDE (Total, EntryType, InvNumber, Reference, Narration, ServLineCode, Biller, updatedAt)
-  // idx_drs_biller_super_covering: (Biller, TranDate) INCLUDE (Total, EntryType, ServLineCode, TranYearMonth, InvNumber, Reference)
-
-  // Single column indexes (kept)
-  @@index([OfficeCode])
-  @@index([PeriodKey])
-  @@index([ServLineCode])
-  @@index([TranDate])
+  // Covering indexes managed via SQL migrations (Prisma doesn't support INCLUDE columns)
+  // Migration: 20260128_optimize_drs_indexes
+  // Note: Narration (TEXT type) cannot be included in indexes - requires table lookup when needed
+  //
+  // idx_drs_client_covering: (GSClientID, TranDate)
+  //   INCLUDE (Total, EntryType, InvNumber, Reference, ServLineCode, Biller, ClientCode, ClientNameFull, GroupCode, GroupDesc, updatedAt)
+  //   Covers: Client balance queries, debtor aging, group rollups, invoice details
+  //
+  // idx_drs_biller_covering: (Biller, TranDate, EntryType)
+  //   INCLUDE (Total, InvNumber, Reference, ServLineCode, GSClientID, ClientCode, ClientNameFull, GroupCode, GroupDesc, updatedAt)
+  //   Covers: Recoverability reports, monthly collections, net billings, debtor balance calculations
 }
 
 model EmailLog {
