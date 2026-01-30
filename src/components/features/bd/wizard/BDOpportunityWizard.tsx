@@ -119,12 +119,22 @@ export function BDOpportunityWizard({
         // Create new wizard session
         initializeWizard();
       }
+    } else {
+      // Reset state when modal closes
+      if (!externalOpportunityId) {
+        setOpportunityId(null);
+        setCurrentStep(1);
+        setError(null);
+      }
     }
   }, [isOpen, externalOpportunityId]);
 
   const initializeWizard = async () => {
     try {
       setIsInitializing(true);
+      // Clear any stale opportunity ID
+      setOpportunityId(null);
+      
       const res = await fetch('/api/bd/wizard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,6 +155,8 @@ export function BDOpportunityWizard({
     } catch (err) {
       console.error('Failed to initialize wizard', err);
       setError('Failed to start wizard. Please try again.');
+      // Ensure opportunityId is cleared on error
+      setOpportunityId(null);
     } finally {
       setIsInitializing(false);
     }
@@ -279,6 +291,14 @@ export function BDOpportunityWizard({
           method: 'DELETE',
         });
         
+        // Handle 404 gracefully - the draft might already be deleted or never existed
+        if (res.status === 404) {
+          console.warn('Draft opportunity not found, likely already deleted');
+          setShowCancelModal(false);
+          onCancel();
+          return;
+        }
+        
         if (!res.ok) {
           throw new Error('Failed to delete draft');
         }
@@ -289,6 +309,10 @@ export function BDOpportunityWizard({
         console.error('Failed to discard draft', err);
         setError('Failed to discard draft. Please try again.');
       }
+    } else {
+      // No opportunity ID means nothing was created, just close
+      setShowCancelModal(false);
+      onCancel();
     }
   };
 

@@ -313,7 +313,7 @@ export function OpportunityDetailModal({
     <>
       {/* Modal Backdrop and Container */}
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white rounded-lg shadow-corporate-lg max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Modal Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-forvis-gray-200">
             <h2 className="text-xl font-semibold text-forvis-gray-900">
@@ -726,7 +726,7 @@ export function OpportunityDetailModal({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-6">
                             <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider mb-2">Estimated Value</p>
-                            <p className="text-3xl font-bold" style={{ color: '#2E5AAC' }}>
+                            <p className="text-3xl font-bold text-forvis-blue-600">
                               {opportunity.value ? formatAmount(opportunity.value) : 'N/A'}
                             </p>
                           </div>
@@ -934,13 +934,9 @@ export function OpportunityDetailModal({
                           {activitiesData.activities.map((activity: ActivityWithRelations) => (
                             <div key={activity.id} className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
                               <div className="flex gap-3">
-                                <div
-                                  className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
-                                  style={{ backgroundColor: '#EBF2FA' }}
-                                >
+                                <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-forvis-blue-50">
                                   <svg
-                                    className="w-5 h-5"
-                                    style={{ color: '#2E5AAC' }}
+                                    className="w-5 h-5 text-forvis-blue-600"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -1046,20 +1042,22 @@ export function OpportunityDetailModal({
               </div>
 
               <div className="flex gap-3 mt-6">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => setIsConvertModalOpen(false)}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 transition-colors"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="gradient"
                   onClick={handleConvertToClient}
                   disabled={convertOpportunity.isPending || (!opportunity.Client && !opportunity.companyName)}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: GRADIENTS.primary.diagonal }}
+                  loading={convertOpportunity.isPending}
+                  className="flex-1"
                 >
-                  {convertOpportunity.isPending ? 'Converting...' : 'Convert to Client'}
-                </button>
+                  Convert to Client
+                </Button>
               </div>
             </div>
           </div>
@@ -1113,20 +1111,22 @@ export function OpportunityDetailModal({
               </div>
 
               <div className="flex gap-3 mt-6">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => setIsServiceLineModalOpen(false)}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 transition-colors"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="gradient"
                   onClick={handleServiceLineChange}
                   disabled={updateOpportunity.isPending}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: GRADIENTS.primary.diagonal }}
+                  loading={updateOpportunity.isPending}
+                  className="flex-1"
                 >
-                  {updateOpportunity.isPending ? 'Saving...' : 'Save Change'}
-                </button>
+                  Save Change
+                </Button>
               </div>
             </div>
           </div>
