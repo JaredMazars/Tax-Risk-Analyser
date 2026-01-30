@@ -85,7 +85,7 @@ export function BDKanbanColumn({
       {!column.isCollapsed && (
         <div
           ref={setNodeRef}
-          className={`flex-1 bg-forvis-gray-50 rounded-b-lg p-2 min-h-[200px] max-h-[calc(100vh-350px)] overflow-y-auto transition-colors ${
+          className={`flex-1 bg-forvis-gray-50 rounded-b-lg p-2 min-h-[200px] max-h-[calc(100vh-350px)] overflow-y-auto transition-colors shadow-sm ${
             isOver ? 'bg-forvis-blue-100' : ''
           }`}
           style={{ scrollBehavior: 'smooth' }}
