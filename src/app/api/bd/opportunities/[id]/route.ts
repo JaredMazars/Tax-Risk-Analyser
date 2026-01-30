@@ -1,102 +1,67 @@
 /**
- * BD Opportunity by ID API Routes
- * GET /api/bd/opportunities/[id] - Get opportunity details
- * PUT /api/bd/opportunities/[id] - Update opportunity
- * DELETE /api/bd/opportunities/[id] - Delete opportunity
+ * BD Opportunity API Routes
+ * 
+ * DELETE /api/bd/opportunities/[id] - Delete a draft opportunity
  */
 
 import { NextResponse } from 'next/server';
-import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
-import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
-import { UpdateBDOpportunitySchema } from '@/lib/validation/schemas';
-import {
-  getOpportunityById,
-  updateOpportunity,
-  deleteOpportunity,
-} from '@/lib/services/bd/opportunityService';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
 import { prisma } from '@/lib/db/prisma';
-
-/**
- * GET /api/bd/opportunities/[id]
- * Get opportunity details
- */
-export const GET = secureRoute.queryWithParams({
-  feature: Feature.ACCESS_BD,
-  handler: async (request, { user, params }) => {
-    const opportunityId = parseNumericId(params.id, 'Opportunity');
-
-    const opportunity = await getOpportunityById(opportunityId);
-
-    if (!opportunity) {
-      throw new AppError(404, 'Opportunity not found', ErrorCodes.NOT_FOUND);
-    }
-
-    return NextResponse.json(successResponse(opportunity));
-  },
-});
-
-/**
- * PUT /api/bd/opportunities/[id]
- * Update opportunity
- */
-export const PUT = secureRoute.mutationWithParams({
-  feature: Feature.ACCESS_BD,
-  schema: UpdateBDOpportunitySchema,
-  handler: async (request, { user, data, params }) => {
-    const opportunityId = parseNumericId(params.id, 'Opportunity');
-
-    // Verify opportunity exists
-    const existing = await prisma.bDOpportunity.findUnique({
-      where: { id: opportunityId },
-      select: { id: true },
-    });
-
-    if (!existing) {
-      throw new AppError(404, 'Opportunity not found', ErrorCodes.NOT_FOUND);
-    }
-
-    const opportunity = await updateOpportunity(opportunityId, {
-      title: data.title,
-      description: data.description,
-      clientId: data.GSClientID,
-      companyName: data.companyName,
-      contactId: data.contactId,
-      stageId: data.stageId,
-      value: data.value,
-      probability: data.probability,
-      expectedCloseDate: data.expectedCloseDate,
-      source: data.source,
-      status: data.status,
-      lostReason: data.lostReason,
-      assignedTo: data.assignedTo,
-    });
-
-    return NextResponse.json(successResponse(opportunity));
-  },
-});
+import { logger } from '@/lib/utils/logger';
+import { invalidateWorkspaceCounts } from '@/lib/services/cache/cacheInvalidation';
 
 /**
  * DELETE /api/bd/opportunities/[id]
- * Delete opportunity
+ * Delete a draft BD opportunity
  */
 export const DELETE = secureRoute.mutationWithParams({
-  feature: Feature.ACCESS_BD,
+  feature: Feature.MANAGE_OPPORTUNITIES,
   handler: async (request, { user, params }) => {
-    const opportunityId = parseNumericId(params.id, 'Opportunity');
+    const opportunityId = parseNumericId(params.id, 'Opportunity ID');
 
-    // Verify opportunity exists
-    const existing = await prisma.bDOpportunity.findUnique({
+    // Verify opportunity exists and is a draft
+    const opportunity = await prisma.bDOpportunity.findUnique({
       where: { id: opportunityId },
-      select: { id: true },
+      select: { 
+        id: true, 
+        status: true, 
+        createdBy: true,
+        serviceLine: true,
+      },
     });
 
-    if (!existing) {
-      throw new AppError(404, 'Opportunity not found', ErrorCodes.NOT_FOUND);
+    if (!opportunity) {
+      return NextResponse.json(
+        { success: false, error: 'Opportunity not found' },
+        { status: 404 }
+      );
     }
 
-    await deleteOpportunity(opportunityId);
+    // Only allow deleting drafts
+    if (opportunity.status !== 'DRAFT') {
+      return NextResponse.json(
+        { success: false, error: 'Only draft opportunities can be deleted' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(successResponse({ deleted: true }));
+    // Delete the draft opportunity (cascade deletes related records)
+    await prisma.bDOpportunity.delete({
+      where: { id: opportunityId },
+    });
+
+    // Invalidate caches
+    await invalidateWorkspaceCounts(opportunity.serviceLine, undefined);
+
+    logger.info('Draft opportunity deleted', {
+      opportunityId,
+      userId: user.id,
+      createdBy: opportunity.createdBy,
+    });
+
+    return NextResponse.json(
+      successResponse({ message: 'Draft deleted successfully' })
+    );
   },
 });

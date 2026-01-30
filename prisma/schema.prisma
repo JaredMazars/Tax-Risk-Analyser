@@ -115,7 +115,7 @@ model AdjustmentDocument {
   extractedData    String?
   extractionError  String?
   createdAt        DateTime       @default(now())
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime       @updatedAt
   Task             Task           @relation(fields: [taskId], references: [id], onUpdate: NoAction)
   TaxAdjustment    TaxAdjustment? @relation(fields: [taxAdjustmentId], references: [id], onUpdate: NoAction)
 
@@ -156,7 +156,7 @@ model Approval {
   completedById                     String?
   resolutionComment                 String?                             @db.NVarChar(Max)
   createdAt                         DateTime                            @default(now(), map: "DF_Approval_createdAt")
-  updatedAt                         DateTime @updatedAt
+  updatedAt                         DateTime                            @updatedAt
   User_Approval_completedByIdToUser User?                               @relation("Approval_completedByIdToUser", fields: [completedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Approval_CompletedBy")
   User_Approval_requestedByIdToUser User                                @relation("Approval_requestedByIdToUser", fields: [requestedById], references: [id], onUpdate: NoAction, map: "FK_Approval_RequestedBy")
   ApprovalStep                      ApprovalStep[]
@@ -219,7 +219,7 @@ model ApprovalStep {
   isDelegated                               Boolean   @default(false, map: "DF_ApprovalStep_isDelegated")
   delegatedToUserId                         String?
   createdAt                                 DateTime  @default(now(), map: "DF_ApprovalStep_createdAt")
-  updatedAt                                 DateTime @updatedAt
+  updatedAt                                 DateTime  @updatedAt
   Approval                                  Approval  @relation(fields: [approvalId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ApprovalStep_Approval")
   User_ApprovalStep_approvedByIdToUser      User?     @relation("ApprovalStep_approvedByIdToUser", fields: [approvedById], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_ApprovedBy")
   User_ApprovalStep_assignedToUserIdToUser  User?     @relation("ApprovalStep_assignedToUserIdToUser", fields: [assignedToUserId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_AssignedTo")
@@ -246,7 +246,7 @@ model BDActivity {
   assignedTo    String
   createdBy     String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime      @updatedAt
   BDContact     BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
@@ -279,7 +279,7 @@ model BDContact {
   notes         String?         @db.NVarChar(Max)
   createdBy     String
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime        @updatedAt
   BDActivity    BDActivity[]
   BDOpportunity BDOpportunity[]
 
@@ -295,7 +295,7 @@ model BDNote {
   isPrivate     Boolean       @default(false)
   createdBy     String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime      @updatedAt
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([createdAt(sort: Desc)])
@@ -321,8 +321,20 @@ model BDOpportunity {
   convertedAt         DateTime?
   createdBy           String
   createdAt           DateTime     @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime     @updatedAt
   clientId            Int?
+  
+  // Assignment scheduling fields
+  assignmentType      String?
+  startDate           DateTime?
+  endDate             DateTime?
+  recurringFrequency  String?
+  
+  // Wizard tracking fields
+  wizardStep          Int?
+  wizardCompleted     Boolean      @default(false)
+  wizardData          String?      @db.NVarChar(Max)
+  
   BDActivity          BDActivity[]
   BDNote              BDNote[]
   Client              Client?      @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -358,7 +370,7 @@ model BDProposal {
   version       Int           @default(1)
   uploadedBy    String
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime      @updatedAt
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([opportunityId])
@@ -378,7 +390,7 @@ model BDStage {
   isDefault     Boolean         @default(false)
   color         String?
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime        @updatedAt
   BDOpportunity BDOpportunity[]
 
   @@unique([serviceLine, name])
@@ -430,32 +442,80 @@ model CategoryApprover {
 }
 
 model Client {
-  id                                Int                                 @id @default(autoincrement())
-  clientCode                        String                              @unique @db.NVarChar(10)
-  clientNameFull                    String?                             @db.NVarChar(255)
-  groupCode                         String                              @db.NVarChar(10)
-  groupDesc                         String                              @db.NVarChar(150)
-  clientPartner                     String                              @db.NVarChar(10)
-  clientManager                     String                              @db.NVarChar(10)
-  clientIncharge                    String                              @db.NVarChar(10)
-  active                            String                              @db.VarChar(3)
-  clientDateOpen                    DateTime?
-  clientDateTerminate               DateTime?
-  industry                          String?                             @db.NVarChar(255)
-  sector                            String?                             @db.NVarChar(255)
-  forvisMazarsIndustry              String?                             @db.NVarChar(255)
-  forvisMazarsSector                String?                             @db.NVarChar(255)
-  forvisMazarsSubsector             String?                             @db.NVarChar(255)
-  clientOCFlag                      Boolean
-  clientTaxFlag                     Boolean?
-  clientSecFlag                     Boolean?
-  creditor                          Boolean?
-  rolePlayer                        Boolean
-  typeCode                          String                              @db.NVarChar(10)
-  typeDesc                          String                              @db.NVarChar(50)
-  createdAt                         DateTime                            @default(now())
-  updatedAt                         DateTime @updatedAt
-  GSClientID                        String                              @unique @db.UniqueIdentifier
+  id                    Int       @id @default(autoincrement())
+  clientCode            String    @unique @db.NVarChar(10)
+  clientNameFull        String?   @db.NVarChar(255)
+  groupCode             String    @db.NVarChar(10)
+  groupDesc             String    @db.NVarChar(150)
+  clientPartner         String    @db.NVarChar(10)
+  clientManager         String    @db.NVarChar(10)
+  clientIncharge        String    @db.NVarChar(10)
+  active                String    @db.VarChar(3)
+  clientDateOpen        DateTime?
+  clientDateTerminate   DateTime?
+  industry              String?   @db.NVarChar(255)
+  sector                String?   @db.NVarChar(255)
+  forvisMazarsIndustry  String?   @db.NVarChar(255)
+  forvisMazarsSector    String?   @db.NVarChar(255)
+  forvisMazarsSubsector String?   @db.NVarChar(255)
+  clientOCFlag          Boolean
+  clientTaxFlag         Boolean?
+  clientSecFlag         Boolean?
+  creditor              Boolean?
+  rolePlayer            Boolean
+  typeCode              String    @db.NVarChar(10)
+  typeDesc              String    @db.NVarChar(50)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  GSClientID            String    @unique @db.UniqueIdentifier
+
+  // Organization
+  officeCode String? @db.NVarChar(10)
+  busCatCode String? @db.NVarChar(10)
+
+  // Financial/Billing
+  billClient        String?  @db.NVarChar(10)
+  clientCreditHold  Boolean?
+  clientCreditLimit Decimal? @db.Decimal(18, 2)
+  clientCreditDays  Int?
+  statementType     String?  @db.NVarChar(20)
+
+  // Tax/Compliance
+  clientTaxNumber String? @db.NVarChar(50)
+  clientTaxVAT    String? @db.NVarChar(50)
+  taxNumPaye      String? @db.NVarChar(50)
+  taxNumSDL       String? @db.NVarChar(50)
+  taxNumUIF       String? @db.NVarChar(50)
+  taxNumWCA       String? @db.NVarChar(50)
+
+  // Identification
+  clientIDNumber    String? @db.NVarChar(50)
+  clientNationality String? @db.NVarChar(50)
+  clientResident    String? @db.NVarChar(3)
+
+  // Addresses
+  clientDAddress String? @db.NVarChar(Max)
+  clientPAddress String? @db.NVarChar(Max)
+  clientBAddress String? @db.NVarChar(Max)
+
+  // Banking
+  bankCode      String? @db.NVarChar(10)
+  bankAccNumber String? @db.NVarChar(50)
+  recCode       String? @db.NVarChar(10)
+
+  // Contact
+  email      String? @db.NVarChar(255)
+  clientTel  String? @db.NVarChar(50)
+  clientCell String? @db.NVarChar(50)
+  clientURL  String? @db.NVarChar(255)
+
+  // Other
+  countryID       String?  @db.NVarChar(10)
+  prospect        Boolean?
+  creditorControl String?  @db.NVarChar(50)
+  supplierRef     String?  @db.NVarChar(50)
+  clientComments  String?  @db.NVarChar(Max)
+
   BDOpportunity                     BDOpportunity[]
   ClientAcceptance                  ClientAcceptance?
   ClientAcceptanceResponse          ClientAcceptanceResponse[]
@@ -477,6 +537,10 @@ model Client {
   @@index([industry, clientNameFull])
   @@index([sector])
   @@index([updatedAt(sort: Desc)])
+  @@index([email])
+  @@index([prospect])
+  @@index([officeCode])
+  @@index([clientCreditHold])
 }
 
 model ClientAcceptance {
@@ -568,7 +632,7 @@ model ClientAnalyticsDocument {
   uploadedAt           DateTime               @default(now())
   extractedData        String?                @db.NVarChar(Max)
   createdAt            DateTime               @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt            DateTime               @updatedAt
   Client               Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
   CreditRatingDocument CreditRatingDocument[]
 
@@ -588,7 +652,7 @@ model ClientCreditRating {
   confidence           Float
   analyzedBy           String
   createdAt            DateTime               @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt            DateTime               @updatedAt
   Client               Client                 @relation(fields: [clientId], references: [id], onUpdate: NoAction)
   CreditRatingDocument CreditRatingDocument[]
 
@@ -649,7 +713,7 @@ model ComplianceChecklist {
   completedBy String?
   createdBy   String
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
   Task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([assignedTo])
@@ -746,7 +810,7 @@ model Debtors {
   PTDDebtorProvision Float?    @db.Money
   YTDDebtorProvision Float?    @db.Money
   createdAt          DateTime  @default(now(), map: "DF_Debtors_createdAt")
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime  @updatedAt
   Client             Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
   @@index([Biller])
@@ -849,7 +913,7 @@ model Employee {
   Team                String?               @db.NVarChar(100)
   WinLogon            String?               @db.NVarChar(100)
   createdAt           DateTime              @default(now(), map: "DF__Employee__create__15C52FC4")
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime              @updatedAt
   LeaderGroupMember   LeaderGroupMember[]
   NonClientAllocation NonClientAllocation[]
 
@@ -891,7 +955,7 @@ model FilingStatus {
   notes           String?   @db.NVarChar(Max)
   createdBy       String
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime  @updatedAt
   Task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([deadline])
@@ -1039,7 +1103,7 @@ model LeaderGroup {
   description       String?             @db.NVarChar(500)
   createdById       String
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime            @updatedAt
   type              String              @default("GROUP") @db.NVarChar(20)
   User              User                @relation(fields: [createdById], references: [id])
   LeaderGroupMember LeaderGroupMember[]
@@ -1119,7 +1183,7 @@ model NewsBulletin {
   isActive           Boolean   @default(true)
   createdById        String
   createdAt          DateTime  @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime  @updatedAt
   documentFileName   String?   @db.NVarChar(255)
   documentFilePath   String?   @db.NVarChar(500)
   documentFileSize   Int?
@@ -1212,7 +1276,7 @@ model OpinionDraft {
   status             String               @default("DRAFT")
   createdBy          String
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime             @updatedAt
   OpinionChatMessage OpinionChatMessage[]
   OpinionDocument    OpinionDocument[]
   Task               Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -1235,7 +1299,7 @@ model OpinionSection {
   reviewedAt     DateTime?
   order          Int
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime     @updatedAt
   OpinionDraft   OpinionDraft @relation(fields: [opinionDraftId], references: [id], onDelete: Cascade)
 
   @@index([opinionDraftId, order])
@@ -1297,7 +1361,7 @@ model ReviewCategory {
   active      Boolean      @default(true)
   sortOrder   Int          @default(0)
   createdAt   DateTime     @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime     @updatedAt
   ReviewNote  ReviewNote[]
 
   @@index([active])
@@ -1329,7 +1393,7 @@ model ReviewNote {
   rejectedAt                            DateTime?
   rejectionReason                       String?                @db.NVarChar(Max)
   createdAt                             DateTime               @default(now())
-  updatedAt                             DateTime @updatedAt
+  updatedAt                             DateTime               @updatedAt
   currentOwner                          String?
   lastRespondedBy                       String?
   lastRespondedAt                       DateTime?
@@ -1397,7 +1461,7 @@ model ReviewNoteComment {
   comment              String                 @db.NVarChar(Max)
   isInternal           Boolean                @default(false)
   createdAt            DateTime               @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt            DateTime               @updatedAt
   ReviewNoteAttachment ReviewNoteAttachment[]
   ReviewNote           ReviewNote             @relation(fields: [reviewNoteId], references: [id], onDelete: Cascade)
   User                 User                   @relation(fields: [userId], references: [id], onUpdate: NoAction)
@@ -1421,7 +1485,7 @@ model SarsResponse {
   documentPath    String?
   createdBy       String
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime  @updatedAt
   Task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([deadline])
@@ -1456,7 +1520,7 @@ model ServiceLineMaster {
   active        Boolean         @default(true)
   sortOrder     Int             @default(0)
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime        @updatedAt
   VaultDocument VaultDocument[]
 
   @@index([code], map: "idx_master_sl_code")
@@ -1542,7 +1606,7 @@ model Task {
   TaskDateTerminate        DateTime?
   createdBy                String?
   createdAt                DateTime                   @default(now())
-  updatedAt                DateTime @updatedAt
+  updatedAt                DateTime                   @updatedAt
   taskYear                 Int
   AdjustmentDocument       AdjustmentDocument[]
   AITaxReport              AITaxReport[]
@@ -1596,7 +1660,7 @@ model TaskAcceptance {
   overallRiskScore   Float?
   riskRating         String?
   createdAt          DateTime  @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime  @updatedAt
   Task               Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([riskRating])
@@ -1622,7 +1686,7 @@ model TaskBudget {
   LastUser        String?   @db.NVarChar(50)
   LastUpdated     DateTime?
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime  @updatedAt
   BudApproveDate  DateTime?
   BudDueDate      DateTime?
   BudStartDate    DateTime?
@@ -1698,7 +1762,7 @@ model TaskEngagementLetter {
   uploadedAt              DateTime?
   uploadedBy              String?
   createdAt               DateTime         @default(now())
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime         @updatedAt
   dpaUploaded             Boolean          @default(false, map: "DF_TaskEngagementLetter_dpaUploaded")
   dpaFilePath             String?          @db.NVarChar(Max)
   dpaUploadedAt           DateTime?
@@ -1743,7 +1807,7 @@ model TaskIndependenceConfirmation {
   confirmed   Boolean   @default(false)
   confirmedAt DateTime?
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
   TaskTeam    TaskTeam  @relation(fields: [taskTeamId], references: [id], onDelete: Cascade)
 
   @@index([confirmed])
@@ -1821,7 +1885,7 @@ model TaxAdjustment {
   sarsSection        String?
   confidenceScore    Float?
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime             @updatedAt
   AdjustmentDocument AdjustmentDocument[]
   Task               Task                 @relation(fields: [taskId], references: [id])
 
@@ -1841,7 +1905,7 @@ model Template {
   active          Boolean           @default(true)
   createdBy       String
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime          @updatedAt
   currentVersion  Int               @default(1)
   TemplateSection TemplateSection[]
   TemplateVersion TemplateVersion[]
@@ -1920,7 +1984,7 @@ model Tool {
   active          Boolean           @default(true)
   sortOrder       Int               @default(0)
   createdAt       DateTime          @default(now(), map: "DF__Tool__createdAt__7ADC2F5E")
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime          @updatedAt
   ServiceLineTool ServiceLineTool[]
   TaskTool        TaskTool[]
   ToolSubTab      ToolSubTab[]
@@ -1957,7 +2021,7 @@ model User {
   image                                                                                                  String?
   role                                                                                                   String                              @default("USER")
   createdAt                                                                                              DateTime                            @default(now())
-  updatedAt                                                                                              DateTime @updatedAt
+  updatedAt                                                                                              DateTime                            @updatedAt
   Account                                                                                                Account[]
   Approval_Approval_completedByIdToUser                                                                  Approval[]                          @relation("Approval_completedByIdToUser")
   Approval_Approval_requestedByIdToUser                                                                  Approval[]                          @relation("Approval_requestedByIdToUser")
@@ -2169,7 +2233,7 @@ model Wip {
   YTDHours         Float?    @db.Money
   PTDHours         Float?    @db.Money
   createdAt        DateTime  @default(now(), map: "DF_Wip_createdAt")
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime  @updatedAt
   Client           Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
   Task             Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
@@ -2207,7 +2271,7 @@ model WIPAging {
   NettWip      Float?    @db.Money
   PtdFeeAmt    Float?    @db.Money
   createdAt    DateTime  @default(now(), map: "DF_WIPAging_createdAt")
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime  @updatedAt
   Client       Client    @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
   Task         Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
@@ -2267,7 +2331,7 @@ model WIPTransactions {
   EmpMainServLineDesc String?   @db.NVarChar(150)
   EmpServLineGroup    String?   @db.NVarChar(10)
   createdAt           DateTime  @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime  @updatedAt
   Client              Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   Task                Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
@@ -2320,7 +2384,7 @@ model WorkspaceFile {
   lastModifiedAt          DateTime?
   version                 Int                       @default(1)
   createdAt               DateTime                  @default(now(), map: "DF_WorkspaceFile_createdAt")
-  updatedAt               DateTime @updatedAt
+  updatedAt               DateTime                  @updatedAt
   WorkspaceFolder         WorkspaceFolder           @relation(fields: [folderId], references: [id], onDelete: Cascade)
   WorkspaceFileActivity   WorkspaceFileActivity[]
   WorkspaceFilePermission WorkspaceFilePermission[]
@@ -2359,7 +2423,7 @@ model WorkspaceFolder {
   sharepointUrl         String?           @db.NVarChar(500)
   createdBy             String            @db.NVarChar(200)
   createdAt             DateTime          @default(now(), map: "DF_WorkspaceFolder_createdAt")
-  updatedAt             DateTime @updatedAt
+  updatedAt             DateTime          @updatedAt
   active                Boolean           @default(true)
   taskId                Int?
   WorkspaceFile         WorkspaceFile[]

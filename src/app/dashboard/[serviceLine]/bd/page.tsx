@@ -1,5 +1,7 @@
 /**
- * BD Pipeline Dashboard Page
+ * BD Pipeline Dashboard Page - Kanban View
+ * 
+ * Uses exact drag-and-drop and caching patterns from tasks kanban.
  */
 
 'use client';
@@ -7,42 +9,53 @@
 import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronRight } from 'lucide-react';
-import { usePipeline, useCreateOpportunity } from '@/hooks/bd/useOpportunities';
+import { ChevronRight, Plus } from 'lucide-react';
+import { useBDKanban } from '@/hooks/bd/useBDKanban';
 import { usePipelineAnalytics } from '@/hooks/bd/useBDAnalytics';
-import { PipelineBoard } from '@/components/features/bd/PipelineBoard';
-import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
-import { CreateBDOpportunityInput } from '@/lib/validation/schemas';
+import { BDKanbanBoard, BDKanbanFilters } from '@/components/features/bd/Kanban';
+import type { BDKanbanFilters as FiltersType, BDDisplayMode } from '@/components/features/bd/Kanban/types';
+import { BDOpportunityWizard } from '@/components/features/bd/wizard/BDOpportunityWizard';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
-import { LoadingSpinner, Button } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { GRADIENTS } from '@/lib/design-system/gradients';
-import { Plus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function BDPipelinePage() {
   const params = useParams();
   const serviceLine = params.serviceLine as string;
   const router = useRouter();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-
-  // Load stages
-  const { data: stages = [] } = useQuery({
-    queryKey: ['bd-stages', serviceLine],
-    queryFn: async () => {
-      const res = await fetch(`/api/bd/stages?serviceLine=${serviceLine.toUpperCase()}`);
-      if (!res.ok) throw new Error('Failed to fetch stages');
-      const data = await res.json();
-      return data.data || [];
-    },
+  const queryClient = useQueryClient();
+  const [showWizard, setShowWizard] = useState(false);
+  const [resumeOpportunityId, setResumeOpportunityId] = useState<number | null>(null);
+  const [displayMode, setDisplayMode] = useState<BDDisplayMode>('detailed');
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
+  
+  // Filters state
+  const [filters, setFilters] = useState<FiltersType>({
+    search: '',
+    assignedTo: [],
+    stages: [],
+    minValue: undefined,
+    maxValue: undefined,
+    dateFrom: undefined,
+    dateTo: undefined,
+    includeDrafts: true, // Show drafts by default
   });
 
-  // When viewing from BUSINESS_DEV service line, show all opportunities
-  // Otherwise, filter by the current service line
-  const pipelineFilters = serviceLine.toUpperCase() === 'BUSINESS_DEV' 
-    ? {} 
-    : { serviceLine: serviceLine.toUpperCase() };
+  // Use hook with params object (same as tasks)
+  const kanbanParams = {
+    serviceLine: serviceLine.toUpperCase(),
+    search: filters.search,
+    assignedTo: filters.assignedTo,
+    stages: filters.stages,
+    minValue: filters.minValue,
+    maxValue: filters.maxValue,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    includeDrafts: filters.includeDrafts,
+  };
 
-  const { data: pipelineData, isLoading } = usePipeline(pipelineFilters);
+  const { data, isLoading, error } = useBDKanban(kanbanParams);
 
   const analyticsFilters = serviceLine.toUpperCase() === 'BUSINESS_DEV'
     ? {}
@@ -50,19 +63,49 @@ export default function BDPipelinePage() {
 
   const { data: analytics } = usePipelineAnalytics(analyticsFilters);
 
-  const createMutation = useCreateOpportunity();
+  const handleFiltersChange = (newFilters: Partial<FiltersType>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
 
-  const handleCreateOpportunity = async (data: CreateBDOpportunityInput) => {
-    try {
-      await createMutation.mutateAsync(data);
-      setShowCreateForm(false);
-    } catch (error) {
-      console.error('Failed to create opportunity:', error);
-    }
+  const handleToggleCollapse = (columnId: string) => {
+    setCollapsedColumns(prev => {
+      const next = new Set(prev);
+      if (next.has(columnId)) {
+        next.delete(columnId);
+      } else {
+        next.add(columnId);
+      }
+      return next;
+    });
   };
 
   const handleOpportunityClick = (opportunityId: number) => {
-    router.push(`/dashboard/${serviceLine}/bd/${opportunityId}`);
+    // Find the opportunity in kanban data
+    const opportunity = data?.columns
+      .flatMap(col => col.opportunities)
+      .find(opp => opp.id === opportunityId);
+
+    // If draft, open wizard to resume
+    if (opportunity?.status === 'DRAFT') {
+      setResumeOpportunityId(opportunityId);
+      setShowWizard(true);
+    } else {
+      // Otherwise, navigate to detail page
+      router.push(`/dashboard/${serviceLine}/bd/${opportunityId}`);
+    }
+  };
+
+  const handleWizardComplete = () => {
+    // Invalidate queries to refresh the kanban
+    queryClient.invalidateQueries({ queryKey: ['bd-kanban'] });
+    queryClient.invalidateQueries({ queryKey: ['bd-analytics'] });
+    setShowWizard(false);
+    setResumeOpportunityId(null); // Clear resume ID
+  };
+
+  const handleWizardCancel = () => {
+    setShowWizard(false);
+    setResumeOpportunityId(null); // Clear resume ID
   };
 
   return (
@@ -99,7 +142,7 @@ export default function BDPipelinePage() {
             </div>
             <Button
               variant="gradient"
-              onClick={() => setShowCreateForm(true)}
+              onClick={() => setShowWizard(true)}
             >
               <Plus className="w-5 h-5" />
               New Opportunity
@@ -211,33 +254,37 @@ export default function BDPipelinePage() {
             </div>
           )}
 
-          {/* Pipeline Board */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <LoadingSpinner size="md" />
-            </div>
-          ) : pipelineData ? (
-            <PipelineBoard pipeline={pipelineData} onOpportunityClick={handleOpportunityClick} />
-          ) : null}
+          {/* Filters */}
+          <BDKanbanFilters
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            displayMode={displayMode}
+            onDisplayModeChange={setDisplayMode}
+            stages={data?.stages || []}
+            employees={[]} // TODO: Fetch employees from API
+          />
+
+          {/* Kanban Board */}
+          <BDKanbanBoard
+            data={data}
+            isLoading={isLoading}
+            error={error}
+            displayMode={displayMode}
+            onOpportunityClick={handleOpportunityClick}
+            collapsedColumns={collapsedColumns}
+            onToggleCollapse={handleToggleCollapse}
+          />
         </div>
       </div>
 
-      {/* Create Opportunity Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-corporate-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold text-forvis-gray-900 mb-4">
-              Create New Opportunity
-            </h2>
-            <OpportunityForm
-              stages={stages}
-              onSubmit={handleCreateOpportunity}
-              onCancel={() => setShowCreateForm(false)}
-              isLoading={createMutation.isPending}
-            />
-          </div>
-        </div>
-      )}
+      {/* BD Opportunity Wizard */}
+      <BDOpportunityWizard
+        isOpen={showWizard}
+        serviceLine={serviceLine.toUpperCase()}
+        opportunityId={resumeOpportunityId}
+        onComplete={handleWizardComplete}
+        onCancel={handleWizardCancel}
+      />
     </div>
   );
 }

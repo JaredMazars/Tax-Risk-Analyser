@@ -394,4 +394,249 @@ export async function getTaskContext(taskId: number): Promise<TaskContext> {
   }
 }
 
+/**
+ * Opportunity context for proposal generation
+ */
+export interface OpportunityContext {
+  opportunityId: number;
+  opportunityTitle: string;
+  opportunityDescription?: string;
+  companyName: string;
+  serviceLine: string;
+  value?: number;
+  expectedCloseDate?: Date;
+  clientCode?: string;
+  clientPartner?: string;
+  clientManager?: string;
+  clientIncharge?: string;
+}
+
+/**
+ * Build context data for proposal generation
+ */
+function buildProposalContextData(
+  context: OpportunityContext
+): Record<string, string> {
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  return {
+    opportunityTitle: context.opportunityTitle || '',
+    companyName: context.companyName || '',
+    serviceLine: context.serviceLine?.replace(/_/g, ' ') || '',
+    proposedValue: context.value?.toLocaleString() || '',
+    expectedCloseDate: context.expectedCloseDate
+      ? context.expectedCloseDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : '',
+    clientCode: context.clientCode || '',
+    partnerName: context.clientPartner || '',
+    managerName: context.clientManager || '',
+    inchargeName: context.clientIncharge || '',
+    currentDate,
+    description: context.opportunityDescription || '',
+  };
+}
+
+/**
+ * Generate proposal from template for BD opportunity
+ */
+export async function generateProposalFromTemplate(
+  opportunityId: number,
+  templateId: number,
+  useAiAdaptation: boolean = false
+): Promise<GeneratedTemplate> {
+  try {
+    // Get opportunity with client data
+    const opportunity = await prisma.bDOpportunity.findUnique({
+      where: { id: opportunityId },
+      include: {
+        Client: {
+          select: {
+            clientCode: true,
+            clientNameFull: true,
+            clientPartner: true,
+            clientManager: true,
+            clientIncharge: true,
+          },
+        },
+      },
+    });
+
+    if (!opportunity) {
+      throw new Error('Opportunity not found');
+    }
+
+    // Build opportunity context
+    const opportunityContext: OpportunityContext = {
+      opportunityId: opportunity.id,
+      opportunityTitle: opportunity.title,
+      opportunityDescription: opportunity.description || undefined,
+      companyName:
+        opportunity.Client?.clientNameFull || opportunity.companyName || 'Company',
+      serviceLine: opportunity.serviceLine,
+      value: opportunity.value || undefined,
+      expectedCloseDate: opportunity.expectedCloseDate || undefined,
+      clientCode: opportunity.Client?.clientCode || undefined,
+      clientPartner: opportunity.Client?.clientPartner || undefined,
+      clientManager: opportunity.Client?.clientManager || undefined,
+      clientIncharge: opportunity.Client?.clientIncharge || undefined,
+    };
+
+    logger.info('Generating proposal from template', {
+      opportunityId,
+      templateId,
+      companyName: opportunityContext.companyName,
+    });
+
+    // Get active version or template sections
+    const activeVersion = await getActiveVersion(templateId);
+
+    if (activeVersion) {
+      // Use version-based generation
+      logger.info('Generating from active template version', {
+        templateId,
+        versionId: activeVersion.id,
+        version: activeVersion.version,
+      });
+
+      // Filter sections applicable to this opportunity
+      const applicableSections = activeVersion.TemplateSectionVersion.filter(
+        (section) => {
+          // If section has no applicability constraints, include it
+          if (!section.applicableServiceLines) {
+            return true;
+          }
+
+          // Check service line applicability
+          const serviceLines = JSON.parse(section.applicableServiceLines);
+          return serviceLines.includes(opportunityContext.serviceLine);
+        }
+      );
+
+      // Build context data for placeholder replacement
+      const contextData = buildProposalContextData(opportunityContext);
+
+      // Process sections
+      const processedSections: Array<{
+        sectionKey: string;
+        title: string;
+        content: string;
+        wasAiAdapted: boolean;
+      }> = [];
+
+      for (const section of applicableSections) {
+        let content = section.content;
+        let wasAiAdapted = false;
+
+        // Replace placeholders
+        content = replacePlaceholders(content, contextData);
+
+        // Apply AI adaptation if needed (optional for proposals)
+        if (useAiAdaptation && section.isAiAdaptable) {
+          try {
+            // Create a task-like context for AI adaptation
+            const adaptContext = {
+              taskName: opportunityContext.opportunityTitle,
+              taskType: 'PROPOSAL',
+              serviceLine: opportunityContext.serviceLine,
+              taskDescription: opportunityContext.opportunityDescription,
+              clientName: opportunityContext.companyName,
+            } as any;
+
+            content = await adaptSection(section.title, content, adaptContext);
+            wasAiAdapted = true;
+          } catch (error) {
+            logger.warn('AI adaptation failed for proposal section, using placeholder-replaced content', {
+              sectionKey: section.sectionKey,
+              error,
+            });
+          }
+        }
+
+        processedSections.push({
+          sectionKey: section.sectionKey,
+          title: section.title,
+          content,
+          wasAiAdapted,
+        });
+      }
+
+      // Combine sections into final document
+      const finalContent = processedSections
+        .map((s) => `# ${s.title}\n\n${s.content}`)
+        .join('\n\n---\n\n');
+
+      return {
+        content: finalContent,
+        sectionsUsed: processedSections.map((s) => ({
+          sectionKey: s.sectionKey,
+          title: s.title,
+          wasAiAdapted: s.wasAiAdapted,
+        })),
+        versionId: activeVersion.id,
+        version: activeVersion.version,
+      };
+    } else {
+      // Fallback to template sections (no version)
+      const template = await prisma.template.findUnique({
+        where: { id: templateId },
+        include: {
+          TemplateSection: {
+            orderBy: { order: 'asc' },
+          },
+        },
+      });
+
+      if (!template) {
+        throw new Error('Template not found');
+      }
+
+      // Filter applicable sections
+      const applicableSections = template.TemplateSection.filter((section) => {
+        if (!section.applicableServiceLines) {
+          return true;
+        }
+
+        const serviceLines = JSON.parse(section.applicableServiceLines);
+        return serviceLines.includes(opportunityContext.serviceLine);
+      });
+
+      const contextData = buildProposalContextData(opportunityContext);
+
+      const processedSections = applicableSections.map((section) => {
+        const content = replacePlaceholders(section.content, contextData);
+        return {
+          sectionKey: section.sectionKey,
+          title: section.title,
+          content,
+          wasAiAdapted: false,
+        };
+      });
+
+      const finalContent = processedSections
+        .map((s) => `# ${s.title}\n\n${s.content}`)
+        .join('\n\n---\n\n');
+
+      return {
+        content: finalContent,
+        sectionsUsed: processedSections.map((s) => ({
+          sectionKey: s.sectionKey,
+          title: s.title,
+          wasAiAdapted: s.wasAiAdapted,
+        })),
+      };
+    }
+  } catch (error) {
+    logger.error('Error generating proposal from template', error);
+    throw new Error('Failed to generate proposal from template');
+  }
+}
+
 

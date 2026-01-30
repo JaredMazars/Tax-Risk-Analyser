@@ -17,7 +17,6 @@ import {
   getServiceLineBorderColor 
 } from '@/lib/utils/serviceLineUtils';
 import { formatAmount } from '@/lib/utils/formatters';
-import { OpportunityForm } from '@/components/features/bd/OpportunityForm';
 import { useQuery } from '@tanstack/react-query';
 import type { ActivityWithRelations } from '@/lib/services/bd/activityService';
 import { AlertModal } from '@/components/shared/AlertModal';
@@ -30,7 +29,6 @@ export default function OpportunityDetailPage() {
   const serviceLine = params.serviceLine as string;
   const router = useRouter();
   const opportunityId = parseInt(params.id as string);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isServiceLineModalOpen, setIsServiceLineModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [selectedServiceLine, setSelectedServiceLine] = useState<string>('');
@@ -53,26 +51,6 @@ export default function OpportunityDetailPage() {
   const { data: activitiesData } = useActivities({ opportunityId, page: 1, pageSize: 10 });
   const updateOpportunity = useUpdateOpportunity(opportunityId);
   const convertOpportunity = useConvertOpportunity(opportunityId);
-
-  // Fetch stages for the form
-  const { data: stagesData } = useQuery({
-    queryKey: ['bd-stages'],
-    queryFn: async () => {
-      const res = await fetch('/api/bd/stages');
-      if (!res.ok) throw new Error('Failed to fetch stages');
-      const data = await res.json();
-      return data.data;
-    },
-  });
-
-  const handleUpdateOpportunity = async (data: Record<string, unknown>) => {
-    try {
-      await updateOpportunity.mutateAsync(data);
-      setIsEditModalOpen(false);
-    } catch (error) {
-      console.error('Failed to update opportunity:', error);
-    }
-  };
 
   const handleServiceLineChange = async () => {
     if (!selectedServiceLine || selectedServiceLine === opportunity?.serviceLine) {
@@ -215,12 +193,6 @@ export default function OpportunityDetailPage() {
               <p className="text-sm text-forvis-gray-600">{opportunity.description || 'No description'}</p>
             </div>
         <div className="flex gap-3">
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50 transition-colors"
-          >
-            Edit
-          </button>
           {opportunity.status !== 'WON' && !opportunity.convertedToGSClientID && (
             <Button
               variant="gradient"
@@ -384,45 +356,6 @@ export default function OpportunityDetailPage() {
       </div>
         </div>
       </div>
-
-      {/* Edit Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-forvis-gray-200 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-forvis-gray-900">Edit Opportunity</h2>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-forvis-gray-400 hover:text-forvis-gray-600 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="p-6">
-              {stagesData && (
-                <OpportunityForm
-                  initialData={{
-                    title: opportunity.title,
-                    description: opportunity.description || undefined,
-                    GSClientID: opportunity.GSClientID || undefined,
-                    companyName: opportunity.companyName || undefined,
-                    serviceLine: opportunity.serviceLine,
-                    stageId: opportunity.stageId,
-                    value: opportunity.value || undefined,
-                    probability: opportunity.probability || undefined,
-                    expectedCloseDate: opportunity.expectedCloseDate ? new Date(opportunity.expectedCloseDate) : undefined,
-                    source: opportunity.source || undefined,
-                  }}
-                  stages={stagesData}
-                  onSubmit={handleUpdateOpportunity}
-                  onCancel={() => setIsEditModalOpen(false)}
-                  isLoading={updateOpportunity.isPending}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Convert to Client Modal */}
       {isConvertModalOpen && (

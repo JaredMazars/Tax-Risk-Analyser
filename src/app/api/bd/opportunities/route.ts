@@ -1,17 +1,13 @@
 /**
  * BD Opportunities API Routes
  * GET /api/bd/opportunities - List opportunities with filters
- * POST /api/bd/opportunities - Create new opportunity
  */
 
 import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
-import {
-  CreateBDOpportunitySchema,
-  BDOpportunityFiltersSchema,
-} from '@/lib/validation/schemas';
-import { getOpportunities, createOpportunity } from '@/lib/services/bd/opportunityService';
+import { BDOpportunityFiltersSchema } from '@/lib/validation/schemas';
+import { getOpportunities } from '@/lib/services/bd/opportunityService';
 
 /**
  * GET /api/bd/opportunities
@@ -45,33 +41,5 @@ export const GET = secureRoute.query({
         totalPages: Math.ceil(result.total / filters.pageSize),
       })
     );
-  },
-});
-
-/**
- * POST /api/bd/opportunities
- * Create new opportunity
- */
-export const POST = secureRoute.mutation({
-  feature: Feature.ACCESS_BD,
-  schema: CreateBDOpportunitySchema,
-  handler: async (request, { user, data }) => {
-    const opportunity = await createOpportunity({
-      title: data.title,
-      description: data.description,
-      clientId: data.GSClientID,
-      companyName: data.companyName,
-      contactId: data.contactId,
-      serviceLine: data.serviceLine,
-      stageId: data.stageId,
-      value: data.value,
-      probability: data.probability,
-      expectedCloseDate: data.expectedCloseDate,
-      source: data.source,
-      assignedTo: data.assignedTo || user.id,
-      createdBy: user.id,
-    });
-
-    return NextResponse.json(successResponse(opportunity), { status: 201 });
   },
 });
