@@ -104,11 +104,11 @@ export const BDKanbanCard = React.memo(function BDKanbanCard({
             } ${displayMode === 'compact' ? 'text-[9px]' : 'text-xs'}`}>
               {opportunity.companyName || opportunity.title}
             </div>
-            {opportunity.serviceLine && (
+            {(opportunity.serviceLineDesc || opportunity.serviceLine) && (
               <div className={`text-forvis-gray-600 truncate ${
                 displayMode === 'compact' ? 'text-[9px]' : 'text-xs'
               }`}>
-                {opportunity.serviceLine}
+                {opportunity.serviceLineDesc || opportunity.serviceLine}
               </div>
             )}
           </div>

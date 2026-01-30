@@ -29,6 +29,7 @@ export interface BDOpportunityWithRelations {
   updatedAt: Date;
   expectedCloseDate: Date | null;
   serviceLine: string;
+  serviceLineDesc?: string | null;
   // Assignment scheduling
   assignmentType?: string;
   startDate?: Date;

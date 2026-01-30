@@ -111,6 +111,20 @@ export async function getKanbanData(filters: BDKanbanFilters, userId: string) {
   
   const employeeMap = new Map(employees.map(emp => [emp.EmpCode, emp]));
 
+  // Get unique service line codes
+  const serviceLineCodes = [...new Set(opportunities.map(opp => opp.serviceLine).filter(Boolean))];
+  
+  // Fetch service line descriptions
+  const serviceLines = serviceLineCodes.length > 0 ? await prisma.serviceLineExternal.findMany({
+    where: { ServLineCode: { in: serviceLineCodes } },
+    select: {
+      ServLineCode: true,
+      ServLineDesc: true,
+    },
+  }) : [];
+  
+  const serviceLineMap = new Map(serviceLines.map(sl => [sl.ServLineCode, sl.ServLineDesc]));
+
   // Transform opportunities to match frontend types
   const transformedOpportunities = opportunities.map(opp => ({
     id: opp.id,
@@ -128,6 +142,7 @@ export async function getKanbanData(filters: BDKanbanFilters, userId: string) {
     updatedAt: opp.updatedAt,
     expectedCloseDate: opp.expectedCloseDate,
     serviceLine: opp.serviceLine,
+    serviceLineDesc: serviceLineMap.get(opp.serviceLine || '') || null,
     // Assignment scheduling
     assignmentType: opp.assignmentType,
     startDate: opp.startDate,
