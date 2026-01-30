@@ -481,22 +481,29 @@ export function GanttTimeline({
     }
   }, [scrollToToday, columns, scale]);
 
-  // Initialize view to earliest allocation date on first data load
+  // Initialize view based on context (staff planner vs task detail planner)
   useEffect(() => {
     // Only run once on initial data load
     if (hasInitializedView.current || !teamMembers || teamMembers.length === 0) {
       return;
     }
     
-    const earliestDate = getEarliestAllocationDate(teamMembers);
+    hasInitializedView.current = true;
     
-    // If allocations exist, center view on earliest date
+    // Staff planner (taskId === 0): Default to today
+    if (taskId === 0) {
+      setReferenceDate(startOfDay(new Date()));
+      setScrollToToday(true);
+      return;
+    }
+    
+    // Task detail planner (taskId > 0): Default to earliest allocation date
+    const earliestDate = getEarliestAllocationDate(teamMembers);
     if (earliestDate) {
-      hasInitializedView.current = true;
       setReferenceDate(startOfDay(earliestDate));
       setScrollToEarliest(true);
     }
-  }, [teamMembers, getEarliestAllocationDate]);
+  }, [teamMembers, getEarliestAllocationDate, taskId]);
 
   // Scroll to earliest allocation date when initialized
   useEffect(() => {
@@ -911,7 +918,7 @@ export function GanttTimeline({
 
   // Handle deletion with optimistic update
   const handleConfirmDelete = useCallback(async () => {
-    const { allocationId, employeeId } = deleteConfirmModal;
+    const { allocationId, employeeId, eventType } = deleteConfirmModal;
     
     if (!allocationId || !employeeId) return;
 
@@ -934,23 +941,24 @@ export function GanttTimeline({
         } : undefined
       });
       
-      // Remove from optimistic updates after successful delete
+      // Trigger refetch and WAIT for completion before clearing optimistic updates
+      await onAllocationUpdate();
+      
+      // NOW clear optimistic updates after refetch completes
+      // This ensures UI updates with fresh server data first
       setOptimisticUpdates(prev => {
         const newMap = new Map(prev);
         const optimisticKey = getAllocationKeyById(allocationId, true);
         newMap.delete(optimisticKey);
         return newMap;
       });
-
-      // Trigger refetch
-      await onAllocationUpdate();
     } catch (error) {
-      // Revert optimistic update on error
-      setOptimisticUpdates(prev => {
-        const newMap = new Map(prev);
-        const optimisticKey = getAllocationKeyById(allocationId, true);
-        newMap.delete(optimisticKey);
-        return newMap;
+      // On error, reopen modal since we closed it optimistically
+      setDeleteConfirmModal({
+        isOpen: true,
+        allocationId,
+        employeeId,
+        eventType
       });
       
       const message = error instanceof Error ? error.message : 'Failed to delete event';
@@ -1231,6 +1239,7 @@ export function GanttTimeline({
             setAdminModalInitialDates({});
           }}
           onSave={handleAdminPlanningModalSave}
+          onAllocationUpdate={onAllocationUpdate}
           serviceLine={serviceLine}
           subServiceLineGroup={subServiceLineGroup}
           userId={selectedUserId}

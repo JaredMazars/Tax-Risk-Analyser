@@ -41,6 +41,7 @@ interface AdminPlanningModalProps {
     allocatedPercentage: number;
     role: ServiceLineRole | string;
   }) => Promise<void>;
+  onAllocationUpdate: () => void | Promise<void>;
   serviceLine?: string; // Optional - undefined for global planner
   subServiceLineGroup?: string; // Optional - undefined for global planner
   userId: string; // May be "employee-282" format for unregistered employees
@@ -54,6 +55,7 @@ export function AdminPlanningModal({
   isOpen,
   onClose,
   onSave,
+  onAllocationUpdate,
   serviceLine,
   subServiceLineGroup,
   userId,
@@ -359,6 +361,9 @@ export function AdminPlanningModal({
         subServiceLineGroup
       }
     });
+    
+    // Trigger parent refetch (same as client allocations)
+    await onAllocationUpdate();
   };
 
   if (!isOpen) return null;
