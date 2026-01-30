@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight, Plus } from 'lucide-react';
 import { useBDKanban } from '@/hooks/bd/useBDKanban';
@@ -15,6 +15,7 @@ import { usePipelineAnalytics } from '@/hooks/bd/useBDAnalytics';
 import { BDKanbanBoard, BDKanbanFilters } from '@/components/features/bd/Kanban';
 import type { BDKanbanFilters as FiltersType, BDDisplayMode } from '@/components/features/bd/Kanban/types';
 import { BDOpportunityWizard } from '@/components/features/bd/wizard/BDOpportunityWizard';
+import { OpportunityDetailModal } from '@/components/features/bd/OpportunityDetailModal';
 import { formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { Button } from '@/components/ui';
 import { GRADIENTS } from '@/lib/design-system/gradients';
@@ -24,11 +25,15 @@ export default function BDPipelinePage() {
   const params = useParams();
   const serviceLine = params.serviceLine as string;
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [showWizard, setShowWizard] = useState(false);
   const [resumeOpportunityId, setResumeOpportunityId] = useState<number | null>(null);
   const [displayMode, setDisplayMode] = useState<BDDisplayMode>('detailed');
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
+  const [selectedOpportunityId, setSelectedOpportunityId] = useState<number | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   
   // Filters state
   const [filters, setFilters] = useState<FiltersType>({
@@ -90,9 +95,29 @@ export default function BDPipelinePage() {
       setResumeOpportunityId(opportunityId);
       setShowWizard(true);
     } else {
-      // Otherwise, navigate to detail page
-      router.push(`/dashboard/${serviceLine}/bd/${opportunityId}`);
+      // Otherwise, open modal
+      setSelectedOpportunityId(opportunityId);
+      setIsDetailModalOpen(true);
+      
+      // Update URL for deep linking
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('opportunityModal', opportunityId.toString());
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }
+  };
+
+  const handleCloseModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedOpportunityId(null);
+    
+    // Remove URL parameter
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('opportunityModal');
+    const newUrl = pathname + (params.toString() ? `?${params}` : '');
+    router.replace(newUrl, { scroll: false });
+    
+    // Invalidate queries to refresh Kanban board
+    queryClient.invalidateQueries({ queryKey: ['bd-kanban'] });
   };
 
   const handleWizardComplete = () => {
@@ -107,6 +132,16 @@ export default function BDPipelinePage() {
     setShowWizard(false);
     setResumeOpportunityId(null); // Clear resume ID
   };
+
+  // Handle opening modal from URL parameter (deep linking)
+  React.useEffect(() => {
+    const opportunityIdParam = searchParams.get('opportunityModal');
+    if (opportunityIdParam && !isNaN(parseInt(opportunityIdParam))) {
+      const opportunityId = parseInt(opportunityIdParam);
+      setSelectedOpportunityId(opportunityId);
+      setIsDetailModalOpen(true);
+    }
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
@@ -285,6 +320,16 @@ export default function BDPipelinePage() {
         onComplete={handleWizardComplete}
         onCancel={handleWizardCancel}
       />
+
+      {/* BD Opportunity Detail Modal */}
+      {selectedOpportunityId && (
+        <OpportunityDetailModal
+          isOpen={isDetailModalOpen}
+          opportunityId={selectedOpportunityId}
+          serviceLine={serviceLine}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }

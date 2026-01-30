@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Search } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import type { StepProps } from '@/types/bd-wizard';
 import { useQuery } from '@tanstack/react-query';
@@ -51,8 +52,21 @@ export function OpportunityDetailsStep({
     wizardData.opportunityDetails.recurringFrequency || ''
   );
 
+  // Service line search state
+  const [serviceLineSearch, setServiceLineSearch] = useState('');
+  const [showServiceLineDropdown, setShowServiceLineDropdown] = useState(false);
+  const [selectedServiceLine, setSelectedServiceLine] = useState<{
+    ServLineCode: string;
+    ServLineDesc: string;
+  } | null>(
+    selectedServLineCode && wizardData.opportunityDetails.serviceLine
+      ? { ServLineCode: selectedServLineCode, ServLineDesc: '' }
+      : null
+  );
+  const serviceLineSearchRef = React.useRef<HTMLDivElement>(null);
+
   // Fetch available service lines for the master code
-  const { data: serviceLinesData } = useQuery({
+  const { data: serviceLinesData, isLoading: isLoadingServiceLines } = useQuery({
     queryKey: ['bd-service-lines', wizardData.opportunityDetails.serviceLine],
     queryFn: async () => {
       const res = await fetch(
@@ -64,6 +78,43 @@ export function OpportunityDetailsStep({
     },
     enabled: !!wizardData.opportunityDetails.serviceLine,
   });
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        serviceLineSearchRef.current &&
+        !serviceLineSearchRef.current.contains(event.target as Node)
+      ) {
+        setShowServiceLineDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter service lines based on search
+  const filteredServiceLines = React.useMemo(() => {
+    if (!serviceLinesData) return [];
+    if (!serviceLineSearch) return serviceLinesData;
+    
+    const search = serviceLineSearch.toLowerCase();
+    return serviceLinesData.filter((sl: any) => 
+      sl.ServLineDesc.toLowerCase().includes(search) ||
+      sl.ServLineCode.toLowerCase().includes(search)
+    );
+  }, [serviceLinesData, serviceLineSearch]);
+
+  // Initialize selected service line from data
+  React.useEffect(() => {
+    if (serviceLinesData && selectedServLineCode && !selectedServiceLine) {
+      const found = serviceLinesData.find((sl: any) => sl.ServLineCode === selectedServLineCode);
+      if (found) {
+        setSelectedServiceLine(found);
+      }
+    }
+  }, [serviceLinesData, selectedServLineCode, selectedServiceLine]);
 
   // Fetch stages
   const { data: stagesData } = useQuery({
@@ -135,19 +186,89 @@ export function OpportunityDetailsStep({
           <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
             Service Line *
           </label>
-          <select
-            value={selectedServLineCode}
-            onChange={(e) => setSelectedServLineCode(e.target.value)}
-            className="w-full px-4 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
-            required
-          >
-            <option value="">Select service line...</option>
-            {serviceLinesData?.map((sl: any) => (
-              <option key={sl.ServLineCode} value={sl.ServLineCode}>
-                {sl.ServLineDesc}
-              </option>
-            ))}
-          </select>
+          <div className="relative" ref={serviceLineSearchRef}>
+            <div className="relative">
+              <input
+                type="text"
+                value={selectedServiceLine ? selectedServiceLine.ServLineDesc : serviceLineSearch}
+                onChange={(e) => {
+                  setServiceLineSearch(e.target.value);
+                  setShowServiceLineDropdown(true);
+                  setSelectedServiceLine(null);
+                  setSelectedServLineCode('');
+                }}
+                onFocus={() => setShowServiceLineDropdown(true)}
+                placeholder="Type to search service lines..."
+                className="w-full px-4 py-2 pl-10 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-forvis-blue-500"
+                required
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+            </div>
+
+            {/* Service Line Dropdown */}
+            {showServiceLineDropdown && !selectedServiceLine && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-forvis-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                {isLoadingServiceLines ? (
+                  <div className="p-4 text-center text-forvis-gray-600">
+                    Loading service lines...
+                  </div>
+                ) : filteredServiceLines && filteredServiceLines.length > 0 ? (
+                  <ul>
+                    {filteredServiceLines.map((sl: any) => (
+                      <li
+                        key={sl.ServLineCode}
+                        className="px-4 py-3 hover:bg-forvis-blue-50 cursor-pointer border-b border-forvis-gray-100 last:border-b-0"
+                        onClick={() => {
+                          setSelectedServiceLine(sl);
+                          setSelectedServLineCode(sl.ServLineCode);
+                          setServiceLineSearch('');
+                          setShowServiceLineDropdown(false);
+                        }}
+                      >
+                        <div className="font-medium text-forvis-gray-900">
+                          {sl.ServLineDesc}
+                        </div>
+                        <div className="text-sm text-forvis-gray-600">
+                          Code: {sl.ServLineCode}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="p-4 text-center text-forvis-gray-600">
+                    No service lines found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Selected Service Line Display */}
+          {selectedServiceLine && (
+            <div className="mt-3 p-3 bg-forvis-success-50 border border-forvis-success-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-forvis-success-900">
+                    {selectedServiceLine.ServLineDesc}
+                  </div>
+                  <div className="text-sm text-forvis-success-800">
+                    Code: {selectedServiceLine.ServLineCode}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedServiceLine(null);
+                    setSelectedServLineCode('');
+                    setServiceLineSearch('');
+                  }}
+                  className="text-forvis-success-600 hover:text-forvis-success-800 text-sm font-medium"
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+          )}
+
           <p className="text-xs text-forvis-gray-500 mt-1">
             Select the specific service line for this opportunity
           </p>
