@@ -59,6 +59,11 @@ export const BDKanbanCard = React.memo(function BDKanbanCard({
     }
   };
 
+  // Calculate expected revenue (weighted value based on probability)
+  const expectedRevenue = opportunity.value !== null && opportunity.probability !== null
+    ? (opportunity.value * opportunity.probability) / 100
+    : null;
+
   return (
     <div
       ref={setNodeRef}
@@ -104,7 +109,9 @@ export const BDKanbanCard = React.memo(function BDKanbanCard({
             } ${displayMode === 'compact' ? 'text-[9px]' : 'text-xs'}`}>
               {opportunity.companyName || opportunity.title}
             </div>
-            {(opportunity.serviceLineDesc || opportunity.serviceLine) && (
+            {/* Hide service line if it's BUSINESS_DEV (redundant in BD context) */}
+            {(opportunity.serviceLineDesc || opportunity.serviceLine) && 
+             opportunity.serviceLine !== 'BUSINESS_DEV' && (
               <div className={`text-forvis-gray-600 truncate ${
                 displayMode === 'compact' ? 'text-[9px]' : 'text-xs'
               }`}>
@@ -123,6 +130,42 @@ export const BDKanbanCard = React.memo(function BDKanbanCard({
           </div>
         )}
       </div>
+
+      {/* Financial Metrics Section (Detailed Mode Only, Not for Drafts) */}
+      {!isDraft && displayMode === 'detailed' && (opportunity.value !== null || opportunity.probability !== null) && (
+        <div className="bg-forvis-success-50 rounded-lg p-2 mb-2">
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            {opportunity.value !== null && (
+              <div>
+                <div className="text-forvis-gray-600 text-[10px]">Value</div>
+                <div className="font-semibold text-forvis-gray-900 tabular-nums">{formatAmount(opportunity.value)}</div>
+              </div>
+            )}
+            {opportunity.probability !== null && (
+              <div>
+                <div className="text-forvis-gray-600 text-[10px]">Probability</div>
+                <div className="font-semibold text-forvis-gray-900 tabular-nums">{opportunity.probability}%</div>
+              </div>
+            )}
+            {expectedRevenue !== null && (
+              <div>
+                <div className="text-forvis-gray-600 text-[10px]">Expected</div>
+                <div className="font-semibold text-forvis-success-600 tabular-nums">{formatAmount(expectedRevenue)}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Expected Revenue Badge (Compact Mode) */}
+      {!isDraft && displayMode === 'compact' && expectedRevenue !== null && (
+        <div className="mb-0.5">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-forvis-success-50 text-forvis-success-700 border border-forvis-success-200">
+            <DollarSign className="h-2 w-2 mr-0.5" />
+            {formatAmount(expectedRevenue)}
+          </span>
+        </div>
+      )}
 
       {/* Description */}
       {opportunity.description && (
@@ -185,33 +228,45 @@ export const BDKanbanCard = React.memo(function BDKanbanCard({
         </div>
       )}
 
-      {/* Assigned To */}
-      {displayMode === 'detailed' && opportunity.assignedToEmployee && (
-        <div className="mb-3">
-          <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
-            <Users className="h-3 w-3" />
-            <span>{opportunity.assignedToEmployee.EmpName || opportunity.assignedToEmployee.EmpCode}</span>
-          </div>
+      {/* BD Owner & Expected Close Date (Detailed Mode) */}
+      {displayMode === 'detailed' && !isDraft && (opportunity.assignedToEmployee || opportunity.expectedCloseDate) && (
+        <div className="space-y-1 mb-2">
+          {/* BD Owner */}
+          {opportunity.assignedToEmployee && (
+            <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
+              <Users className="h-3 w-3" />
+              <span className="font-medium">BD Owner:</span>
+              <span>{opportunity.assignedToEmployee.EmpName || opportunity.assignedToEmployee.EmpCode}</span>
+            </div>
+          )}
+          
+          {/* Expected Close Date */}
+          {opportunity.expectedCloseDate && (
+            <div className="flex items-center gap-1 text-xs text-forvis-gray-600">
+              <Calendar className="h-3 w-3" />
+              <span className="font-medium">Expected Close:</span>
+              <span>{formatDistanceToNow(new Date(opportunity.expectedCloseDate), { addSuffix: true })}</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Expected Close Date & Probability */}
-      <div className={`flex items-center justify-between ${
-        displayMode === 'compact' ? 'text-[8px]' : 'text-xs'
-      } text-forvis-gray-500`}>
-        {opportunity.expectedCloseDate && (
-          <div className="flex items-center gap-1">
-            <Calendar className={displayMode === 'compact' ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-            <span>{formatDistanceToNow(new Date(opportunity.expectedCloseDate), { addSuffix: true })}</span>
-          </div>
-        )}
-        {opportunity.probability !== null && (
-          <div className="flex items-center gap-1">
-            <DollarSign className={displayMode === 'compact' ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-            <span>{opportunity.probability}%</span>
-          </div>
-        )}
-      </div>
+      {/* Compact Mode: Expected Close Date & Probability */}
+      {displayMode === 'compact' && (
+        <div className="flex items-center justify-between text-[8px] text-forvis-gray-500">
+          {opportunity.expectedCloseDate && (
+            <div className="flex items-center gap-1">
+              <Calendar className="h-2.5 w-2.5" />
+              <span>{formatDistanceToNow(new Date(opportunity.expectedCloseDate), { addSuffix: true })}</span>
+            </div>
+          )}
+          {opportunity.probability !== null && (
+            <div className="flex items-center gap-1">
+              <span>{opportunity.probability}%</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }, (prevProps, nextProps) => {

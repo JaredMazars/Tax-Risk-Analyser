@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { GRADIENTS } from '@/lib/design-system/gradients';
 import { KanbanColumnProps } from './types';
 import { KanbanCard } from './KanbanCard';
 import { KanbanMetrics } from './KanbanMetrics';
@@ -41,21 +42,21 @@ export function KanbanColumn({
     return map;
   }, [column.tasks, canDrag, myTasksOnly]);
 
-  // Get color based on stage
+  // Get color based on stage using centralized design system gradients
   const getStageGradient = (stage: string) => {
     switch (stage) {
       case 'ENGAGE':
-        return 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)';
+        return GRADIENTS.data.gray;
       case 'IN_PROGRESS':
-        return 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)';
+        return GRADIENTS.data.blue;
       case 'UNDER_REVIEW':
-        return 'linear-gradient(135deg, #D9CBA8 0%, #B0A488 100%)';
+        return GRADIENTS.premium.gold;
       case 'COMPLETED':
-        return 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+        return GRADIENTS.data.green;
       case 'ARCHIVED':
-        return 'linear-gradient(135deg, #D1D5DB 0%, #9CA3AF 100%)';
+        return GRADIENTS.data.gray;
       default:
-        return 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)';
+        return GRADIENTS.data.blue;
     }
   };
 

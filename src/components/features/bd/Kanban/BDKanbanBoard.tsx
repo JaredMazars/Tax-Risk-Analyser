@@ -257,7 +257,13 @@ export function BDKanbanBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="pb-4" style={{ maxHeight: 'calc(100vh - 300px)', overflow: 'hidden' }}>
+      <div 
+        className="pb-4" 
+        style={{ 
+          maxHeight: 'calc(100vh - 300px)',
+          overflow: 'hidden'
+        }}
+      >
         <div className="flex gap-3 h-full w-full">
           {data.columns.map(column => (
             <BDKanbanColumn

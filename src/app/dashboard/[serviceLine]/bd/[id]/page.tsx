@@ -4,10 +4,10 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, X } from 'lucide-react';
+import { ChevronRight, X, Edit, Save } from 'lucide-react';
 import { useOpportunity, useUpdateOpportunity, useConvertOpportunity } from '@/hooks/bd/useOpportunities';
 import { useActivities } from '@/hooks/bd/useActivities';
 import { 
@@ -33,6 +33,18 @@ export default function OpportunityDetailPage() {
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [selectedServiceLine, setSelectedServiceLine] = useState<string>('');
   const [createProject, setCreateProject] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Form state for editing
+  const [formData, setFormData] = useState({
+    title: '',
+    companyName: '',
+    description: '',
+    value: 0,
+    probability: 0,
+    expectedCloseDate: '',
+    source: '',
+  });
 
   // Modal state
   const [alertModal, setAlertModal] = useState<{
@@ -51,6 +63,71 @@ export default function OpportunityDetailPage() {
   const { data: activitiesData } = useActivities({ opportunityId, page: 1, pageSize: 10 });
   const updateOpportunity = useUpdateOpportunity(opportunityId);
   const convertOpportunity = useConvertOpportunity(opportunityId);
+
+  // Update form data when opportunity loads
+  useEffect(() => {
+    if (opportunity) {
+      setFormData({
+        title: opportunity.title,
+        companyName: opportunity.companyName || '',
+        description: opportunity.description || '',
+        value: opportunity.value || 0,
+        probability: opportunity.probability || opportunity.BDStage.probability,
+        expectedCloseDate: opportunity.expectedCloseDate 
+          ? new Date(opportunity.expectedCloseDate).toISOString().split('T')[0]
+          : '',
+        source: opportunity.source || '',
+      });
+    }
+  }, [opportunity]);
+
+  const handleSave = async () => {
+    try {
+      await updateOpportunity.mutateAsync({
+        title: formData.title,
+        description: formData.description || undefined,
+        companyName: formData.companyName || undefined,
+        serviceLine: opportunity!.serviceLine,
+        stageId: opportunity!.stageId,
+        value: formData.value || undefined,
+        probability: formData.probability || undefined,
+        expectedCloseDate: formData.expectedCloseDate ? new Date(formData.expectedCloseDate) : undefined,
+        source: formData.source || undefined,
+      });
+      setIsEditing(false);
+      setAlertModal({
+        isOpen: true,
+        title: 'Success',
+        message: 'Opportunity updated successfully',
+        variant: 'success',
+      });
+    } catch (error) {
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to update opportunity. Please try again.',
+        variant: 'error',
+      });
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset form to original values
+    if (opportunity) {
+      setFormData({
+        title: opportunity.title,
+        companyName: opportunity.companyName || '',
+        description: opportunity.description || '',
+        value: opportunity.value || 0,
+        probability: opportunity.probability || opportunity.BDStage.probability,
+        expectedCloseDate: opportunity.expectedCloseDate 
+          ? new Date(opportunity.expectedCloseDate).toISOString().split('T')[0]
+          : '',
+        source: opportunity.source || '',
+      });
+    }
+    setIsEditing(false);
+  };
 
   const handleServiceLineChange = async () => {
     if (!selectedServiceLine || selectedServiceLine === opportunity?.serviceLine) {
@@ -174,71 +251,201 @@ export default function OpportunityDetailPage() {
           {/* Header */}
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-semibold text-forvis-gray-900">{opportunity.title}</h1>
-                <button
-                  onClick={() => {
-                    setSelectedServiceLine(opportunity.serviceLine);
-                    setIsServiceLineModalOpen(true);
-                  }}
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold border-2 transition-all hover:shadow-md ${getServiceLineBgColor(opportunity.serviceLine)} ${getServiceLineColor(opportunity.serviceLine)} ${getServiceLineBorderColor(opportunity.serviceLine)}`}
-                  title="Click to change service line"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                  </svg>
-                  {formatServiceLineName(opportunity.serviceLine)}
-                </button>
-              </div>
-              <p className="text-sm text-forvis-gray-600">{opportunity.description || 'No description'}</p>
+              {isEditing ? (
+                <div className="space-y-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+                      Title *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white text-forvis-gray-900 border-2 border-forvis-blue-200 rounded-lg focus:border-forvis-blue-500 focus:ring-2 focus:ring-forvis-blue-200 transition-colors"
+                      placeholder="Enter opportunity title"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+                      Company Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.companyName}
+                      onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white text-forvis-gray-900 border-2 border-forvis-blue-200 rounded-lg focus:border-forvis-blue-500 focus:ring-2 focus:ring-forvis-blue-200 transition-colors"
+                      placeholder="Enter company name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-2.5 bg-white text-forvis-gray-900 border-2 border-forvis-blue-200 rounded-lg focus:border-forvis-blue-500 focus:ring-2 focus:ring-forvis-blue-200 transition-colors"
+                      placeholder="Enter opportunity description"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h1 className="text-3xl font-semibold text-forvis-gray-900">{opportunity.title}</h1>
+                    <button
+                      onClick={() => {
+                        setSelectedServiceLine(opportunity.serviceLine);
+                        setIsServiceLineModalOpen(true);
+                      }}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold border-2 transition-all hover:shadow-md ${getServiceLineBgColor(opportunity.serviceLine)} ${getServiceLineColor(opportunity.serviceLine)} ${getServiceLineBorderColor(opportunity.serviceLine)}`}
+                      title="Click to change service line"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      {formatServiceLineName(opportunity.serviceLine)}
+                    </button>
+                  </div>
+                  {opportunity.companyName && (
+                    <p className="text-lg font-medium text-forvis-gray-700 mb-2">{opportunity.companyName}</p>
+                  )}
+                  <p className="text-sm text-forvis-gray-600">{opportunity.description || 'No description'}</p>
+                </>
+              )}
             </div>
         <div className="flex gap-3">
-          {opportunity.status !== 'WON' && !opportunity.convertedToGSClientID && (
-            <Button
-              variant="gradient"
-              onClick={() => setIsConvertModalOpen(true)}
-            >
-              <FileCheck className="w-5 h-5" />
-              Convert to Client
-            </Button>
-          )}
-          {opportunity.convertedToGSClientID && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-forvis-success-700 bg-forvis-success-50 border border-forvis-success-200 rounded-lg">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Converted to Client
-            </div>
+          {isEditing ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={handleCancel}
+              >
+                <X className="w-5 h-5" />
+                Cancel
+              </Button>
+              <Button
+                variant="gradient"
+                onClick={handleSave}
+                disabled={updateOpportunity.isPending}
+              >
+                <Save className="w-5 h-5" />
+                {updateOpportunity.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => setIsEditing(true)}
+              >
+                <Edit className="w-5 h-5" />
+                Edit
+              </Button>
+              {opportunity.status !== 'WON' && !opportunity.convertedToGSClientID && (
+                <Button
+                  variant="gradient"
+                  onClick={() => setIsConvertModalOpen(true)}
+                >
+                  <FileCheck className="w-5 h-5" />
+                  Convert to Client
+                </Button>
+              )}
+              {opportunity.convertedToGSClientID && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-forvis-success-700 bg-forvis-success-50 border border-forvis-success-200 rounded-lg">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Converted to Client
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
-          <p className="text-xs font-medium text-forvis-gray-600">Value</p>
-          <p className="text-2xl font-bold mt-1" style={{ color: '#2E5AAC' }}>
-            {opportunity.value ? formatAmount(opportunity.value) : 'N/A'}
-          </p>
+      {/* Stats Cards / Edit Fields */}
+      {isEditing ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+              Value
+            </label>
+            <input
+              type="number"
+              value={formData.value}
+              onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+              className="w-full px-4 py-2.5 bg-white text-forvis-gray-900 border-2 border-forvis-blue-200 rounded-lg focus:border-forvis-blue-500 focus:ring-2 focus:ring-forvis-blue-200 transition-colors"
+              placeholder="0.00"
+              step="0.01"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+              Probability (%)
+            </label>
+            <input
+              type="number"
+              value={formData.probability}
+              onChange={(e) => setFormData({ ...formData, probability: parseFloat(e.target.value) || 0 })}
+              className="w-full px-4 py-2.5 bg-white text-forvis-gray-900 border-2 border-forvis-blue-200 rounded-lg focus:border-forvis-blue-500 focus:ring-2 focus:ring-forvis-blue-200 transition-colors"
+              placeholder="0"
+              min="0"
+              max="100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+              Expected Close Date
+            </label>
+            <input
+              type="date"
+              value={formData.expectedCloseDate}
+              onChange={(e) => setFormData({ ...formData, expectedCloseDate: e.target.value })}
+              className="w-full px-4 py-2.5 bg-white text-forvis-gray-900 border-2 border-forvis-blue-200 rounded-lg focus:border-forvis-blue-500 focus:ring-2 focus:ring-forvis-blue-200 transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-forvis-gray-700 mb-2">
+              Source
+            </label>
+            <input
+              type="text"
+              value={formData.source}
+              onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              className="w-full px-4 py-2.5 bg-white text-forvis-gray-900 border-2 border-forvis-blue-200 rounded-lg focus:border-forvis-blue-500 focus:ring-2 focus:ring-forvis-blue-200 transition-colors"
+              placeholder="e.g., Referral, Website, Cold Call"
+            />
+          </div>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
+            <p className="text-xs font-medium text-forvis-gray-600">Value</p>
+            <p className="text-2xl font-bold mt-1" style={{ color: '#2E5AAC' }}>
+              {opportunity.value ? formatAmount(opportunity.value) : 'N/A'}
+            </p>
+          </div>
 
-        <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
-          <p className="text-xs font-medium text-forvis-gray-600">Stage</p>
-          <p className="text-lg font-bold mt-1 text-forvis-gray-900">{opportunity.BDStage.name}</p>
-        </div>
+          <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
+            <p className="text-xs font-medium text-forvis-gray-600">Stage</p>
+            <p className="text-lg font-bold mt-1 text-forvis-gray-900">{opportunity.BDStage.name}</p>
+          </div>
 
-        <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
-          <p className="text-xs font-medium text-forvis-gray-600">Probability</p>
-          <p className="text-2xl font-bold mt-1 text-forvis-gray-900">
-            {opportunity.probability || opportunity.BDStage.probability}%
-          </p>
-        </div>
+          <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
+            <p className="text-xs font-medium text-forvis-gray-600">Probability</p>
+            <p className="text-2xl font-bold mt-1 text-forvis-gray-900">
+              {opportunity.probability || opportunity.BDStage.probability}%
+            </p>
+          </div>
 
-        <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
-          <p className="text-xs font-medium text-forvis-gray-600">Status</p>
-          <p className="text-lg font-bold mt-1 text-forvis-gray-900">{opportunity.status}</p>
+          <div className="bg-white rounded-lg border border-forvis-gray-200 shadow-corporate p-4">
+            <p className="text-xs font-medium text-forvis-gray-600">Status</p>
+            <p className="text-lg font-bold mt-1 text-forvis-gray-900">{opportunity.status}</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Details Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

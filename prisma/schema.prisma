@@ -860,17 +860,37 @@ model DrsTransactions {
   updatedAt         DateTime @updatedAt
   Client            Client   @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
-  // Covering indexes managed via SQL migrations (Prisma doesn't support INCLUDE columns)
-  // Migration: 20260128_optimize_drs_indexes
-  // Note: Narration (TEXT type) cannot be included in indexes - requires table lookup when needed
+  // ============================================================================
+  // GRANULAR INDEXES (Query Pattern-Specific)
+  // Created via SQL migration - INCLUDE columns not supported in Prisma schema
+  // Migration: 20260130_granular_indexes_wip_drs
+  // Total Index Size: ~300-400 MB
+  // ============================================================================
   //
-  // idx_drs_client_covering: (GSClientID, TranDate)
-  //   INCLUDE (Total, EntryType, InvNumber, Reference, ServLineCode, Biller, ClientCode, ClientNameFull, GroupCode, GroupDesc, updatedAt)
-  //   Covers: Client balance queries, debtor aging, group rollups, invoice details
+  // Index 1: idx_drs_biller_date (~100-120 MB, filtered)
+  //   Keys: (Biller, TranDate)
+  //   INCLUDE: (Total, EntryType, InvNumber, Reference, GSClientID, ClientCode, ClientNameFull, GroupCode, GroupDesc, ServLineCode)
+  //   Filter: WHERE Biller IS NOT NULL
+  //   Serves: Recoverability reports, biller-based queries
+  //   APIs: /api/my-reports/recoverability, /api/my-reports/overview
   //
-  // idx_drs_biller_covering: (Biller, TranDate, EntryType)
-  //   INCLUDE (Total, InvNumber, Reference, ServLineCode, GSClientID, ClientCode, ClientNameFull, GroupCode, GroupDesc, updatedAt)
-  //   Covers: Recoverability reports, monthly collections, net billings, debtor balance calculations
+  // Index 2: idx_drs_client_date (~120-150 MB, filtered)
+  //   Keys: (GSClientID, TranDate)
+  //   INCLUDE: (Total, EntryType, InvNumber, Reference, Biller, ClientCode, ClientNameFull, GroupCode, GroupDesc, ServLineCode, updatedAt)
+  //   Filter: WHERE GSClientID IS NOT NULL
+  //   Serves: Client debtor queries, balances
+  //   APIs: /api/clients/[id]/debtors, /api/clients/[id]/balances, /api/clients/[id]/debtors/details
+  //
+  // Index 3: idx_drs_client_group (~80-100 MB, filtered)
+  //   Keys: (GSClientID, GroupCode, TranDate)
+  //   INCLUDE: (Total, EntryType, ServLineCode, ClientCode)
+  //   Filter: WHERE GSClientID IS NOT NULL
+  //   Serves: Group-level debtor rollups
+  //   APIs: /api/groups/[groupCode]/debtors
+  //
+  // Note: Narration (TEXT type) excluded from all indexes - requires table lookup when needed
+  // Previous Migration: 20260128_optimize_drs_indexes (replaced)
+  // ============================================================================
 }
 
 model EmailLog {
@@ -2336,34 +2356,51 @@ model WIPTransactions {
   Task                Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
   // ============================================================================
-  // COMPREHENSIVE COVERING INDEXES (Optimized 2-Index Strategy)
+  // GRANULAR INDEXES (Query Pattern-Specific)
   // Created via SQL migration - INCLUDE columns not supported in Prisma schema
-  // Migration: 20260127_wiptransactions_2_covering_indexes
-  // Table Size: 5.7 million rows | Total Index Size: 1,190 MB
+  // Migration: 20260130_granular_indexes_wip_drs
+  // Table Size: 5.7 million rows | Total Index Size: ~600-700 MB
   // ============================================================================
   //
-  // Index 1: idx_WIPTransactions_Task_Covering (395 MB)
+  // Index 1: idx_wip_task (~50-60 MB)
   //   Keys: (GSTaskID, TranDate)
-  //   INCLUDE: (GSClientID, EmpCode, Amount, Cost, Hour, TType, TaskServLine,
-  //             TaskPartner, TaskManager, OfficeCode, ClientCode, ClientName,
-  //             TaskCode, TaskDesc, PartnerName, ManagerName, updatedAt,
-  //             TranType, Ref, ServLineGroup) -- 20 columns
-  //   Note: Narr (Text type) excluded - requires key lookup if needed
-  //   Serves: Single task queries, task transactions, task WIP aggregations
+  //   INCLUDE: (Amount, Cost, Hour, TType, updatedAt)
+  //   Serves: Single task queries, task transactions
   //   APIs: /api/tasks/[id]/wip, /api/tasks/[id]/transactions, /api/tasks/[id]/balances
   //
-  // Index 2: idx_WIPTransactions_Date_EmpCode_Client_Covering (795 MB)
-  //   Keys: (TranDate, EmpCode, GSClientID)
-  //   INCLUDE: (GSTaskID, Amount, Cost, Hour, TType, TaskServLine, TaskPartner,
-  //             TaskManager, OfficeCode, ServLineGroup, updatedAt, ClientCode,
-  //             ClientName, TaskCode) -- 14 columns
-  //   Serves: Date ranges, employee filtering, client/group rollups, fiscal reports
-  //   APIs: /api/clients/[id]/wip, /api/groups/[groupCode]/wip,
-  //         /api/reports/fiscal-transactions, Enhanced WipLTD SP
+  // Index 2: idx_wip_client (~70-80 MB)
+  //   Keys: (GSClientID, TranDate)
+  //   INCLUDE: (Amount, Cost, Hour, TType, GSTaskID, TaskServLine, updatedAt)
+  //   Serves: Client WIP queries, client analytics
+  //   APIs: /api/clients/[id]/wip, /api/clients/[id]/balances, /api/clients/[id]/analytics
   //
-  // Removed Indexes (replaced by above 2 comprehensive indexes):
-  //   - TaskManager/TranDate, TaskPartner/TranDate, TranDate, EmpCode,
-  //     OfficeCode, ServLineGroup, GSTaskID, GSClientID (8 indexes → 2)
+  // Index 3: idx_wip_partner_date (~100-120 MB)
+  //   Keys: (TaskPartner, TranDate)
+  //   INCLUDE: (GSTaskID, Amount, Cost, Hour, TType, GSClientID, ClientCode, ClientName, TaskCode, TaskServLine)
+  //   Serves: Profitability reports for CARL/DIR/Local employees
+  //   APIs: /api/my-reports/profitability (partner filtering)
+  //
+  // Index 4: idx_wip_manager_date (~100-120 MB)
+  //   Keys: (TaskManager, TranDate)
+  //   INCLUDE: (GSTaskID, Amount, Cost, Hour, TType, GSClientID, ClientCode, ClientName, TaskCode, TaskServLine)
+  //   Serves: Profitability reports for non-CARL/DIR/Local employees
+  //   APIs: /api/my-reports/profitability (manager filtering)
+  //
+  // Index 5: idx_wip_date (~80-100 MB)
+  //   Keys: (TranDate, GSClientID, GSTaskID)
+  //   INCLUDE: (Amount, Cost, Hour, TType, EmpCode)
+  //   Serves: Date range queries, fiscal reports
+  //   APIs: /api/reports/fiscal-transactions
+  //
+  // Index 6: idx_wip_emp_date (~60-80 MB, filtered)
+  //   Keys: (EmpCode, TranDate, TType)
+  //   INCLUDE: (GSTaskID, Hour, Amount)
+  //   Filter: WHERE EmpCode IS NOT NULL
+  //   Serves: Employee time tracking, time accumulation
+  //   APIs: /api/tasks/[id]/analytics/time-accumulation
+  //
+  // Note: Narr (Text type) excluded from all indexes - requires key lookup if needed
+  // Previous Migration: 20260127_wiptransactions_2_covering_indexes (replaced)
   // ============================================================================
 }
 

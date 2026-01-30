@@ -1,6 +1,7 @@
 /**
  * BD Opportunity API Routes
  * 
+ * GET /api/bd/opportunities/[id] - Get a single opportunity
  * DELETE /api/bd/opportunities/[id] - Delete a draft opportunity
  */
 
@@ -10,6 +11,29 @@ import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 import { invalidateWorkspaceCounts } from '@/lib/services/cache/cacheInvalidation';
+import { getOpportunityById } from '@/lib/services/bd/opportunityService';
+
+/**
+ * GET /api/bd/opportunities/[id]
+ * Get a single BD opportunity with all relations
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user, params }) => {
+    const opportunityId = parseNumericId(params.id, 'Opportunity ID');
+
+    const opportunity = await getOpportunityById(opportunityId);
+
+    if (!opportunity) {
+      return NextResponse.json(
+        { success: false, error: 'Opportunity not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(successResponse(opportunity));
+  },
+});
 
 /**
  * DELETE /api/bd/opportunities/[id]

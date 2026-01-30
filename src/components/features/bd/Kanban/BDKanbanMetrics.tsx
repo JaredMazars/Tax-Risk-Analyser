@@ -14,13 +14,18 @@ interface BDKanbanMetricsProps {
 
 export function BDKanbanMetrics({ count, value }: BDKanbanMetricsProps) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm font-semibold text-forvis-gray-900">
-        {count}
-      </span>
-      <span className="text-xs text-forvis-gray-600">
-        {formatAmount(value)}
-      </span>
+    <div className="space-y-2 text-xs">
+      {/* Opportunity Count */}
+      <div className="flex items-center justify-between">
+        <span className="text-white opacity-90">Opportunities</span>
+        <span className="font-semibold text-white">{count}</span>
+      </div>
+      
+      {/* Total Value */}
+      <div className="flex items-center justify-between">
+        <span className="text-white opacity-90">Total Value</span>
+        <span className="font-semibold text-white tabular-nums">{formatAmount(value)}</span>
+      </div>
     </div>
   );
 }
