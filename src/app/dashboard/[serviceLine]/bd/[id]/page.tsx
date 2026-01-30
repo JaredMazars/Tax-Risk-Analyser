@@ -73,9 +73,9 @@ export default function OpportunityDetailPage() {
         description: opportunity.description || '',
         value: opportunity.value || 0,
         probability: opportunity.probability || opportunity.BDStage.probability,
-        expectedCloseDate: opportunity.expectedCloseDate 
+        expectedCloseDate: (opportunity.expectedCloseDate 
           ? new Date(opportunity.expectedCloseDate).toISOString().split('T')[0]
-          : '',
+          : '') as string,
         source: opportunity.source || '',
       });
     }
@@ -92,7 +92,7 @@ export default function OpportunityDetailPage() {
         value: formData.value || undefined,
         probability: formData.probability || undefined,
         expectedCloseDate: formData.expectedCloseDate ? new Date(formData.expectedCloseDate) : undefined,
-        source: formData.source || undefined,
+        source: (formData.source || undefined) as 'REFERRAL' | 'WEBSITE' | 'COLD_CALL' | 'NETWORKING' | 'EXISTING_CLIENT' | 'OTHER' | undefined,
       });
       setIsEditing(false);
       setAlertModal({
@@ -120,9 +120,9 @@ export default function OpportunityDetailPage() {
         description: opportunity.description || '',
         value: opportunity.value || 0,
         probability: opportunity.probability || opportunity.BDStage.probability,
-        expectedCloseDate: opportunity.expectedCloseDate 
+        expectedCloseDate: (opportunity.expectedCloseDate 
           ? new Date(opportunity.expectedCloseDate).toISOString().split('T')[0]
-          : '',
+          : '') as string,
         source: opportunity.source || '',
       });
     }

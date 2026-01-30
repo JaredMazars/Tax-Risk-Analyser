@@ -838,6 +838,10 @@ export const UpdateBDOpportunitySchema = z.object({
   status: z.enum(['OPEN', 'WON', 'LOST', 'ABANDONED']).optional(),
   lostReason: z.string().max(1000).nullable().optional(),
   assignedTo: z.string().min(1).optional(),
+  assignmentType: z.enum(['ONCE_OFF', 'RECURRING']).nullable().optional(),
+  startDate: z.coerce.date().nullable().optional(),
+  endDate: z.coerce.date().nullable().optional(),
+  recurringFrequency: z.enum(['MONTHLY', 'QUARTERLY', 'BI_ANNUALLY', 'YEARLY']).nullable().optional(),
 }).strict();
 
 export const MoveBDOpportunityStageSchema = z.object({

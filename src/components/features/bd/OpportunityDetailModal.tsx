@@ -94,17 +94,17 @@ export function OpportunityDetailModal({
         description: opportunity.description || '',
         value: opportunity.value || 0,
         probability: opportunity.probability || opportunity.BDStage.probability,
-        expectedCloseDate: opportunity.expectedCloseDate 
+        expectedCloseDate: (opportunity.expectedCloseDate 
           ? new Date(opportunity.expectedCloseDate).toISOString().split('T')[0]
-          : '',
+          : '') as string,
         source: opportunity.source || '',
         assignmentType: opportunity.assignmentType || '',
-        startDate: opportunity.startDate 
+        startDate: (opportunity.startDate 
           ? new Date(opportunity.startDate).toISOString().split('T')[0]
-          : '',
-        endDate: opportunity.endDate 
+          : '') as string,
+        endDate: (opportunity.endDate 
           ? new Date(opportunity.endDate).toISOString().split('T')[0]
-          : '',
+          : '') as string,
         recurringFrequency: opportunity.recurringFrequency || '',
       });
     }
@@ -190,7 +190,7 @@ export function OpportunityDetailModal({
         value: formData.value || undefined,
         probability: formData.probability || undefined,
         expectedCloseDate: formData.expectedCloseDate ? new Date(formData.expectedCloseDate) : undefined,
-        source: formData.source || undefined,
+        source: (formData.source || undefined) as 'REFERRAL' | 'WEBSITE' | 'COLD_CALL' | 'NETWORKING' | 'EXISTING_CLIENT' | 'OTHER' | undefined,
         assignmentType: formData.assignmentType as 'ONCE_OFF' | 'RECURRING' | undefined,
         startDate: formData.startDate ? new Date(formData.startDate) : undefined,
         endDate: formData.endDate ? new Date(formData.endDate) : undefined,
@@ -224,17 +224,17 @@ export function OpportunityDetailModal({
         description: opportunity.description || '',
         value: opportunity.value || 0,
         probability: opportunity.probability || opportunity.BDStage.probability,
-        expectedCloseDate: opportunity.expectedCloseDate 
+        expectedCloseDate: (opportunity.expectedCloseDate 
           ? new Date(opportunity.expectedCloseDate).toISOString().split('T')[0]
-          : '',
+          : '') as string,
         source: opportunity.source || '',
         assignmentType: opportunity.assignmentType || '',
-        startDate: opportunity.startDate 
+        startDate: (opportunity.startDate 
           ? new Date(opportunity.startDate).toISOString().split('T')[0]
-          : '',
-        endDate: opportunity.endDate 
+          : '') as string,
+        endDate: (opportunity.endDate 
           ? new Date(opportunity.endDate).toISOString().split('T')[0]
-          : '',
+          : '') as string,
         recurringFrequency: opportunity.recurringFrequency || '',
       });
     }
@@ -962,8 +962,8 @@ export function OpportunityDetailModal({
                                       minute: '2-digit'
                                     })}
                                   </p>
-                                  {activity.notes && (
-                                    <p className="text-sm text-forvis-gray-700 mt-2">{activity.notes}</p>
+                                  {activity.description && (
+                                    <p className="text-sm text-forvis-gray-700 mt-2">{activity.description}</p>
                                   )}
                                 </div>
                               </div>
