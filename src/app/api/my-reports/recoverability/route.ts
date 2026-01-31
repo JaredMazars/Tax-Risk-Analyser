@@ -32,11 +32,12 @@ import { RecoverabilityReportData, ClientDebtorData, MonthlyReceiptData, DrsLTDR
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, addMonths } from 'date-fns';
 import { getCurrentFiscalPeriod, getFiscalYearRange, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 import type { AgingBuckets } from '@/lib/services/analytics/debtorAggregation';
-import { fetchRecoverabilityFromSP, executeDrsMonthly } from '@/lib/services/reports/storedProcedureService';
-
-// Feature flag to use stored procedures instead of inline SQL
-// Set USE_SP_FOR_REPORTS=true in .env to enable
-const USE_STORED_PROCEDURES = process.env.USE_SP_FOR_REPORTS === 'true';
+import { 
+  fetchRecoverabilityFromSP, 
+  executeDrsMonthly,
+  executeRecoverabilityData,
+} from '@/lib/services/reports/storedProcedureService';
+import type { RecoverabilityDataResult } from '@/types/api';
 
 /**
  * Convert DrsLTDv2 SP result to ClientDebtorData format
@@ -276,104 +277,166 @@ export const GET = secureRoute.query({
         return NextResponse.json(successResponse(cached));
       }
 
-      // Use stored procedure implementation if feature flag is enabled
-      if (USE_STORED_PROCEDURES) {
-        logger.info('Using stored procedure implementation for recoverability', { fiscalYear });
+      // Use stored procedure for recoverability report (single SP for both aging and receipts)
+      logger.info('Using sp_RecoverabilityData for recoverability report', { fiscalYear, fiscalMonth: fiscalMonthParam });
         
-        // Fetch aging data from DrsLTDv2 (always from inception, no dateFrom needed)
-        const spAgingResults = await fetchRecoverabilityFromSP(
-          employee.EmpCode,
-          endDate,         // LTD up to this date
-          endDate          // As of date for aging calculation
-        );
-
-        // Fetch monthly receipts data for fiscal year
-        const { start: fyStart, end: fyEnd } = getFiscalYearRange(fiscalYear);
-        const spMonthlyResults = await executeDrsMonthly({
+        // Fetch aging data with current period metrics (last 30 days)
+        const agingResults = await executeRecoverabilityData({
           billerCode: employee.EmpCode,
-          dateFrom: fyStart,
-          dateTo: fyEnd,
-          isCumulative: false,
+          asOfDate: endDate,  // Use selected month for aging snapshot
         });
 
-        // Get service line mappings
-        const uniqueServLineCodes = [...new Set(spAgingResults.map(r => r.ServLineCode))];
-        const serviceLineMappings = await prisma.serviceLineExternal.findMany({
-          where: { ServLineCode: { in: uniqueServLineCodes } },
-          select: {
-            ServLineCode: true,
-            masterCode: true,
-            SubServlineGroupCode: true,
-            SubServlineGroupDesc: true,
-          },
-        });
+        // Group aging by client (merge service lines)
+        const clientMap = new Map<string, ClientDebtorData>();
+        const EPSILON = 0.01;
         
-        // Get master service line names
-        const uniqueMasterCodes = [...new Set(serviceLineMappings.map(sl => sl.masterCode).filter(Boolean))] as string[];
-        const masterServiceLines = await prisma.serviceLineMaster.findMany({
-          where: { code: { in: uniqueMasterCodes } },
-          select: { code: true, name: true },
-        });
-        const masterNameMap = new Map(masterServiceLines.map(m => [m.code, m.name]));
+        // Determine month label for receipts display
+        const monthLabel = fiscalMonthParam || 'Current';
         
-        const serviceLineMap = new Map(
-          serviceLineMappings.map(sl => [sl.ServLineCode, sl])
-        );
-
-        // Build monthly receipts data
-        const monthNames = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
-        const monthlyReceiptsByClient = new Map<string, MonthlyReceiptData[]>();
-        
-        // Create empty monthly receipts array for each client
-        spAgingResults.forEach(client => {
-          const clientMonthly: MonthlyReceiptData[] = monthNames.map((label, idx) => {
-            const monthDate = addMonths(new Date(fiscalYear - 1, 8, 1), idx);
-            return {
-              month: label,
-              monthYear: format(monthDate, 'yyyy-MM'),
-              openingBalance: 0,
-              receipts: 0,
-              variance: 0,
-              recoveryPercent: 0,
-              billings: 0,
-              closingBalance: 0,
-            };
-          });
-          monthlyReceiptsByClient.set(client.GSClientID, clientMonthly);
-        });
-
-        // Map SP results to expected format
-        const clients: ClientDebtorData[] = spAgingResults.map(row => {
-          const slMapping = serviceLineMap.get(row.ServLineCode);
-          const clientMonthly = monthlyReceiptsByClient.get(row.GSClientID) || [];
-          const client = mapDrsLTDToClientDebtor(row, clientMonthly);
-          return {
-            ...client,
-            masterServiceLineCode: slMapping?.masterCode || '',
-            masterServiceLineName: slMapping?.masterCode ? (masterNameMap.get(slMapping.masterCode) || '') : '',
-            subServlineGroupCode: slMapping?.SubServlineGroupCode || '',
-            subServlineGroupDesc: slMapping?.SubServlineGroupDesc || '',
+        agingResults.forEach(row => {
+          const key = row.GSClientID;
+          
+          // Create synthetic monthly receipt entry from current period fields
+          const syntheticMonthlyReceipt: MonthlyReceiptData = {
+            month: monthLabel,
+            monthYear: format(endDate, 'yyyy-MM'),
+            openingBalance: row.PriorMonthBalance,       // Balance 30 days ago
+            receipts: row.CurrentPeriodReceipts,         // Last 30 days receipts
+            billings: row.CurrentPeriodBillings,         // Last 30 days billings
+            closingBalance: row.TotalBalance,            // Current balance
+            variance: row.CurrentPeriodReceipts - row.PriorMonthBalance,
+            recoveryPercent: row.PriorMonthBalance > 0 
+              ? (row.CurrentPeriodReceipts / row.PriorMonthBalance) * 100 
+              : 0,
           };
+          
+          if (!clientMap.has(key)) {
+            // First service line for this client - create new record
+            clientMap.set(key, {
+              GSClientID: row.GSClientID,
+              clientCode: row.ClientCode,
+              clientNameFull: row.ClientNameFull,
+              groupCode: row.GroupCode,
+              groupDesc: row.GroupDesc,
+              servLineCode: row.ServLineCode,
+              serviceLineName: row.ServLineDesc,
+              masterServiceLineCode: row.MasterServiceLineCode,
+              masterServiceLineName: row.MasterServiceLineName,
+              subServlineGroupCode: row.SubServlineGroupCode,
+              subServlineGroupDesc: row.SubServlineGroupDesc,
+              totalBalance: row.TotalBalance,
+              aging: {
+                current: row.AgingCurrent,
+                days31_60: row.Aging31_60,
+                days61_90: row.Aging61_90,
+                days91_120: row.Aging91_120,
+                days120Plus: row.Aging120Plus,
+              },
+              currentPeriodReceipts: row.CurrentPeriodReceipts,
+              priorMonthBalance: row.PriorMonthBalance,
+              invoiceCount: row.InvoiceCount,
+              avgPaymentDaysOutstanding: row.AvgDaysOutstanding,
+              avgPaymentDaysPaid: null,
+              monthlyReceipts: [syntheticMonthlyReceipt],
+            });
+          } else {
+            // Additional service line - merge into existing client
+            const existing = clientMap.get(key)!;
+            
+            // Add this service line's balances to existing totals
+            existing.totalBalance += row.TotalBalance;
+            existing.aging.current += row.AgingCurrent;
+            existing.aging.days31_60 += row.Aging31_60;
+            existing.aging.days61_90 += row.Aging61_90;
+            existing.aging.days91_120 += row.Aging91_120;
+            existing.aging.days120Plus += row.Aging120Plus;
+            existing.currentPeriodReceipts += row.CurrentPeriodReceipts;
+            existing.priorMonthBalance += row.PriorMonthBalance;
+            existing.invoiceCount += row.InvoiceCount;
+            
+            // Aggregate monthly receipt entry (only one entry per client)
+            existing.monthlyReceipts[0].openingBalance += syntheticMonthlyReceipt.openingBalance;
+            existing.monthlyReceipts[0].receipts += syntheticMonthlyReceipt.receipts;
+            existing.monthlyReceipts[0].billings += syntheticMonthlyReceipt.billings;
+            existing.monthlyReceipts[0].closingBalance += syntheticMonthlyReceipt.closingBalance;
+            existing.monthlyReceipts[0].variance = existing.monthlyReceipts[0].receipts - existing.monthlyReceipts[0].openingBalance;
+            // Recalculate recovery percent after aggregation
+            const opening = existing.monthlyReceipts[0].openingBalance;
+            const receipts = existing.monthlyReceipts[0].receipts;
+            existing.monthlyReceipts[0].recoveryPercent = 
+              opening > 0 ? (receipts / opening) * 100 : 0;
+            
+            // Use service line with largest balance as primary display
+            const currentBalanceAbs = Math.abs(row.TotalBalance);
+            const existingBalanceAbs = Math.abs(existing.totalBalance - row.TotalBalance);
+            
+            if (currentBalanceAbs > existingBalanceAbs) {
+              existing.servLineCode = row.ServLineCode;
+              existing.serviceLineName = row.ServLineDesc;
+              existing.masterServiceLineCode = row.MasterServiceLineCode;
+              existing.masterServiceLineName = row.MasterServiceLineName;
+              existing.subServlineGroupCode = row.SubServlineGroupCode;
+              existing.subServlineGroupDesc = row.SubServlineGroupDesc;
+            }
+          }
         });
+
+        // Filter clients and sort
+        const clients: ClientDebtorData[] = Array.from(clientMap.values())
+          .filter(client => {
+            // Apply epsilon filter: include clients with closing balance or aging
+            const hasNonZeroAging = 
+              Math.abs(client.aging.current) > EPSILON ||
+              Math.abs(client.aging.days31_60) > EPSILON ||
+              Math.abs(client.aging.days61_90) > EPSILON ||
+              Math.abs(client.aging.days91_120) > EPSILON ||
+              Math.abs(client.aging.days120Plus) > EPSILON;
+            
+            // Check for period activity (opening balance, receipts, or billings)
+            // This ensures clients who fully paid off their balance during the period are included
+            const hasPeriodActivity = client.monthlyReceipts.length > 0 && (
+              Math.abs(client.monthlyReceipts[0].openingBalance) > EPSILON ||
+              Math.abs(client.monthlyReceipts[0].receipts) > EPSILON ||
+              Math.abs(client.monthlyReceipts[0].billings) > EPSILON
+            );
+            
+            return Math.abs(client.totalBalance) > EPSILON || hasNonZeroAging || hasPeriodActivity;
+          })
+          .sort((a, b) => {
+            const groupCompare = a.groupDesc.localeCompare(b.groupDesc);
+            if (groupCompare !== 0) return groupCompare;
+            return a.clientCode.localeCompare(b.clientCode);
+          });
 
         // Calculate totals
         const totalAging: AgingBuckets = {
-          current: clients.reduce((sum, c) => sum + c.aging.current, 0),
-          days31_60: clients.reduce((sum, c) => sum + c.aging.days31_60, 0),
-          days61_90: clients.reduce((sum, c) => sum + c.aging.days61_90, 0),
-          days91_120: clients.reduce((sum, c) => sum + c.aging.days91_120, 0),
-          days120Plus: clients.reduce((sum, c) => sum + c.aging.days120Plus, 0),
+          current: 0,
+          days31_60: 0,
+          days61_90: 0,
+          days91_120: 0,
+          days120Plus: 0,
         };
 
-        const totalReceipts = spMonthlyResults.reduce((sum, m) => sum + m.Collections, 0);
+        let totalCurrentPeriodReceipts = 0;
+        let totalPriorMonthBalance = 0;
+
+        clients.forEach(c => {
+          totalAging.current += c.aging.current;
+          totalAging.days31_60 += c.aging.days31_60;
+          totalAging.days61_90 += c.aging.days61_90;
+          totalAging.days91_120 += c.aging.days91_120;
+          totalAging.days120Plus += c.aging.days120Plus;
+          totalCurrentPeriodReceipts += c.currentPeriodReceipts;
+          totalPriorMonthBalance += c.priorMonthBalance;
+        });
 
         const report: RecoverabilityReportData = {
           clients,
           totalAging,
           receiptsComparison: {
-            currentPeriodReceipts: totalReceipts,
-            priorMonthBalance: 0,
-            variance: totalReceipts,
+            currentPeriodReceipts: totalCurrentPeriodReceipts,
+            priorMonthBalance: totalPriorMonthBalance,
+            variance: totalCurrentPeriodReceipts - totalPriorMonthBalance,
           },
           employeeCode: employee.EmpCode,
           fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
@@ -391,439 +454,11 @@ export const GET = secureRoute.query({
         logger.info('Recoverability report generated via SP', {
           userId: user.id,
           clientCount: clients.length,
+          agingRows: agingResults.length,
+          durationMs: Date.now() - startTime,
         });
 
         return NextResponse.json(successResponse(report));
-      }
-
-      // 2. Query all DrsTransactions for this biller (LIFETIME TO DATE up to endDate)
-      // NOTE: No fiscal year filter - this is cumulative from INCEPTION
-      const allTransactions = await prisma.drsTransactions.findMany({
-        where: {
-          Biller: employee.EmpCode,
-          TranDate: { lte: endDate }, // All transactions from beginning of time up to cutoff
-        },
-        select: {
-          TranDate: true,
-          Total: true,
-          EntryType: true,
-          InvNumber: true,
-          Reference: true,
-          Narration: true,
-          ServLineCode: true,
-          GSClientID: true,
-          ClientCode: true,
-          ClientNameFull: true,
-          GroupCode: true,
-          GroupDesc: true,
-        },
-        orderBy: [{ ClientCode: 'asc' }, { TranDate: 'asc' }],
-      });
-
-      if (allTransactions.length === 0) {
-        const emptyReport: RecoverabilityReportData = {
-          clients: [],
-          totalAging: {
-            current: 0,
-            days31_60: 0,
-            days61_90: 0,
-            days91_120: 0,
-            days120Plus: 0,
-          },
-          receiptsComparison: {
-            currentPeriodReceipts: 0,
-            priorMonthBalance: 0,
-            variance: 0,
-          },
-          employeeCode: employee.EmpCode,
-          fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
-          fiscalMonth: mode === 'fiscal' && fiscalMonthParam ? fiscalMonthParam : undefined,
-          dateRange: mode === 'custom' ? {
-            start: format(startDate, 'yyyy-MM-dd'),
-            end: format(endDate, 'yyyy-MM-dd'),
-          } : undefined,
-        };
-
-        // Cache empty result for 5 minutes
-        await cache.set(cacheKey, emptyReport, 300);
-        return NextResponse.json(successResponse(emptyReport));
-      }
-
-      // 3. Get service line mappings
-      const uniqueServLineCodes = [...new Set(allTransactions.map(t => t.ServLineCode))];
-      const [serviceLines, masterServiceLines] = await Promise.all([
-        prisma.serviceLineExternal.findMany({
-          where: { ServLineCode: { in: uniqueServLineCodes } },
-          select: {
-            ServLineCode: true,
-            ServLineDesc: true,
-            SubServlineGroupCode: true,
-            SubServlineGroupDesc: true,
-            masterCode: true,
-          },
-        }),
-        prisma.serviceLineMaster.findMany({
-          where: { active: true },
-          select: { code: true, name: true },
-        }),
-      ]);
-
-      const servLineDetailsMap = new Map(
-        serviceLines.map(sl => [sl.ServLineCode, {
-          servLineDesc: sl.ServLineDesc || '',
-          subServlineGroupCode: sl.SubServlineGroupCode || '',
-          subServlineGroupDesc: sl.SubServlineGroupDesc || '',
-          masterCode: sl.masterCode || '',
-        }])
-      );
-
-      const masterServiceLineMap = new Map(
-        masterServiceLines.map(msl => [msl.code, msl.name])
-      );
-
-      // 4. Match payments to invoices and calculate balances per client
-      const fiscalMonths = mode === 'fiscal' ? getFiscalYearMonths(fiscalYear) : [];
-      
-      const clientDataMap = new Map<string, {
-        clientInfo: {
-          GSClientID: string;
-          clientCode: string;
-          clientNameFull: string | null;
-          groupCode: string;
-          groupDesc: string;
-          servLineCode: string;
-        };
-        invoices: Map<string, InvoiceData>;
-        currentPeriodReceipts: number;
-        priorPeriodBalance: number;
-        cumulativeBalance: number;  // Running balance from ALL transactions (matches stored procedure BalDrs)
-        transactions: { TranDate: Date; Total: number; EntryType: string | null }[];  // Store transactions for monthly calc
-      }>();
-
-      // Group transactions by client and invoice
-      allTransactions.forEach(txn => {
-        const amount = txn.Total || 0;
-        const invNumber = txn.InvNumber;
-        
-        if (!clientDataMap.has(txn.GSClientID)) {
-          clientDataMap.set(txn.GSClientID, {
-            clientInfo: {
-              GSClientID: txn.GSClientID,
-              clientCode: txn.ClientCode,
-              clientNameFull: txn.ClientNameFull,
-              groupCode: txn.GroupCode,
-              groupDesc: txn.GroupDesc,
-              servLineCode: txn.ServLineCode,
-            },
-            invoices: new Map(),
-            currentPeriodReceipts: 0,
-            priorPeriodBalance: 0,
-            cumulativeBalance: 0,
-            transactions: [],
-          });
-        }
-        
-        // Store transaction for monthly calculation (including EntryType)
-        clientDataMap.get(txn.GSClientID)!.transactions.push({
-          TranDate: txn.TranDate,
-          Total: txn.Total || 0,
-          EntryType: txn.EntryType,
-        });
-
-        const clientData = clientDataMap.get(txn.GSClientID)!;
-        
-        // Calculate cumulative balance: Total field already has correct sign
-        // Invoices = positive (increase balance), Receipts = negative (decrease balance)
-        clientData.cumulativeBalance += amount;
-
-        // Track receipts in current period (negative amounts = payments)
-        if (txn.TranDate >= startDate && txn.TranDate <= endDate && amount < 0) {
-          clientData.currentPeriodReceipts += Math.abs(amount);
-        }
-
-        // Track prior period balance (all transactions before start date)
-        if (txn.TranDate < startDate) {
-          clientData.priorPeriodBalance += amount;
-        }
-
-        // Process invoice balances
-        if (invNumber) {
-          if (!clientData.invoices.has(invNumber)) {
-            clientData.invoices.set(invNumber, {
-              invoiceNumber: invNumber,
-              // For positive amounts (invoices), use transaction date
-              // For negative amounts (payments), use endDate temporarily - will update when we see the invoice
-              invoiceDate: amount > 0 ? txn.TranDate : endDate,
-              originalAmount: amount > 0 ? amount : 0,
-              paymentsReceived: 0,
-              netBalance: amount,
-              daysOutstanding: 0,
-              agingBucket: 'current',
-            });
-          } else {
-            const inv = clientData.invoices.get(invNumber)!;
-            inv.netBalance += amount;
-            
-            // Track original amounts and payments
-            if (amount > 0) {
-              inv.originalAmount += amount;
-              
-              // ONLY update invoice date for positive transactions (actual invoices)
-              if (txn.TranDate < inv.invoiceDate) {
-                inv.invoiceDate = txn.TranDate;
-              }
-            } else {
-              inv.paymentsReceived += Math.abs(amount);
-            }
-          }
-        }
-      });
-
-      // 5. Calculate aging for each client's invoices
-      const clients: ClientDebtorData[] = [];
-      const totalAging: AgingBuckets = {
-        current: 0,
-        days31_60: 0,
-        days61_90: 0,
-        days91_120: 0,
-        days120Plus: 0,
-      };
-
-      let totalCurrentPeriodReceipts = 0;
-      let totalPriorMonthBalance = 0;
-
-      clientDataMap.forEach((clientData, gsClientId) => {
-        // #region agent log
-        const transactionTypeCounts = {};
-        clientData.transactions.forEach(txn => {
-          const type = txn.EntryType || 'Unknown';
-          transactionTypeCounts[type] = (transactionTypeCounts[type] || 0) + 1;
-        });
-        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:594',message:'Client processing start',data:{clientCode:clientData.clientInfo.clientCode,cumulativeBalance:clientData.cumulativeBalance,invoiceCount:clientData.invoices.size,transactionCount:clientData.transactions.length,transactionTypeCounts:transactionTypeCounts},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H6'})}).catch(()=>{});
-        // #endregion
-        
-        const aging: AgingBuckets = {
-          current: 0,
-          days31_60: 0,
-          days61_90: 0,
-          days91_120: 0,
-          days120Plus: 0,
-        };
-        
-        let totalDaysOutstanding = 0;
-        let invoiceCount = 0;
-        let totalOpenInvoices = 0;
-        let totalNegativeInvoices = 0;
-        let invoicesWithoutNumber = 0;
-        
-        // Identify offsetting invoice pairs (e.g., invoice M0035035 = +138000, reversal BFR0000047 = -138000)
-        // Both should be excluded from aging when they offset each other
-        const amountMap = new Map<number, string[]>();
-        clientData.invoices.forEach((inv, invNumber) => {
-          const amount = inv.netBalance;
-          if (!amountMap.has(amount)) {
-            amountMap.set(amount, []);
-          }
-          amountMap.get(amount)!.push(invNumber);
-        });
-        
-        const excludedInvoices = new Set<string>();
-        amountMap.forEach((invoiceNumbers, amount) => {
-          // Check if there's a matching negative amount
-          const negativeAmount = -amount;
-          if (amount !== 0 && amountMap.has(negativeAmount)) {
-            // Both the positive and negative amounts should be excluded
-            invoiceNumbers.forEach(inv => excludedInvoices.add(inv));
-            amountMap.get(negativeAmount)!.forEach(inv => excludedInvoices.add(inv));
-          }
-        });
-
-        // Calculate aging buckets from open invoices only (positive balances)
-        // Exclude invoices that have offsetting pairs with different invoice numbers
-        clientData.invoices.forEach(inv => {
-          // Skip if excluded due to matching offsetting pair
-          if (excludedInvoices.has(inv.invoiceNumber)) {
-            return;
-          }
-          
-          // Age ALL invoices (positive and negative) for aging buckets to reconcile with totalBalance
-          // Negative invoices reduce the aging bucket they fall into
-          if (inv.netBalance !== 0) {
-            // CRITICAL FIX: Use endDate for point-in-time aging (not today)
-            const daysDiff = Math.floor((endDate.getTime() - inv.invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
-            const daysOutstanding = Math.max(0, daysDiff);
-            const bucket = getAgingBucket(daysOutstanding);
-            
-            aging[bucket] += inv.netBalance;
-            totalAging[bucket] += inv.netBalance;
-            totalDaysOutstanding += daysOutstanding * Math.abs(inv.netBalance);
-            invoiceCount++;
-            
-            if (inv.netBalance > 0) {
-              totalOpenInvoices += inv.netBalance;
-            } else {
-              totalNegativeInvoices += inv.netBalance;
-            }
-          }
-        });
-
-        // Count transactions without invoice numbers
-        clientData.transactions.forEach(txn => {
-          if (!txn.EntryType || txn.EntryType === '') {
-            invoicesWithoutNumber++;
-          }
-        });
-
-        // Total balance = cumulative balance from ALL transactions (matches Monthly Receipts Closing Balance)
-        const totalBalance = clientData.cumulativeBalance;
-
-        // Calculate average days outstanding (weighted by total balance)
-        const avgPaymentDaysOutstanding = totalBalance > 0 
-          ? totalDaysOutstanding / totalBalance 
-          : 0;
-
-        // Get service line details
-        const slDetails = servLineDetailsMap.get(clientData.clientInfo.servLineCode);
-        const masterCode = slDetails?.masterCode || clientData.clientInfo.servLineCode;
-        const masterName = masterServiceLineMap.get(masterCode) || slDetails?.servLineDesc || '';
-
-        // Calculate monthly receipts for this client
-        const monthlyReceipts: MonthlyReceiptData[] = fiscalMonths.map(({ monthStart, monthEnd, label, sortKey }) => {
-          // Opening balance = sum of all transactions before month start
-          // Total field already has correct sign (positive = invoice, negative = receipt)
-          let openingBalance = 0;
-          clientData.transactions.forEach(txn => {
-            if (txn.TranDate < monthStart) {
-              openingBalance += txn.Total;
-            }
-          });
-          
-          // Receipts = negative transactions within the month (payments)
-          let receipts = 0;
-          // Billings = positive transactions within the month
-          let billings = 0;
-          
-          clientData.transactions.forEach(txn => {
-            if (txn.TranDate >= monthStart && txn.TranDate <= monthEnd) {
-              if (txn.Total < 0) {
-                receipts += Math.abs(txn.Total);
-              } else if (txn.Total > 0) {
-                billings += txn.Total;
-              }
-            }
-          });
-          
-          // Variance = Receipts - Opening Balance (collection surplus/deficit)
-          const variance = receipts - openingBalance;
-          
-          // Recovery percentage
-          const recoveryPercent = openingBalance > 0 
-            ? (receipts / openingBalance) * 100 
-            : 0;
-          
-          // Closing balance = Opening + Billings - Receipts
-          const closingBalance = openingBalance + billings - receipts;
-          
-          return {
-            month: label,
-            monthYear: sortKey,
-            openingBalance,
-            receipts,
-            variance,
-            recoveryPercent,
-            billings,
-            closingBalance,
-          };
-        });
-
-        // Comprehensive filtering: Hide clients with ALL zeros
-        // Use small epsilon for floating point comparison
-        const EPSILON = 0.01;
-        
-        // Check if any aging bucket has non-zero values
-        const hasNonZeroAging = 
-          Math.abs(aging.current) > EPSILON ||
-          Math.abs(aging.days31_60) > EPSILON ||
-          Math.abs(aging.days61_90) > EPSILON ||
-          Math.abs(aging.days91_120) > EPSILON ||
-          Math.abs(aging.days120Plus) > EPSILON;
-
-        // Only include clients if they have:
-        // 1. Non-zero total balance (final closing balance), OR
-        // 2. Non-zero aging buckets (open invoices)
-        // NOTE: We don't check historical monthly activity - only final state matters
-        if (Math.abs(totalBalance) > EPSILON || hasNonZeroAging) {
-          clients.push({
-            GSClientID: gsClientId,
-            clientCode: clientData.clientInfo.clientCode,
-            clientNameFull: clientData.clientInfo.clientNameFull,
-            groupCode: clientData.clientInfo.groupCode,
-            groupDesc: clientData.clientInfo.groupDesc,
-            servLineCode: clientData.clientInfo.servLineCode,
-            serviceLineName: slDetails?.servLineDesc || '',
-            masterServiceLineCode: masterCode,
-            masterServiceLineName: masterName,
-            subServlineGroupCode: slDetails?.subServlineGroupCode || '',
-            subServlineGroupDesc: slDetails?.subServlineGroupDesc || '',
-            totalBalance,
-            aging,
-            currentPeriodReceipts: clientData.currentPeriodReceipts,
-            priorMonthBalance: clientData.priorPeriodBalance,
-            invoiceCount,
-            avgPaymentDaysOutstanding,
-            avgPaymentDaysPaid: null, // Only available via DrsLTDv2 stored procedure
-            monthlyReceipts,
-          });
-        }
-
-        totalCurrentPeriodReceipts += clientData.currentPeriodReceipts;
-        totalPriorMonthBalance += clientData.priorPeriodBalance;
-      });
-
-      // Sort clients by group then client code
-      clients.sort((a, b) => {
-        const groupCompare = a.groupDesc.localeCompare(b.groupDesc);
-        if (groupCompare !== 0) return groupCompare;
-        return a.clientCode.localeCompare(b.clientCode);
-      });
-
-      const report: RecoverabilityReportData = {
-        clients,
-        totalAging,
-        receiptsComparison: {
-          currentPeriodReceipts: totalCurrentPeriodReceipts,
-          priorMonthBalance: totalPriorMonthBalance,
-          variance: totalPriorMonthBalance - totalCurrentPeriodReceipts,
-        },
-        employeeCode: employee.EmpCode,
-        fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
-        fiscalMonth: mode === 'fiscal' && fiscalMonthParam ? fiscalMonthParam : undefined,
-        dateRange: mode === 'custom' ? {
-          start: format(startDate, 'yyyy-MM-dd'),
-          end: format(endDate, 'yyyy-MM-dd'),
-        } : undefined,
-      };
-
-      // Cache - use longer TTL for past fiscal years (more stable data)
-      const cacheTTL = mode === 'fiscal' && fiscalYear < currentFY ? 1800 : 600;
-      await cache.set(cacheKey, report, cacheTTL);
-
-      // Background cache past fiscal years (non-blocking)
-      if (mode === 'fiscal' && fiscalYear === currentFY) {
-        cachePastFiscalYearsInBackground(user.id, currentFY);
-      }
-
-      const duration = Date.now() - startTime;
-      logger.info('Recoverability report generated', {
-        userId: user.id,
-        mode,
-        fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
-        fiscalMonth: fiscalMonthParam,
-        clientCount: clients.length,
-        duration,
-      });
-
-      return NextResponse.json(successResponse(report));
     } catch (error) {
       logger.error('Error generating recoverability report', error);
       return handleApiError(error, 'Generate recoverability report');

@@ -419,3 +419,104 @@ export async function fetchRecoverabilityFromSP(
     asOfDate,
   });
 }
+
+// ============================================================================
+// Combined Recoverability Data (AGING ONLY)
+// ============================================================================
+
+export interface RecoverabilityDataParams {
+  billerCode: string;
+  asOfDate: Date;
+  clientCode?: string;        // Optional client filter
+  servLineCode?: string;      // Optional service line filter
+}
+
+/**
+ * Execute sp_RecoverabilityData stored procedure
+ * Returns per-client-serviceline combination with aging metrics:
+ * - Aging buckets (Current, 31-60, 61-90, 91-120, 120+)
+ * - Current period billings and receipts (last 30 days)
+ * - Prior month balance (30 days ago)
+ * - Service line mapping at transaction level (accurate for multi-serviceline clients)
+ */
+export async function executeRecoverabilityData(
+  params: RecoverabilityDataParams
+): Promise<import('@/types/api').RecoverabilityDataResult[]> {
+  const startTime = Date.now();
+  
+  try {
+    const results = await prisma.$queryRaw<import('@/types/api').RecoverabilityDataResult[]>`
+      EXEC dbo.sp_RecoverabilityData 
+        @BillerCode = ${params.billerCode},
+        @AsOfDate = ${params.asOfDate},
+        @ClientCode = ${params.clientCode ?? '*'},
+        @ServLineCode = ${params.servLineCode ?? '*'}
+    `;
+
+    logger.debug('sp_RecoverabilityData executed', {
+      params: { 
+        ...params, 
+        asOfDate: params.asOfDate.toISOString(),
+        clientCode: params.clientCode ?? '*',
+        servLineCode: params.servLineCode ?? '*'
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_RecoverabilityData execution failed', { params, error });
+    throw error;
+  }
+}
+
+// ============================================================================
+// Monthly Receipts Data (PROPER FISCAL MONTH BOUNDARIES)
+// ============================================================================
+
+export interface RecoverabilityMonthlyParams {
+  billerCode: string;
+  dateFrom: Date;
+  dateTo: Date;
+  servLineCode?: string;
+}
+
+/**
+ * Execute sp_RecoverabilityMonthly stored procedure
+ * Returns per-client-serviceline monthly receipts with proper fiscal boundaries:
+ * - Opening balance = cumulative before month start (ensures Nov closing = Dec opening)
+ * - Receipts = negative transactions in month
+ * - Billings = positive transactions in month
+ * - Closing balance = Opening + Billings - Receipts
+ */
+export async function executeRecoverabilityMonthly(
+  params: RecoverabilityMonthlyParams
+): Promise<import('@/types/api').RecoverabilityMonthlyResult[]> {
+  const startTime = Date.now();
+  
+  try {
+    const results = await prisma.$queryRaw<import('@/types/api').RecoverabilityMonthlyResult[]>`
+      EXEC dbo.sp_RecoverabilityMonthly
+        @BillerCode = ${params.billerCode},
+        @DateFrom = ${params.dateFrom},
+        @DateTo = ${params.dateTo},
+        @ServLineCode = ${params.servLineCode ?? '*'}
+    `;
+
+    logger.debug('sp_RecoverabilityMonthly executed', {
+      params: { 
+        ...params, 
+        dateFrom: params.dateFrom.toISOString(),
+        dateTo: params.dateTo.toISOString()
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_RecoverabilityMonthly execution failed', { params, error });
+    throw error;
+  }
+}

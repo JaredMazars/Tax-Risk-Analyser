@@ -457,6 +457,70 @@ export interface DrsMonthlyResult {
 }
 
 /**
+ * sp_RecoverabilityData stored procedure result (AGING DATA)
+ * One row per client-serviceline combination with aging metrics
+ */
+export interface RecoverabilityDataResult {
+  GSClientID: string;
+  ClientCode: string;
+  ClientNameFull: string | null;
+  GroupCode: string;
+  GroupDesc: string;
+  // Service line (original + mapped at transaction level)
+  ServLineCode: string;
+  ServLineDesc: string;
+  MasterServiceLineCode: string;
+  MasterServiceLineName: string;
+  SubServlineGroupCode: string;
+  SubServlineGroupDesc: string;
+  // Balances and aging
+  TotalBalance: number;
+  AgingCurrent: number;
+  Aging31_60: number;
+  Aging61_90: number;
+  Aging91_120: number;
+  Aging120Plus: number;
+  InvoiceCount: number;
+  AvgDaysOutstanding: number;
+  // Current period metrics (last 30 days)
+  CurrentPeriodReceipts: number;
+  CurrentPeriodBillings: number;
+  // Prior period (30 days ago)
+  PriorMonthBalance: number;
+}
+
+/**
+ * sp_RecoverabilityMonthly stored procedure result (MONTHLY RECEIPTS DATA)
+ * Per-client-serviceline monthly receipts with proper fiscal boundaries
+ * 
+ * @deprecated No longer used - Receipts now derived from sp_RecoverabilityData current period fields
+ * Kept for backward compatibility only
+ */
+export interface RecoverabilityMonthlyResult {
+  GSClientID: string;
+  ClientCode: string;
+  ClientNameFull: string | null;
+  GroupCode: string;
+  GroupDesc: string;
+  ServLineCode: string;
+  ServLineDesc: string;
+  // Service line mapping fields
+  MasterServiceLineCode: string;
+  MasterServiceLineName: string;
+  SubServlineGroupCode: string;
+  SubServlineGroupDesc: string;
+  // Monthly data
+  MonthEnd: Date;
+  MonthLabel: string;  // 'Sep', 'Oct', etc.
+  OpeningBalance: number;  // Cumulative before month start
+  Receipts: number;
+  Billings: number;
+  Variance: number;         // Receipts - OpeningBalance
+  RecoveryPercent: number;  // (Receipts / OpeningBalance) * 100
+  ClosingBalance: number;   // Opening + Billings - Receipts
+}
+
+/**
  * Helper type to convert SP result to existing MonthlyMetrics
  */
 export function mapWipMonthlyToMetrics(
