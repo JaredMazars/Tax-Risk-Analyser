@@ -3,12 +3,10 @@ import { prisma } from '@/lib/db/prisma';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
-import { 
-  aggregateWipTransactionsByServiceLine, 
-  aggregateOverallWipData,
-  countUniqueTasks 
-} from '@/lib/services/analytics/wipAggregation';
-import { getCarlPartnerCodes, getServiceLineMappings } from '@/lib/cache/staticDataCache';
+import { executeProfitabilityData } from '@/lib/services/reports/storedProcedureService';
+import { getCurrentFiscalPeriod, getFiscalYearRange, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
+import { startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { logger } from '@/lib/utils/logger';
 
 interface ProfitabilityMetrics {
   grossProduction: number;
@@ -94,20 +92,28 @@ function calculateProfitabilityMetrics(data: {
  * GET /api/clients/[id]/wip
  * Get aggregated Work in Progress and Profitability data for a client
  * 
+ * Query Parameters:
+ * - fiscalYear: number (optional) - Fiscal year filter (e.g., 2024)
+ * - fiscalMonth: string (optional) - Fiscal month name for cumulative through month (e.g., 'November')
+ * - mode: 'fiscal' | 'custom' (optional, defaults to 'fiscal')
+ * - startDate: ISO date string (optional) - For custom date range
+ * - endDate: ISO date string (optional) - For custom date range
+ * 
  * Returns:
- * - Overall profitability metrics (lifetime/all transactions)
+ * - Overall profitability metrics (period-filtered)
  * - Profitability metrics grouped by Master Service Line
  * - Master Service Line information
  * - Task count contributing to WIP
  * - Latest update timestamp
- * - Time period: All-time (cumulative balances across all transactions)
+ * - Time period: Fiscal year filtered (defaults to current FY)
  * 
- * Note: WIP Balance (balWIP) represents current outstanding balance and must include
- * all historical transactions to be accurate. This is used in client headers.
+ * Note: Uses sp_ProfitabilityData stored procedure for efficient aggregation.
  */
 export const GET = secureRoute.queryWithParams({
   feature: Feature.ACCESS_CLIENTS,
   handler: async (request, { user, params }) => {
+    const startTime = Date.now();
+    
     // Parse and validate GSClientID
     const GSClientID = parseGSClientID(params.id);
 
@@ -126,58 +132,165 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Transaction limit to prevent unbounded queries
-    const TRANSACTION_LIMIT = 100000;
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const fiscalYearParam = searchParams.get('fiscalYear');
+    const fiscalMonthParam = searchParams.get('fiscalMonth');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+    const mode = (searchParams.get('mode') || 'fiscal') as 'fiscal' | 'custom';
 
-    // Get CARL partner employee codes and WIP transactions in parallel
-    const [carlPartnerCodes, wipTransactions] = await Promise.all([
-      getCarlPartnerCodes(),
-      prisma.wIPTransactions.findMany({
-        where: { GSClientID },
-        select: {
-          GSTaskID: true,
-          TaskServLine: true,
-          Amount: true,
-          Cost: true,
-          Hour: true,
-          TType: true,
-          EmpCode: true,
-          updatedAt: true,
-        },
-        take: TRANSACTION_LIMIT, // Reasonable upper bound - prevents unbounded queries
-      }),
-    ]);
+    // Validate fiscalMonth if provided
+    if (fiscalMonthParam && !FISCAL_MONTHS.includes(fiscalMonthParam)) {
+      throw new AppError(
+        400,
+        `Invalid fiscalMonth parameter. Must be one of: ${FISCAL_MONTHS.join(', ')}`,
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
 
-    // Check if we hit the transaction limit
-    const limitReached = wipTransactions.length >= TRANSACTION_LIMIT;
-
-    // Set cost to 0 for Carl Partner transactions
-    const processedTransactions = wipTransactions.map(txn => ({
-      ...txn,
-      Cost: txn.EmpCode && carlPartnerCodes.has(txn.EmpCode) ? 0 : txn.Cost,
-    }));
-
-    // Get Service Line External mappings from cache
-    const servLineToMasterMap = await getServiceLineMappings();
-
-    // Aggregate WIP transactions by Master Service Line using processed transactions
-    const groupedData = aggregateWipTransactionsByServiceLine(
-      processedTransactions,
-      servLineToMasterMap
-    );
-
-    // Calculate overall totals using processed transactions
-    const overallTotals = aggregateOverallWipData(processedTransactions);
+    // Determine fiscal year and date range
+    const currentFY = getCurrentFiscalPeriod().fiscalYear;
+    const fiscalYear = fiscalYearParam ? parseInt(fiscalYearParam, 10) : currentFY;
     
-    // Count unique tasks
-    const taskCount = countUniqueTasks(processedTransactions);
-    overallTotals.taskCount = taskCount;
+    let startDate: Date;
+    let endDate: Date;
+    
+    if (mode === 'custom' && startDateParam && endDateParam) {
+      // Custom date range
+      startDate = startOfMonth(parseISO(startDateParam));
+      endDate = endOfMonth(parseISO(endDateParam));
+    } else {
+      // Fiscal year mode (default)
+      const { start, end } = getFiscalYearRange(fiscalYear);
+      startDate = start;
+      
+      // If fiscalMonth is provided, calculate cumulative through that month (FISCAL YTD)
+      if (fiscalMonthParam) {
+        endDate = getFiscalMonthEndDate(fiscalYear, fiscalMonthParam);
+      } else {
+        endDate = end; // Full fiscal year
+      }
+    }
+
+    logger.debug('Fetching client WIP data', {
+      clientCode: client.clientCode,
+      mode,
+      fiscalYear,
+      fiscalMonth: fiscalMonthParam,
+      dateRange: { start: startDate.toISOString(), end: endDate.toISOString() },
+    });
+
+    // Call stored procedure
+    const spResults = await executeProfitabilityData({
+      clientCode: client.clientCode,
+      dateFrom: startDate,
+      dateTo: endDate,
+    });
+
+    // Aggregate by masterCode (group service line totals)
+    const groupedData = new Map<string, {
+      ltdTime: number;
+      ltdAdj: number;
+      ltdCost: number;
+      ltdDisb: number;
+      ltdFee: number;
+      ltdHours: number;
+      balWIP: number;
+      balTime: number;
+      balDisb: number;
+      wipProvision: number;
+      taskCount: number;
+    }>();
+    
+    const overallTotals = {
+      ltdTime: 0,
+      ltdAdj: 0,
+      ltdCost: 0,
+      ltdDisb: 0,
+      ltdFee: 0,
+      ltdHours: 0,
+      balWIP: 0,
+      balTime: 0,
+      balDisb: 0,
+      wipProvision: 0,
+      taskCount: 0,
+    };
+
+    const uniqueMasterCodes = new Set<string>();
+    const taskCountByMaster = new Map<string, Set<string>>();
+
+    spResults.forEach(row => {
+      const masterCode = row.masterCode || 'UNKNOWN';
+      uniqueMasterCodes.add(masterCode);
+      
+      if (!groupedData.has(masterCode)) {
+        groupedData.set(masterCode, {
+          ltdTime: 0,
+          ltdAdj: 0,
+          ltdCost: 0,
+          ltdDisb: 0,
+          ltdFee: 0,
+          ltdHours: 0,
+          balWIP: 0,
+          balTime: 0,
+          balDisb: 0,
+          wipProvision: 0,
+          taskCount: 0,
+        });
+        taskCountByMaster.set(masterCode, new Set());
+      }
+
+      const current = groupedData.get(masterCode)!;
+      const taskSet = taskCountByMaster.get(masterCode)!;
+      
+      // Sum all metrics
+      current.ltdTime += Number(row.LTDTimeCharged || 0);
+      current.ltdAdj += Number(row.LTDAdjustments || 0);
+      current.ltdCost += Number(row.LTDCost || 0);
+      current.ltdDisb += Number(row.LTDDisbCharged || 0);
+      current.ltdFee += Number(row.LTDFeesBilled || 0);
+      current.ltdHours += Number(row.LTDHours || 0);
+      current.balWIP += Number(row.BalWip || 0);
+      current.wipProvision += Number(row.LTDWipProvision || 0);
+      
+      // Track unique tasks per master code
+      taskSet.add(row.GSTaskID);
+      
+      // Calculate balTime and balDisb (matching old logic)
+      current.balTime += Number(row.LTDTimeCharged || 0) + Number(row.LTDAdjustments || 0) - Number(row.LTDFeesBilled || 0);
+      current.balDisb += Number(row.LTDDisbCharged || 0);
+      
+      // Add to overall totals
+      overallTotals.ltdTime += Number(row.LTDTimeCharged || 0);
+      overallTotals.ltdAdj += Number(row.LTDAdjustments || 0);
+      overallTotals.ltdCost += Number(row.LTDCost || 0);
+      overallTotals.ltdDisb += Number(row.LTDDisbCharged || 0);
+      overallTotals.ltdFee += Number(row.LTDFeesBilled || 0);
+      overallTotals.ltdHours += Number(row.LTDHours || 0);
+      overallTotals.balWIP += Number(row.BalWip || 0);
+      overallTotals.wipProvision += Number(row.LTDWipProvision || 0);
+      overallTotals.balTime += Number(row.LTDTimeCharged || 0) + Number(row.LTDAdjustments || 0) - Number(row.LTDFeesBilled || 0);
+      overallTotals.balDisb += Number(row.LTDDisbCharged || 0);
+    });
+
+    // Set task counts
+    taskCountByMaster.forEach((taskSet, masterCode) => {
+      const data = groupedData.get(masterCode);
+      if (data) {
+        data.taskCount = taskSet.size;
+      }
+    });
+    
+    // Count unique tasks overall
+    const allTaskIds = new Set(spResults.map(row => row.GSTaskID));
+    overallTotals.taskCount = allTaskIds.size;
 
     // Fetch Master Service Line names
     const masterServiceLines = await prisma.serviceLineMaster.findMany({
       where: {
         code: {
-          in: Array.from(groupedData.keys()).filter(code => code !== 'UNKNOWN'),
+          in: Array.from(uniqueMasterCodes).filter(code => code !== 'UNKNOWN'),
         },
       },
       select: {
@@ -196,13 +309,6 @@ export const GET = secureRoute.queryWithParams({
     // Calculate overall profitability metrics
     const overall = calculateProfitabilityMetrics(overallTotals);
 
-    // Get the latest update timestamp from transactions
-    const latestWipTransaction = wipTransactions.length > 0
-      ? wipTransactions.reduce((latest, current) =>
-          current.updatedAt > latest.updatedAt ? current : latest
-        )
-      : null;
-
     const responseData = {
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
@@ -213,13 +319,24 @@ export const GET = secureRoute.queryWithParams({
         code: msl.code,
         name: msl.name,
       })),
-      taskCount: taskCount,
-      lastUpdated: latestWipTransaction?.updatedAt || null,
-      // Limit warning: indicates if transaction limit was reached (data may be incomplete)
-      transactionCount: wipTransactions.length,
-      transactionLimit: TRANSACTION_LIMIT,
-      limitReached,
+      taskCount: overallTotals.taskCount,
+      lastUpdated: new Date().toISOString(), // SP doesn't return updatedAt, use current timestamp
+      // Period information
+      period: {
+        mode,
+        fiscalYear,
+        fiscalMonth: fiscalMonthParam,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      },
     };
+
+    logger.info('Client WIP data fetched from SP', {
+      clientCode: client.clientCode,
+      taskCount: overallTotals.taskCount,
+      masterServiceLines: uniqueMasterCodes.size,
+      durationMs: Date.now() - startTime,
+    });
 
     return NextResponse.json(successResponse(responseData));
   },

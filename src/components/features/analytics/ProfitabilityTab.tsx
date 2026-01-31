@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Briefcase, Clock, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
 import { useClientWip, ProfitabilityMetrics } from '@/hooks/clients/useClientWip';
 import { useGroupWip } from '@/hooks/groups/useGroupWip';
+import { getCurrentFiscalPeriod, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 
 interface ProfitabilityTabProps {
   clientId?: string;  // Can be internal ID or GSClientID depending on context
@@ -74,9 +75,27 @@ function ProfitabilityCard({
 }
 
 export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps) {
+  // Fiscal period state
+  const currentFY = getCurrentFiscalPeriod().fiscalYear;
+  const [mode, setMode] = useState<'fiscal' | 'custom'>('fiscal');
+  const [fiscalYear, setFiscalYear] = useState<number>(currentFY);
+  const [fiscalMonth, setFiscalMonth] = useState<string | undefined>();
+  const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
+  const [appliedDates, setAppliedDates] = useState({ start: '', end: '' });
+  
+  // Service line tab state
+  const [activeTab, setActiveTab] = useState<string>('overall');
+
   // Use the appropriate hook based on props - only enable one at a time
   // Priority: clientId takes precedence over groupCode
-  const { data: clientWipData, isLoading: isLoadingClient, error: clientError } = useClientWip(clientId || '', { enabled: !!clientId });
+  const { data: clientWipData, isLoading: isLoadingClient, error: clientError } = useClientWip(clientId || '', { 
+    enabled: !!clientId,
+    fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+    fiscalMonth: mode === 'fiscal' ? fiscalMonth : undefined,
+    startDate: mode === 'custom' && appliedDates.start ? appliedDates.start : undefined,
+    endDate: mode === 'custom' && appliedDates.end ? appliedDates.end : undefined,
+    mode,
+  });
   const { data: groupWipData, isLoading: isLoadingGroup, error: groupError } = useGroupWip(groupCode || '', { enabled: !clientId && !!groupCode });
   
   // Select the appropriate data based on which is available
@@ -84,8 +103,6 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   const isLoading = clientId ? isLoadingClient : isLoadingGroup;
   const error = clientId ? clientError : groupError;
   const entityType = clientId ? 'client' : 'group';
-  
-  const [activeTab, setActiveTab] = useState<string>('overall');
 
   const formatCurrency = (amount: number | null | undefined) => {
     const safeAmount = amount ?? 0;
@@ -153,9 +170,107 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
     );
   }
 
+  // Generate fiscal year options (last 5 years)
+  const fiscalYearOptions = Array.from({ length: 5 }, (_, i) => currentFY - i);
+
+  // Handle custom date range application
+  const handleApplyCustomRange = () => {
+    if (customInputs.start && customInputs.end) {
+      setAppliedDates(customInputs);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
+      {/* Fiscal Year / Date Range Selector */}
+      {clientId && (
+        <div className="card overflow-hidden">
+          <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Mode toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMode('fiscal')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                    mode === 'fiscal'
+                      ? 'bg-white text-forvis-blue-600'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Fiscal Year
+                </button>
+                <button
+                  onClick={() => setMode('custom')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                    mode === 'custom'
+                      ? 'bg-white text-forvis-blue-600'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Custom Range
+                </button>
+              </div>
+
+              {/* Fiscal mode controls */}
+              {mode === 'fiscal' && (
+                <>
+                  <select
+                    value={fiscalYear}
+                    onChange={(e) => setFiscalYear(Number(e.target.value))}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  >
+                    {fiscalYearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        FY {year}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={fiscalMonth || ''}
+                    onChange={(e) => setFiscalMonth(e.target.value || undefined)}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  >
+                    <option value="">Full Year</option>
+                    {FISCAL_MONTHS.map((month) => (
+                      <option key={month} value={month}>
+                        Through {month}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+
+              {/* Custom mode controls */}
+              {mode === 'custom' && (
+                <>
+                  <input
+                    type="month"
+                    value={customInputs.start}
+                    onChange={(e) => setCustomInputs({ ...customInputs, start: e.target.value })}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  />
+                  <span className="text-white text-sm">to</span>
+                  <input
+                    type="month"
+                    value={customInputs.end}
+                    onChange={(e) => setCustomInputs({ ...customInputs, end: e.target.value })}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  />
+                  <button
+                    onClick={handleApplyCustomRange}
+                    disabled={!customInputs.start || !customInputs.end}
+                    className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-forvis-blue-600 hover:bg-white/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Service Line Tab Navigation */}
       <div className="card overflow-hidden">
         <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
           <nav className="flex flex-wrap gap-3">

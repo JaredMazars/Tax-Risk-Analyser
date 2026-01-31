@@ -1,12 +1,16 @@
-# Client Details Page - Stored Procedure Migration
+# Client Details Page - Stored Procedure Migration with Fiscal Year Filtering
 
 **Date:** 2026-01-31  
-**Status:** ✅ Complete  
-**Pattern Reference:** Similar to Recoverability Report migration
+**Status:** ✅ Complete (Updated with Fiscal Year Filters)  
+**Pattern Reference:** Similar to My Reports pages (Profitability and Recoverability)
 
 ## Overview
 
-Replaced inline Prisma queries on the client details page with stored procedure calls for WIP and debtors balances. This migration improves performance by moving complex aggregations to the database layer and follows the established pattern from the recoverability report migration.
+**Phase 1 (Original):** Replaced inline Prisma queries on the client details page with stored procedure calls for WIP and debtors balances.
+
+**Phase 2 (This Update - 2026-01-31):** Added fiscal year filtering capabilities to client analytics (Profitability and Recoverability tabs) matching the My Reports pattern. This allows users to filter data by fiscal year, fiscal month (cumulative YTD), or custom date ranges.
+
+This migration improves performance by moving complex aggregations to the database layer and adds powerful filtering capabilities for period-based analysis.
 
 ## Changes Summary
 
@@ -224,3 +228,104 @@ If issues arise, the inline query version is preserved in git history:
 - ✅ Follows established SP migration pattern
 - ✅ Response format unchanged (backwards compatible)
 - ✅ Proper caching and logging implemented
+
+## Phase 2 Updates: Fiscal Year Filtering (2026-01-31)
+
+### New Features Added
+
+1. **Fiscal Year Filtering UI** - Added to both ProfitabilityTab and RecoverabilityTab
+   - Mode toggle: Fiscal Year | Custom Range
+   - Fiscal year dropdown (last 5 years)
+   - Fiscal month dropdown (cumulative through selected month)
+   - Custom date range inputs (month picker)
+   
+2. **API Query Parameters** - Both `/api/clients/[id]/wip` and `/api/clients/[id]/debtors` now accept:
+   - `fiscalYear` - Fiscal year filter (e.g., 2024)
+   - `fiscalMonth` - Optional fiscal month for cumulative YTD (e.g., 'November')
+   - `mode` - 'fiscal' (default) or 'custom'
+   - `startDate` - Custom range start (ISO string)
+   - `endDate` - Custom range end (ISO string)
+
+3. **Default Behavior** - When no parameters provided, defaults to current fiscal year
+
+4. **Backwards Compatibility** - Client header balances continue to use all-time data via `fetchClientBalancesFromSP()` with dates 1900-01-01 to 2099-12-31
+
+### Files Modified (Phase 2)
+
+#### API Routes
+- `src/app/api/clients/[id]/wip/route.ts` - Added fiscal year parameter parsing and date range calculation
+- `src/app/api/clients/[id]/debtors/route.ts` - Added fiscal year parameter parsing and asOfDate calculation
+
+#### Hooks
+- `src/hooks/clients/useClientWip.ts` - Added fiscal year parameters to interface and query string building
+- `src/hooks/clients/useClientDebtors.ts` - Added fiscal year parameters to interface and query string building
+
+#### UI Components
+- `src/components/features/analytics/ProfitabilityTab.tsx` - Added fiscal year filter UI and state management
+- `src/components/features/analytics/RecoverabilityTab.tsx` - Added fiscal year filter UI and state management
+
+### Testing Verification
+
+#### TypeScript Compilation
+```bash
+✅ npx tsc --noEmit
+Exit code: 0 (Success - No compilation errors)
+```
+
+#### Linter Check
+```bash
+✅ No linter errors found in modified files
+```
+
+#### Backwards Compatibility Verified
+- ✅ Client header endpoint (`/api/clients/[id]`) continues using all-time dates
+- ✅ `fetchClientBalancesFromSP()` correctly uses 1900-01-01 to 2099-12-31
+- ✅ No breaking changes to existing response formats
+
+#### Query Key Caching
+- ✅ React Query keys properly include fiscal parameters for cache invalidation
+- ✅ Different fiscal year/month selections trigger new queries
+- ✅ Cache keys: `[...clientWipKeys.detail(GSClientID), mode, fiscalYear, fiscalMonth, startDate, endDate]`
+
+### User Experience Improvements
+
+1. **Period Analysis** - Users can now analyze profitability and recoverability for specific fiscal periods
+2. **Fiscal YTD** - Cumulative metrics through any fiscal month
+3. **Comparison** - Easy switching between fiscal years for year-over-year analysis
+4. **Flexibility** - Custom date ranges for non-standard periods
+5. **Consistency** - UI matches familiar My Reports pattern
+
+### Performance Impact
+
+- ✅ Stored procedures already optimized for date-filtered queries
+- ✅ Fiscal year filtering reduces data transfer (period vs all-time)
+- ✅ Database indexes support date-range queries
+- ✅ No performance regression observed
+
+### Migration Pattern Reference
+
+This implementation follows the exact pattern used in:
+- `/api/my-reports/profitability/route.ts`
+- `/api/my-reports/recoverability/route.ts`
+- `src/components/features/reports/ProfitabilityReport.tsx`
+- `src/components/features/reports/RecoverabilityReport.tsx`
+
+### Known Limitations
+
+1. **Group Analytics** - Fiscal year filtering only available for client-level analytics (not group-level yet)
+   - Group hooks (`useGroupWip`, `useGroupDebtors`) not updated in this phase
+   - Group analytics pages continue to show all-time data
+   
+2. **Future Enhancement** - Group-level fiscal filtering can be added following the same pattern
+
+### Testing Checklist
+
+- ✅ Default behavior: Page loads with current FY data
+- ✅ Fiscal year selection: Dropdown changes update data
+- ✅ Fiscal month filter: Cumulative YTD calculations work correctly
+- ✅ Custom range: Date pickers and Apply button function properly
+- ✅ Service line tabs: Work correctly with fiscal filters
+- ✅ Client header: Still shows all-time balances (no regression)
+- ✅ TypeScript: No compilation errors
+- ✅ Linter: No warnings or errors
+- ✅ React Query: Cache keys include filter parameters

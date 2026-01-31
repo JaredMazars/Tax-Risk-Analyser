@@ -3,26 +3,39 @@ import { prisma } from '@/lib/db/prisma';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
-import { 
-  aggregateDebtorsByServiceLine, 
-  aggregateOverallDebtorData,
-  DebtorMetrics 
-} from '@/lib/services/analytics/debtorAggregation';
+import { executeRecoverabilityData } from '@/lib/services/reports/storedProcedureService';
+import { getCurrentFiscalPeriod, getFiscalYearRange, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
+import { startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { logger } from '@/lib/utils/logger';
+import type { DebtorMetrics } from '@/lib/services/analytics/debtorAggregation';
 
 /**
  * GET /api/clients/[id]/debtors
  * Get aggregated debtor balances and recoverability metrics for a client
  * 
+ * Query Parameters:
+ * - fiscalYear: number (optional) - Fiscal year filter (e.g., 2024)
+ * - fiscalMonth: string (optional) - Fiscal month name for cumulative through month (e.g., 'November')
+ * - mode: 'fiscal' | 'custom' (optional, defaults to 'fiscal')
+ * - startDate: ISO date string (optional) - For custom date range
+ * - endDate: ISO date string (optional) - For custom date range
+ * 
  * Returns:
  * - Overall debtor metrics (balance, aging, payment days)
  * - Debtor metrics grouped by Master Service Line
  * - Master Service Line information
- * - Transaction count
+ * - Invoice count
  * - Latest update timestamp
+ * - Time period: Fiscal year filtered (defaults to current FY)
+ * 
+ * Note: Uses sp_RecoverabilityData stored procedure for efficient aggregation.
+ * The asOfDate is set to the end of the selected period for aging calculations.
  */
 export const GET = secureRoute.queryWithParams({
   feature: Feature.ACCESS_CLIENTS,
   handler: async (request, { user, params }) => {
+    const startTime = Date.now();
+    
     // Parse and validate GSClientID
     const GSClientID = parseGSClientID(params.id);
 
@@ -41,53 +54,163 @@ export const GET = secureRoute.queryWithParams({
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Fetch debtor transactions and service line mappings in parallel
-    const [debtorTransactions, serviceLineExternals] = await Promise.all([
-      prisma.drsTransactions.findMany({
-        where: { GSClientID },
-        select: {
-          TranDate: true,
-          Total: true,
-          EntryType: true,
-          InvNumber: true,
-          Reference: true,
-          Narration: true,
-          ServLineCode: true,
-          updatedAt: true,
-        },
-        take: 50000, // Reasonable upper bound - prevents unbounded queries
-      }),
-      prisma.serviceLineExternal.findMany({
-        select: {
-          ServLineCode: true,
-          masterCode: true,
-        },
-        take: 1000, // Reasonable limit for service line mappings
-      }),
-    ]);
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const fiscalYearParam = searchParams.get('fiscalYear');
+    const fiscalMonthParam = searchParams.get('fiscalMonth');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+    const mode = (searchParams.get('mode') || 'fiscal') as 'fiscal' | 'custom';
 
-    // Create a map of ServLineCode to masterCode
-    const servLineToMasterMap = new Map<string, string>();
-    serviceLineExternals.forEach((sl) => {
-      if (sl.ServLineCode && sl.masterCode) {
-        servLineToMasterMap.set(sl.ServLineCode, sl.masterCode);
+    // Validate fiscalMonth if provided
+    if (fiscalMonthParam && !FISCAL_MONTHS.includes(fiscalMonthParam)) {
+      throw new AppError(
+        400,
+        `Invalid fiscalMonth parameter. Must be one of: ${FISCAL_MONTHS.join(', ')}`,
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
+
+    // Determine fiscal year and date range
+    const currentFY = getCurrentFiscalPeriod().fiscalYear;
+    const fiscalYear = fiscalYearParam ? parseInt(fiscalYearParam, 10) : currentFY;
+    
+    let asOfDate: Date;
+    
+    if (mode === 'custom' && endDateParam) {
+      // Custom date range - use end date as asOfDate
+      asOfDate = endOfMonth(parseISO(endDateParam));
+    } else {
+      // Fiscal year mode (default)
+      const { end } = getFiscalYearRange(fiscalYear);
+      
+      // If fiscalMonth is provided, use end of that month as asOfDate
+      if (fiscalMonthParam) {
+        asOfDate = getFiscalMonthEndDate(fiscalYear, fiscalMonthParam);
+      } else {
+        asOfDate = end; // End of full fiscal year
       }
+    }
+
+    logger.debug('Fetching client debtors data', {
+      clientCode: client.clientCode,
+      mode,
+      fiscalYear,
+      fiscalMonth: fiscalMonthParam,
+      asOfDate: asOfDate.toISOString(),
     });
 
-    // Aggregate debtor transactions by Master Service Line
-    const groupedData = aggregateDebtorsByServiceLine(
-      debtorTransactions,
-      servLineToMasterMap
-    );
+    // Call stored procedure
+    const spResults = await executeRecoverabilityData({
+      billerCode: '*', // All billers for client view
+      asOfDate,
+      clientCode: client.clientCode,
+    });
 
-    // Calculate overall totals
-    const overall = aggregateOverallDebtorData(debtorTransactions);
+    // Aggregate by masterCode
+    const groupedData = new Map<string, DebtorMetrics>();
+    const overallTotals: DebtorMetrics = {
+      totalBalance: 0,
+      aging: {
+        current: 0,
+        days31_60: 0,
+        days61_90: 0,
+        days91_120: 0,
+        days120Plus: 0,
+      },
+      avgPaymentDaysOutstanding: 0,
+      avgPaymentDaysPaid: 0,
+      invoiceCount: 0,
+      transactionCount: 0,
+    };
+
+    const uniqueMasterCodes = new Set<string>();
+    let totalInvoiceCount = 0;
+    let totalWeightedDaysOutstanding = 0;
+    let totalWeightedDaysPaid = 0;
+    let totalBalanceForDaysOutstanding = 0;
+
+    spResults.forEach(row => {
+      const masterCode = row.MasterServiceLineCode || 'UNKNOWN';
+      uniqueMasterCodes.add(masterCode);
+      
+      if (!groupedData.has(masterCode)) {
+        groupedData.set(masterCode, {
+          totalBalance: 0,
+          aging: {
+            current: 0,
+            days31_60: 0,
+            days61_90: 0,
+            days91_120: 0,
+            days120Plus: 0,
+          },
+          avgPaymentDaysOutstanding: 0,
+          avgPaymentDaysPaid: 0,
+          invoiceCount: 0,
+          transactionCount: 0,
+        });
+      }
+
+      const current = groupedData.get(masterCode)!;
+      
+      // Sum balances
+      const totalBalance = Number(row.TotalBalance || 0);
+      current.totalBalance += totalBalance;
+      current.aging.current += Number(row.AgingCurrent || 0);
+      current.aging.days31_60 += Number(row.Aging31_60 || 0);
+      current.aging.days61_90 += Number(row.Aging61_90 || 0);
+      current.aging.days91_120 += Number(row.Aging91_120 || 0);
+      current.aging.days120Plus += Number(row.Aging120Plus || 0);
+      current.invoiceCount += Number(row.InvoiceCount || 0);
+      current.transactionCount += 1; // Each SP result row represents a client-serviceline combination
+      
+      // Track for weighted average calculation
+      const daysOutstanding = Number(row.AvgDaysOutstanding || 0);
+      if (totalBalance > 0 && daysOutstanding > 0) {
+        totalWeightedDaysOutstanding += daysOutstanding * totalBalance;
+        totalBalanceForDaysOutstanding += totalBalance;
+      }
+      
+      // Add to overall totals
+      overallTotals.totalBalance += totalBalance;
+      overallTotals.aging.current += Number(row.AgingCurrent || 0);
+      overallTotals.aging.days31_60 += Number(row.Aging31_60 || 0);
+      overallTotals.aging.days61_90 += Number(row.Aging61_90 || 0);
+      overallTotals.aging.days91_120 += Number(row.Aging91_120 || 0);
+      overallTotals.aging.days120Plus += Number(row.Aging120Plus || 0);
+      totalInvoiceCount += Number(row.InvoiceCount || 0);
+      overallTotals.transactionCount += 1; // Each SP result row
+    });
+
+    // Calculate weighted average days outstanding for overall
+    overallTotals.avgPaymentDaysOutstanding = totalBalanceForDaysOutstanding > 0 
+      ? totalWeightedDaysOutstanding / totalBalanceForDaysOutstanding 
+      : 0;
+    overallTotals.invoiceCount = totalInvoiceCount;
+    
+    // Calculate weighted average for each master service line
+    groupedData.forEach((data, masterCode) => {
+      const relevantRows = spResults.filter(row => (row.MasterServiceLineCode || 'UNKNOWN') === masterCode);
+      let weightedSum = 0;
+      let totalWeight = 0;
+      
+      relevantRows.forEach(row => {
+        const balance = Number(row.TotalBalance || 0);
+        const days = Number(row.AvgDaysOutstanding || 0);
+        if (balance > 0 && days > 0) {
+          weightedSum += days * balance;
+          totalWeight += balance;
+        }
+      });
+      
+      data.avgPaymentDaysOutstanding = totalWeight > 0 ? weightedSum / totalWeight : 0;
+    });
 
     // Fetch Master Service Line names
     const masterServiceLines = await prisma.serviceLineMaster.findMany({
       where: {
         code: {
-          in: Array.from(groupedData.keys()).filter(code => code !== 'UNKNOWN'),
+          in: Array.from(uniqueMasterCodes).filter(code => code !== 'UNKNOWN'),
         },
       },
       select: {
@@ -103,26 +226,33 @@ export const GET = secureRoute.queryWithParams({
       byMasterServiceLine[masterCode] = data;
     });
 
-    // Get the latest update timestamp from transactions
-    const latestDebtorTransaction = debtorTransactions.length > 0
-      ? debtorTransactions.reduce((latest, current) =>
-          current.updatedAt > latest.updatedAt ? current : latest
-        )
-      : null;
-
     const responseData = {
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       clientName: client.clientNameFull,
-      overall,
+      overall: overallTotals,
       byMasterServiceLine,
       masterServiceLines: masterServiceLines.map(msl => ({
         code: msl.code,
         name: msl.name,
       })),
-      transactionCount: debtorTransactions.length,
-      lastUpdated: latestDebtorTransaction?.updatedAt || null,
+      transactionCount: spResults.length,
+      lastUpdated: new Date().toISOString(), // SP doesn't return updatedAt, use current timestamp
+      // Period information
+      period: {
+        mode,
+        fiscalYear,
+        fiscalMonth: fiscalMonthParam,
+        asOfDate: asOfDate.toISOString(),
+      },
     };
+
+    logger.info('Client debtors data fetched from SP', {
+      clientCode: client.clientCode,
+      invoiceCount: totalInvoiceCount,
+      masterServiceLines: uniqueMasterCodes.size,
+      durationMs: Date.now() - startTime,
+    });
 
     return NextResponse.json(successResponse(responseData));
   },

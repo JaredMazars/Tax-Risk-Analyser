@@ -28,6 +28,11 @@ export interface ClientDebtorData {
 
 export interface UseClientDebtorsParams {
   enabled?: boolean;
+  fiscalYear?: number;
+  fiscalMonth?: string;
+  startDate?: string;
+  endDate?: string;
+  mode?: 'fiscal' | 'custom';
 }
 
 // Re-export types for convenience
@@ -36,17 +41,43 @@ export type { AgingBuckets, DebtorMetrics };
 /**
  * Fetch debtor data for a client
  * Returns aggregated debtor balances, aging analysis, and payment metrics
+ * 
+ * @param GSClientID - Client GUID
+ * @param params - Query parameters including fiscal year filters
+ * @param params.fiscalYear - Fiscal year (e.g., 2024). Defaults to current FY if not provided.
+ * @param params.fiscalMonth - Optional fiscal month name for cumulative through month (e.g., 'November')
+ * @param params.startDate - Start date for custom range (ISO string)
+ * @param params.endDate - End date for custom range (ISO string)
+ * @param params.mode - Filter mode: 'fiscal' (default) or 'custom'
  */
 export function useClientDebtors(
   GSClientID: string,
   params: UseClientDebtorsParams = {}
 ) {
-  const { enabled = true } = params;
+  const { 
+    enabled = true, 
+    fiscalYear, 
+    fiscalMonth,
+    startDate, 
+    endDate, 
+    mode = 'fiscal' 
+  } = params;
 
   return useQuery<ClientDebtorData>({
-    queryKey: clientDebtorsKeys.detail(GSClientID),
+    queryKey: [...clientDebtorsKeys.detail(GSClientID), mode, fiscalYear, fiscalMonth, startDate, endDate],
     queryFn: async () => {
-      const url = `/api/clients/${GSClientID}/debtors`;
+      const queryParams = new URLSearchParams();
+      queryParams.set('mode', mode);
+      
+      if (mode === 'fiscal' && fiscalYear) {
+        queryParams.set('fiscalYear', fiscalYear.toString());
+        if (fiscalMonth) queryParams.set('fiscalMonth', fiscalMonth);
+      } else if (mode === 'custom' && startDate && endDate) {
+        queryParams.set('startDate', startDate);
+        queryParams.set('endDate', endDate);
+      }
+      
+      const url = `/api/clients/${GSClientID}/debtors${queryParams.toString() ? `?${queryParams}` : ''}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch client debtor data');
       

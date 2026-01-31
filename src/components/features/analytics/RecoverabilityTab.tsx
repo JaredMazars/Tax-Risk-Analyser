@@ -5,6 +5,7 @@ import { Banknote, Clock, TrendingUp, AlertTriangle, AlertCircle, CheckCircle } 
 import { useClientDebtors, DebtorMetrics } from '@/hooks/clients/useClientDebtors';
 import { useGroupDebtors } from '@/hooks/groups/useGroupDebtors';
 import { InvoiceDetailsModal } from './InvoiceDetailsModal';
+import { getCurrentFiscalPeriod, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 
 interface RecoverabilityTabProps {
   clientId?: string;  // Can be internal ID or GSClientID depending on context
@@ -170,8 +171,28 @@ function AgingBar({ segments, totalBalance, transactionCount, onSegmentClick }: 
 }
 
 export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProps) {
+  // Fiscal period state
+  const currentFY = getCurrentFiscalPeriod().fiscalYear;
+  const [mode, setMode] = useState<'fiscal' | 'custom'>('fiscal');
+  const [fiscalYear, setFiscalYear] = useState<number>(currentFY);
+  const [fiscalMonth, setFiscalMonth] = useState<string | undefined>();
+  const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
+  const [appliedDates, setAppliedDates] = useState({ start: '', end: '' });
+  
+  // Service line tab and modal state
+  const [activeTab, setActiveTab] = useState<string>('overall');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedBucket, setSelectedBucket] = useState<'current' | 'days31_60' | 'days61_90' | 'days91_120' | 'days120Plus'>('current');
+
   // Use the appropriate hook based on props
-  const { data: clientDebtorData, isLoading: isLoadingClient, error: clientError } = useClientDebtors(clientId || '', { enabled: !!clientId });
+  const { data: clientDebtorData, isLoading: isLoadingClient, error: clientError } = useClientDebtors(clientId || '', { 
+    enabled: !!clientId,
+    fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
+    fiscalMonth: mode === 'fiscal' ? fiscalMonth : undefined,
+    startDate: mode === 'custom' && appliedDates.start ? appliedDates.start : undefined,
+    endDate: mode === 'custom' && appliedDates.end ? appliedDates.end : undefined,
+    mode,
+  });
   const { data: groupDebtorData, isLoading: isLoadingGroup, error: groupError } = useGroupDebtors(groupCode || '', { enabled: !!groupCode });
   
   // Select the appropriate data based on which is available
@@ -179,10 +200,6 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
   const isLoading = clientId ? isLoadingClient : isLoadingGroup;
   const error = clientId ? clientError : groupError;
   const entityType = clientId ? 'client' : 'group';
-  
-  const [activeTab, setActiveTab] = useState<string>('overall');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedBucket, setSelectedBucket] = useState<'current' | 'days31_60' | 'days61_90' | 'days91_120' | 'days120Plus'>('current');
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -246,9 +263,107 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
     days120Plus: (currentMetrics.aging.days120Plus / totalBalance) * 100,
   };
 
+  // Generate fiscal year options (last 5 years)
+  const fiscalYearOptions = Array.from({ length: 5 }, (_, i) => currentFY - i);
+
+  // Handle custom date range application
+  const handleApplyCustomRange = () => {
+    if (customInputs.start && customInputs.end) {
+      setAppliedDates(customInputs);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
+      {/* Fiscal Year / Date Range Selector */}
+      {clientId && (
+        <div className="card overflow-hidden">
+          <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Mode toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMode('fiscal')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                    mode === 'fiscal'
+                      ? 'bg-white text-forvis-blue-600'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Fiscal Year
+                </button>
+                <button
+                  onClick={() => setMode('custom')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                    mode === 'custom'
+                      ? 'bg-white text-forvis-blue-600'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Custom Range
+                </button>
+              </div>
+
+              {/* Fiscal mode controls */}
+              {mode === 'fiscal' && (
+                <>
+                  <select
+                    value={fiscalYear}
+                    onChange={(e) => setFiscalYear(Number(e.target.value))}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  >
+                    {fiscalYearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        FY {year}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={fiscalMonth || ''}
+                    onChange={(e) => setFiscalMonth(e.target.value || undefined)}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  >
+                    <option value="">Full Year</option>
+                    {FISCAL_MONTHS.map((month) => (
+                      <option key={month} value={month}>
+                        Through {month}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+
+              {/* Custom mode controls */}
+              {mode === 'custom' && (
+                <>
+                  <input
+                    type="month"
+                    value={customInputs.start}
+                    onChange={(e) => setCustomInputs({ ...customInputs, start: e.target.value })}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  />
+                  <span className="text-white text-sm">to</span>
+                  <input
+                    type="month"
+                    value={customInputs.end}
+                    onChange={(e) => setCustomInputs({ ...customInputs, end: e.target.value })}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  />
+                  <button
+                    onClick={handleApplyCustomRange}
+                    disabled={!customInputs.start || !customInputs.end}
+                    className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-forvis-blue-600 hover:bg-white/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Service Line Tab Navigation */}
       <div className="card overflow-hidden">
         <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
           <nav className="flex flex-wrap gap-3">
