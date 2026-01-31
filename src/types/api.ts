@@ -337,8 +337,9 @@ export interface ClientDebtorData {
   currentPeriodReceipts: number;
   priorMonthBalance: number;
   invoiceCount: number;
-  avgPaymentDaysOutstanding: number;
-  monthlyReceipts: MonthlyReceiptData[];  // Monthly breakdown for receipts view
+  avgPaymentDaysOutstanding: number;       // Weighted avg days outstanding for unpaid invoices
+  avgPaymentDaysPaid: number | null;       // Weighted avg days to pay for fully paid invoices
+  monthlyReceipts: MonthlyReceiptData[];   // Monthly breakdown for receipts view
 }
 
 // ============================================================================
@@ -431,7 +432,9 @@ export interface DrsLTDResult {
   Aging61_90: number;
   Aging91_120: number;
   Aging120Plus: number;
-  AvgDaysOutstanding: number;
+  // Payment metrics (v2)
+  AvgPaymentDaysPaid: number | null;  // Weighted avg days to pay for fully paid invoices
+  AvgDaysOutstanding: number;         // Weighted avg days outstanding for unpaid invoices
 }
 
 /**
@@ -501,6 +504,7 @@ export function mapDrsLTDToClientDebtor(row: DrsLTDResult): Partial<ClientDebtor
     },
     invoiceCount: row.InvoiceCount,
     avgPaymentDaysOutstanding: row.AvgDaysOutstanding,
+    avgPaymentDaysPaid: row.AvgPaymentDaysPaid,
   };
 }
 

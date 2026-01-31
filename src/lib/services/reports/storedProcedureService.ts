@@ -115,7 +115,8 @@ export async function executeWipMonthly(params: WipMonthlyParams): Promise<WipMo
 }
 
 // ============================================================================
-// DrsLTD - Client-level debtors aggregations for Recoverability
+// DrsLTDv2 - Client-level debtors aggregations for Recoverability
+// High-performance version with payment metrics
 // ============================================================================
 
 export interface DrsLTDParams {
@@ -123,39 +124,42 @@ export interface DrsLTDParams {
   groupCode?: string;
   clientCode?: string;
   billerCode: string;  // Required - filters by Biller
-  dateFrom: Date;
-  dateTo: Date;
-  asOfDate?: Date;  // For aging calculation
+  dateTo: Date;        // LTD up to this date (no dateFrom - always from inception)
+  asOfDate?: Date;     // For aging calculation (defaults to dateTo)
 }
 
 /**
- * Execute DrsLTD stored procedure
- * Returns client-level debtors aggregations with aging buckets
+ * Execute DrsLTDv2 stored procedure
+ * Returns client-level debtors aggregations with aging buckets and payment metrics
+ * 
+ * New in v2:
+ * - AvgPaymentDaysPaid: Weighted average days to pay for fully paid invoices
+ * - Improved invoice matching logic
+ * - Single-pass CTE architecture for better performance
  */
 export async function executeDrsLTD(params: DrsLTDParams): Promise<DrsLTDResult[]> {
   const startTime = Date.now();
   
   try {
     const results = await prisma.$queryRaw<DrsLTDResult[]>`
-      EXEC dbo.DrsLTD 
+      EXEC dbo.DrsLTDv2 
         @ServLineCode = ${params.servLineCode ?? '*'},
         @GroupCode = ${params.groupCode ?? '*'},
         @ClientCode = ${params.clientCode ?? '*'},
         @BillerCode = ${params.billerCode},
-        @DateFrom = ${params.dateFrom},
         @DateTo = ${params.dateTo},
         @AsOfDate = ${params.asOfDate ?? params.dateTo}
     `;
 
-    logger.debug('DrsLTD executed', {
-      params: { ...params, dateFrom: params.dateFrom.toISOString(), dateTo: params.dateTo.toISOString() },
+    logger.debug('DrsLTDv2 executed', {
+      params: { ...params, dateTo: params.dateTo.toISOString() },
       resultCount: results.length,
       durationMs: Date.now() - startTime,
     });
 
     return results;
   } catch (error) {
-    logger.error('DrsLTD execution failed', { params, error });
+    logger.error('DrsLTDv2 execution failed', { params, error });
     throw error;
   }
 }
@@ -397,11 +401,13 @@ export async function fetchProfitabilityFromSP(
 }
 
 /**
- * Fetch recoverability data using DrsLTD stored procedure
+ * Fetch recoverability data using DrsLTDv2 stored procedure
+ * 
+ * Note: DrsLTDv2 always fetches from inception (no dateFrom needed).
+ * The dateTo parameter controls the LTD cutoff, and asOfDate controls aging calculation.
  */
 export async function fetchRecoverabilityFromSP(
   empCode: string,
-  dateFrom: Date,
   dateTo: Date,
   asOfDate?: Date,
   servLineCode?: string
@@ -409,7 +415,6 @@ export async function fetchRecoverabilityFromSP(
   return executeDrsLTD({
     billerCode: empCode,
     servLineCode,
-    dateFrom,
     dateTo,
     asOfDate,
   });

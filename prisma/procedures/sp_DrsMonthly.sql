@@ -8,6 +8,12 @@
 -- Supports both cumulative (running totals within period) and
 -- non-cumulative (monthly values) modes.
 --
+-- KEY FEATURES:
+-- 1. Monthly aggregation by entry type (Invoice, Receipt, Credit Note, etc.)
+-- 2. Cumulative and non-cumulative modes for different chart needs
+-- 3. Net billings calculation for lockup day denominators
+-- 4. Uses WITH (NOLOCK) for read consistency with DrsLTDv2
+--
 -- USED BY:
 -- - My Reports Overview (Collections, Debtors Balance, Lockup Days)
 -- - My Reports Recoverability (Receipts Tab)
@@ -30,9 +36,12 @@ CREATE OR ALTER PROCEDURE [dbo].[DrsMonthly]
     ,@IsCumulative bit            = 1   -- 1 = cumulative, 0 = monthly values
 AS
 
-SET NOCOUNT ON
+SET NOCOUNT ON;
 
+-- ============================================================================
+-- CTE 1: MonthSeries
 -- Generate month series for the date range
+-- ============================================================================
 ;WITH MonthSeries AS (
     SELECT EOMONTH(@DateFrom) AS MonthEnd
     UNION ALL
@@ -40,7 +49,11 @@ SET NOCOUNT ON
     FROM MonthSeries
     WHERE MonthEnd < EOMONTH(@DateTo)
 )
--- Monthly aggregation of DRS transactions
+
+-- ============================================================================
+-- CTE 2: MonthlyDrs
+-- Monthly aggregation of DRS transactions with NOLOCK for performance
+-- ============================================================================
 , MonthlyDrs AS (
     SELECT 
         EOMONTH(d.TranDate) AS MonthEnd
@@ -49,22 +62,25 @@ SET NOCOUNT ON
         ,SUM(CASE WHEN d.EntryType = 'Receipt' THEN ISNULL(d.Total, 0) ELSE 0 END) AS Receipts
         ,SUM(CASE WHEN d.EntryType = 'Journal' THEN ISNULL(d.Total, 0) ELSE 0 END) AS Journals
         ,SUM(CASE WHEN d.EntryType = 'Write Off' THEN ISNULL(d.Total, 0) ELSE 0 END) AS WriteOffs
-        -- Net billings = Invoiced - Credit Notes (excluding receipts and journals)
+        -- Net billings = Invoiced + Credit Notes (credit notes are negative)
         ,SUM(CASE WHEN d.EntryType = 'Invoice' THEN ISNULL(d.Total, 0)
                   WHEN d.EntryType = 'Credit Note' THEN ISNULL(d.Total, 0)
                   ELSE 0 END) AS NetBillings
-        -- Balance change
+        -- Balance change (matches DrsLTDv2 logic)
         ,SUM(CASE WHEN d.EntryType = 'Receipt' THEN 0 - ISNULL(d.Total, 0)
                   WHEN d.EntryType IN ('Invoice', 'Credit Note', 'Journal', 'Write Off') THEN ISNULL(d.Total, 0)
                   ELSE 0 END) AS BalDrsChange
-    FROM DrsTransactions d
+    FROM DrsTransactions d WITH (NOLOCK)
     WHERE d.Biller = @BillerCode
       AND d.TranDate >= @DateFrom
       AND d.TranDate <= @DateTo
-      AND (d.ServLineCode = @ServLineCode OR @ServLineCode = '*')
+      AND (@ServLineCode = '*' OR d.ServLineCode = @ServLineCode)
     GROUP BY EOMONTH(d.TranDate)
 )
--- Join with month series to ensure all months are present
+-- ============================================================================
+-- CTE 3: MonthlyData
+-- Join with month series to ensure all months are present (zero-fill)
+-- ============================================================================
 , MonthlyData AS (
     SELECT 
         ms.MonthEnd
@@ -79,7 +95,9 @@ SET NOCOUNT ON
     LEFT JOIN MonthlyDrs md ON ms.MonthEnd = md.MonthEnd
 )
 
--- Final output based on cumulative flag
+-- ============================================================================
+-- Final SELECT: Apply cumulative windowing if requested
+-- ============================================================================
 SELECT 
     MonthEnd AS Month
     ,CASE WHEN @IsCumulative = 1 

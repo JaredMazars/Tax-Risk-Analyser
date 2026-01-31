@@ -39,7 +39,7 @@ import { fetchRecoverabilityFromSP, executeDrsMonthly } from '@/lib/services/rep
 const USE_STORED_PROCEDURES = process.env.USE_SP_FOR_REPORTS === 'true';
 
 /**
- * Convert DrsLTD SP result to ClientDebtorData format
+ * Convert DrsLTDv2 SP result to ClientDebtorData format
  */
 function mapDrsLTDToClientDebtor(
   row: DrsLTDResult,
@@ -69,6 +69,7 @@ function mapDrsLTDToClientDebtor(
     priorMonthBalance: 0, // Would need separate calculation
     invoiceCount: row.InvoiceCount,
     avgPaymentDaysOutstanding: row.AvgDaysOutstanding,
+    avgPaymentDaysPaid: row.AvgPaymentDaysPaid,
     monthlyReceipts,
   };
 }
@@ -279,12 +280,11 @@ export const GET = secureRoute.query({
       if (USE_STORED_PROCEDURES) {
         logger.info('Using stored procedure implementation for recoverability', { fiscalYear });
         
-        // Fetch aging data from DrsLTD
+        // Fetch aging data from DrsLTDv2 (always from inception, no dateFrom needed)
         const spAgingResults = await fetchRecoverabilityFromSP(
           employee.EmpCode,
-          new Date('1900-01-01'), // From inception
-          endDate,
-          endDate // As of date for aging
+          endDate,         // LTD up to this date
+          endDate          // As of date for aging calculation
         );
 
         // Fetch monthly receipts data for fiscal year
@@ -687,6 +687,7 @@ export const GET = secureRoute.query({
             priorMonthBalance: clientData.priorPeriodBalance,
             invoiceCount,
             avgPaymentDaysOutstanding,
+            avgPaymentDaysPaid: null, // Only available via DrsLTDv2 stored procedure
             monthlyReceipts,
           });
         }
