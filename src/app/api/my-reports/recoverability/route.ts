@@ -482,7 +482,6 @@ export const GET = secureRoute.query({
       );
 
       // 4. Match payments to invoices and calculate balances per client
-      const today = new Date();
       const fiscalMonths = mode === 'fiscal' ? getFiscalYearMonths(fiscalYear) : [];
       
       const clientDataMap = new Map<string, {
@@ -497,7 +496,8 @@ export const GET = secureRoute.query({
         invoices: Map<string, InvoiceData>;
         currentPeriodReceipts: number;
         priorPeriodBalance: number;
-        transactions: { TranDate: Date; Total: number }[];  // Store transactions for monthly calc
+        cumulativeBalance: number;  // Running balance from ALL transactions (matches stored procedure BalDrs)
+        transactions: { TranDate: Date; Total: number; EntryType: string | null }[];  // Store transactions for monthly calc
       }>();
 
       // Group transactions by client and invoice
@@ -518,17 +518,23 @@ export const GET = secureRoute.query({
             invoices: new Map(),
             currentPeriodReceipts: 0,
             priorPeriodBalance: 0,
+            cumulativeBalance: 0,
             transactions: [],
           });
         }
         
-        // Store transaction for monthly calculation
+        // Store transaction for monthly calculation (including EntryType)
         clientDataMap.get(txn.GSClientID)!.transactions.push({
           TranDate: txn.TranDate,
           Total: txn.Total || 0,
+          EntryType: txn.EntryType,
         });
 
         const clientData = clientDataMap.get(txn.GSClientID)!;
+        
+        // Calculate cumulative balance: Total field already has correct sign
+        // Invoices = positive (increase balance), Receipts = negative (decrease balance)
+        clientData.cumulativeBalance += amount;
 
         // Track receipts in current period (negative amounts = payments)
         if (txn.TranDate >= startDate && txn.TranDate <= endDate && amount < 0) {
@@ -545,7 +551,9 @@ export const GET = secureRoute.query({
           if (!clientData.invoices.has(invNumber)) {
             clientData.invoices.set(invNumber, {
               invoiceNumber: invNumber,
-              invoiceDate: amount > 0 ? txn.TranDate : today,
+              // For positive amounts (invoices), use transaction date
+              // For negative amounts (payments), use endDate temporarily - will update when we see the invoice
+              invoiceDate: amount > 0 ? txn.TranDate : endDate,
               originalAmount: amount > 0 ? amount : 0,
               paymentsReceived: 0,
               netBalance: amount,
@@ -556,8 +564,11 @@ export const GET = secureRoute.query({
             const inv = clientData.invoices.get(invNumber)!;
             inv.netBalance += amount;
             
+            // Track original amounts and payments
             if (amount > 0) {
               inv.originalAmount += amount;
+              
+              // ONLY update invoice date for positive transactions (actual invoices)
               if (txn.TranDate < inv.invoiceDate) {
                 inv.invoiceDate = txn.TranDate;
               }
@@ -582,6 +593,15 @@ export const GET = secureRoute.query({
       let totalPriorMonthBalance = 0;
 
       clientDataMap.forEach((clientData, gsClientId) => {
+        // #region agent log
+        const transactionTypeCounts = {};
+        clientData.transactions.forEach(txn => {
+          const type = txn.EntryType || 'Unknown';
+          transactionTypeCounts[type] = (transactionTypeCounts[type] || 0) + 1;
+        });
+        fetch('http://127.0.0.1:7242/ingest/b3aab070-f6ba-47bb-8f83-44bc48c48d0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:594',message:'Client processing start',data:{clientCode:clientData.clientInfo.clientCode,cumulativeBalance:clientData.cumulativeBalance,invoiceCount:clientData.invoices.size,transactionCount:clientData.transactions.length,transactionTypeCounts:transactionTypeCounts},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H6'})}).catch(()=>{});
+        // #endregion
+        
         const aging: AgingBuckets = {
           current: 0,
           days31_60: 0,
@@ -590,26 +610,74 @@ export const GET = secureRoute.query({
           days120Plus: 0,
         };
         
-        let totalBalance = 0;
         let totalDaysOutstanding = 0;
         let invoiceCount = 0;
+        let totalOpenInvoices = 0;
+        let totalNegativeInvoices = 0;
+        let invoicesWithoutNumber = 0;
+        
+        // Identify offsetting invoice pairs (e.g., invoice M0035035 = +138000, reversal BFR0000047 = -138000)
+        // Both should be excluded from aging when they offset each other
+        const amountMap = new Map<number, string[]>();
+        clientData.invoices.forEach((inv, invNumber) => {
+          const amount = inv.netBalance;
+          if (!amountMap.has(amount)) {
+            amountMap.set(amount, []);
+          }
+          amountMap.get(amount)!.push(invNumber);
+        });
+        
+        const excludedInvoices = new Set<string>();
+        amountMap.forEach((invoiceNumbers, amount) => {
+          // Check if there's a matching negative amount
+          const negativeAmount = -amount;
+          if (amount !== 0 && amountMap.has(negativeAmount)) {
+            // Both the positive and negative amounts should be excluded
+            invoiceNumbers.forEach(inv => excludedInvoices.add(inv));
+            amountMap.get(negativeAmount)!.forEach(inv => excludedInvoices.add(inv));
+          }
+        });
 
+        // Calculate aging buckets from open invoices only (positive balances)
+        // Exclude invoices that have offsetting pairs with different invoice numbers
         clientData.invoices.forEach(inv => {
-          // Only count invoices with positive balance
-          if (inv.netBalance > 0) {
-            const daysDiff = Math.floor((today.getTime() - inv.invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
+          // Skip if excluded due to matching offsetting pair
+          if (excludedInvoices.has(inv.invoiceNumber)) {
+            return;
+          }
+          
+          // Age ALL invoices (positive and negative) for aging buckets to reconcile with totalBalance
+          // Negative invoices reduce the aging bucket they fall into
+          if (inv.netBalance !== 0) {
+            // CRITICAL FIX: Use endDate for point-in-time aging (not today)
+            const daysDiff = Math.floor((endDate.getTime() - inv.invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
             const daysOutstanding = Math.max(0, daysDiff);
             const bucket = getAgingBucket(daysOutstanding);
             
             aging[bucket] += inv.netBalance;
             totalAging[bucket] += inv.netBalance;
-            totalBalance += inv.netBalance;
-            totalDaysOutstanding += daysOutstanding * inv.netBalance;
+            totalDaysOutstanding += daysOutstanding * Math.abs(inv.netBalance);
             invoiceCount++;
+            
+            if (inv.netBalance > 0) {
+              totalOpenInvoices += inv.netBalance;
+            } else {
+              totalNegativeInvoices += inv.netBalance;
+            }
           }
         });
 
-        // Calculate average days outstanding (weighted by balance)
+        // Count transactions without invoice numbers
+        clientData.transactions.forEach(txn => {
+          if (!txn.EntryType || txn.EntryType === '') {
+            invoicesWithoutNumber++;
+          }
+        });
+
+        // Total balance = cumulative balance from ALL transactions (matches Monthly Receipts Closing Balance)
+        const totalBalance = clientData.cumulativeBalance;
+
+        // Calculate average days outstanding (weighted by total balance)
         const avgPaymentDaysOutstanding = totalBalance > 0 
           ? totalDaysOutstanding / totalBalance 
           : 0;
@@ -622,6 +690,7 @@ export const GET = secureRoute.query({
         // Calculate monthly receipts for this client
         const monthlyReceipts: MonthlyReceiptData[] = fiscalMonths.map(({ monthStart, monthEnd, label, sortKey }) => {
           // Opening balance = sum of all transactions before month start
+          // Total field already has correct sign (positive = invoice, negative = receipt)
           let openingBalance = 0;
           clientData.transactions.forEach(txn => {
             if (txn.TranDate < monthStart) {
@@ -667,8 +736,23 @@ export const GET = secureRoute.query({
           };
         });
 
-        // Only include clients with balance or activity
-        if (totalBalance > 0 || clientData.currentPeriodReceipts > 0 || clientData.priorPeriodBalance !== 0) {
+        // Comprehensive filtering: Hide clients with ALL zeros
+        // Use small epsilon for floating point comparison
+        const EPSILON = 0.01;
+        
+        // Check if any aging bucket has non-zero values
+        const hasNonZeroAging = 
+          Math.abs(aging.current) > EPSILON ||
+          Math.abs(aging.days31_60) > EPSILON ||
+          Math.abs(aging.days61_90) > EPSILON ||
+          Math.abs(aging.days91_120) > EPSILON ||
+          Math.abs(aging.days120Plus) > EPSILON;
+
+        // Only include clients if they have:
+        // 1. Non-zero total balance (final closing balance), OR
+        // 2. Non-zero aging buckets (open invoices)
+        // NOTE: We don't check historical monthly activity - only final state matters
+        if (Math.abs(totalBalance) > EPSILON || hasNonZeroAging) {
           clients.push({
             GSClientID: gsClientId,
             clientCode: clientData.clientInfo.clientCode,
