@@ -4,9 +4,7 @@ import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse, parseGSClientID } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
-import { getServiceLineMappings } from '@/lib/cache/staticDataCache';
-import { calculateWIPBalances, categorizeTransaction } from '@/lib/services/clients/clientBalanceCalculation';
-import { calculateOpeningBalanceFromAggregates } from '@/lib/services/analytics/openingBalanceCalculator';
+import { executeClientGraphData } from '@/lib/services/reports/storedProcedureService';
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
 
@@ -150,155 +148,129 @@ export const GET = secureRoute.queryWithParams({
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 12);
 
-    // PARALLEL QUERY BATCH: Fetch client and service line mappings simultaneously
-    const [client, servLineToMasterMap] = await Promise.all([
-      prisma.client.findUnique({
-        where: { GSClientID },
-        select: {
-          id: true,
-          GSClientID: true,
-          clientCode: true,
-          clientNameFull: true,
-        },
-      }),
-      getServiceLineMappings(),
-    ]);
+    // Fetch client info for response
+    const client = await prisma.client.findUnique({
+      where: { GSClientID },
+      select: {
+        id: true,
+        GSClientID: true,
+        clientCode: true,
+        clientNameFull: true,
+      },
+    });
 
     if (!client) {
       throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Build where clause for WIPTransactions
-    // Query by GSClientID only - all WIP transactions are properly linked to clients
-    // Uses composite index: idx_wip_gsclientid_trandate_ttype for optimal performance
-    const wipWhereClause = {
+    // Execute stored procedure to get graph data
+    const spResults = await executeClientGraphData({
       GSClientID,
-      TranDate: {
-        gte: startDate,
-        lte: endDate,
-      },
-    };
+      dateFrom: startDate,
+      dateTo: endDate,
+      servLineCode: undefined, // No filtering, get all service lines
+    });
 
-    // Fetch opening balance transactions (before the 12-month period)
-    const openingWhereClause = {
-      GSClientID,
-      TranDate: {
-        lt: startDate,
-      },
-    };
-
-    // PARALLEL QUERY BATCH: Fetch opening balance aggregates and current period transaction aggregates simultaneously
-    // OPTIMIZATION: Use database aggregation for both opening balance AND period transactions
-    const [openingBalanceAggregates, periodTransactionAggregates] = await Promise.all([
-      prisma.wIPTransactions.groupBy({
-        by: ['TType', 'TaskServLine'],
-        where: openingWhereClause,
-        _sum: {
-          Amount: true,
-        },
-      }),
-      prisma.wIPTransactions.groupBy({
-        by: ['TranDate', 'TType', 'TaskServLine'],
-        where: wipWhereClause,
-        _sum: {
-          Amount: true,
-        },
-        orderBy: {
-          TranDate: 'asc',
-        },
-        // No take limit needed - aggregating by day/type, not individual transactions
-      }),
-    ]);
-
-    // Log aggregate counts for debugging
-    logger.info('Client graphs aggregates fetched', {
+    // Log SP execution results
+    logger.info('Client graphs data fetched from SP', {
       GSClientID,
       clientCode: client.clientCode,
-      periodAggregates: periodTransactionAggregates.length,
-      openingAggregates: openingBalanceAggregates.length,
+      resultCount: spResults.length,
       dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
     });
 
-    // Group opening balance aggregates by Master Service Line
-    const openingAggregatesByMasterServiceLine = new Map<string, typeof openingBalanceAggregates>();
-    openingBalanceAggregates.forEach((agg) => {
-      const masterCode = servLineToMasterMap.get(agg.TaskServLine) || 'UNKNOWN';
-      const existing = openingAggregatesByMasterServiceLine.get(masterCode) || [];
-      existing.push(agg);
-      openingAggregatesByMasterServiceLine.set(masterCode, existing);
-    });
-
-    // Calculate opening WIP balance per service line
+    // Transform SP results to DailyMetrics format
+    // Group by masterCode and date
+    const overallDailyMap = new Map<string, DailyMetrics>();
+    const byMasterServiceLineMap = new Map<string, Map<string, DailyMetrics>>();
+    const masterServiceLinesSet = new Set<{ code: string; name: string }>();
+    
+    let overallOpeningBalance = 0;
     const openingBalancesByServiceLine = new Map<string, number>();
-    openingAggregatesByMasterServiceLine.forEach((aggs, masterCode) => {
-      openingBalancesByServiceLine.set(masterCode, calculateOpeningBalanceFromAggregates(aggs));
+
+    spResults.forEach((row) => {
+      const dateKey = row.TranDate.toISOString().split('T')[0]!;
+      const masterCode = row.masterCode || 'UNKNOWN';
+      
+      // Store opening balance (same for all rows from SP)
+      if (overallOpeningBalance === 0) {
+        overallOpeningBalance = row.OpeningBalance;
+      }
+      
+      // Track opening balance per service line (first row for each masterCode)
+      if (!openingBalancesByServiceLine.has(masterCode)) {
+        openingBalancesByServiceLine.set(masterCode, row.OpeningBalance);
+      }
+
+      // Track master service lines
+      if (row.masterCode && row.masterServiceLineName) {
+        masterServiceLinesSet.add({ code: row.masterCode, name: row.masterServiceLineName });
+      }
+
+      // Aggregate for overall
+      if (!overallDailyMap.has(dateKey)) {
+        overallDailyMap.set(dateKey, {
+          date: dateKey,
+          production: 0,
+          adjustments: 0,
+          disbursements: 0,
+          billing: 0,
+          provisions: 0,
+          wipBalance: 0,
+        });
+      }
+      const overallDaily = overallDailyMap.get(dateKey)!;
+      overallDaily.production += row.Production;
+      overallDaily.adjustments += row.Adjustments;
+      overallDaily.disbursements += row.Disbursements;
+      overallDaily.billing += row.Billing;
+      overallDaily.provisions += row.Provisions;
+
+      // Aggregate by master service line
+      if (!byMasterServiceLineMap.has(masterCode)) {
+        byMasterServiceLineMap.set(masterCode, new Map());
+      }
+      const serviceLineMap = byMasterServiceLineMap.get(masterCode)!;
+      if (!serviceLineMap.has(dateKey)) {
+        serviceLineMap.set(dateKey, {
+          date: dateKey,
+          production: 0,
+          adjustments: 0,
+          disbursements: 0,
+          billing: 0,
+          provisions: 0,
+          wipBalance: 0,
+        });
+      }
+      const serviceLineDaily = serviceLineMap.get(dateKey)!;
+      serviceLineDaily.production += row.Production;
+      serviceLineDaily.adjustments += row.Adjustments;
+      serviceLineDaily.disbursements += row.Disbursements;
+      serviceLineDaily.billing += row.Billing;
+      serviceLineDaily.provisions += row.Provisions;
     });
 
-    // Calculate overall opening WIP balance from all aggregates
-    const openingWipBalance = calculateOpeningBalanceFromAggregates(openingBalanceAggregates);
-
-    // Helper function to aggregate transactions from database aggregates
-    const aggregateTransactions = (aggregates: typeof periodTransactionAggregates, openingBalance: number = 0) => {
-      const dailyMap = new Map<string, DailyMetrics>();
+    // Helper function to calculate cumulative WIP and summaries
+    const finalizeDailyMetrics = (dailyMap: Map<string, DailyMetrics>, openingBalance: number): ServiceLineGraphData => {
+      const sortedMetrics = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+      
+      let cumulativeBalance = openingBalance;
       let totalProduction = 0;
       let totalAdjustments = 0;
       let totalDisbursements = 0;
       let totalBilling = 0;
       let totalProvisions = 0;
 
-      aggregates.forEach((agg) => {
-        const amount = agg._sum.Amount || 0;
-        const dateKey = agg.TranDate.toISOString().split('T')[0] as string; // YYYY-MM-DD (always defined)
-        
-        // Get or create daily entry
-        if (!dailyMap.has(dateKey)) {
-          dailyMap.set(dateKey, {
-            date: dateKey,
-            production: 0,
-            adjustments: 0,
-            disbursements: 0,
-            billing: 0,
-            provisions: 0,
-            wipBalance: 0,
-          });
-        }
-        
-        const daily = dailyMap.get(dateKey)!; // Safe to assert - we just created it if it didn't exist
-
-        // Categorize using exact TType matching
-        const category = categorizeTransaction(agg.TType);
-
-        if (category.isTime) {
-          daily.production += amount;
-          totalProduction += amount;
-        } else if (category.isAdjustment) {
-          daily.adjustments += amount;
-          totalAdjustments += amount;
-        } else if (category.isDisbursement) {
-          daily.disbursements += amount;
-          totalDisbursements += amount;
-        } else if (category.isFee) {
-          daily.billing += amount;
-          totalBilling += amount;
-        } else if (category.isProvision) {
-          daily.provisions += amount;
-          totalProvisions += amount;
-        }
-        // No default case needed - categorization is comprehensive
-      });
-
-      // Convert map to sorted array
-      const sortedDailyMetrics = Array.from(dailyMap.values()).sort((a, b) => 
-        a.date.localeCompare(b.date)
-      );
-
-      // Calculate cumulative WIP balance for each day
-      // Start from opening balance (WIP balance at the beginning of the period)
-      // WIP Balance = Opening Balance + Production + Adjustments + Disbursements + Provisions - Billing
-      let cumulativeBalance = openingBalance;
-      const dailyMetrics = sortedDailyMetrics.map((daily) => {
+      const dailyMetrics = sortedMetrics.map((daily) => {
         const dailyWipChange = daily.production + daily.adjustments + daily.disbursements + daily.provisions - daily.billing;
         cumulativeBalance += dailyWipChange;
+        
+        totalProduction += daily.production;
+        totalAdjustments += daily.adjustments;
+        totalDisbursements += daily.disbursements;
+        totalBilling += daily.billing;
+        totalProvisions += daily.provisions;
+
         return {
           ...daily,
           wipBalance: cumulativeBalance,
@@ -318,38 +290,18 @@ export const GET = secureRoute.queryWithParams({
       };
     };
 
-    // Aggregate overall data with opening balance
-    const overall = aggregateTransactions(periodTransactionAggregates, openingWipBalance);
+    // Finalize overall data
+    const overall = finalizeDailyMetrics(overallDailyMap, overallOpeningBalance);
 
-    // Group aggregates by Master Service Line
-    const aggregatesByMasterServiceLine = new Map<string, typeof periodTransactionAggregates>();
-    periodTransactionAggregates.forEach((agg) => {
-      const masterCode = servLineToMasterMap.get(agg.TaskServLine) || 'UNKNOWN';
-      const existing = aggregatesByMasterServiceLine.get(masterCode) || [];
-      existing.push(agg);
-      aggregatesByMasterServiceLine.set(masterCode, existing);
-    });
-
-    // Aggregate by Master Service Line with service-line-specific opening balances
+    // Finalize by master service line
     const byMasterServiceLine: Record<string, ServiceLineGraphData> = {};
-    aggregatesByMasterServiceLine.forEach((aggs, masterCode) => {
+    byMasterServiceLineMap.forEach((dailyMap, masterCode) => {
       const serviceLineOpeningBalance = openingBalancesByServiceLine.get(masterCode) || 0;
-      byMasterServiceLine[masterCode] = aggregateTransactions(aggs, serviceLineOpeningBalance);
+      byMasterServiceLine[masterCode] = finalizeDailyMetrics(dailyMap, serviceLineOpeningBalance);
     });
 
-    // Fetch Master Service Line names
-    const masterServiceLines = await prisma.serviceLineMaster.findMany({
-      where: {
-        code: {
-          in: Array.from(aggregatesByMasterServiceLine.keys()).filter(code => code !== 'UNKNOWN'),
-        },
-      },
-      select: {
-        code: true,
-        name: true,
-      },
-      take: 100,
-    });
+    // Convert master service lines set to array
+    const masterServiceLines = Array.from(masterServiceLinesSet);
 
     // Apply downsampling to reduce payload size
     const downsampledOverall = {
@@ -379,8 +331,8 @@ export const GET = secureRoute.queryWithParams({
       })),
     };
 
-    // Cache for 2 hours (7200 seconds) - increased for better performance
-    await cache.set(cacheKey, responseData, 7200);
+    // Cache for 10 minutes (600 seconds) - balance between performance and data freshness
+    await cache.set(cacheKey, responseData, 600);
 
     // Audit log for analytics access
     logger.info('Client analytics graphs generated', {
@@ -388,7 +340,7 @@ export const GET = secureRoute.queryWithParams({
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       resolution: queryParams.resolution,
-      periodAggregateGroups: periodTransactionAggregates.length,
+      spResultCount: spResults.length,
       dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
     });
 

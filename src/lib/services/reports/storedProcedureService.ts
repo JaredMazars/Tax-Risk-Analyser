@@ -520,3 +520,104 @@ export async function executeRecoverabilityMonthly(
     throw error;
   }
 }
+
+// ============================================================================
+// Graph Data - Daily WIP transaction metrics for analytics graphs
+// ============================================================================
+
+export interface GraphDataParams {
+  dateFrom: Date;
+  dateTo: Date;
+  servLineCode?: string;
+}
+
+export interface ClientGraphDataParams extends GraphDataParams {
+  GSClientID: string;
+}
+
+export interface GroupGraphDataParams extends GraphDataParams {
+  groupCode: string;
+}
+
+export interface GraphDataResult {
+  TranDate: Date;
+  ServLineCode: string;
+  masterCode: string | null;
+  masterServiceLineName: string | null;
+  Production: number;
+  Adjustments: number;
+  Disbursements: number;
+  Billing: number;
+  Provisions: number;
+  OpeningBalance: number;
+}
+
+/**
+ * Execute sp_ClientGraphData stored procedure
+ * Returns daily WIP transaction metrics for a single client
+ */
+export async function executeClientGraphData(
+  params: ClientGraphDataParams
+): Promise<GraphDataResult[]> {
+  const startTime = Date.now();
+  
+  try {
+    const results = await prisma.$queryRaw<GraphDataResult[]>`
+      EXEC dbo.sp_ClientGraphData
+        @GSClientID = ${params.GSClientID},
+        @DateFrom = ${params.dateFrom},
+        @DateTo = ${params.dateTo},
+        @ServLineCode = ${params.servLineCode ?? '*'}
+    `;
+
+    logger.debug('sp_ClientGraphData executed', {
+      params: { 
+        ...params, 
+        dateFrom: params.dateFrom.toISOString(),
+        dateTo: params.dateTo.toISOString()
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_ClientGraphData execution failed', { params, error });
+    throw error;
+  }
+}
+
+/**
+ * Execute sp_GroupGraphData stored procedure
+ * Returns daily WIP transaction metrics aggregated across all clients in a group
+ */
+export async function executeGroupGraphData(
+  params: GroupGraphDataParams
+): Promise<GraphDataResult[]> {
+  const startTime = Date.now();
+  
+  try {
+    const results = await prisma.$queryRaw<GraphDataResult[]>`
+      EXEC dbo.sp_GroupGraphData
+        @GroupCode = ${params.groupCode},
+        @DateFrom = ${params.dateFrom},
+        @DateTo = ${params.dateTo},
+        @ServLineCode = ${params.servLineCode ?? '*'}
+    `;
+
+    logger.debug('sp_GroupGraphData executed', {
+      params: { 
+        ...params, 
+        dateFrom: params.dateFrom.toISOString(),
+        dateTo: params.dateTo.toISOString()
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_GroupGraphData execution failed', { params, error });
+    throw error;
+  }
+}

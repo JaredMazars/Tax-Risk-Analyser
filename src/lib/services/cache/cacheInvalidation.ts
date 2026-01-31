@@ -157,6 +157,29 @@ export async function invalidateAnalyticsCache(
 }
 
 /**
+ * Invalidate graph caches for a specific client or all clients
+ * Use this when WIP transactions change or stored procedures are updated
+ * 
+ * @param clientId - Optional GSClientID to invalidate specific client's graph caches
+ */
+export async function invalidateGraphCache(clientId?: string): Promise<void> {
+  try {
+    if (clientId) {
+      // Invalidate all resolution variations for specific client
+      await cache.invalidatePattern(`${CACHE_PREFIXES.ANALYTICS}graphs:${clientId}:*`);
+      logger.debug('Graph cache invalidated for client', { clientId });
+    } else {
+      // Invalidate all graph caches (use after stored procedure updates)
+      await cache.invalidatePattern(`${CACHE_PREFIXES.ANALYTICS}graphs:*`);
+      logger.info('Graph cache invalidated for all clients');
+    }
+  } catch (error) {
+    logger.error('Failed to invalidate graph cache', { clientId, error });
+    // Silent fail - cache invalidation errors are not critical
+  }
+}
+
+/**
  * Invalidate approvals cache
  * Use this when approvals are created, resolved, or when data affecting approvals changes
  */

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Profitability Data Stored Procedure (v2.0)
+-- Profitability Data Stored Procedure (v3.0)
 -- Full profitability metrics including Cost, Hours, and Adjustments
 -- ============================================================================
 --
@@ -8,12 +8,16 @@
 --
 -- OPTIMIZED: Uses temp table instead of nested CTEs for faster compilation
 --
--- CRITICAL ACCOUNTING LOGIC:
---   - BalWip and NetWIP are BALANCE SHEET accounts (cumulative AS OF @DateTo)
---   - LTD* metrics are P&L items filtered by date range (@DateFrom to @DateTo)
---   - All values calculated based on transactions through the end date
+-- CRITICAL ACCOUNTING LOGIC (MATCHES GRAPH CALCULATIONS):
+--   - OpeningBalance: WIP balance BEFORE @DateFrom (same as graph opening balance)
+--   - BalWip: OpeningBalance + Period Activity (T + D + ADJ + F within date range)
+--   - NetWIP: BalWip + Period Provisions (P within date range)
+--   - LTD* metrics: P&L items filtered by date range (@DateFrom to @DateTo)
 --
 -- RETURNS: Task-level WIP and profitability metrics with calculated fields:
+--   
+--   OPENING BALANCE (before @DateFrom):
+--   - OpeningBalance: WIP balance before period start (T + D + ADJ + F + P < @DateFrom)
 --   
 --   PERIOD-SPECIFIC (filtered by @DateFrom/@DateTo):
 --   - LTDTimeCharged, LTDDisbCharged, LTDFeesBilled (period P&L)
@@ -21,9 +25,9 @@
 --   - LTDHours, LTDCost (period costs, excludes CARL employee category)
 --   - NetRevenue, GrossProfit (period calculated fields)
 --   
---   BALANCE AS OF @DateTo (cumulative through end date):
---   - BalWip = T + D + ADJ + F (balance as of end date)
---   - NetWIP = T + D + ADJ + F + P (balance as of end date, after provisions)
+--   ENDING BALANCES (Opening + Period Activity):
+--   - BalWip = OpeningBalance + LTDTimeCharged + LTDDisbCharged - LTDFeesBilled + LTDAdjustments
+--   - NetWIP = BalWip + LTDWipProvision
 --
 -- USAGE:
 -- Run this script in SQL Server Management Studio or execute via Prisma
@@ -86,8 +90,8 @@ WHERE (t.ServLineCode = @ServLineCode OR @ServLineCode = '*')
 CREATE CLUSTERED INDEX IX_Tasks_GSTaskID ON #Tasks (GSTaskID)
 
 -- Step 2: Aggregate WIP transactions and join with tasks
--- CRITICAL: BalWip and NetWIP are BALANCE SHEET accounts - always life-to-date
--- Period metrics (LTDTimeCharged, LTDCost, etc.) are filtered by date range
+-- CRITICAL: Matches graph calculation logic
+-- Opening balance (before period) + Period activity = Ending balance
 SELECT 
     t.clientCode
     ,t.clientNameFull
@@ -109,6 +113,13 @@ SELECT
     ,t.SubServlineGroupDesc
     ,t.masterServiceLineName
     
+    -- Opening balance (transactions BEFORE @DateFrom) - matches graph opening balance
+    ,SUM(CASE WHEN w.TType = 'T' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'D' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'F' AND w.TranDate < @DateFrom THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'P' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END) AS OpeningBalance
+    
     -- Period-specific metrics (P&L items within date range)
     ,SUM(CASE WHEN w.TType = 'T' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END) AS LTDTimeCharged
     ,SUM(CASE WHEN w.TType = 'D' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END) AS LTDDisbCharged
@@ -118,16 +129,28 @@ SELECT
     ,SUM(CASE WHEN w.TType = 'T' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Hour, 0) ELSE 0 END) AS LTDHours
     ,SUM(CASE WHEN w.TType != 'P' AND (e.EmpCatCode IS NULL OR e.EmpCatCode != 'CARL') AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Cost, 0) ELSE 0 END) AS LTDCost
     
-    -- WIP balance AS OF end date (cumulative through @DateTo)
-    ,SUM(CASE WHEN w.TType = 'T' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-     + SUM(CASE WHEN w.TType = 'D' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-     + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-     + SUM(CASE WHEN w.TType = 'F' AND w.TranDate <= @DateTo THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END) AS BalWip
-    ,SUM(CASE WHEN w.TType = 'T' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-     + SUM(CASE WHEN w.TType = 'D' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-     + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-     + SUM(CASE WHEN w.TType = 'F' AND w.TranDate <= @DateTo THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END)
-     + SUM(CASE WHEN w.TType = 'P' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END) AS NetWIP
+    -- Ending balances (Opening + Period Activity)
+    -- BalWip = Opening + Time + Disb + Adj - Fees (within period)
+    ,SUM(CASE WHEN w.TType = 'T' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'D' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'F' AND w.TranDate < @DateFrom THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'P' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'T' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'D' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'F' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END) AS BalWip
+    -- NetWIP = BalWip + Period Provisions
+    ,SUM(CASE WHEN w.TType = 'T' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'D' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'F' AND w.TranDate < @DateFrom THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'P' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'T' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'D' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'F' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END)
+     + SUM(CASE WHEN w.TType = 'P' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END) AS NetWIP
     
     -- Period-specific calculated fields
     ,SUM(CASE WHEN w.TType = 'T' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
@@ -162,14 +185,14 @@ GROUP BY
 HAVING 
     -- Exclude tasks without master service line mapping
     t.masterCode IS NOT NULL
-    -- Exclude tasks where ALL amounts are zero (balance AND period activity)
+    -- Exclude tasks where ALL amounts are zero (opening balance AND period activity)
     AND (
-        -- Check if any balance exists (as of end date)
-        ABS(SUM(CASE WHEN w.TType = 'T' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-         + SUM(CASE WHEN w.TType = 'D' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-         + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)
-         + SUM(CASE WHEN w.TType = 'F' AND w.TranDate <= @DateTo THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END)
-         + SUM(CASE WHEN w.TType = 'P' AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)) > 0.01
+        -- Check if any opening balance exists (before period)
+        ABS(SUM(CASE WHEN w.TType = 'T' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+         + SUM(CASE WHEN w.TType = 'D' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+         + SUM(CASE WHEN w.TType = 'ADJ' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)
+         + SUM(CASE WHEN w.TType = 'F' AND w.TranDate < @DateFrom THEN 0 - ISNULL(w.Amount, 0) ELSE 0 END)
+         + SUM(CASE WHEN w.TType = 'P' AND w.TranDate < @DateFrom THEN ISNULL(w.Amount, 0) ELSE 0 END)) > 0.01
         -- OR check if any period activity exists (within date range)
         OR ABS(SUM(CASE WHEN w.TType = 'T' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)) > 0.01
         OR ABS(SUM(CASE WHEN w.TType = 'D' AND w.TranDate >= @DateFrom AND w.TranDate <= @DateTo THEN ISNULL(w.Amount, 0) ELSE 0 END)) > 0.01

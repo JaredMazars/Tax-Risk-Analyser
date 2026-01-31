@@ -64,6 +64,9 @@ tests/
 *~
 *.sublime-*
 
+# MCP servers (development only)
+@mcp-servers/
+
 # OS
 .DS_Store
 Thumbs.db

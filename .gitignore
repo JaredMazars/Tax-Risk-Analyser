@@ -56,3 +56,6 @@ uploads/
 #scripts
 scripts/archive/
 scripts
+
+# MCP servers (development only)
+@mcp-servers/
