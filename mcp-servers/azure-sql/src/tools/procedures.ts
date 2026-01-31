@@ -128,7 +128,7 @@ export function registerStoredProcedureTools(server: McpServer) {
         const result = await request.execute(procedureName);
 
         const procResult: StoredProcedureResult = {
-          recordsets: result.recordsets,
+          recordsets: result.recordsets as unknown[][],
           rowsAffected: result.rowsAffected,
           returnValue: result.returnValue,
         };

@@ -9,7 +9,7 @@ import { invalidateClientListCache } from '@/lib/services/cache/listCache';
 import { enrichRecordsWithEmployeeNames } from '@/lib/services/employees/employeeQueries';
 import { enrichEmployeesWithStatus } from '@/lib/services/employees/employeeStatusService';
 import { enrichObjectsWithEmployeeStatus } from '@/lib/services/employees/employeeStatusService';
-import { calculateWIPByTask, calculateWIPBalances } from '@/lib/services/clients/clientBalanceCalculation';
+import { fetchClientBalancesFromSP } from '@/lib/services/clients/clientBalanceService';
 import { secureRoute } from '@/lib/api/secureRoute';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
@@ -140,75 +140,50 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 
     const taskGSTaskIDs = tasks.map(t => t.GSTaskID);
     
-    // Optimized WIP query with caching and performance logging
-    // Uses UNION ALL instead of OR for better index utilization with covering indexes
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-wip-by-task:${client.GSClientID}:${taskPage}:${taskLimit}`;
-    let wipTransactions: Array<{ GSTaskID: string; Amount: number | null; TType: string }> = [];
+    // Fetch WIP and debtors balances using stored procedures
+    // Replaces inline Prisma queries with sp_ProfitabilityData and sp_RecoverabilityData
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}client-balances-sp:${client.clientCode}`;
     
     // Try cache first
-    const cachedWip = await cache.get<typeof wipTransactions>(cacheKey);
-    if (cachedWip) {
-      wipTransactions = cachedWip;
-      logger.info('Client WIP query served from cache', {
-        GSClientID: client.GSClientID,
-        taskCount: taskGSTaskIDs.length,
-        cached: true,
-      });
-    } else if (taskGSTaskIDs.length > 0) {
-      // Performance tracking
-      const wipQueryStart = Date.now();
+    const cachedBalances = await cache.get<{ wipByTask: Array<[string, any]>; clientWipBalances: any; debtorBalance: number }>(cacheKey);
+    let wipByTask: Map<string, any>;
+    let clientWipBalances: any;
+    let debtorBalance: number;
+    
+    if (cachedBalances) {
+      // Deserialize Map from cache (stored as array of entries)
+      wipByTask = new Map(cachedBalances.wipByTask);
+      clientWipBalances = cachedBalances.clientWipBalances;
+      debtorBalance = cachedBalances.debtorBalance;
       
-      // OPTIMIZED QUERY: UNION ALL approach (uses covering indexes efficiently)
-      // This replaces the old OR query which caused table scans
-      // Path 1: Get transactions directly linked to client (uses idx_wip_gsclientid_covering)
-      // Path 2: Get transactions linked only via task (uses idx_wip_gstaskid_covering)
-      //         Excludes duplicates by filtering out rows already captured in Path 1
-      const [clientTransactions, taskOnlyTransactions] = await Promise.all([
-        // Path 1: Direct client link (uses idx_wip_gsclientid_covering)
-        prisma.wIPTransactions.findMany({
-          where: { GSClientID: client.GSClientID },
-          select: { GSTaskID: true, Amount: true, TType: true },
-        }),
-        
-        // Path 2: Task-only link with NULL/different GSClientID (uses idx_wip_gstaskid_covering)
-        // CRITICAL: This captures billing fees that may only be linked via GSTaskID
-        prisma.wIPTransactions.findMany({
-          where: { 
-            GSTaskID: { in: taskGSTaskIDs },
-            // Exclude rows already captured by GSClientID query (prevent duplicates)
-            OR: [
-              { GSClientID: null },
-              { GSClientID: { not: client.GSClientID } }
-            ]
-          },
-          select: { GSTaskID: true, Amount: true, TType: true },
-        }),
-      ]);
-      
-      // Combine results (equivalent to UNION ALL in SQL)
-      wipTransactions = [...clientTransactions, ...taskOnlyTransactions];
-      
-      const wipQueryDuration = Date.now() - wipQueryStart;
-      
-      // Performance logging
-      logger.info('Client WIP query completed', {
+      logger.info('Client balances served from cache', {
         GSClientID: client.GSClientID,
         clientCode: client.clientCode,
         taskCount: taskGSTaskIDs.length,
-        transactionCount: wipTransactions.length,
-        clientTxnCount: clientTransactions.length,
-        taskOnlyTxnCount: taskOnlyTransactions.length,
-        durationMs: wipQueryDuration,
-        queryType: 'union-all-optimized',
-        cached: false,
+        cached: true,
+        source: 'stored-procedures',
+      });
+    } else {
+      // Fetch from stored procedures
+      const balances = await fetchClientBalancesFromSP({
+        clientCode: client.clientCode,
+        taskGSTaskIDs,
+        dateFrom: undefined, // No date filter = full history
+        dateTo: undefined,
       });
       
+      wipByTask = balances.wipByTask;
+      clientWipBalances = balances.clientWipBalances;
+      debtorBalance = balances.debtorBalance;
+      
       // Cache for 5 minutes (300 seconds)
-      // WIP data changes infrequently (nightly sync), so short-term caching is safe
-      await cache.set(cacheKey, wipTransactions, 300);
+      // Serialize Map to array for JSON storage
+      await cache.set(cacheKey, {
+        wipByTask: Array.from(wipByTask.entries()),
+        clientWipBalances,
+        debtorBalance,
+      }, 300);
     }
-
-    const wipByTask = calculateWIPByTask(wipTransactions);
 
     const tasksWithMasterServiceLine = tasks.map(task => {
       const masterCode = serviceLineMapping[task.ServLineCode] || null;
@@ -266,17 +241,10 @@ export const GET = secureRoute.queryWithParams<{ id: string }>({
 
     const enrichedClient = enrichedClients[0]!;
 
-    const clientWipBalances = calculateWIPBalances(wipTransactions);
-
-    const debtorAggregation = await prisma.drsTransactions.aggregate({
-      where: { GSClientID: client.GSClientID },
-      _sum: { Total: true },
-    });
-
     const responseData = {
       ...enrichedClient,
       tasks: enrichedTasksWithStatus,
-      balances: { ...clientWipBalances, debtorBalance: debtorAggregation._sum.Total || 0 },
+      balances: { ...clientWipBalances, debtorBalance },
       _count: { Task: totalAcrossAllServiceLines },
       taskPagination: { page: taskPage, limit: taskLimit, total: totalTasks, totalPages: Math.ceil(totalTasks / taskLimit) },
       taskCountsByServiceLine,

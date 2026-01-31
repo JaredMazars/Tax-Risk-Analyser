@@ -72,7 +72,7 @@ SET @AsOfDate = ISNULL(@AsOfDate, GETDATE())
         ,ISNULL(sle.SubServlineGroupDesc, '') AS SubServlineGroupDesc
     FROM DrsTransactions d WITH (NOLOCK)
     LEFT JOIN ServiceLineExternal sle ON d.ServLineCode = sle.ServLineCode
-    WHERE d.Biller = @BillerCode
+    WHERE (@BillerCode = '*' OR d.Biller = @BillerCode)
       AND d.TranDate <= @AsOfDate
       AND (@ClientCode = '*' OR d.ClientCode = @ClientCode)
       AND (@ServLineCode = '*' OR d.ServLineCode = @ServLineCode)

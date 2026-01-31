@@ -355,16 +355,19 @@ export const GET = secureRoute.query({
             existing.invoiceCount += row.InvoiceCount;
             
             // Aggregate monthly receipt entry (only one entry per client)
-            existing.monthlyReceipts[0].openingBalance += syntheticMonthlyReceipt.openingBalance;
-            existing.monthlyReceipts[0].receipts += syntheticMonthlyReceipt.receipts;
-            existing.monthlyReceipts[0].billings += syntheticMonthlyReceipt.billings;
-            existing.monthlyReceipts[0].closingBalance += syntheticMonthlyReceipt.closingBalance;
-            existing.monthlyReceipts[0].variance = existing.monthlyReceipts[0].receipts - existing.monthlyReceipts[0].openingBalance;
-            // Recalculate recovery percent after aggregation
-            const opening = existing.monthlyReceipts[0].openingBalance;
-            const receipts = existing.monthlyReceipts[0].receipts;
-            existing.monthlyReceipts[0].recoveryPercent = 
-              opening > 0 ? (receipts / opening) * 100 : 0;
+            const monthlyReceipt = existing.monthlyReceipts[0];
+            if (monthlyReceipt) {
+              monthlyReceipt.openingBalance += syntheticMonthlyReceipt.openingBalance;
+              monthlyReceipt.receipts += syntheticMonthlyReceipt.receipts;
+              monthlyReceipt.billings += syntheticMonthlyReceipt.billings;
+              monthlyReceipt.closingBalance += syntheticMonthlyReceipt.closingBalance;
+              monthlyReceipt.variance = monthlyReceipt.receipts - monthlyReceipt.openingBalance;
+              // Recalculate recovery percent after aggregation
+              const opening = monthlyReceipt.openingBalance;
+              const receipts = monthlyReceipt.receipts;
+              monthlyReceipt.recoveryPercent = 
+                opening > 0 ? (receipts / opening) * 100 : 0;
+            }
             
             // Use service line with largest balance as primary display
             const currentBalanceAbs = Math.abs(row.TotalBalance);
@@ -394,10 +397,11 @@ export const GET = secureRoute.query({
             
             // Check for period activity (opening balance, receipts, or billings)
             // This ensures clients who fully paid off their balance during the period are included
-            const hasPeriodActivity = client.monthlyReceipts.length > 0 && (
-              Math.abs(client.monthlyReceipts[0].openingBalance) > EPSILON ||
-              Math.abs(client.monthlyReceipts[0].receipts) > EPSILON ||
-              Math.abs(client.monthlyReceipts[0].billings) > EPSILON
+            const firstMonthlyReceipt = client.monthlyReceipts[0];
+            const hasPeriodActivity = firstMonthlyReceipt && (
+              Math.abs(firstMonthlyReceipt.openingBalance) > EPSILON ||
+              Math.abs(firstMonthlyReceipt.receipts) > EPSILON ||
+              Math.abs(firstMonthlyReceipt.billings) > EPSILON
             );
             
             return Math.abs(client.totalBalance) > EPSILON || hasNonZeroAging || hasPeriodActivity;
