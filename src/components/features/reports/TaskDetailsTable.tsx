@@ -71,7 +71,9 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
   // Calculate grand totals for current page
   const grandTotals = {
     taskCount: paginatedTasks.length,
-    ltdHours: paginatedTasks.reduce((sum, t) => sum + t.ltdHours, 0),
+    totalWIP: paginatedTasks.reduce((sum, t) => sum + t.netWip, 0),
+    ltdWipProvision: paginatedTasks.reduce((sum, t) => sum + t.ltdWipProvision, 0),
+    balWip: paginatedTasks.reduce((sum, t) => sum + t.balWip, 0),
     grossProduction: paginatedTasks.reduce((sum, t) => sum + t.grossProduction, 0),
     ltdAdj: paginatedTasks.reduce((sum, t) => sum + t.ltdAdj, 0),
     netRevenue: paginatedTasks.reduce((sum, t) => sum + t.netRevenue, 0),
@@ -118,13 +120,15 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
           className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '1.5fr 2fr 140px 100px 120px 120px 120px 100px 120px 120px 120px',
+            gridTemplateColumns: '1.5fr 2fr 140px 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
           <div>Client</div>
           <div>Task</div>
           <div className="min-w-[120px]">Service Line</div>
-          <div className="text-right">Hours</div>
+          <div className="text-right">Net WIP</div>
+          <div className="text-right">WIP Provision</div>
+          <div className="text-right">Balance WIP</div>
           <div className="text-right">Production</div>
           <div className="text-right">Adjustments</div>
           <div className="text-right">Net Revenue</div>
@@ -142,7 +146,7 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
               className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                 index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
               }`}
-              style={{ gridTemplateColumns: '1.5fr 2fr 140px 100px 120px 120px 120px 100px 120px 120px 120px' }}
+              style={{ gridTemplateColumns: '1.5fr 2fr 140px 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px' }}
             >
               <div className="text-forvis-gray-900">
                 <span className="font-medium">{task.clientCode}</span>
@@ -159,8 +163,16 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
                   {task.serviceLineName}
                 </Badge>
               </div>
+              <div className={`text-right tabular-nums font-semibold ${
+                task.netWip < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+              }`}>
+                {formatCurrency(task.netWip)}
+              </div>
               <div className="text-right tabular-nums text-forvis-gray-700">
-                {formatNumber(task.ltdHours)}
+                {formatCurrency(task.ltdWipProvision)}
+              </div>
+              <div className="text-right tabular-nums text-forvis-gray-700">
+                {formatCurrency(task.balWip)}
               </div>
               <div className="text-right tabular-nums text-forvis-gray-700">
                 {formatCurrency(task.grossProduction)}
@@ -203,13 +215,21 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
             className="grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
               background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-              gridTemplateColumns: '1.5fr 2fr 140px 100px 120px 120px 120px 100px 120px 120px 120px'
+              gridTemplateColumns: '1.5fr 2fr 140px 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px'
             }}
           >
             <div className="text-forvis-blue-800" style={{ gridColumn: 'span 2' }}>TOTAL (Page {currentPage} of {totalPages})</div>
             <div className="text-forvis-blue-800">{grandTotals.taskCount} task{grandTotals.taskCount !== 1 ? 's' : ''}</div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.totalWIP < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.totalWIP)}
+            </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
-              {formatNumber(grandTotals.ltdHours)}
+              {formatCurrency(grandTotals.ltdWipProvision)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.balWip)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
               {formatCurrency(grandTotals.grossProduction)}

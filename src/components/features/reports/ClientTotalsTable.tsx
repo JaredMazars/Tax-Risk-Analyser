@@ -17,9 +17,9 @@ interface ClientTotal {
   GSClientID: string;
   clientCode: string;
   clientNameFull: string | null;
-  taskCount: number;
   totalWIP: number;
-  ltdHours: number;
+  ltdWipProvision: number;
+  balWip: number;
   grossProduction: number;
   ltdAdj: number;
   netRevenue: number;
@@ -67,9 +67,9 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
         GSClientID: task.GSClientID,
         clientCode: task.clientCode,
         clientNameFull: task.clientNameFull,
-        taskCount: 0,
         totalWIP: 0,
-        ltdHours: 0,
+        ltdWipProvision: 0,
+        balWip: 0,
         grossProduction: 0,
         ltdAdj: 0,
         netRevenue: 0,
@@ -79,9 +79,9 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
     }
 
     const client = clientTotals.get(task.GSClientID)!;
-    client.taskCount += 1;
     client.totalWIP += task.netWip;
-    client.ltdHours += task.ltdHours;
+    client.ltdWipProvision += task.ltdWipProvision;
+    client.balWip += task.balWip;
     client.grossProduction += task.grossProduction;
     client.ltdAdj += task.ltdAdj;
     client.netRevenue += task.netRevenue;
@@ -104,8 +104,9 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
 
   // Calculate grand totals for current page
   const grandTotals = {
-    taskCount: paginatedClients.reduce((sum, client) => sum + client.taskCount, 0),
-    ltdHours: paginatedClients.reduce((sum, client) => sum + client.ltdHours, 0),
+    totalWIP: paginatedClients.reduce((sum, client) => sum + client.totalWIP, 0),
+    ltdWipProvision: paginatedClients.reduce((sum, client) => sum + client.ltdWipProvision, 0),
+    balWip: paginatedClients.reduce((sum, client) => sum + client.balWip, 0),
     grossProduction: paginatedClients.reduce((sum, client) => sum + client.grossProduction, 0),
     ltdAdj: paginatedClients.reduce((sum, client) => sum + client.ltdAdj, 0),
     netRevenue: paginatedClients.reduce((sum, client) => sum + client.netRevenue, 0),
@@ -152,13 +153,14 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
           className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '1fr 1.5fr 70px 90px 110px 110px 110px 90px 110px 110px 110px',
+            gridTemplateColumns: '1fr 1.5fr 110px 110px 110px 110px 110px 110px 90px 110px 110px 110px',
           }}
         >
           <div>Group</div>
           <div>Client</div>
-          <div className="text-right">Tasks</div>
-          <div className="text-right">Hours</div>
+          <div className="text-right">Net WIP</div>
+          <div className="text-right">WIP Provision</div>
+          <div className="text-right">Balance WIP</div>
           <div className="text-right">Production</div>
           <div className="text-right">Adjustments</div>
           <div className="text-right">Net Revenue</div>
@@ -180,7 +182,7 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
                 className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                   index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
                 }`}
-                style={{ gridTemplateColumns: '1fr 1.5fr 70px 90px 110px 110px 110px 90px 110px 110px 110px' }}
+                style={{ gridTemplateColumns: '1fr 1.5fr 110px 110px 110px 110px 110px 110px 90px 110px 110px 110px' }}
               >
                 <div className="text-forvis-gray-700">{client.groupDesc}</div>
                 <div className="text-forvis-gray-900">
@@ -188,11 +190,16 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
                   {' - '}
                   {client.clientNameFull || 'Unnamed Client'}
                 </div>
-                <div className="text-right text-forvis-gray-700 tabular-nums">
-                  {client.taskCount}
+                <div className={`text-right tabular-nums font-semibold ${
+                  client.totalWIP < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+                }`}>
+                  {formatCurrency(client.totalWIP)}
                 </div>
                 <div className="text-right tabular-nums text-forvis-gray-700">
-                  {formatNumber(client.ltdHours)}
+                  {formatCurrency(client.ltdWipProvision)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(client.balWip)}
                 </div>
                 <div className="text-right tabular-nums text-forvis-gray-700">
                   {formatCurrency(client.grossProduction)}
@@ -236,15 +243,20 @@ export function ClientTotalsTable({ tasks }: ClientTotalsTableProps) {
             className="grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
               background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-              gridTemplateColumns: '1fr 1.5fr 70px 90px 110px 110px 110px 90px 110px 110px 110px'
+              gridTemplateColumns: '1fr 1.5fr 110px 110px 110px 110px 110px 110px 90px 110px 110px 110px'
             }}
           >
             <div className="text-forvis-blue-800" style={{ gridColumn: 'span 2' }}>TOTAL (Page {currentPage} of {totalPages})</div>
-            <div className="text-right text-forvis-blue-800 tabular-nums">
-              {grandTotals.taskCount}
+            <div className={`text-right tabular-nums ${
+              grandTotals.totalWIP < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.totalWIP)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
-              {formatNumber(grandTotals.ltdHours)}
+              {formatCurrency(grandTotals.ltdWipProvision)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.balWip)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
               {formatCurrency(grandTotals.grossProduction)}

@@ -15,9 +15,9 @@ import { GRADIENTS } from '@/lib/design-system/gradients';
 interface SubServiceLineGroupTotal {
   code: string;
   name: string;
-  taskCount: number;
   totalWIP: number;
-  ltdHours: number;
+  ltdWipProvision: number;
+  balWip: number;
   grossProduction: number;
   ltdAdj: number;
   netRevenue: number;
@@ -65,9 +65,9 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
       subServiceLineGroupTotals.set(code, {
         code,
         name,
-        taskCount: 0,
         totalWIP: 0,
-        ltdHours: 0,
+        ltdWipProvision: 0,
+        balWip: 0,
         grossProduction: 0,
         ltdAdj: 0,
         netRevenue: 0,
@@ -77,9 +77,9 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
     }
 
     const sslg = subServiceLineGroupTotals.get(code)!;
-    sslg.taskCount += 1;
     sslg.totalWIP += task.netWip;
-    sslg.ltdHours += task.ltdHours;
+    sslg.ltdWipProvision += task.ltdWipProvision;
+    sslg.balWip += task.balWip;
     sslg.grossProduction += task.grossProduction;
     sslg.ltdAdj += task.ltdAdj;
     sslg.netRevenue += task.netRevenue;
@@ -100,8 +100,9 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
 
   // Calculate grand totals for current page
   const grandTotals = {
-    taskCount: paginatedSubServiceLineGroups.reduce((sum, sslg) => sum + sslg.taskCount, 0),
-    ltdHours: paginatedSubServiceLineGroups.reduce((sum, sslg) => sum + sslg.ltdHours, 0),
+    totalWIP: paginatedSubServiceLineGroups.reduce((sum, sslg) => sum + sslg.totalWIP, 0),
+    ltdWipProvision: paginatedSubServiceLineGroups.reduce((sum, sslg) => sum + sslg.ltdWipProvision, 0),
+    balWip: paginatedSubServiceLineGroups.reduce((sum, sslg) => sum + sslg.balWip, 0),
     grossProduction: paginatedSubServiceLineGroups.reduce((sum, sslg) => sum + sslg.grossProduction, 0),
     ltdAdj: paginatedSubServiceLineGroups.reduce((sum, sslg) => sum + sslg.ltdAdj, 0),
     netRevenue: paginatedSubServiceLineGroups.reduce((sum, sslg) => sum + sslg.netRevenue, 0),
@@ -148,12 +149,13 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
           className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: GRADIENTS.primary.horizontal,
-            gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px',
+            gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
           <div>Sub Service Line Group</div>
-          <div className="text-right">Tasks</div>
-          <div className="text-right">Hours</div>
+          <div className="text-right">Net WIP</div>
+          <div className="text-right">WIP Provision</div>
+          <div className="text-right">Balance WIP</div>
           <div className="text-right">Production</div>
           <div className="text-right">Adjustments</div>
           <div className="text-right">Net Revenue</div>
@@ -175,14 +177,19 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
                 className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                   index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
                 }`}
-                style={{ gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px' }}
+                style={{ gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px' }}
               >
                 <div className="font-semibold text-forvis-gray-900">{sslg.name}</div>
-                <div className="text-right text-forvis-gray-700 tabular-nums">
-                  {sslg.taskCount}
+                <div className={`text-right tabular-nums font-semibold ${
+                  sslg.totalWIP < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-600'
+                }`}>
+                  {formatCurrency(sslg.totalWIP)}
                 </div>
                 <div className="text-right tabular-nums text-forvis-gray-700">
-                  {formatNumber(sslg.ltdHours)}
+                  {formatCurrency(sslg.ltdWipProvision)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(sslg.balWip)}
                 </div>
                 <div className="text-right tabular-nums text-forvis-gray-700">
                   {formatCurrency(sslg.grossProduction)}
@@ -225,15 +232,20 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
           <div
             className="bg-gradient-dashboard-card grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
-              gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px'
+              gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px'
             }}
           >
             <div className="text-forvis-blue-800">TOTAL (Page {currentPage} of {totalPages})</div>
-            <div className="text-right text-forvis-blue-800 tabular-nums">
-              {grandTotals.taskCount}
+            <div className={`text-right tabular-nums ${
+              grandTotals.totalWIP < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.totalWIP)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
-              {formatNumber(grandTotals.ltdHours)}
+              {formatCurrency(grandTotals.ltdWipProvision)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.balWip)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
               {formatCurrency(grandTotals.grossProduction)}

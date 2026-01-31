@@ -1,36 +1,42 @@
 -- ============================================================================
--- Enhanced WipLTD Stored Procedure (v2.1)
--- Full profitability metrics including Cost, Hours, and split Adjustments
+-- Profitability Data Stored Procedure (v2.0 - Simplified)
+-- Full profitability metrics with simplified filtering
 -- ============================================================================
 --
--- ⚠️ DEPRECATED: This stored procedure has been superseded by sp_ProfitabilityData
--- Please use sp_ProfitabilityData instead for all new development.
--- This procedure is kept temporarily for rollback purposes only.
--- Scheduled for removal: 30 days after sp_ProfitabilityData deployment
+-- PURPOSE: Provides task-level profitability data with only essential filters
+-- SIMPLIFICATION: Reduced from 8 parameters to 5 (dates, client, partner, task)
 --
--- OPTIMIZED: Uses temp table instead of nested CTEs for faster compilation
+-- OPTIMIZED: Uses temp table strategy and leverages existing covering indexes
 --
--- CHANGES from v2.0:
--- - Replaced nested CTEs with temp table approach
--- - Compilation time reduced from minutes to seconds
+-- RETURNS: Task-level WIP and profitability metrics with calculated fields:
+--   - LTDTimeCharged, LTDDisbCharged, LTDFeesBilled
+--   - LTDAdjustments (split into Positive and Negative)
+--   - LTDWipProvision, LTDHours, LTDCost
+--   - NetWIP, NetRevenue, GrossProfit (calculated)
+--
+-- FILTERS:
+--   - @TaskPartnerCode: Filter by task partner
+--   - @ClientCode: Filter by client code
+--   - @TaskCode: Filter by task code
+--   - @DateFrom/@DateTo: Date range for WIP transactions
+--
+-- USAGE:
+--   EXEC sp_ProfitabilityDatav2;  -- All data
+--   EXEC sp_ProfitabilityDatav2 @TaskPartnerCode='JSMITH', @DateFrom='2024-01-01';
 --
 -- ============================================================================
 
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
+-- Drop if exists (SQL Server 2014 compatible)
+IF OBJECT_ID('dbo.sp_ProfitabilityDatav2', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_ProfitabilityDatav2;
 GO
 
-CREATE OR ALTER PROCEDURE [dbo].[WipLTD] 
-     @ServLineCode nvarchar(max)  = '*'
-    ,@PartnerCode nvarchar(max)   = '*'
-    ,@ManagerCode nvarchar(max)   = '*'
-    ,@GroupCode nvarchar(max)     = '*'
-    ,@ClientCode nvarchar(max)    = '*'
-    ,@TaskCode nvarchar(max)      = '*'
-    ,@DateFrom datetime           = '1900/01/01'
-    ,@DateTo datetime             = '2025/01/01'
-    ,@EmpCode nvarchar(max)       = '*'
+CREATE PROCEDURE [dbo].[sp_ProfitabilityDatav2] 
+     @TaskPartnerCode nvarchar(max)  = '*'
+    ,@ClientCode nvarchar(max)       = '*'
+    ,@TaskCode nvarchar(max)         = '*'
+    ,@DateFrom datetime              = '1900/01/01'
+    ,@DateTo datetime                = '2025/01/01'
 AS
 
 SET NOCOUNT ON
@@ -54,12 +60,9 @@ SELECT
 INTO #Tasks
 FROM [dbo].[Task] t
     INNER JOIN [dbo].[Client] c ON t.GSClientID = c.GSClientID
-WHERE (t.ServLineCode = @ServLineCode OR @ServLineCode = '*')
-    AND (t.TaskPartner = @PartnerCode OR @PartnerCode = '*')
-    AND (t.TaskManager = @ManagerCode OR @ManagerCode = '*')
+WHERE (t.TaskPartner = @TaskPartnerCode OR @TaskPartnerCode = '*')
     AND (t.TaskCode = @TaskCode OR @TaskCode = '*')
     AND (c.clientCode = @ClientCode OR @ClientCode = '*')
-    AND (c.groupCode = @GroupCode OR @GroupCode = '*')
 
 -- Create index on temp table for efficient join
 CREATE CLUSTERED INDEX IX_Tasks_GSTaskID ON #Tasks (GSTaskID)
@@ -104,7 +107,6 @@ FROM #Tasks t
     INNER JOIN [dbo].[WIPTransactions] w ON t.GSTaskID = w.GSTaskID
 WHERE w.TranDate >= @DateFrom
   AND w.TranDate <= @DateTo
-  AND (w.EmpCode = @EmpCode OR @EmpCode = '*' OR w.EmpCode IS NULL)
 GROUP BY
     t.clientCode
     ,t.clientNameFull
@@ -124,8 +126,4 @@ ORDER BY t.groupCode, t.clientCode, t.TaskCode
 
 -- Cleanup
 DROP TABLE #Tasks
-GO
-
-PRINT 'WipLTD stored procedure (v2.1) created successfully';
-PRINT 'Optimized with temp table for fast compilation';
 GO

@@ -160,6 +160,10 @@ export interface TaskWithWIP {
   ltdDisb: number;
   ltdAdj: number;
   ltdCost: number;
+  // Additional WIP metrics
+  ltdWipProvision: number;
+  balWip: number;
+  // Calculated metrics
   grossProduction: number;
   netRevenue: number;
   adjustmentPercentage: number;
@@ -359,6 +363,11 @@ export interface WipLTDResult {
   OfficeCode: string;
   ServLineCode: string;
   ServLineDesc: string;
+  // Service line hierarchy
+  masterCode: string | null;
+  SubServlineGroupCode: string | null;
+  SubServlineGroupDesc: string | null;
+  masterServiceLineName: string | null;
   TaskPartner: string;
   TaskPartnerName: string;
   TaskManager: string;

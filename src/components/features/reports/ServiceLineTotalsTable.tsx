@@ -15,9 +15,9 @@ import { GRADIENTS } from '@/lib/design-system/gradients';
 interface ServiceLineTotal {
   code: string;
   name: string;
-  taskCount: number;
   totalWIP: number;
-  ltdHours: number;
+  ltdWipProvision: number;
+  balWip: number;
   grossProduction: number;
   ltdAdj: number;
   netRevenue: number;
@@ -65,9 +65,9 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
       serviceLineTotals.set(code, {
         code,
         name,
-        taskCount: 0,
         totalWIP: 0,
-        ltdHours: 0,
+        ltdWipProvision: 0,
+        balWip: 0,
         grossProduction: 0,
         ltdAdj: 0,
         netRevenue: 0,
@@ -77,9 +77,9 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
     }
 
     const sl = serviceLineTotals.get(code)!;
-    sl.taskCount += 1;
     sl.totalWIP += task.netWip;
-    sl.ltdHours += task.ltdHours;
+    sl.ltdWipProvision += task.ltdWipProvision;
+    sl.balWip += task.balWip;
     sl.grossProduction += task.grossProduction;
     sl.ltdAdj += task.ltdAdj;
     sl.netRevenue += task.netRevenue;
@@ -100,8 +100,9 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
 
   // Calculate grand totals for current page
   const grandTotals = {
-    taskCount: paginatedServiceLines.reduce((sum, sl) => sum + sl.taskCount, 0),
-    ltdHours: paginatedServiceLines.reduce((sum, sl) => sum + sl.ltdHours, 0),
+    totalWIP: paginatedServiceLines.reduce((sum, sl) => sum + sl.totalWIP, 0),
+    ltdWipProvision: paginatedServiceLines.reduce((sum, sl) => sum + sl.ltdWipProvision, 0),
+    balWip: paginatedServiceLines.reduce((sum, sl) => sum + sl.balWip, 0),
     grossProduction: paginatedServiceLines.reduce((sum, sl) => sum + sl.grossProduction, 0),
     ltdAdj: paginatedServiceLines.reduce((sum, sl) => sum + sl.ltdAdj, 0),
     netRevenue: paginatedServiceLines.reduce((sum, sl) => sum + sl.netRevenue, 0),
@@ -148,12 +149,13 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
           className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: GRADIENTS.primary.horizontal,
-            gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px',
+            gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
           <div>Service Line</div>
-          <div className="text-right">Tasks</div>
-          <div className="text-right">Hours</div>
+          <div className="text-right">Net WIP</div>
+          <div className="text-right">WIP Provision</div>
+          <div className="text-right">Balance WIP</div>
           <div className="text-right">Production</div>
           <div className="text-right">Adjustments</div>
           <div className="text-right">Net Revenue</div>
@@ -175,14 +177,19 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
                 className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                   index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
                 }`}
-                style={{ gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px' }}
+                style={{ gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px' }}
               >
                 <div className="font-semibold text-forvis-gray-900">{sl.name}</div>
-                <div className="text-right text-forvis-gray-700 tabular-nums">
-                  {sl.taskCount}
+                <div className={`text-right tabular-nums font-semibold ${
+                  sl.totalWIP < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-600'
+                }`}>
+                  {formatCurrency(sl.totalWIP)}
                 </div>
                 <div className="text-right tabular-nums text-forvis-gray-700">
-                  {formatNumber(sl.ltdHours)}
+                  {formatCurrency(sl.ltdWipProvision)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(sl.balWip)}
                 </div>
                 <div className="text-right tabular-nums text-forvis-gray-700">
                   {formatCurrency(sl.grossProduction)}
@@ -225,15 +232,20 @@ export function ServiceLineTotalsTable({ tasks }: ServiceLineTotalsTableProps) {
           <div
             className="bg-gradient-dashboard-card grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
-              gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px'
+              gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px'
             }}
           >
             <div className="text-forvis-blue-800">TOTAL (Page {currentPage} of {totalPages})</div>
-            <div className="text-right text-forvis-blue-800 tabular-nums">
-              {grandTotals.taskCount}
+            <div className={`text-right tabular-nums ${
+              grandTotals.totalWIP < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.totalWIP)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
-              {formatNumber(grandTotals.ltdHours)}
+              {formatCurrency(grandTotals.ltdWipProvision)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.balWip)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
               {formatCurrency(grandTotals.grossProduction)}

@@ -21,10 +21,10 @@ import type {
 import { format, subMonths } from 'date-fns';
 
 // ============================================================================
-// WipLTD - Task-level WIP aggregations for Profitability
+// ProfitabilityData - Task-level WIP aggregations for Profitability
 // ============================================================================
 
-export interface WipLTDParams {
+export interface ProfitabilityDataParams {
   servLineCode?: string;
   partnerCode?: string;
   managerCode?: string;
@@ -37,15 +37,15 @@ export interface WipLTDParams {
 }
 
 /**
- * Execute WipLTD stored procedure
+ * Execute sp_ProfitabilityData stored procedure
  * Returns task-level WIP aggregations with profitability metrics
  */
-export async function executeWipLTD(params: WipLTDParams): Promise<WipLTDResult[]> {
+export async function executeProfitabilityData(params: ProfitabilityDataParams): Promise<WipLTDResult[]> {
   const startTime = Date.now();
   
   try {
     const results = await prisma.$queryRaw<WipLTDResult[]>`
-      EXEC dbo.WipLTD 
+      EXEC dbo.sp_ProfitabilityData 
         @ServLineCode = ${params.servLineCode ?? '*'},
         @PartnerCode = ${params.partnerCode ?? '*'},
         @ManagerCode = ${params.managerCode ?? '*'},
@@ -57,7 +57,7 @@ export async function executeWipLTD(params: WipLTDParams): Promise<WipLTDResult[
         @EmpCode = ${params.empCode ?? '*'}
     `;
 
-    logger.debug('WipLTD executed', {
+    logger.debug('sp_ProfitabilityData executed', {
       params: { ...params, dateFrom: params.dateFrom.toISOString(), dateTo: params.dateTo.toISOString() },
       resultCount: results.length,
       durationMs: Date.now() - startTime,
@@ -65,7 +65,7 @@ export async function executeWipLTD(params: WipLTDParams): Promise<WipLTDResult[
 
     return results;
   } catch (error) {
-    logger.error('WipLTD execution failed', { params, error });
+    logger.error('sp_ProfitabilityData execution failed', { params, error });
     throw error;
   }
 }
@@ -382,7 +382,7 @@ export async function fetchOverviewMetricsFromSP(
 }
 
 /**
- * Fetch profitability data using WipLTD stored procedure
+ * Fetch profitability data using sp_ProfitabilityData stored procedure
  */
 export async function fetchProfitabilityFromSP(
   empCode: string,
@@ -391,7 +391,7 @@ export async function fetchProfitabilityFromSP(
   dateTo: Date,
   servLineCode?: string
 ): Promise<WipLTDResult[]> {
-  return executeWipLTD({
+  return executeProfitabilityData({
     partnerCode: isPartnerReport ? empCode : undefined,
     managerCode: isPartnerReport ? undefined : empCode,
     servLineCode,

@@ -14,9 +14,9 @@ import type { TaskWithWIPAndServiceLine } from '@/types/api';
 interface GroupTotal {
   groupCode: string;
   groupDesc: string;
-  taskCount: number;
   totalWIP: number;
-  ltdHours: number;
+  ltdWipProvision: number;
+  balWip: number;
   grossProduction: number;
   ltdAdj: number;
   netRevenue: number;
@@ -61,9 +61,9 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
       groupTotals.set(task.groupCode, {
         groupCode: task.groupCode,
         groupDesc: task.groupDesc,
-        taskCount: 0,
         totalWIP: 0,
-        ltdHours: 0,
+        ltdWipProvision: 0,
+        balWip: 0,
         grossProduction: 0,
         ltdAdj: 0,
         netRevenue: 0,
@@ -73,9 +73,9 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
     }
 
     const group = groupTotals.get(task.groupCode)!;
-    group.taskCount += 1;
     group.totalWIP += task.netWip;
-    group.ltdHours += task.ltdHours;
+    group.ltdWipProvision += task.ltdWipProvision;
+    group.balWip += task.balWip;
     group.grossProduction += task.grossProduction;
     group.ltdAdj += task.ltdAdj;
     group.netRevenue += task.netRevenue;
@@ -96,8 +96,9 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
 
   // Calculate grand totals for current page
   const grandTotals = {
-    taskCount: paginatedGroups.reduce((sum, group) => sum + group.taskCount, 0),
-    ltdHours: paginatedGroups.reduce((sum, group) => sum + group.ltdHours, 0),
+    totalWIP: paginatedGroups.reduce((sum, group) => sum + group.totalWIP, 0),
+    ltdWipProvision: paginatedGroups.reduce((sum, group) => sum + group.ltdWipProvision, 0),
+    balWip: paginatedGroups.reduce((sum, group) => sum + group.balWip, 0),
     grossProduction: paginatedGroups.reduce((sum, group) => sum + group.grossProduction, 0),
     ltdAdj: paginatedGroups.reduce((sum, group) => sum + group.ltdAdj, 0),
     netRevenue: paginatedGroups.reduce((sum, group) => sum + group.netRevenue, 0),
@@ -144,12 +145,13 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
           className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px',
+            gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
           <div>Group Name</div>
-          <div className="text-right">Tasks</div>
-          <div className="text-right">Hours</div>
+          <div className="text-right">Net WIP</div>
+          <div className="text-right">WIP Provision</div>
+          <div className="text-right">Balance WIP</div>
           <div className="text-right">Production</div>
           <div className="text-right">Adjustments</div>
           <div className="text-right">Net Revenue</div>
@@ -171,14 +173,19 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
                 className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                   index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
                 }`}
-                style={{ gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px' }}
+                style={{ gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px' }}
               >
                 <div className="font-semibold text-forvis-gray-900">{group.groupDesc}</div>
-                <div className="text-right text-forvis-gray-700 tabular-nums">
-                  {group.taskCount}
+                <div className={`text-right tabular-nums font-semibold ${
+                  group.totalWIP < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+                }`}>
+                  {formatCurrency(group.totalWIP)}
                 </div>
                 <div className="text-right tabular-nums text-forvis-gray-700">
-                  {formatNumber(group.ltdHours)}
+                  {formatCurrency(group.ltdWipProvision)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(group.balWip)}
                 </div>
                 <div className="text-right tabular-nums text-forvis-gray-700">
                   {formatCurrency(group.grossProduction)}
@@ -222,15 +229,20 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
             className="grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
               background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-              gridTemplateColumns: '2fr 80px 100px 120px 120px 120px 100px 120px 120px 120px'
+              gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px'
             }}
           >
             <div className="text-forvis-blue-800">TOTAL (Page {currentPage} of {totalPages})</div>
-            <div className="text-right text-forvis-blue-800 tabular-nums">
-              {grandTotals.taskCount}
+            <div className={`text-right tabular-nums ${
+              grandTotals.totalWIP < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.totalWIP)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
-              {formatNumber(grandTotals.ltdHours)}
+              {formatCurrency(grandTotals.ltdWipProvision)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.balWip)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
               {formatCurrency(grandTotals.grossProduction)}
