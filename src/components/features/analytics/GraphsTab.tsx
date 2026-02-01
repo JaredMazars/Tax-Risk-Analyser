@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Calendar, DollarSign } from 'lucide-react';
 import { useClientGraphData, ServiceLineGraphData } from '@/hooks/clients/useClientGraphData';
 import { useGroupGraphData } from '@/hooks/groups/useGroupGraphData';
 import { LoadingSpinner } from '@/components/ui';
+import { getCurrentFiscalPeriod } from '@/lib/utils/fiscalPeriod';
 import {
   LineChart,
   Line,
@@ -118,14 +119,29 @@ function SummaryCard({ label, value, icon, color }: SummaryCardProps) {
 }
 
 export function GraphsTab({ clientId, groupCode }: GraphsTabProps) {
+  // Fiscal period state
+  const currentFY = getCurrentFiscalPeriod().fiscalYear;
+  const [mode, setMode] = useState<'fiscal' | 'custom'>('fiscal');
+  const [selectedYear, setSelectedYear] = useState<number | null>(currentFY);
+  const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
+  const [appliedDates, setAppliedDates] = useState({ start: '', end: '' });
+  
+  // Service line tab state
+  const [activeTab, setActiveTab] = useState<string>('overall');
+
   // ALL HOOKS MUST BE CALLED AT THE TOP - BEFORE ANY CONDITIONAL RETURNS
   // Use appropriate hook based on props
-  const clientQuery = useClientGraphData(clientId || '', { enabled: !!clientId });
+  const clientQuery = useClientGraphData(clientId || '', { 
+    enabled: !!clientId,
+    fiscalYear: mode === 'fiscal' ? selectedYear ?? undefined : undefined,
+    startDate: mode === 'custom' && appliedDates.start ? appliedDates.start : undefined,
+    endDate: mode === 'custom' && appliedDates.end ? appliedDates.end : undefined,
+    mode,
+  });
   const groupQuery = useGroupGraphData(groupCode || '', { enabled: !!groupCode });
   
   // Select the active query
   const { data, isLoading, error } = clientId ? clientQuery : groupQuery;
-  const [activeTab, setActiveTab] = useState<string>('overall');
 
   // Get current tab data and memoize for performance
   // Must be called before any conditional returns
@@ -190,6 +206,98 @@ export function GraphsTab({ clientId, groupCode }: GraphsTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Fiscal Year / Date Range Selector */}
+      {clientId && (
+        <div className="card overflow-hidden">
+          <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Mode toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMode('fiscal')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                    mode === 'fiscal'
+                      ? 'bg-white text-forvis-blue-600'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Fiscal Year
+                </button>
+                <button
+                  onClick={() => setMode('custom')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                    mode === 'custom'
+                      ? 'bg-white text-forvis-blue-600'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Custom Range
+                </button>
+              </div>
+
+              {/* Fiscal mode controls - Year Buttons */}
+              {mode === 'fiscal' && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedYear(null)}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                      selectedYear === null
+                        ? 'bg-white text-forvis-blue-600'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {[currentFY, currentFY - 1, currentFY - 2].map((year) => (
+                    <button
+                      key={year}
+                      onClick={() => setSelectedYear(year)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                        selectedYear === year
+                          ? 'bg-white text-forvis-blue-600'
+                          : 'bg-white/20 text-white hover:bg-white/30'
+                      }`}
+                    >
+                      FY {year}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Custom mode controls */}
+              {mode === 'custom' && (
+                <>
+                  <input
+                    type="month"
+                    value={customInputs.start}
+                    onChange={(e) => setCustomInputs({ ...customInputs, start: e.target.value })}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  />
+                  <span className="text-white text-sm">to</span>
+                  <input
+                    type="month"
+                    value={customInputs.end}
+                    onChange={(e) => setCustomInputs({ ...customInputs, end: e.target.value })}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                  />
+                  <button
+                    onClick={() => {
+                      if (customInputs.start && customInputs.end) {
+                        setAppliedDates(customInputs);
+                      }
+                    }}
+                    disabled={!customInputs.start || !customInputs.end}
+                    className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-forvis-blue-600 hover:bg-white/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tab Navigation */}
       <div className="card overflow-hidden">
         <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
@@ -265,7 +373,10 @@ export function GraphsTab({ clientId, groupCode }: GraphsTabProps) {
       <div className="rounded-lg bg-white shadow-corporate border border-forvis-gray-200 p-6">
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-forvis-gray-900">
-            12-Month Transaction Trends
+            Transaction Trends
+            {selectedYear && mode === 'fiscal' && ` - FY ${selectedYear}`}
+            {!selectedYear && mode === 'fiscal' && ' - All Time'}
+            {mode === 'custom' && ' - Custom Range'}
             {activeTab !== 'overall' && (
               <span className="text-forvis-blue-600"> - {data.masterServiceLines.find(msl => msl.code === activeTab)?.name}</span>
             )}

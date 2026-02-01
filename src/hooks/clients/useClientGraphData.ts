@@ -49,22 +49,49 @@ export interface ClientGraphData {
 
 export interface UseClientGraphDataParams {
   enabled?: boolean;
+  fiscalYear?: number;
+  startDate?: string;
+  endDate?: string;
+  mode?: 'fiscal' | 'custom';
 }
 
 /**
  * Fetch daily transaction graph data for a client
- * Returns 24 months of daily metrics (Production, Adjustments, Disbursements, Billing)
+ * Returns daily metrics (Production, Adjustments, Disbursements, Billing, Provisions, WIP Balance)
+ * 
+ * @param GSClientID - Client GUID
+ * @param params - Query parameters including fiscal year filters
+ * @param params.fiscalYear - Fiscal year (e.g., 2024). If not provided, shows current fiscal year.
+ * @param params.startDate - Start date for custom range (ISO string)
+ * @param params.endDate - End date for custom range (ISO string)
+ * @param params.mode - Filter mode: 'fiscal' (default) or 'custom'
  */
 export function useClientGraphData(
   GSClientID: string,
   params: UseClientGraphDataParams = {}
 ) {
-  const { enabled = true } = params;
+  const { 
+    enabled = true,
+    fiscalYear,
+    startDate,
+    endDate,
+    mode = 'fiscal'
+  } = params;
 
   return useQuery<ClientGraphData>({
-    queryKey: clientGraphDataKeys.detail(GSClientID),
+    queryKey: [...clientGraphDataKeys.detail(GSClientID), mode, fiscalYear, startDate, endDate],
     queryFn: async () => {
-      const url = `/api/clients/${GSClientID}/analytics/graphs`;
+      const queryParams = new URLSearchParams();
+      queryParams.set('mode', mode);
+      
+      if (mode === 'fiscal' && fiscalYear) {
+        queryParams.set('fiscalYear', fiscalYear.toString());
+      } else if (mode === 'custom' && startDate && endDate) {
+        queryParams.set('startDate', startDate);
+        queryParams.set('endDate', endDate);
+      }
+      
+      const url = `/api/clients/${GSClientID}/analytics/graphs${queryParams.toString() ? `?${queryParams}` : ''}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch client graph data');
       

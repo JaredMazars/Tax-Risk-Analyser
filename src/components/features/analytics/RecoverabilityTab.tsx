@@ -256,7 +256,7 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
   
   // Get current tab data (safe during loading)
   const currentMetrics: DebtorMetrics | null = !isLoading && debtorData
-    ? (activeTab === 'overall' ? overall : byMasterServiceLine?.[activeTab] || overall)
+    ? (activeTab === 'overall' ? overall : byMasterServiceLine?.[activeTab] || overall) ?? null
     : null;
 
   // Calculate percentages for aging buckets (only when we have metrics)
@@ -411,7 +411,7 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
           {/* Aging Bar - Inline Display with Total */}
           <AgingBar
             totalBalance={currentMetrics.totalBalance}
-            transactionCount={transactionCount}
+            transactionCount={transactionCount || 0}
         segments={[
           {
             label: 'Current (0-30 days)',

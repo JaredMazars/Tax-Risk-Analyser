@@ -88,7 +88,13 @@ export const GET = secureRoute.queryWithParams({
       if (fiscalMonthParam) {
         asOfDate = getFiscalMonthEndDate(fiscalYear, fiscalMonthParam);
       } else {
-        asOfDate = end; // End of full fiscal year
+        // For current fiscal year, use today's date for real-time aging
+        // For past/future fiscal years, use fiscal year end for historical/projected snapshot
+        if (fiscalYear === currentFY) {
+          asOfDate = new Date(); // Current aging state
+        } else {
+          asOfDate = end; // Historical or projected snapshot
+        }
       }
     }
 
@@ -98,6 +104,7 @@ export const GET = secureRoute.queryWithParams({
       fiscalYear,
       fiscalMonth: fiscalMonthParam,
       asOfDate: asOfDate.toISOString(),
+      isCurrentFY: fiscalYear === currentFY,
     });
 
     // Call stored procedure

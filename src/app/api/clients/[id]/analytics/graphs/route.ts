@@ -7,6 +7,22 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { executeClientGraphData } from '@/lib/services/reports/storedProcedureService';
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
+import { getCurrentFiscalPeriod, getFiscalYearRange } from '@/lib/utils/fiscalPeriod';
+import { startOfMonth, endOfMonth, parseISO } from 'date-fns';
+
+/**
+ * Convert Prisma Decimal or string to JavaScript number
+ * SQL Server decimals come back as Decimal objects or strings from Prisma
+ */
+function toNumber(value: any): number {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseFloat(value) || 0;
+  // Handle Prisma.Decimal objects
+  if (value && typeof value.toNumber === 'function') return value.toNumber();
+  // Fallback
+  return Number(value) || 0;
+}
 
 interface DailyMetrics {
   date: string; // YYYY-MM-DD format
@@ -107,12 +123,21 @@ function downsampleDailyMetrics(metrics: DailyMetrics[], targetPoints: number = 
 
 /**
  * GET /api/clients/[id]/analytics/graphs
- * Get daily transaction metrics for the last 12 months
+ * Get daily transaction metrics for specified time period
+ * 
+ * Query Parameters:
+ * - fiscalYear: number (optional) - Fiscal year filter
+ * - mode: 'fiscal' | 'custom' (optional, defaults to 'fiscal')
+ * - startDate: ISO date string (optional) - For custom date range
+ * - endDate: ISO date string (optional) - For custom date range
+ * - resolution: 'high' | 'standard' | 'low' (optional, defaults to 'low')
  * 
  * Returns:
- * - Daily aggregated metrics (Production, Adjustments, Disbursements, Billing)
- * - Based on WIPTransactions table
- * - Time period: Last 12 months from current date
+ * - Daily aggregated metrics (Production, Adjustments, Disbursements, Billing, Provisions, WIP Balance)
+ * - Overall and by-service-line breakdowns
+ * - Time period: Defaults to current fiscal year, or "All" if no fiscalYear provided
+ * 
+ * Note: Uses sp_ClientGraphData stored procedure for efficient aggregation
  */
 export const GET = secureRoute.queryWithParams({
   feature: Feature.ACCESS_CLIENTS,
@@ -127,8 +152,36 @@ export const GET = secureRoute.queryWithParams({
     });
     const targetPoints = queryParams.resolution === 'high' ? 365 : queryParams.resolution === 'low' ? 60 : 120;
 
-    // Check cache first (before DB queries)
-    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}graphs:${GSClientID}:${queryParams.resolution}`;
+    // Parse fiscal year and date range parameters
+    const fiscalYearParam = searchParams.get('fiscalYear');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+    const mode = (searchParams.get('mode') || 'fiscal') as 'fiscal' | 'custom';
+
+    // Determine date range
+    let startDate: Date;
+    let endDate: Date;
+
+    if (mode === 'custom' && startDateParam && endDateParam) {
+      // Custom date range
+      startDate = startOfMonth(parseISO(startDateParam));
+      endDate = endOfMonth(parseISO(endDateParam));
+    } else if (fiscalYearParam) {
+      // Specific fiscal year
+      const fiscalYear = parseInt(fiscalYearParam, 10);
+      const range = getFiscalYearRange(fiscalYear);
+      startDate = range.start;
+      endDate = range.end;
+    } else {
+      // All-time data (null fiscalYear = "All" button) or current fiscal year default
+      const currentFY = getCurrentFiscalPeriod().fiscalYear;
+      const range = getFiscalYearRange(currentFY);
+      startDate = range.start;
+      endDate = range.end;
+    }
+
+    // Check cache first (before DB queries) - include fiscal parameters in cache key
+    const cacheKey = `${CACHE_PREFIXES.ANALYTICS}graphs:${GSClientID}:${queryParams.resolution}:${mode}:${fiscalYearParam || 'current'}:${startDateParam || ''}:${endDateParam || ''}`;
     const cached = await cache.get<GraphDataResponse>(cacheKey);
     if (cached) {
       // Audit log for analytics access
@@ -136,17 +189,14 @@ export const GET = secureRoute.queryWithParams({
         userId: user.id,
         GSClientID,
         resolution: queryParams.resolution,
+        mode,
+        fiscalYear: fiscalYearParam,
       });
       
       const response = NextResponse.json(successResponse(cached));
       response.headers.set('Cache-Control', 'no-store'); // User-specific analytics
       return response;
     }
-
-    // Calculate date range - last 12 months (reduced from 24 for performance)
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 12);
 
     // Fetch client info for response
     const client = await prisma.client.findUnique({
@@ -185,6 +235,7 @@ export const GET = secureRoute.queryWithParams({
     const byMasterServiceLineMap = new Map<string, Map<string, DailyMetrics>>();
     const masterServiceLinesMap = new Map<string, string>(); // code -> name (proper deduplication)
     
+    // Initialize with explicit 0 to prevent NaN
     let overallOpeningBalance = 0;
     const openingBalancesByServiceLine = new Map<string, number>();
 
@@ -192,14 +243,14 @@ export const GET = secureRoute.queryWithParams({
       const dateKey = row.TranDate.toISOString().split('T')[0]!;
       const masterCode = row.masterCode || 'UNKNOWN';
       
-      // Store opening balance (same for all rows from SP)
+      // Store opening balance with proper number conversion (same for all rows from SP)
       if (overallOpeningBalance === 0) {
-        overallOpeningBalance = row.OpeningBalance;
+        overallOpeningBalance = toNumber(row.OpeningBalance);
       }
       
-      // Track opening balance per service line (first row for each masterCode)
+      // Track opening balance per service line with proper number conversion (first row for each masterCode)
       if (!openingBalancesByServiceLine.has(masterCode)) {
-        openingBalancesByServiceLine.set(masterCode, row.OpeningBalance);
+        openingBalancesByServiceLine.set(masterCode, toNumber(row.OpeningBalance));
       }
 
       // Track master service lines (Map ensures deduplication by code)
@@ -220,11 +271,11 @@ export const GET = secureRoute.queryWithParams({
         });
       }
       const overallDaily = overallDailyMap.get(dateKey)!;
-      overallDaily.production += row.Production;
-      overallDaily.adjustments += row.Adjustments;
-      overallDaily.disbursements += row.Disbursements;
-      overallDaily.billing += row.Billing;
-      overallDaily.provisions += row.Provisions;
+      overallDaily.production += toNumber(row.Production);
+      overallDaily.adjustments += toNumber(row.Adjustments);
+      overallDaily.disbursements += toNumber(row.Disbursements);
+      overallDaily.billing += toNumber(row.Billing);
+      overallDaily.provisions += toNumber(row.Provisions);
 
       // Aggregate by master service line
       if (!byMasterServiceLineMap.has(masterCode)) {
@@ -243,18 +294,18 @@ export const GET = secureRoute.queryWithParams({
         });
       }
       const serviceLineDaily = serviceLineMap.get(dateKey)!;
-      serviceLineDaily.production += row.Production;
-      serviceLineDaily.adjustments += row.Adjustments;
-      serviceLineDaily.disbursements += row.Disbursements;
-      serviceLineDaily.billing += row.Billing;
-      serviceLineDaily.provisions += row.Provisions;
+      serviceLineDaily.production += toNumber(row.Production);
+      serviceLineDaily.adjustments += toNumber(row.Adjustments);
+      serviceLineDaily.disbursements += toNumber(row.Disbursements);
+      serviceLineDaily.billing += toNumber(row.Billing);
+      serviceLineDaily.provisions += toNumber(row.Provisions);
     });
 
     // Helper function to calculate cumulative WIP and summaries
     const finalizeDailyMetrics = (dailyMap: Map<string, DailyMetrics>, openingBalance: number): ServiceLineGraphData => {
       const sortedMetrics = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
       
-      let cumulativeBalance = openingBalance;
+      let cumulativeBalance = openingBalance || 0; // Ensure starting balance is never NaN
       let totalProduction = 0;
       let totalAdjustments = 0;
       let totalDisbursements = 0;
@@ -262,18 +313,26 @@ export const GET = secureRoute.queryWithParams({
       let totalProvisions = 0;
 
       const dailyMetrics = sortedMetrics.map((daily) => {
-        const dailyWipChange = daily.production + daily.adjustments + daily.disbursements + daily.provisions - daily.billing;
+        // Ensure all values are numbers (not null/undefined)
+        const production = daily.production || 0;
+        const adjustments = daily.adjustments || 0;
+        const disbursements = daily.disbursements || 0;
+        const billing = daily.billing || 0;
+        const provisions = daily.provisions || 0;
+        
+        const dailyWipChange = production + adjustments + disbursements + provisions - billing;
         cumulativeBalance += dailyWipChange;
         
-        totalProduction += daily.production;
-        totalAdjustments += daily.adjustments;
-        totalDisbursements += daily.disbursements;
-        totalBilling += daily.billing;
-        totalProvisions += daily.provisions;
+        // Accumulate totals with null safety
+        totalProduction += production;
+        totalAdjustments += adjustments;
+        totalDisbursements += disbursements;
+        totalBilling += billing;
+        totalProvisions += provisions;
 
         return {
           ...daily,
-          wipBalance: cumulativeBalance,
+          wipBalance: cumulativeBalance || 0, // Ensure never NaN
         };
       });
 
@@ -289,6 +348,18 @@ export const GET = secureRoute.queryWithParams({
         },
       };
     };
+
+    // Log WIP calculation details for debugging
+    logger.debug('Graph WIP calculation', {
+      openingBalance: overallOpeningBalance,
+      openingBalanceType: typeof overallOpeningBalance,
+      firstRowOpeningBalance: spResults[0]?.OpeningBalance,
+      firstRowOpeningBalanceType: typeof spResults[0]?.OpeningBalance,
+      firstRowProduction: spResults[0]?.Production,
+      firstRowProductionType: typeof spResults[0]?.Production,
+      spResultCount: spResults.length,
+      dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+    });
 
     // Finalize overall data
     const overall = finalizeDailyMetrics(overallDailyMap, overallOpeningBalance);
@@ -340,8 +411,11 @@ export const GET = secureRoute.queryWithParams({
       GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       resolution: queryParams.resolution,
+      mode,
+      fiscalYear: fiscalYearParam,
       spResultCount: spResults.length,
       dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+      currentWipBalance: overall.summary.currentWipBalance,
     });
 
     const response = NextResponse.json(successResponse(responseData));

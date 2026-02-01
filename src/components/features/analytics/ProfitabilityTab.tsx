@@ -165,7 +165,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   
   // Get current tab data (safe during loading)
   const currentMetrics: ProfitabilityMetrics | null = !isLoading && wipData
-    ? (activeTab === 'overall' ? overall : byMasterServiceLine?.[activeTab] || overall)
+    ? (activeTab === 'overall' ? overall : byMasterServiceLine?.[activeTab] || overall) ?? null
     : null;
 
   // Handle custom date range application
