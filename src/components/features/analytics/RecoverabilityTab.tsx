@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Banknote, Clock, TrendingUp, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
 import { useClientDebtors, DebtorMetrics } from '@/hooks/clients/useClientDebtors';
 import { useGroupDebtors } from '@/hooks/groups/useGroupDebtors';
 import { InvoiceDetailsModal } from './InvoiceDetailsModal';
-import { getCurrentFiscalPeriod, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
+import { getCurrentFiscalPeriod } from '@/lib/utils/fiscalPeriod';
 
 interface RecoverabilityTabProps {
   clientId?: string;  // Can be internal ID or GSClientID depending on context
@@ -174,8 +174,7 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
   // Fiscal period state
   const currentFY = getCurrentFiscalPeriod().fiscalYear;
   const [mode, setMode] = useState<'fiscal' | 'custom'>('fiscal');
-  const [fiscalYear, setFiscalYear] = useState<number>(currentFY);
-  const [fiscalMonth, setFiscalMonth] = useState<string | undefined>();
+  const [selectedYear, setSelectedYear] = useState<number | null>(currentFY);
   const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
   const [appliedDates, setAppliedDates] = useState({ start: '', end: '' });
   
@@ -187,8 +186,7 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
   // Use the appropriate hook based on props
   const { data: clientDebtorData, isLoading: isLoadingClient, error: clientError } = useClientDebtors(clientId || '', { 
     enabled: !!clientId,
-    fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
-    fiscalMonth: mode === 'fiscal' ? fiscalMonth : undefined,
+    fiscalYear: mode === 'fiscal' ? selectedYear ?? undefined : undefined,
     startDate: mode === 'custom' && appliedDates.start ? appliedDates.start : undefined,
     endDate: mode === 'custom' && appliedDates.end ? appliedDates.end : undefined,
     mode,
@@ -200,6 +198,17 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
   const isLoading = clientId ? isLoadingClient : isLoadingGroup;
   const error = clientId ? clientError : groupError;
   const entityType = clientId ? 'client' : 'group';
+
+  // Deduplicate master service lines (defensive measure) - MUST be before early returns
+  const uniqueMasterServiceLines = useMemo(() => {
+    if (!debtorData?.masterServiceLines) return [];
+    const seen = new Set<string>();
+    return debtorData.masterServiceLines.filter(msl => {
+      if (seen.has(msl.code)) return false;
+      seen.add(msl.code);
+      return true;
+    });
+  }, [debtorData?.masterServiceLines]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -214,14 +223,7 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
     return days.toFixed(1);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
-      </div>
-    );
-  }
-
+  // Keep error and empty state early returns (acceptable to hide filters)
   if (error) {
     return (
       <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#EF4444', borderWidth: '3px', background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)' }}>
@@ -234,7 +236,7 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
     );
   }
 
-  if (!debtorData || debtorData.transactionCount === 0) {
+  if (!isLoading && (!debtorData || debtorData.transactionCount === 0)) {
     return (
       <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
         <Banknote className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
@@ -246,25 +248,25 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
     );
   }
 
-  const { overall, byMasterServiceLine, masterServiceLines, transactionCount } = debtorData;
+  // Safely destructure data (may be undefined during loading)
+  const overall = debtorData?.overall;
+  const byMasterServiceLine = debtorData?.byMasterServiceLine;
+  const masterServiceLines = debtorData?.masterServiceLines;
+  const transactionCount = debtorData?.transactionCount;
   
-  // Get current tab data
-  const currentMetrics: DebtorMetrics = activeTab === 'overall' 
-    ? overall 
-    : byMasterServiceLine[activeTab] || overall;
+  // Get current tab data (safe during loading)
+  const currentMetrics: DebtorMetrics | null = !isLoading && debtorData
+    ? (activeTab === 'overall' ? overall : byMasterServiceLine?.[activeTab] || overall)
+    : null;
 
-  // Calculate percentages for aging buckets
-  const totalBalance = currentMetrics.totalBalance || 1; // Avoid division by zero
-  const agingPercentages = {
-    current: (currentMetrics.aging.current / totalBalance) * 100,
-    days31_60: (currentMetrics.aging.days31_60 / totalBalance) * 100,
-    days61_90: (currentMetrics.aging.days61_90 / totalBalance) * 100,
-    days91_120: (currentMetrics.aging.days91_120 / totalBalance) * 100,
-    days120Plus: (currentMetrics.aging.days120Plus / totalBalance) * 100,
-  };
-
-  // Generate fiscal year options (last 5 years)
-  const fiscalYearOptions = Array.from({ length: 5 }, (_, i) => currentFY - i);
+  // Calculate percentages for aging buckets (only when we have metrics)
+  const agingPercentages = currentMetrics ? {
+    current: ((currentMetrics.aging.current || 0) / (currentMetrics.totalBalance || 1)) * 100,
+    days31_60: ((currentMetrics.aging.days31_60 || 0) / (currentMetrics.totalBalance || 1)) * 100,
+    days61_90: ((currentMetrics.aging.days61_90 || 0) / (currentMetrics.totalBalance || 1)) * 100,
+    days91_120: ((currentMetrics.aging.days91_120 || 0) / (currentMetrics.totalBalance || 1)) * 100,
+    days120Plus: ((currentMetrics.aging.days120Plus || 0) / (currentMetrics.totalBalance || 1)) * 100,
+  } : null;
 
   // Handle custom date range application
   const handleApplyCustomRange = () => {
@@ -306,31 +308,31 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
 
               {/* Fiscal mode controls */}
               {mode === 'fiscal' && (
-                <>
-                  <select
-                    value={fiscalYear}
-                    onChange={(e) => setFiscalYear(Number(e.target.value))}
-                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedYear(null)}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                      selectedYear === null
+                        ? 'bg-white text-forvis-blue-600'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
                   >
-                    {fiscalYearOptions.map((year) => (
-                      <option key={year} value={year}>
-                        FY {year}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={fiscalMonth || ''}
-                    onChange={(e) => setFiscalMonth(e.target.value || undefined)}
-                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
-                  >
-                    <option value="">Full Year</option>
-                    {FISCAL_MONTHS.map((month) => (
-                      <option key={month} value={month}>
-                        Through {month}
-                      </option>
-                    ))}
-                  </select>
-                </>
+                    All
+                  </button>
+                  {[currentFY, currentFY - 1, currentFY - 2].map((year) => (
+                    <button
+                      key={year}
+                      onClick={() => setSelectedYear(year)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                        selectedYear === year
+                          ? 'bg-white text-forvis-blue-600'
+                          : 'bg-white/20 text-white hover:bg-white/30'
+                      }`}
+                    >
+                      FY {year}
+                    </button>
+                  ))}
+                </div>
               )}
 
               {/* Custom mode controls */}
@@ -363,41 +365,53 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
         </div>
       )}
 
-      {/* Service Line Tab Navigation */}
-      <div className="card overflow-hidden">
-        <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
-          <nav className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setActiveTab('overall')}
-              className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
-                activeTab === 'overall'
-                  ? 'bg-white text-forvis-blue-600'
-                  : 'bg-white/20 text-white hover:bg-white/30'
-              }`}
-            >
-              Overall
-            </button>
-            {masterServiceLines.map((msl) => (
+      {/* Service Line Tab Navigation - Only show when data is loaded */}
+      {!isLoading && debtorData && uniqueMasterServiceLines.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
+            <nav className="flex flex-wrap gap-3">
               <button
-                key={msl.code}
-                onClick={() => setActiveTab(msl.code)}
+                onClick={() => setActiveTab('overall')}
                 className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
-                  activeTab === msl.code
+                  activeTab === 'overall'
                     ? 'bg-white text-forvis-blue-600'
                     : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
               >
-                {msl.name}
+                Overall
               </button>
-            ))}
-          </nav>
+              {uniqueMasterServiceLines.map((msl) => (
+                <button
+                  key={msl.code}
+                  onClick={() => setActiveTab(msl.code)}
+                  className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                    activeTab === msl.code
+                      ? 'bg-white text-forvis-blue-600'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  {msl.name}
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Aging Bar - Inline Display with Total */}
-      <AgingBar
-        totalBalance={currentMetrics.totalBalance}
-        transactionCount={transactionCount}
+      {/* Loading State or Metrics */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-24">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+            <p className="text-sm text-forvis-gray-600 font-medium">Loading recoverability data...</p>
+          </div>
+        </div>
+      ) : currentMetrics && agingPercentages ? (
+        <>
+          {/* Aging Bar - Inline Display with Total */}
+          <AgingBar
+            totalBalance={currentMetrics.totalBalance}
+            transactionCount={transactionCount}
         segments={[
           {
             label: 'Current (0-30 days)',
@@ -500,20 +514,26 @@ export function RecoverabilityTab({ clientId, groupCode }: RecoverabilityTabProp
       {/* Additional Info */}
       <div className="card p-4">
         <div className="flex items-center justify-between text-sm text-forvis-gray-600">
-          <span>Showing data for: <span className="font-medium text-forvis-gray-900">{activeTab === 'overall' ? 'All Service Lines' : masterServiceLines.find(msl => msl.code === activeTab)?.name}</span></span>
+          <span>Showing data for: <span className="font-medium text-forvis-gray-900">{activeTab === 'overall' ? 'All Service Lines' : uniqueMasterServiceLines.find(msl => msl.code === activeTab)?.name}</span></span>
           <span>Invoices: <span className="font-medium text-forvis-gray-900">{currentMetrics.invoiceCount}</span></span>
         </div>
       </div>
 
-      {/* Invoice Details Modal */}
-      {clientId && clientDebtorData && (
-        <InvoiceDetailsModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          clientId={clientId}
-          initialBucket={selectedBucket}
-          clientName={clientDebtorData.clientName || undefined}
-        />
+          {/* Invoice Details Modal */}
+          {clientId && clientDebtorData && (
+            <InvoiceDetailsModal
+              isOpen={modalOpen}
+              onClose={() => setModalOpen(false)}
+              clientId={clientId}
+              initialBucket={selectedBucket}
+              clientName={clientDebtorData.clientName || undefined}
+            />
+          )}
+        </>
+      ) : (
+        <div className="card p-6 text-center">
+          <p className="text-forvis-gray-600">No recoverability metrics available for this {entityType}</p>
+        </div>
       )}
     </div>
   );

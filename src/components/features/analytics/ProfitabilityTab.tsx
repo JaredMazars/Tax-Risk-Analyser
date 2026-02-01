@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Briefcase, Clock, DollarSign, Calendar, BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
 import { useClientWip, ProfitabilityMetrics } from '@/hooks/clients/useClientWip';
 import { useGroupWip } from '@/hooks/groups/useGroupWip';
-import { getCurrentFiscalPeriod, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
+import { getCurrentFiscalPeriod } from '@/lib/utils/fiscalPeriod';
 
 interface ProfitabilityTabProps {
   clientId?: string;  // Can be internal ID or GSClientID depending on context
@@ -78,8 +78,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   // Fiscal period state
   const currentFY = getCurrentFiscalPeriod().fiscalYear;
   const [mode, setMode] = useState<'fiscal' | 'custom'>('fiscal');
-  const [fiscalYear, setFiscalYear] = useState<number>(currentFY);
-  const [fiscalMonth, setFiscalMonth] = useState<string | undefined>();
+  const [selectedYear, setSelectedYear] = useState<number | null>(currentFY);
   const [customInputs, setCustomInputs] = useState({ start: '', end: '' });
   const [appliedDates, setAppliedDates] = useState({ start: '', end: '' });
   
@@ -90,8 +89,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   // Priority: clientId takes precedence over groupCode
   const { data: clientWipData, isLoading: isLoadingClient, error: clientError } = useClientWip(clientId || '', { 
     enabled: !!clientId,
-    fiscalYear: mode === 'fiscal' ? fiscalYear : undefined,
-    fiscalMonth: mode === 'fiscal' ? fiscalMonth : undefined,
+    fiscalYear: mode === 'fiscal' ? selectedYear ?? undefined : undefined,
     startDate: mode === 'custom' && appliedDates.start ? appliedDates.start : undefined,
     endDate: mode === 'custom' && appliedDates.end ? appliedDates.end : undefined,
     mode,
@@ -103,6 +101,17 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
   const isLoading = clientId ? isLoadingClient : isLoadingGroup;
   const error = clientId ? clientError : groupError;
   const entityType = clientId ? 'client' : 'group';
+
+  // Deduplicate master service lines (defensive measure) - MUST be before early returns
+  const uniqueMasterServiceLines = useMemo(() => {
+    if (!wipData?.masterServiceLines) return [];
+    const seen = new Set<string>();
+    return wipData.masterServiceLines.filter(msl => {
+      if (seen.has(msl.code)) return false;
+      seen.add(msl.code);
+      return true;
+    });
+  }, [wipData?.masterServiceLines]);
 
   const formatCurrency = (amount: number | null | undefined) => {
     const safeAmount = amount ?? 0;
@@ -122,14 +131,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
     }).format(safeHours);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600"></div>
-      </div>
-    );
-  }
-
+  // Keep error and empty state early returns (acceptable to hide filters)
   if (error) {
     return (
       <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#EF4444', borderWidth: '3px', background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)' }}>
@@ -142,7 +144,7 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
     );
   }
 
-  if (!wipData || wipData.taskCount === 0) {
+  if (!isLoading && (!wipData || wipData.taskCount === 0)) {
     return (
       <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
         <BarChart3 className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
@@ -154,24 +156,17 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
     );
   }
 
-  const { overall, byMasterServiceLine, masterServiceLines, taskCount, lastUpdated } = wipData;
+  // Safely destructure data (may be undefined during loading)
+  const overall = wipData?.overall;
+  const byMasterServiceLine = wipData?.byMasterServiceLine;
+  const masterServiceLines = wipData?.masterServiceLines;
+  const taskCount = wipData?.taskCount;
+  const lastUpdated = wipData?.lastUpdated;
   
-  // Get current tab data
-  const currentMetrics: ProfitabilityMetrics = activeTab === 'overall' 
-    ? overall 
-    : byMasterServiceLine[activeTab] || overall;
-
-  // Safety check for metrics
-  if (!currentMetrics || currentMetrics.grossProfitPercentage === null || currentMetrics.grossProfitPercentage === undefined) {
-    return (
-      <div className="card p-6 text-center">
-        <p className="text-forvis-gray-600">No profitability metrics available for this {entityType}</p>
-      </div>
-    );
-  }
-
-  // Generate fiscal year options (last 5 years)
-  const fiscalYearOptions = Array.from({ length: 5 }, (_, i) => currentFY - i);
+  // Get current tab data (safe during loading)
+  const currentMetrics: ProfitabilityMetrics | null = !isLoading && wipData
+    ? (activeTab === 'overall' ? overall : byMasterServiceLine?.[activeTab] || overall)
+    : null;
 
   // Handle custom date range application
   const handleApplyCustomRange = () => {
@@ -213,31 +208,31 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
 
               {/* Fiscal mode controls */}
               {mode === 'fiscal' && (
-                <>
-                  <select
-                    value={fiscalYear}
-                    onChange={(e) => setFiscalYear(Number(e.target.value))}
-                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedYear(null)}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                      selectedYear === null
+                        ? 'bg-white text-forvis-blue-600'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
                   >
-                    {fiscalYearOptions.map((year) => (
-                      <option key={year} value={year}>
-                        FY {year}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={fiscalMonth || ''}
-                    onChange={(e) => setFiscalMonth(e.target.value || undefined)}
-                    className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-forvis-gray-900 border border-forvis-gray-300 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500"
-                  >
-                    <option value="">Full Year</option>
-                    {FISCAL_MONTHS.map((month) => (
-                      <option key={month} value={month}>
-                        Through {month}
-                      </option>
-                    ))}
-                  </select>
-                </>
+                    All
+                  </button>
+                  {[currentFY, currentFY - 1, currentFY - 2].map((year) => (
+                    <button
+                      key={year}
+                      onClick={() => setSelectedYear(year)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                        selectedYear === year
+                          ? 'bg-white text-forvis-blue-600'
+                          : 'bg-white/20 text-white hover:bg-white/30'
+                      }`}
+                    >
+                      FY {year}
+                    </button>
+                  ))}
+                </div>
               )}
 
               {/* Custom mode controls */}
@@ -270,38 +265,50 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
         </div>
       )}
 
-      {/* Service Line Tab Navigation */}
-      <div className="card overflow-hidden">
-        <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
-          <nav className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setActiveTab('overall')}
-              className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
-                activeTab === 'overall'
-                  ? 'bg-white text-forvis-blue-600'
-                  : 'bg-white/20 text-white hover:bg-white/30'
-              }`}
-            >
-              Overall
-            </button>
-            {masterServiceLines.map((msl) => (
+      {/* Service Line Tab Navigation - Only show when data is loaded */}
+      {!isLoading && wipData && uniqueMasterServiceLines.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-6 py-4" style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)' }}>
+            <nav className="flex flex-wrap gap-3">
               <button
-                key={msl.code}
-                onClick={() => setActiveTab(msl.code)}
+                onClick={() => setActiveTab('overall')}
                 className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
-                  activeTab === msl.code
+                  activeTab === 'overall'
                     ? 'bg-white text-forvis-blue-600'
                     : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
               >
-                {msl.name}
+                Overall
               </button>
-            ))}
-          </nav>
+              {uniqueMasterServiceLines.map((msl) => (
+                <button
+                  key={msl.code}
+                  onClick={() => setActiveTab(msl.code)}
+                  className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                    activeTab === msl.code
+                      ? 'bg-white text-forvis-blue-600'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  {msl.name}
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Key Performance Summary */}
+      {/* Loading State or Key Performance Summary */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-24">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600"></div>
+            <p className="text-sm text-forvis-gray-600 font-medium">Loading profitability data...</p>
+          </div>
+        </div>
+      ) : currentMetrics ? (
+        <>
+          {/* Key Performance Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -468,6 +475,12 @@ export function ProfitabilityTab({ clientId, groupCode }: ProfitabilityTabProps)
           </div>
         </div>
       </div>
+        </>
+      ) : (
+        <div className="card p-6 text-center">
+          <p className="text-forvis-gray-600">No profitability metrics available for this {entityType}</p>
+        </div>
+      )}
     </div>
   );
 }

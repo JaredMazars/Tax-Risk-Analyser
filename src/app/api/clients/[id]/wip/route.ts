@@ -217,12 +217,16 @@ export const GET = secureRoute.queryWithParams({
       taskCount: 0,
     };
 
-    const uniqueMasterCodes = new Set<string>();
+    const masterServiceLinesMap = new Map<string, string>(); // code -> name (from SP data)
     const taskCountByMaster = new Map<string, Set<string>>();
 
     spResults.forEach(row => {
       const masterCode = row.masterCode || 'UNKNOWN';
-      uniqueMasterCodes.add(masterCode);
+      
+      // Track master service lines from SP data (proper deduplication)
+      if (row.masterCode && row.masterServiceLineName) {
+        masterServiceLinesMap.set(row.masterCode, row.masterServiceLineName);
+      }
       
       if (!groupedData.has(masterCode)) {
         groupedData.set(masterCode, {
@@ -286,19 +290,11 @@ export const GET = secureRoute.queryWithParams({
     const allTaskIds = new Set(spResults.map(row => row.GSTaskID));
     overallTotals.taskCount = allTaskIds.size;
 
-    // Fetch Master Service Line names
-    const masterServiceLines = await prisma.serviceLineMaster.findMany({
-      where: {
-        code: {
-          in: Array.from(uniqueMasterCodes).filter(code => code !== 'UNKNOWN'),
-        },
-      },
-      select: {
-        code: true,
-        name: true,
-      },
-      take: 100,
-    });
+    // Convert master service lines map to array (no DB query needed - data from SP)
+    const masterServiceLines = Array.from(masterServiceLinesMap.entries()).map(([code, name]) => ({
+      code,
+      name,
+    }));
 
     // Calculate profitability metrics for each Master Service Line
     const byMasterServiceLine: Record<string, ProfitabilityMetrics> = {};
@@ -315,10 +311,7 @@ export const GET = secureRoute.queryWithParams({
       clientName: client.clientNameFull,
       overall,
       byMasterServiceLine,
-      masterServiceLines: masterServiceLines.map(msl => ({
-        code: msl.code,
-        name: msl.name,
-      })),
+      masterServiceLines, // Already in correct format
       taskCount: overallTotals.taskCount,
       lastUpdated: new Date().toISOString(), // SP doesn't return updatedAt, use current timestamp
       // Period information
@@ -334,7 +327,7 @@ export const GET = secureRoute.queryWithParams({
     logger.info('Client WIP data fetched from SP', {
       clientCode: client.clientCode,
       taskCount: overallTotals.taskCount,
-      masterServiceLines: uniqueMasterCodes.size,
+      masterServiceLines: masterServiceLinesMap.size,
       durationMs: Date.now() - startTime,
     });
 

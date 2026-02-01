@@ -124,7 +124,7 @@ export const GET = secureRoute.queryWithParams({
       transactionCount: 0,
     };
 
-    const uniqueMasterCodes = new Set<string>();
+    const masterServiceLinesMap = new Map<string, string>(); // code -> name (from SP data)
     let totalInvoiceCount = 0;
     let totalWeightedDaysOutstanding = 0;
     let totalWeightedDaysPaid = 0;
@@ -132,7 +132,11 @@ export const GET = secureRoute.queryWithParams({
 
     spResults.forEach(row => {
       const masterCode = row.MasterServiceLineCode || 'UNKNOWN';
-      uniqueMasterCodes.add(masterCode);
+      
+      // Track master service lines from SP data (proper deduplication)
+      if (row.MasterServiceLineCode && row.MasterServiceLineName) {
+        masterServiceLinesMap.set(row.MasterServiceLineCode, row.MasterServiceLineName);
+      }
       
       if (!groupedData.has(masterCode)) {
         groupedData.set(masterCode, {
@@ -206,19 +210,11 @@ export const GET = secureRoute.queryWithParams({
       data.avgPaymentDaysOutstanding = totalWeight > 0 ? weightedSum / totalWeight : 0;
     });
 
-    // Fetch Master Service Line names
-    const masterServiceLines = await prisma.serviceLineMaster.findMany({
-      where: {
-        code: {
-          in: Array.from(uniqueMasterCodes).filter(code => code !== 'UNKNOWN'),
-        },
-      },
-      select: {
-        code: true,
-        name: true,
-      },
-      take: 100,
-    });
+    // Convert master service lines map to array (no DB query needed - data from SP)
+    const masterServiceLines = Array.from(masterServiceLinesMap.entries()).map(([code, name]) => ({
+      code,
+      name,
+    }));
 
     // Convert grouped data to response format
     const byMasterServiceLine: Record<string, DebtorMetrics> = {};
@@ -232,10 +228,7 @@ export const GET = secureRoute.queryWithParams({
       clientName: client.clientNameFull,
       overall: overallTotals,
       byMasterServiceLine,
-      masterServiceLines: masterServiceLines.map(msl => ({
-        code: msl.code,
-        name: msl.name,
-      })),
+      masterServiceLines, // Already in correct format
       transactionCount: spResults.length,
       lastUpdated: new Date().toISOString(), // SP doesn't return updatedAt, use current timestamp
       // Period information
@@ -250,7 +243,7 @@ export const GET = secureRoute.queryWithParams({
     logger.info('Client debtors data fetched from SP', {
       clientCode: client.clientCode,
       invoiceCount: totalInvoiceCount,
-      masterServiceLines: uniqueMasterCodes.size,
+      masterServiceLines: masterServiceLinesMap.size,
       durationMs: Date.now() - startTime,
     });
 

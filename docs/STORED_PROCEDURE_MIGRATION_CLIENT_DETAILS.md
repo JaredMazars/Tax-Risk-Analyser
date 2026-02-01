@@ -235,16 +235,19 @@ If issues arise, the inline query version is preserved in git history:
 
 1. **Fiscal Year Filtering UI** - Added to both ProfitabilityTab and RecoverabilityTab
    - Mode toggle: Fiscal Year | Custom Range
-   - Fiscal year dropdown (last 5 years)
-   - Fiscal month dropdown (cumulative through selected month)
-   - Custom date range inputs (month picker)
+   - Fiscal year dropdown (last 5 years) - automatically shows data up to latest available information
+   - Custom date range inputs (month picker) for custom period analysis
+   
+   **Note:** Fiscal month dropdown removed per user feedback. The fiscal year mode now automatically displays all available data for the selected year.
    
 2. **API Query Parameters** - Both `/api/clients/[id]/wip` and `/api/clients/[id]/debtors` now accept:
    - `fiscalYear` - Fiscal year filter (e.g., 2024)
-   - `fiscalMonth` - Optional fiscal month for cumulative YTD (e.g., 'November')
+   - `fiscalMonth` - Optional fiscal month for cumulative YTD (e.g., 'November') - **Not used in UI, API backward compatible**
    - `mode` - 'fiscal' (default) or 'custom'
    - `startDate` - Custom range start (ISO string)
    - `endDate` - Custom range end (ISO string)
+   
+   **UI Simplification:** The fiscal month selector was removed from the UI. Users select a fiscal year and see all available data for that year, or use custom date ranges for specific periods.
 
 3. **Default Behavior** - When no parameters provided, defaults to current fiscal year
 
@@ -290,10 +293,10 @@ Exit code: 0 (Success - No compilation errors)
 ### User Experience Improvements
 
 1. **Period Analysis** - Users can now analyze profitability and recoverability for specific fiscal periods
-2. **Fiscal YTD** - Cumulative metrics through any fiscal month
+2. **Simplified Fiscal Year Selection** - Select a fiscal year and automatically see all available data (no need to choose a specific month)
 3. **Comparison** - Easy switching between fiscal years for year-over-year analysis
-4. **Flexibility** - Custom date ranges for non-standard periods
-5. **Consistency** - UI matches familiar My Reports pattern
+4. **Flexibility** - Custom date ranges for non-standard periods using month pickers
+5. **Automatic Latest Data** - For current fiscal year, displays data up to the latest available information
 
 ### Performance Impact
 
@@ -322,10 +325,83 @@ This implementation follows the exact pattern used in:
 
 - ✅ Default behavior: Page loads with current FY data
 - ✅ Fiscal year selection: Dropdown changes update data
-- ✅ Fiscal month filter: Cumulative YTD calculations work correctly
 - ✅ Custom range: Date pickers and Apply button function properly
 - ✅ Service line tabs: Work correctly with fiscal filters
 - ✅ Client header: Still shows all-time balances (no regression)
 - ✅ TypeScript: No compilation errors
 - ✅ Linter: No warnings or errors
 - ✅ React Query: Cache keys include filter parameters
+
+### UI Simplification Update (2026-01-31)
+
+**Change:** Removed fiscal month dropdown from analytics pages per user feedback.
+
+**Rationale:** 
+- Simplified user experience - fewer clicks to see relevant data
+- Fiscal year selection automatically shows all available data for that year
+- Custom date ranges still available for users who need specific period analysis
+- Reduces UI clutter and decision fatigue
+
+**Impact:**
+- ✅ Cleaner, more intuitive interface
+- ✅ Fiscal year mode now shows complete year data automatically
+- ✅ Custom range mode provides flexibility when needed
+- ✅ No breaking changes - API still supports fiscalMonth parameter for backward compatibility
+
+**Files Modified:**
+- `src/components/features/analytics/ProfitabilityTab.tsx` - Removed fiscal month dropdown and state
+- `src/components/features/analytics/RecoverabilityTab.tsx` - Removed fiscal month dropdown and state
+
+### Year Button UI Update (2026-01-31)
+
+**Change:** Replaced fiscal year dropdown with horizontal year buttons.
+
+**New UI Layout:**
+- **All** button - Shows all-time data (no fiscal year filtering)
+- **FY 2024** button - Current fiscal year (shows data as of today)
+- **FY 2023** button - Previous fiscal year (shows data as of Aug 31, 2023)
+- **FY 2022** button - Two years ago (shows data as of Aug 31, 2022)
+
+**Button Behavior:**
+- **All**: Removes fiscal year filtering, displays all historical data
+- **Current Year (FY 2024)**: Shows data through today's date with current aging
+- **Past Years (FY 2022, FY 2023)**: Shows data through fiscal year-end (August 31) with historical aging
+
+**Visual Design:**
+- Horizontal button layout matching mode toggle style
+- Active button: White background with blue text
+- Inactive buttons: Semi-transparent white background with white text and hover effect
+- Consistent spacing and sizing with existing controls
+
+**Technical Implementation:**
+- Changed state from `fiscalYear: number` to `selectedYear: number | null`
+- `null` value represents "All" button (no year filtering)
+- Button group replaces dropdown select element
+- Custom Range mode preserved for specific date range needs
+
+**User Benefits:**
+1. **Faster Navigation** - One-click year selection instead of dropdown interaction
+2. **Visual Clarity** - All year options visible at once
+3. **Comparison Workflow** - Quick switching between years for analysis
+4. **All-Time View** - New "All" button provides complete historical perspective
+5. **Intelligent Defaults** - Current year shows live data, past years show year-end snapshots
+
+**Files Modified:**
+- `src/components/features/analytics/ProfitabilityTab.tsx` - Replaced dropdown with year buttons
+- `src/components/features/analytics/RecoverabilityTab.tsx` - Replaced dropdown with year buttons
+
+**Backwards Compatibility:**
+- ✅ API routes unchanged - already support optional fiscalYear parameter
+- ✅ Hooks unchanged - parameter passing logic remains the same
+- ✅ Custom Range mode fully preserved
+- ✅ Cache invalidation works correctly with new state structure
+
+**Testing:**
+- ✅ TypeScript compilation: No errors
+- ✅ Linter: No warnings
+- ✅ All button shows complete historical data
+- ✅ Current year button shows data as of today
+- ✅ Past year buttons show data through fiscal year-end
+- ✅ Custom Range mode continues to work
+- ✅ Service line tabs update correctly with year selection
+- ✅ React Query cache keys properly invalidate on year change

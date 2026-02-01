@@ -183,7 +183,7 @@ export const GET = secureRoute.queryWithParams({
     // Group by masterCode and date
     const overallDailyMap = new Map<string, DailyMetrics>();
     const byMasterServiceLineMap = new Map<string, Map<string, DailyMetrics>>();
-    const masterServiceLinesSet = new Set<{ code: string; name: string }>();
+    const masterServiceLinesMap = new Map<string, string>(); // code -> name (proper deduplication)
     
     let overallOpeningBalance = 0;
     const openingBalancesByServiceLine = new Map<string, number>();
@@ -202,9 +202,9 @@ export const GET = secureRoute.queryWithParams({
         openingBalancesByServiceLine.set(masterCode, row.OpeningBalance);
       }
 
-      // Track master service lines
+      // Track master service lines (Map ensures deduplication by code)
       if (row.masterCode && row.masterServiceLineName) {
-        masterServiceLinesSet.add({ code: row.masterCode, name: row.masterServiceLineName });
+        masterServiceLinesMap.set(row.masterCode, row.masterServiceLineName);
       }
 
       // Aggregate for overall
@@ -300,8 +300,11 @@ export const GET = secureRoute.queryWithParams({
       byMasterServiceLine[masterCode] = finalizeDailyMetrics(dailyMap, serviceLineOpeningBalance);
     });
 
-    // Convert master service lines set to array
-    const masterServiceLines = Array.from(masterServiceLinesSet);
+    // Convert master service lines map to array
+    const masterServiceLines = Array.from(masterServiceLinesMap.entries()).map(([code, name]) => ({
+      code,
+      name,
+    }));
 
     // Apply downsampling to reduce payload size
     const downsampledOverall = {
@@ -325,10 +328,7 @@ export const GET = secureRoute.queryWithParams({
       endDate: endDate.toISOString(),
       overall: downsampledOverall,
       byMasterServiceLine: downsampledByMasterServiceLine,
-      masterServiceLines: masterServiceLines.map(msl => ({
-        code: msl.code,
-        name: msl.name,
-      })),
+      masterServiceLines, // Already in correct format
     };
 
     // Cache for 10 minutes (600 seconds) - balance between performance and data freshness
