@@ -235,7 +235,7 @@ SELECT
     ,t.SubServlineGroupDesc
     ,t.masterServiceLineName
     
-    -- Opening balance (computed from stored components)
+    -- Opening balance (computed from stored components, includes provisions)
     ,(wa.OpeningT + wa.OpeningD + wa.OpeningADJ + wa.OpeningF + wa.OpeningP) AS OpeningBalance
     
     -- Period metrics (direct from temp table)
@@ -243,18 +243,18 @@ SELECT
     ,wa.LTDDisbCharged
     ,wa.LTDFeesBilled
     ,wa.LTDAdjustments
-    ,wa.LTDWipProvision
+    ,(wa.OpeningP + wa.LTDWipProvision) AS LTDWipProvision  -- Total provisions (opening + period)
     ,wa.LTDHours
     ,wa.LTDCost
     
-    -- BalWip = Opening + Period Activity (excluding Provisions)
-    ,(wa.OpeningT + wa.OpeningD + wa.OpeningADJ + wa.OpeningF + wa.OpeningP
+    -- BalWip = Gross WIP (T + D + ADJ - F, NO provisions)
+    ,(wa.OpeningT + wa.OpeningD + wa.OpeningADJ + wa.OpeningF
       + wa.LTDTimeCharged + wa.LTDDisbCharged + wa.LTDAdjustments + wa.LTDFeesBilled) AS BalWip
     
-    -- NetWIP = BalWip + Period Provisions
-    ,(wa.OpeningT + wa.OpeningD + wa.OpeningADJ + wa.OpeningF + wa.OpeningP
+    -- NetWIP = BalWip + ALL Provisions (opening + period)
+    ,(wa.OpeningT + wa.OpeningD + wa.OpeningADJ + wa.OpeningF
       + wa.LTDTimeCharged + wa.LTDDisbCharged + wa.LTDAdjustments + wa.LTDFeesBilled
-      + wa.LTDWipProvision) AS NetWIP
+      + wa.OpeningP + wa.LTDWipProvision) AS NetWIP
     
     -- Calculated fields
     ,(wa.LTDTimeCharged + wa.LTDAdjustments) AS NetRevenue
