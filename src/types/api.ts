@@ -529,6 +529,104 @@ export interface RecoverabilityMonthlyResult {
   ClosingBalance: number;   // Opening + Billings - Receipts
 }
 
+// ============================================================================
+// WIP Aging Types
+// ============================================================================
+
+/**
+ * WIP aging buckets (7 buckets based on days since transaction)
+ */
+export interface WIPAgingBuckets {
+  curr: number;      // 0-30 days
+  bal30: number;     // 31-60 days
+  bal60: number;     // 61-90 days
+  bal90: number;     // 91-120 days
+  bal120: number;    // 121-150 days
+  bal150: number;    // 151-180 days
+  bal180: number;    // 180+ days
+}
+
+/**
+ * WIP Aging task data with aging buckets and FIFO-adjusted balances
+ */
+export interface WIPAgingTaskData {
+  GSTaskID: string;
+  GSClientID: string | null;
+  taskCode: string;
+  clientCode: string;
+  groupCode: string | null;
+  servLineCode: string;
+  servLineDesc: string;
+  // Service line hierarchy
+  masterServiceLineCode: string;
+  masterServiceLineName: string;
+  subServlineGroupCode: string;
+  subServlineGroupDesc: string;
+  taskPartner: string;
+  partnerName: string;
+  taskManager: string;
+  managerName: string;
+  taskDesc: string;
+  clientName: string | null;
+  groupDesc: string | null;
+  aging: WIPAgingBuckets;
+  grossWip: number;    // Gross WIP before FIFO fee allocation
+  balWip: number;      // Net WIP after FIFO (sum of all buckets)
+  ptdFeeAmt: number;   // Period-to-date fees applied (negative = credits)
+  provision: number;   // WIP provision
+  nettWip: number;     // Net WIP after all adjustments
+}
+
+/**
+ * WIP Aging Report response data
+ */
+export interface WIPAgingReportData {
+  tasks: WIPAgingTaskData[];
+  filterMode: 'PARTNER' | 'MANAGER';
+  employeeCode: string;
+  asOfDate: string;    // ISO date string
+}
+
+/**
+ * sp_WIPAgingByTask stored procedure result
+ * Task-level WIP aging with FIFO fee allocation
+ */
+export interface WIPAgingSPResult {
+  GSTaskID: string;
+  GSClientID: string | null;
+  TaskCode: string;
+  ClientCode: string;
+  GroupCode: string | null;
+  ServLineCode: string;
+  TaskPartner: string;
+  TaskManager: string;
+  TaskDesc: string;
+  ClientName: string | null;
+  GroupDesc: string | null;
+  ServLineDesc: string;
+  PartnerName: string;
+  ManagerName: string;
+  // Service line hierarchy (from SP v3.0+)
+  masterCode: string | null;
+  SubServlineGroupCode: string | null;
+  SubServlineGroupDesc: string | null;
+  masterServiceLineName: string | null;
+  // Aging buckets (FIFO-adjusted)
+  Curr: number;
+  Bal30: number;
+  Bal60: number;
+  Bal90: number;
+  Bal120: number;
+  Bal150: number;
+  Bal180: number;
+  // Totals
+  GrossWip: number;   // Gross WIP before FIFO fee allocation
+  BalWip: number;     // Net WIP after FIFO
+  PtdFeeAmt: number;
+  Provision: number;
+  NettWip: number;
+}
+
 /**
  * Helper type to convert SP result to existing MonthlyMetrics
  */

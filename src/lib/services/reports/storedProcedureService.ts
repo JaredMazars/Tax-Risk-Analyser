@@ -522,6 +522,75 @@ export async function executeRecoverabilityMonthly(
 }
 
 // ============================================================================
+// WIP Aging - Task-level WIP aging with FIFO fee allocation
+// ============================================================================
+
+export interface WIPAgingParams {
+  taskPartner?: string;
+  taskManager?: string;
+  clientCode?: string;
+  groupCode?: string;
+  servLineCode?: string;
+  taskCode?: string;
+  asOfDate: Date;
+}
+
+/**
+ * Execute sp_WIPAgingByTask stored procedure
+ * Returns task-level WIP aging with FIFO fee allocation:
+ * - 7 aging buckets (Curr, Bal30, Bal60, Bal90, Bal120, Bal150, Bal180)
+ * - Fees applied against oldest WIP first (FIFO)
+ * - Net buckets represent WIP after credit allocation
+ */
+export async function executeWIPAging(
+  params: WIPAgingParams
+): Promise<import('@/types/api').WIPAgingSPResult[]> {
+  const startTime = Date.now();
+  
+  try {
+    const results = await prisma.$queryRaw<import('@/types/api').WIPAgingSPResult[]>`
+      EXEC dbo.sp_WIPAgingByTask
+        @TaskPartner = ${params.taskPartner ?? '*'},
+        @TaskManager = ${params.taskManager ?? '*'},
+        @ClientCode = ${params.clientCode ?? '*'},
+        @GroupCode = ${params.groupCode ?? '*'},
+        @ServLineCode = ${params.servLineCode ?? '*'},
+        @TaskCode = ${params.taskCode ?? '*'},
+        @AsOfDate = ${params.asOfDate}
+    `;
+
+    logger.debug('sp_WIPAgingByTask executed', {
+      params: { 
+        ...params, 
+        asOfDate: params.asOfDate.toISOString()
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_WIPAgingByTask execution failed', { params, error });
+    throw error;
+  }
+}
+
+/**
+ * Fetch WIP aging data for a specific user (partner or manager)
+ */
+export async function fetchWIPAgingFromSP(
+  empCode: string,
+  isPartnerReport: boolean,
+  asOfDate: Date
+): Promise<import('@/types/api').WIPAgingSPResult[]> {
+  return executeWIPAging({
+    taskPartner: isPartnerReport ? empCode : undefined,
+    taskManager: isPartnerReport ? undefined : empCode,
+    asOfDate,
+  });
+}
+
+// ============================================================================
 // Graph Data - Daily WIP transaction metrics for analytics graphs
 // ============================================================================
 

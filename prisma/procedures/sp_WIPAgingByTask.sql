@@ -8,8 +8,36 @@
 -- Fees are applied against the OLDEST WIP first, reducing aged balances
 -- before current balances.
 --
--- VERSION: 2.0 - FIFO Aging Implementation
+-- VERSION: 3.5 - BalWip calculated directly as GrossWip - Credits
+-- PREVIOUS: 3.4 - Fixed NET amount calculation to match Profitability report
+-- PREVIOUS: 3.3 - Fixed overbilled task handling (negative BalWip)
+-- PREVIOUS: 3.2 - Fixed NettWip and Credits to match Profitability report
+-- PREVIOUS: 3.1 - Fixed GrossWip/Provision to match Profitability report
+-- PREVIOUS: 3.0 - Added Service Line Hierarchy and GrossWip
+-- PREVIOUS: 2.0 - FIFO Aging Implementation
 -- PREVIOUS: 1.0 - Simple date-based aging (no FIFO)
+--
+-- v3.5 FIX: BalWip now calculated as TotalGrossWIP - TotalCredits directly
+--           This matches profitability formula: BalWip = T + D + ADJ - F
+--           FIFO bucket distribution is for aging visibility only
+--           Ensures total BalWip matches profitability regardless of bucket signs
+--
+-- v3.4 FIX: GrossWIP now uses NET amounts (SUM of T+D+ADJ including negatives)
+--           Credits now uses NET F amounts (SUM of F, not ABS of each)
+--           This fixes double-counting issue with transaction reversals
+--           BalWip = NET(T+D+ADJ) - NET(F) now matches profitability exactly
+--
+-- v3.3 FIX: BalWip now subtracts ExcessCredits to allow negative values
+--           When task is overbilled (credits > gross WIP), BalWip goes negative
+--           This matches profitability report behavior
+--
+-- v3.2 FIX: NettWip now equals BalWip + Provision (matches profitability NetWIP)
+--           Credits calculation excludes P transactions (provisions tracked separately)
+--           This ensures BalWip matches profitability BalWip
+--
+-- v3.1 FIX: GrossWip now excludes P (provisions) - only T, D, ADJ
+--           TotalProvision now includes ALL P transactions (positive and negative)
+--           This aligns with sp_ProfitabilityData calculations
 --
 -- KEY FEATURES:
 -- 1. FIFO Fee Allocation: Credits reduce oldest WIP buckets first
@@ -207,27 +235,37 @@ ON #FilteredTransactions(GSTaskID, AgingBucket)
 INCLUDE (Amount, TType);
 
 -- ============================================================================
--- PHASE 2: Calculate GROSS WIP per bucket (positive amounts, excluding F)
+-- PHASE 2: Calculate GROSS WIP per bucket (NET amounts, excluding F and P)
 -- ============================================================================
--- Gross WIP includes POSITIVE amounts for T, D, ADJ, P (NOT F)
--- F transactions always reduce WIP (handled in credits)
--- Negative amounts are also handled separately in credits
+-- Gross WIP includes NET amounts (positive + negative) for T, D, ADJ only
+-- This matches profitability logic: BalWip = SUM(T) + SUM(D) + SUM(ADJ) - SUM(F)
+-- For FIFO aging, we use positive net buckets only (negative buckets set to 0)
+-- F transactions are handled separately as credits
+-- P transactions are provisions (tracked separately)
 -- ============================================================================
 
 SELECT 
     GSTaskID,
-    -- Gross amounts by bucket (oldest to newest: 1-7) - positive non-F amounts only
-    ROUND(SUM(CASE WHEN AgingBucket = 1 AND ISNULL(Amount, 0) > 0 AND TType <> 'F' THEN Amount ELSE 0 END), 2) AS GrossBal180,
-    ROUND(SUM(CASE WHEN AgingBucket = 2 AND ISNULL(Amount, 0) > 0 AND TType <> 'F' THEN Amount ELSE 0 END), 2) AS GrossBal150,
-    ROUND(SUM(CASE WHEN AgingBucket = 3 AND ISNULL(Amount, 0) > 0 AND TType <> 'F' THEN Amount ELSE 0 END), 2) AS GrossBal120,
-    ROUND(SUM(CASE WHEN AgingBucket = 4 AND ISNULL(Amount, 0) > 0 AND TType <> 'F' THEN Amount ELSE 0 END), 2) AS GrossBal90,
-    ROUND(SUM(CASE WHEN AgingBucket = 5 AND ISNULL(Amount, 0) > 0 AND TType <> 'F' THEN Amount ELSE 0 END), 2) AS GrossBal60,
-    ROUND(SUM(CASE WHEN AgingBucket = 6 AND ISNULL(Amount, 0) > 0 AND TType <> 'F' THEN Amount ELSE 0 END), 2) AS GrossBal30,
-    ROUND(SUM(CASE WHEN AgingBucket = 7 AND ISNULL(Amount, 0) > 0 AND TType <> 'F' THEN Amount ELSE 0 END), 2) AS GrossCurr,
-    -- Total gross WIP (positive non-F amounts only)
-    ROUND(SUM(CASE WHEN ISNULL(Amount, 0) > 0 AND TType <> 'F' THEN Amount ELSE 0 END), 2) AS TotalGrossWIP,
-    -- Total provisions (for reporting)
-    ROUND(SUM(CASE WHEN TType = 'P' AND ISNULL(Amount, 0) > 0 THEN Amount ELSE 0 END), 2) AS TotalProvision
+    -- Net amounts by bucket (oldest to newest: 1-7) - T, D, ADJ net amounts (exclude F and P)
+    -- If bucket net is negative, set to 0 (FIFO only applies to positive amounts)
+    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 1 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
+               THEN SUM(CASE WHEN AgingBucket = 1 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal180,
+    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 2 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
+               THEN SUM(CASE WHEN AgingBucket = 2 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal150,
+    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 3 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
+               THEN SUM(CASE WHEN AgingBucket = 3 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal120,
+    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 4 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
+               THEN SUM(CASE WHEN AgingBucket = 4 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal90,
+    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 5 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
+               THEN SUM(CASE WHEN AgingBucket = 5 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal60,
+    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 6 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
+               THEN SUM(CASE WHEN AgingBucket = 6 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal30,
+    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 7 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
+               THEN SUM(CASE WHEN AgingBucket = 7 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossCurr,
+    -- Total NET WIP for T, D, ADJ (matches profitability GrossWip = Time + Disb + Adj)
+    ROUND(SUM(CASE WHEN TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END), 2) AS TotalGrossWIP,
+    -- Total provisions (ALL P transactions - positive adds provision, negative reverses)
+    ROUND(SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END), 2) AS TotalProvision
 INTO #GrossWIP
 FROM #FilteredTransactions
 GROUP BY GSTaskID;
@@ -235,24 +273,20 @@ GROUP BY GSTaskID;
 -- ============================================================================
 -- PHASE 3: Calculate total credits per task
 -- ============================================================================
--- Credits include:
---   1. ALL F (Fee) transactions (regardless of Amount sign - F always reduces WIP)
---   2. Any negative amounts from other TTypes (e.g., negative ADJ)
--- We take the absolute value for FIFO allocation
+-- Credits = NET sum of F (Fee) transactions
+-- This matches profitability logic: BalWip = (T + D + ADJ) - F
+-- F is summed as-is (positive F = fees billed, negative F = fee reversals)
+-- The net F amount is what reduces WIP
+-- NOTE: T/D/ADJ negative amounts are already netted into GrossWIP (Phase 2)
+-- NOTE: P (provisions) are excluded - they only affect NetWIP, not BalWip
 -- ============================================================================
 
 SELECT 
     GSTaskID,
-    ROUND(SUM(
-        CASE 
-            WHEN TType = 'F' THEN ABS(ISNULL(Amount, 0))  -- F always reduces WIP
-            WHEN ISNULL(Amount, 0) < 0 THEN ABS(Amount)   -- Negative amounts reduce WIP
-            ELSE 0 
-        END
-    ), 2) AS TotalCredits
+    ROUND(SUM(ISNULL(Amount, 0)), 2) AS TotalCredits
 INTO #TaskCredits
 FROM #FilteredTransactions
-WHERE TType = 'F' OR ISNULL(Amount, 0) < 0
+WHERE TType = 'F'
 GROUP BY GSTaskID;
 
 -- ============================================================================
@@ -301,8 +335,9 @@ SELECT
         ELSE 0 
     END AS CreditsAfter150,
     
-    -- Provision for output
-    g.TotalProvision
+    -- Provision and TotalGrossWIP for output
+    g.TotalProvision,
+    g.TotalGrossWIP
     
 INTO #FIFOAging
 FROM #GrossWIP g
@@ -343,7 +378,8 @@ LEFT JOIN #TaskCredits c ON g.GSTaskID = c.GSTaskID;
         fa.GrossBal30,
         fa.GrossCurr,
         fa.TotalCredits,
-        fa.TotalProvision
+        fa.TotalProvision,
+        fa.TotalGrossWIP
     FROM #FIFOAging fa
 ),
 FIFOBal90 AS (
@@ -415,19 +451,21 @@ FIFOFinal AS (
     FROM FIFOBal30 f3
 )
 SELECT 
-    GSTaskID,
-    ROUND(NetBal180, 2) AS Bal180,
-    ROUND(NetBal150, 2) AS Bal150,
-    ROUND(NetBal120, 2) AS Bal120,
-    ROUND(NetBal90, 2) AS Bal90,
-    ROUND(NetBal60, 2) AS Bal60,
-    ROUND(NetBal30, 2) AS Bal30,
-    ROUND(NetCurr, 2) AS Curr,
-    ROUND(TotalCredits, 2) AS TotalCredits,
-    ROUND(TotalProvision, 2) AS TotalProvision,
-    ROUND(ExcessCredits, 2) AS ExcessCredits
+    ff.GSTaskID,
+    ROUND(ff.NetBal180, 2) AS Bal180,
+    ROUND(ff.NetBal150, 2) AS Bal150,
+    ROUND(ff.NetBal120, 2) AS Bal120,
+    ROUND(ff.NetBal90, 2) AS Bal90,
+    ROUND(ff.NetBal60, 2) AS Bal60,
+    ROUND(ff.NetBal30, 2) AS Bal30,
+    ROUND(ff.NetCurr, 2) AS Curr,
+    ROUND(ff.TotalCredits, 2) AS TotalCredits,
+    ROUND(ff.TotalProvision, 2) AS TotalProvision,
+    ROUND(ff.ExcessCredits, 2) AS ExcessCredits,
+    -- TotalGrossWIP carried through CTEs
+    ROUND(ff.TotalGrossWIP, 2) AS GrossWip
 INTO #FIFOResult
-FROM FIFOFinal;
+FROM FIFOFinal ff;
 
 -- ============================================================================
 -- PHASE 6: Get task metadata (one row per task)
@@ -456,7 +494,7 @@ GROUP BY GSTaskID;
 -- FINAL OUTPUT
 -- ============================================================================
 -- Combine task metadata with FIFO-aged WIP amounts
--- Output columns match original SP for backward compatibility
+-- Join to ServiceLineExternal and ServiceLineMaster for service line hierarchy
 -- ============================================================================
 
 SELECT 
@@ -478,6 +516,12 @@ SELECT
     tm.PartnerName,
     tm.ManagerName,
     
+    -- Service line hierarchy (joined from ServiceLineExternal and ServiceLineMaster)
+    sle.masterCode,
+    sle.SubServlineGroupCode,
+    sle.SubServlineGroupDesc,
+    slm.name AS masterServiceLineName,
+    
     -- FIFO-aged WIP by bucket (note: order is Curr first in output, but FIFO applied oldest first)
     ROUND(ISNULL(fr.Curr, 0), 2) AS Curr,
     ROUND(ISNULL(fr.Bal30, 0), 2) AS Bal30,
@@ -487,22 +531,25 @@ SELECT
     ROUND(ISNULL(fr.Bal150, 0), 2) AS Bal150,
     ROUND(ISNULL(fr.Bal180, 0), 2) AS Bal180,
     
-    -- Total WIP (sum of all net buckets)
-    ROUND(ISNULL(fr.Curr, 0) + ISNULL(fr.Bal30, 0) + ISNULL(fr.Bal60, 0) + 
-          ISNULL(fr.Bal90, 0) + ISNULL(fr.Bal120, 0) + ISNULL(fr.Bal150, 0) + 
-          ISNULL(fr.Bal180, 0), 2) AS BalWip,
+    -- Gross WIP (before FIFO fee allocation)
+    ROUND(ISNULL(fr.GrossWip, 0), 2) AS GrossWip,
+    
+    -- Net WIP = TotalGrossWIP - TotalCredits (matches profitability formula exactly)
+    -- TotalGrossWIP = NET(T + D + ADJ), TotalCredits = NET(F)
+    -- This is BalWip = Time + Disb + Adj - Fees
+    ROUND(ISNULL(fr.GrossWip, 0) - ISNULL(fr.TotalCredits, 0), 2) AS BalWip,
     
     -- Credit and provision totals for reference
     ROUND(-ISNULL(fr.TotalCredits, 0), 2) AS PtdFeeAmt,  -- Negative to match original convention (credits applied)
     ROUND(ISNULL(fr.TotalProvision, 0), 2) AS Provision,
     
-    -- Net WIP (same as BalWip - both represent net after FIFO)
-    ROUND(ISNULL(fr.Curr, 0) + ISNULL(fr.Bal30, 0) + ISNULL(fr.Bal60, 0) + 
-          ISNULL(fr.Bal90, 0) + ISNULL(fr.Bal120, 0) + ISNULL(fr.Bal150, 0) + 
-          ISNULL(fr.Bal180, 0), 2) AS NettWip
+    -- Net WIP = BalWip + Provision (matches profitability NetWIP logic)
+    ROUND(ISNULL(fr.GrossWip, 0) - ISNULL(fr.TotalCredits, 0) + ISNULL(fr.TotalProvision, 0), 2) AS NettWip
 
 FROM #TaskMetadata tm
 LEFT JOIN #FIFOResult fr ON tm.GSTaskID = fr.GSTaskID
+LEFT JOIN [dbo].[ServiceLineExternal] sle ON tm.ServLineCode = sle.ServLineCode
+LEFT JOIN [dbo].[ServiceLineMaster] slm ON sle.masterCode = slm.code
 ORDER BY tm.TaskPartner, tm.ClientCode, tm.TaskCode;
 
 -- ============================================================================

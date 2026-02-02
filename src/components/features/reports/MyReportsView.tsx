@@ -3,7 +3,8 @@
 /**
  * My Reports View with Sub-tabs
  * 
- * Displays different report types as tabs within the My Workspace section
+ * Displays different report types as tabs within the My Workspace section.
+ * WIP Aging is now a sub-tab within the Profitability report.
  */
 
 import { useState } from 'react';

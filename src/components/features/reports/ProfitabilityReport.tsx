@@ -5,11 +5,12 @@
  * 
  * Multi-view report with Group/Client/Task modes and enhanced multi-select filtering.
  * Supports fiscal year and custom date range filtering with cumulative WIP metrics.
+ * Includes WIP Aging as a sub-tab sharing the same date controls.
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { Layers, Building2, ListTodo, LayoutList, FolderTree, Tag } from 'lucide-react';
-import { Input, Button, LoadingSpinner } from '@/components/ui';
+import { Layers, Building2, ListTodo, LayoutList, FolderTree, Tag, TrendingUp, Clock } from 'lucide-react';
+import { Input, LoadingSpinner } from '@/components/ui';
 import { Banner } from '@/components/ui/Banner';
 import { FiscalYearSelector } from '@/components/features/reports/FiscalYearSelector';
 import { useProfitabilityReport } from '@/hooks/reports/useProfitabilityReport';
@@ -20,12 +21,17 @@ import { TaskDetailsTable } from './TaskDetailsTable';
 import { MasterServiceLineTotalsTable } from './MasterServiceLineTotalsTable';
 import { SubServiceLineGroupTotalsTable } from './SubServiceLineGroupTotalsTable';
 import { ServiceLineTotalsTable } from './ServiceLineTotalsTable';
+import { WIPAgingContent } from './WIPAgingContent';
 import { parseISO, differenceInMonths } from 'date-fns';
 import { getCurrentFiscalPeriod, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 
+type ReportType = 'profitability' | 'wip-aging';
 type ViewMode = 'group' | 'client' | 'task' | 'master-service-line' | 'sub-service-line-group' | 'service-line';
 
 export function ProfitabilityReport() {
+  // State for report type (Profitability vs WIP Aging)
+  const [reportType, setReportType] = useState<ReportType>('profitability');
+  
   // State for fiscal year and mode selection
   const currentFY = getCurrentFiscalPeriod().fiscalYear;
   const [activeTab, setActiveTab] = useState<'fiscal' | 'custom'>('fiscal');
@@ -37,7 +43,7 @@ export function ProfitabilityReport() {
   const [appliedDates, setAppliedDates] = useState({ start: '', end: '' });
   const [dateError, setDateError] = useState<string | null>(null);
 
-  // Fetch data based on current mode - use appliedDates for query
+  // Fetch data based on current mode - use appliedDates for query (only for profitability)
   const { data, isLoading, error } = useProfitabilityReport({
     fiscalYear: activeTab === 'fiscal' ? fiscalYear : undefined,
     fiscalMonth: activeTab === 'fiscal' ? selectedMonth : undefined,
@@ -152,7 +158,45 @@ export function ProfitabilityReport() {
 
   return (
     <div>
-      {/* Tabs + Info Banner */}
+      {/* Report Type Tabs (Profitability | WIP Aging) */}
+      <div className="mb-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setReportType('profitability')}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+              reportType === 'profitability'
+                ? 'text-white shadow-sm'
+                : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+            }`}
+            style={
+              reportType === 'profitability'
+                ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                : {}
+            }
+          >
+            <TrendingUp className="h-4 w-4" />
+            <span>Profitability</span>
+          </button>
+          <button
+            onClick={() => setReportType('wip-aging')}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+              reportType === 'wip-aging'
+                ? 'text-white shadow-sm'
+                : 'text-forvis-gray-700 bg-white border border-forvis-gray-300 hover:bg-forvis-gray-50'
+            }`}
+            style={
+              reportType === 'wip-aging'
+                ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                : {}
+            }
+          >
+            <Clock className="h-4 w-4" />
+            <span>WIP Aging</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Date Mode Tabs + Info Banner */}
       <div className="border-b border-forvis-gray-200 mb-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-2">
           {/* Tabs + Custom Date Hint */}
@@ -188,7 +232,7 @@ export function ProfitabilityReport() {
           </div>
 
           {/* Period Info */}
-          {data && (
+          {reportType === 'profitability' && data && (
             <div
               className="rounded-lg px-3 py-1.5 border border-forvis-blue-100"
               style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
@@ -210,59 +254,90 @@ export function ProfitabilityReport() {
         </div>
       </div>
 
-      {/* Inline Selectors - Fiscal Year/Date Range + View Mode */}
+      {/* Shared Date Controls */}
       <div className="bg-white rounded-lg border border-forvis-gray-200 p-4 mb-4">
-        <div className="space-y-4">
-          {/* Date Controls */}
-          <div>
-            {activeTab === 'fiscal' ? (
-              <div className="w-56">
-                <FiscalYearSelector
-                  value={fiscalYear}
-                  onChange={(val) => setFiscalYear(val as number)}
-                  allowAllYears={false}
-                  currentFY={currentFY}
-                />
-              </div>
-            ) : (
-              <div className="w-full">
-                {dateError && (
-                  <div className="mb-3">
-                    <Banner
-                      variant="error"
-                      message={dateError}
-                      dismissible
-                      onDismiss={() => setDateError(null)}
-                    />
-                  </div>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end max-w-2xl">
-                  <Input
-                    type="date"
-                    label="Start Date"
-                    value={customInputs.start}
-                    onChange={(e) => setCustomInputs(prev => ({ ...prev, start: e.target.value }))}
+        <div>
+          {activeTab === 'fiscal' ? (
+            <div className="w-56">
+              <FiscalYearSelector
+                value={fiscalYear}
+                onChange={(val) => setFiscalYear(val as number)}
+                allowAllYears={false}
+                currentFY={currentFY}
+              />
+            </div>
+          ) : (
+            <div className="w-full">
+              {dateError && (
+                <div className="mb-3">
+                  <Banner
+                    variant="error"
+                    message={dateError}
+                    dismissible
+                    onDismiss={() => setDateError(null)}
                   />
-                  <Input
-                    type="date"
-                    label="End Date"
-                    value={customInputs.end}
-                    onChange={(e) => setCustomInputs(prev => ({ ...prev, end: e.target.value }))}
-                  />
-                  <button 
-                    onClick={handleDateRangeApply}
-                    className="inline-flex items-center justify-center px-6 py-2 text-sm font-medium rounded-md text-white shadow-sm transition-all duration-200 hover:opacity-90 h-[42px]"
-                    style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
-                  >
-                    Apply
-                  </button>
                 </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end max-w-2xl">
+                <Input
+                  type="date"
+                  label="Start Date"
+                  value={customInputs.start}
+                  onChange={(e) => setCustomInputs(prev => ({ ...prev, start: e.target.value }))}
+                />
+                <Input
+                  type="date"
+                  label="End Date"
+                  value={customInputs.end}
+                  onChange={(e) => setCustomInputs(prev => ({ ...prev, end: e.target.value }))}
+                />
+                <button 
+                  onClick={handleDateRangeApply}
+                  className="inline-flex items-center justify-center px-6 py-2 text-sm font-medium rounded-md text-white shadow-sm transition-all duration-200 hover:opacity-90 h-[42px]"
+                  style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}
+                >
+                  Apply
+                </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
+      </div>
 
-          {/* View Mode Buttons - Grid Layout */}
-          <div>
+      {/* Month Selector - Only show in fiscal year mode */}
+      {activeTab === 'fiscal' && availableMonths.length > 0 && (
+        <div className="mb-4 flex items-center gap-3">
+          <label className="text-sm font-medium text-forvis-gray-700">
+            Show cumulative through:
+          </label>
+          <div className="flex flex-wrap gap-1">
+            {availableMonths.map((month) => (
+              <button
+                key={month}
+                onClick={() => setSelectedMonth(month)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                  selectedMonth === month
+                    ? 'text-white shadow-sm'
+                    : 'text-forvis-gray-600 bg-forvis-gray-100 hover:bg-forvis-gray-200'
+                }`}
+                style={
+                  selectedMonth === month
+                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
+                    : {}
+                }
+              >
+                {month}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Conditional Content Based on Report Type */}
+      {reportType === 'profitability' ? (
+        <>
+          {/* Profitability View Mode Buttons */}
+          <div className="bg-white rounded-lg border border-forvis-gray-200 p-4 mb-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <button
                 onClick={() => setViewMode('master-service-line')}
@@ -370,101 +445,81 @@ export function ProfitabilityReport() {
               </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Month Selector - Only show in fiscal year mode */}
-      {activeTab === 'fiscal' && availableMonths.length > 0 && (
-        <div className="mb-4 flex items-center gap-3">
-          <label className="text-sm font-medium text-forvis-gray-700">
-            Show cumulative through:
-          </label>
-          <div className="flex flex-wrap gap-1">
-            {availableMonths.map((month) => (
-              <button
-                key={month}
-                onClick={() => setSelectedMonth(month)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
-                  selectedMonth === month
-                    ? 'text-white shadow-sm'
-                    : 'text-forvis-gray-600 bg-forvis-gray-100 hover:bg-forvis-gray-200'
-                }`}
-                style={
-                  selectedMonth === month
-                    ? { background: 'linear-gradient(to right, #2E5AAC, #25488A)' }
-                    : {}
-                }
-              >
-                {month}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-sm text-forvis-gray-600">Loading your tasks...</p>
-        </div>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <Banner
-          variant="error"
-          title="Error Loading Report"
-          message={error instanceof Error ? error.message : 'Failed to load profitability report'}
-        />
-      )}
-
-      {/* Data Display */}
-      {!isLoading && !error && data && (
-        <>
-          {/* Filters */}
-          <ReportFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            availableTasks={data.tasks}
-          />
-
-          {/* Filtered Count */}
-          {filteredTasks.length !== data.tasks.length && (
-            <div className="mb-3 text-sm text-forvis-gray-600">
-              Showing <span className="font-semibold">{filteredTasks.length}</span> of{' '}
-              <span className="font-semibold">{data.tasks.length}</span> tasks
+          {/* Profitability Loading State */}
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <LoadingSpinner size="lg" />
+              <p className="mt-4 text-sm text-forvis-gray-600">Loading your tasks...</p>
             </div>
           )}
 
-          {/* Conditional Table Rendering */}
-          <div className="bg-white rounded-lg shadow-corporate overflow-hidden">
-            {viewMode === 'group' && <GroupTotalsTable tasks={filteredTasks} />}
-            {viewMode === 'client' && <ClientTotalsTable tasks={filteredTasks} />}
-            {viewMode === 'task' && <TaskDetailsTable tasks={filteredTasks} />}
-            {viewMode === 'master-service-line' && <MasterServiceLineTotalsTable tasks={filteredTasks} />}
-            {viewMode === 'sub-service-line-group' && <SubServiceLineGroupTotalsTable tasks={filteredTasks} />}
-            {viewMode === 'service-line' && <ServiceLineTotalsTable tasks={filteredTasks} />}
-          </div>
+          {/* Profitability Error State */}
+          {error && (
+            <Banner
+              variant="error"
+              title="Error Loading Report"
+              message={error instanceof Error ? error.message : 'Failed to load profitability report'}
+            />
+          )}
 
-          {/* Help Section */}
-          {filteredTasks.length > 0 && (
-            <div className="mt-4">
-              <div className="rounded-lg p-3 bg-forvis-gray-50 border border-forvis-gray-200">
-                <p className="text-xs text-forvis-gray-600">
-                  <strong className="text-forvis-gray-700">Net WIP:</strong> Time + Adjustments +
-                  Disbursements - Fees + Provision{' '}
-                  {activeTab === 'fiscal' && (
-                    <>
-                      | <strong className="text-forvis-gray-700">Fiscal YTD:</strong> Cumulative from{' '}
-                      Sep 1 of fiscal year through {selectedMonth} (fiscal year-to-date only, not lifetime)
-                    </>
-                  )}
-                </p>
+          {/* Profitability Data Display */}
+          {!isLoading && !error && data && (
+            <>
+              {/* Filters */}
+              <ReportFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                availableTasks={data.tasks}
+              />
+
+              {/* Filtered Count */}
+              {filteredTasks.length !== data.tasks.length && (
+                <div className="mb-3 text-sm text-forvis-gray-600">
+                  Showing <span className="font-semibold">{filteredTasks.length}</span> of{' '}
+                  <span className="font-semibold">{data.tasks.length}</span> tasks
+                </div>
+              )}
+
+              {/* Conditional Table Rendering */}
+              <div className="bg-white rounded-lg shadow-corporate overflow-hidden">
+                {viewMode === 'group' && <GroupTotalsTable tasks={filteredTasks} />}
+                {viewMode === 'client' && <ClientTotalsTable tasks={filteredTasks} />}
+                {viewMode === 'task' && <TaskDetailsTable tasks={filteredTasks} />}
+                {viewMode === 'master-service-line' && <MasterServiceLineTotalsTable tasks={filteredTasks} />}
+                {viewMode === 'sub-service-line-group' && <SubServiceLineGroupTotalsTable tasks={filteredTasks} />}
+                {viewMode === 'service-line' && <ServiceLineTotalsTable tasks={filteredTasks} />}
               </div>
-            </div>
+
+              {/* Help Section */}
+              {filteredTasks.length > 0 && (
+                <div className="mt-4">
+                  <div className="rounded-lg p-3 bg-forvis-gray-50 border border-forvis-gray-200">
+                    <p className="text-xs text-forvis-gray-600">
+                      <strong className="text-forvis-gray-700">Net WIP:</strong> Time + Adjustments +
+                      Disbursements - Fees + Provision{' '}
+                      {activeTab === 'fiscal' && (
+                        <>
+                          | <strong className="text-forvis-gray-700">Fiscal YTD:</strong> Cumulative from{' '}
+                          Sep 1 of fiscal year through {selectedMonth} (fiscal year-to-date only, not lifetime)
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
+      ) : (
+        /* WIP Aging Content */
+        <WIPAgingContent
+          fiscalYear={activeTab === 'fiscal' ? fiscalYear : undefined}
+          fiscalMonth={activeTab === 'fiscal' ? selectedMonth : undefined}
+          startDate={activeTab === 'custom' && appliedDates.start ? appliedDates.start : undefined}
+          endDate={activeTab === 'custom' && appliedDates.end ? appliedDates.end : undefined}
+          mode={activeTab}
+        />
       )}
     </div>
   );
