@@ -159,14 +159,13 @@ function CustomTooltip({ active, payload, label, valueFormatter, showCalculation
           {showCalculation === 'writeoff' && data?.yearData && yearForCalculations && (
             (() => {
               const yearMetrics = data.yearData[yearForCalculations];
-              return yearMetrics && yearMetrics.negativeAdj !== undefined && yearMetrics.provisions !== undefined && yearMetrics.grossTime !== undefined ? (
+              return yearMetrics && yearMetrics.negativeAdj !== undefined && yearMetrics.grossTime !== undefined ? (
                 <div className="text-xs text-forvis-gray-600 mt-2 pl-5 border-l-2 border-forvis-blue-200">
                   <div className="font-medium mb-1">Calculation:</div>
-                  <div>Negative Adjustments: {formatCurrency(yearMetrics.negativeAdj)}</div>
-                  <div>Provisions: {formatCurrency(yearMetrics.provisions)}</div>
+                  <div>Net Writeoff (|ADJ + P|): {formatCurrency(yearMetrics.negativeAdj)}</div>
                   <div>Gross Time: {formatCurrency(yearMetrics.grossTime)}</div>
                   <div className="mt-1 font-medium">
-                    ({formatCurrency(yearMetrics.negativeAdj + yearMetrics.provisions)} ÷ {formatCurrency(yearMetrics.grossTime)}) × 100
+                    ({formatCurrency(yearMetrics.negativeAdj)} ÷ {formatCurrency(yearMetrics.grossTime)}) × 100
                   </div>
                 </div>
               ) : null;
@@ -928,7 +927,7 @@ export function MyReportsOverview() {
         {/* Writeoff % */}
         <ChartCard
           title="Writeoff %"
-          description="(Negative adjustments + provisions) / gross time"
+          description="Net writeoff (|ADJ + P|) / gross time"
           icon={<AlertTriangle className="h-5 w-5 text-white" />}
           data={isMultiYear ? undefined : singleYearData}
           yearlyData={isMultiYear ? data?.yearlyData : undefined}

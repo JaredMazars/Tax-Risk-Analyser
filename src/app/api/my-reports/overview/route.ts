@@ -308,13 +308,16 @@ async function fetchMetricsForFiscalYear(
       const netRevenue = row.ltdTime + row.ltdAdj + row.ltdProvision; // Net Revenue = Time + Adjustments + Provisions
       const grossProfit = netRevenue - row.ltdCost;
       
-      const writeoffAmount = Math.abs(row.negativeAdj) + row.ltdProvision;
+      // Writeoff = |ADJ + P| when negative (net write-down)
+      const netAdjustments = row.ltdAdj + row.ltdProvision;
+      const writeoffAmount = netAdjustments < 0 ? Math.abs(netAdjustments) : 0;
       const writeoffPercentage = row.ltdTime !== 0 ? (writeoffAmount / row.ltdTime) * 100 : 0;
 
       metrics.netRevenue = netRevenue;
       metrics.grossProfit = grossProfit;
       metrics.writeoffPercentage = writeoffPercentage;
-      metrics.negativeAdj = Math.abs(row.negativeAdj);
+      // Store calculation components for tooltip (net adjustments, not just negatives)
+      metrics.negativeAdj = writeoffAmount; // Now represents net writeoff amount
       metrics.provisions = row.ltdProvision;
       metrics.grossTime = row.ltdTime;
     }
@@ -776,15 +779,16 @@ export const GET = secureRoute.query({
           const netRevenue = row.ltdTime + row.ltdAdj + row.ltdProvision; // Net Revenue = Time + Adjustments + Provisions
           const grossProfit = netRevenue - row.ltdCost;
           
-          // Writeoff % = (Negative Adjustments + Provisions) / Gross Time * 100
-          const writeoffAmount = Math.abs(row.negativeAdj) + row.ltdProvision;
+          // Writeoff = |ADJ + P| when negative (net write-down)
+          const netAdjustments = row.ltdAdj + row.ltdProvision;
+          const writeoffAmount = netAdjustments < 0 ? Math.abs(netAdjustments) : 0;
           const writeoffPercentage = row.ltdTime !== 0 ? (writeoffAmount / row.ltdTime) * 100 : 0;
 
           metrics.netRevenue = netRevenue;
           metrics.grossProfit = grossProfit;
           metrics.writeoffPercentage = writeoffPercentage;
-          // Store calculation components for tooltip
-          metrics.negativeAdj = Math.abs(row.negativeAdj);
+          // Store calculation components for tooltip (net adjustments, not just negatives)
+          metrics.negativeAdj = writeoffAmount; // Now represents net writeoff amount
           metrics.provisions = row.ltdProvision;
           metrics.grossTime = row.ltdTime;
         }
