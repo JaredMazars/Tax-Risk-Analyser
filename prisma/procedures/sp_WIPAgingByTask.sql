@@ -8,7 +8,8 @@
 -- Fees are applied against the OLDEST WIP first, reducing aged balances
 -- before current balances.
 --
--- VERSION: 3.5 - BalWip calculated directly as GrossWip - Credits
+-- VERSION: 4.0 - Performance Optimizations
+-- PREVIOUS: 3.5 - BalWip calculated directly as GrossWip - Credits
 -- PREVIOUS: 3.4 - Fixed NET amount calculation to match Profitability report
 -- PREVIOUS: 3.3 - Fixed overbilled task handling (negative BalWip)
 -- PREVIOUS: 3.2 - Fixed NettWip and Credits to match Profitability report
@@ -16,6 +17,12 @@
 -- PREVIOUS: 3.0 - Added Service Line Hierarchy and GrossWip
 -- PREVIOUS: 2.0 - FIFO Aging Implementation
 -- PREVIOUS: 1.0 - Simple date-based aging (no FIFO)
+--
+-- v4.0 PERFORMANCE OPTIMIZATIONS:
+--   1. Replaced 5 nested CTEs with single-pass FIFO calculation
+--   2. Eliminated duplicate SUM expressions in bucket calculations
+--   3. Added clustered indexes on all temp tables for faster JOINs
+--   4. Replaced GROUP BY MAX() with ROW_NUMBER() for metadata extraction
 --
 -- v3.5 FIX: BalWip now calculated as TotalGrossWIP - TotalCredits directly
 --           This matches profitability formula: BalWip = T + D + ADJ - F
@@ -123,9 +130,11 @@ SET @AsOfDate = ISNULL(@AsOfDate, GETDATE());
 
 -- Clean up any existing temp tables (safety for re-execution)
 IF OBJECT_ID('tempdb..#FilteredTransactions') IS NOT NULL DROP TABLE #FilteredTransactions;
+IF OBJECT_ID('tempdb..#RawBuckets') IS NOT NULL DROP TABLE #RawBuckets;
 IF OBJECT_ID('tempdb..#GrossWIP') IS NOT NULL DROP TABLE #GrossWIP;
 IF OBJECT_ID('tempdb..#TaskCredits') IS NOT NULL DROP TABLE #TaskCredits;
 IF OBJECT_ID('tempdb..#FIFOAging') IS NOT NULL DROP TABLE #FIFOAging;
+IF OBJECT_ID('tempdb..#FIFOResult') IS NOT NULL DROP TABLE #FIFOResult;
 IF OBJECT_ID('tempdb..#TaskMetadata') IS NOT NULL DROP TABLE #TaskMetadata;
 
 -- ============================================================================
@@ -235,40 +244,55 @@ ON #FilteredTransactions(GSTaskID, AgingBucket)
 INCLUDE (Amount, TType);
 
 -- ============================================================================
--- PHASE 2: Calculate GROSS WIP per bucket (NET amounts, excluding F and P)
+-- PHASE 2: Calculate GROSS WIP per bucket (OPTIMIZED - two-stage aggregation)
 -- ============================================================================
--- Gross WIP includes NET amounts (positive + negative) for T, D, ADJ only
+-- Stage 1: Compute raw bucket sums (single SUM per bucket)
+-- Stage 2: Apply > 0 check from stored values (eliminates duplicate SUM)
 -- This matches profitability logic: BalWip = SUM(T) + SUM(D) + SUM(ADJ) - SUM(F)
--- For FIFO aging, we use positive net buckets only (negative buckets set to 0)
--- F transactions are handled separately as credits
--- P transactions are provisions (tracked separately)
 -- ============================================================================
+
+-- Stage 1: Compute raw bucket sums into temp table
+IF OBJECT_ID('tempdb..#RawBuckets') IS NOT NULL DROP TABLE #RawBuckets;
 
 SELECT 
     GSTaskID,
-    -- Net amounts by bucket (oldest to newest: 1-7) - T, D, ADJ net amounts (exclude F and P)
-    -- If bucket net is negative, set to 0 (FIFO only applies to positive amounts)
-    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 1 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
-               THEN SUM(CASE WHEN AgingBucket = 1 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal180,
-    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 2 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
-               THEN SUM(CASE WHEN AgingBucket = 2 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal150,
-    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 3 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
-               THEN SUM(CASE WHEN AgingBucket = 3 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal120,
-    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 4 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
-               THEN SUM(CASE WHEN AgingBucket = 4 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal90,
-    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 5 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
-               THEN SUM(CASE WHEN AgingBucket = 5 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal60,
-    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 6 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
-               THEN SUM(CASE WHEN AgingBucket = 6 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossBal30,
-    ROUND(CASE WHEN SUM(CASE WHEN AgingBucket = 7 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) > 0 
-               THEN SUM(CASE WHEN AgingBucket = 7 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) ELSE 0 END, 2) AS GrossCurr,
-    -- Total NET WIP for T, D, ADJ (matches profitability GrossWip = Time + Disb + Adj)
-    ROUND(SUM(CASE WHEN TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END), 2) AS TotalGrossWIP,
-    -- Total provisions (ALL P transactions - positive adds provision, negative reverses)
-    ROUND(SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END), 2) AS TotalProvision
-INTO #GrossWIP
+    SUM(CASE WHEN AgingBucket = 1 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) AS RawBal180,
+    SUM(CASE WHEN AgingBucket = 2 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) AS RawBal150,
+    SUM(CASE WHEN AgingBucket = 3 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) AS RawBal120,
+    SUM(CASE WHEN AgingBucket = 4 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) AS RawBal90,
+    SUM(CASE WHEN AgingBucket = 5 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) AS RawBal60,
+    SUM(CASE WHEN AgingBucket = 6 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) AS RawBal30,
+    SUM(CASE WHEN AgingBucket = 7 AND TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) AS RawCurr,
+    SUM(CASE WHEN TType NOT IN ('F', 'P') THEN ISNULL(Amount, 0) ELSE 0 END) AS TotalGrossWIP,
+    SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END) AS TotalProvision
+INTO #RawBuckets
 FROM #FilteredTransactions
 GROUP BY GSTaskID;
+
+-- Add clustered index for efficient access
+CREATE CLUSTERED INDEX IX_RawBuckets_GSTaskID ON #RawBuckets (GSTaskID);
+
+-- Stage 2: Apply > 0 check from stored values (no duplicate calculations)
+SELECT 
+    GSTaskID,
+    -- If bucket net is negative, set to 0 (FIFO only applies to positive amounts)
+    ROUND(CASE WHEN RawBal180 > 0 THEN RawBal180 ELSE 0 END, 2) AS GrossBal180,
+    ROUND(CASE WHEN RawBal150 > 0 THEN RawBal150 ELSE 0 END, 2) AS GrossBal150,
+    ROUND(CASE WHEN RawBal120 > 0 THEN RawBal120 ELSE 0 END, 2) AS GrossBal120,
+    ROUND(CASE WHEN RawBal90 > 0 THEN RawBal90 ELSE 0 END, 2) AS GrossBal90,
+    ROUND(CASE WHEN RawBal60 > 0 THEN RawBal60 ELSE 0 END, 2) AS GrossBal60,
+    ROUND(CASE WHEN RawBal30 > 0 THEN RawBal30 ELSE 0 END, 2) AS GrossBal30,
+    ROUND(CASE WHEN RawCurr > 0 THEN RawCurr ELSE 0 END, 2) AS GrossCurr,
+    ROUND(TotalGrossWIP, 2) AS TotalGrossWIP,
+    ROUND(TotalProvision, 2) AS TotalProvision
+INTO #GrossWIP
+FROM #RawBuckets;
+
+-- Add clustered index for JOIN in Phase 4
+CREATE CLUSTERED INDEX IX_GrossWIP_GSTaskID ON #GrossWIP (GSTaskID);
+
+-- Cleanup intermediate table
+DROP TABLE #RawBuckets;
 
 -- ============================================================================
 -- PHASE 3: Calculate total credits per task
@@ -288,6 +312,9 @@ INTO #TaskCredits
 FROM #FilteredTransactions
 WHERE TType = 'F'
 GROUP BY GSTaskID;
+
+-- Add clustered index for JOIN in Phase 4
+CREATE CLUSTERED INDEX IX_TaskCredits_GSTaskID ON #TaskCredits (GSTaskID);
 
 -- ============================================================================
 -- PHASE 4: FIFO Credit Allocation
@@ -344,151 +371,108 @@ FROM #GrossWIP g
 LEFT JOIN #TaskCredits c ON g.GSTaskID = c.GSTaskID;
 
 -- ============================================================================
--- PHASE 5: Complete FIFO calculation for all buckets
+-- PHASE 5: Complete FIFO calculation for all buckets (OPTIMIZED)
 -- ============================================================================
--- Calculate net amounts for remaining buckets (Bal120 through Curr)
--- Using set-based approach with cascading credit absorption
+-- Single-pass calculation - no nested CTEs (eliminates exponential re-evaluation)
+-- Uses cumulative credit tracking with inline CASE expressions
 -- ============================================================================
 
-;WITH FIFOComplete AS (
-    SELECT 
-        fa.GSTaskID,
-        
-        -- Net amounts for first two buckets (already calculated)
-        fa.NetBal180,
-        fa.NetBal150,
-        
-        -- Bal120: Absorb remaining credits after Bal180+Bal150
-        CASE 
-            WHEN fa.CreditsAfter150 <= 0 THEN fa.GrossBal120
-            WHEN fa.CreditsAfter150 >= fa.GrossBal120 THEN 0
-            ELSE fa.GrossBal120 - fa.CreditsAfter150
-        END AS NetBal120,
-        
-        -- Credits remaining after Bal120
-        CASE 
-            WHEN fa.CreditsAfter150 > fa.GrossBal120 
-            THEN fa.CreditsAfter150 - fa.GrossBal120 
-            ELSE 0 
-        END AS CreditsAfter120,
-        
-        -- Store gross values for subsequent calculations
-        fa.GrossBal90,
-        fa.GrossBal60,
-        fa.GrossBal30,
-        fa.GrossCurr,
-        fa.TotalCredits,
-        fa.TotalProvision,
-        fa.TotalGrossWIP
-    FROM #FIFOAging fa
-),
-FIFOBal90 AS (
-    SELECT 
-        fc.*,
-        -- Bal90: Absorb remaining credits after Bal120
-        CASE 
-            WHEN fc.CreditsAfter120 <= 0 THEN fc.GrossBal90
-            WHEN fc.CreditsAfter120 >= fc.GrossBal90 THEN 0
-            ELSE fc.GrossBal90 - fc.CreditsAfter120
-        END AS NetBal90,
-        -- Credits remaining after Bal90
-        CASE 
-            WHEN fc.CreditsAfter120 > fc.GrossBal90 
-            THEN fc.CreditsAfter120 - fc.GrossBal90 
-            ELSE 0 
-        END AS CreditsAfter90
-    FROM FIFOComplete fc
-),
-FIFOBal60 AS (
-    SELECT 
-        fb.*,
-        -- Bal60: Absorb remaining credits after Bal90
-        CASE 
-            WHEN fb.CreditsAfter90 <= 0 THEN fb.GrossBal60
-            WHEN fb.CreditsAfter90 >= fb.GrossBal60 THEN 0
-            ELSE fb.GrossBal60 - fb.CreditsAfter90
-        END AS NetBal60,
-        -- Credits remaining after Bal60
-        CASE 
-            WHEN fb.CreditsAfter90 > fb.GrossBal60 
-            THEN fb.CreditsAfter90 - fb.GrossBal60 
-            ELSE 0 
-        END AS CreditsAfter60
-    FROM FIFOBal90 fb
-),
-FIFOBal30 AS (
-    SELECT 
-        f6.*,
-        -- Bal30: Absorb remaining credits after Bal60
-        CASE 
-            WHEN f6.CreditsAfter60 <= 0 THEN f6.GrossBal30
-            WHEN f6.CreditsAfter60 >= f6.GrossBal30 THEN 0
-            ELSE f6.GrossBal30 - f6.CreditsAfter60
-        END AS NetBal30,
-        -- Credits remaining after Bal30
-        CASE 
-            WHEN f6.CreditsAfter60 > f6.GrossBal30 
-            THEN f6.CreditsAfter60 - f6.GrossBal30 
-            ELSE 0 
-        END AS CreditsAfter30
-    FROM FIFOBal60 f6
-),
-FIFOFinal AS (
-    SELECT 
-        f3.*,
-        -- Curr: Absorb remaining credits after Bal30
-        CASE 
-            WHEN f3.CreditsAfter30 <= 0 THEN f3.GrossCurr
-            WHEN f3.CreditsAfter30 >= f3.GrossCurr THEN 0
-            ELSE f3.GrossCurr - f3.CreditsAfter30
-        END AS NetCurr,
-        -- Excess credits (if credits > total gross WIP)
-        CASE 
-            WHEN f3.CreditsAfter30 > f3.GrossCurr 
-            THEN f3.CreditsAfter30 - f3.GrossCurr 
-            ELSE 0 
-        END AS ExcessCredits
-    FROM FIFOBal30 f3
-)
 SELECT 
-    ff.GSTaskID,
-    ROUND(ff.NetBal180, 2) AS Bal180,
-    ROUND(ff.NetBal150, 2) AS Bal150,
-    ROUND(ff.NetBal120, 2) AS Bal120,
-    ROUND(ff.NetBal90, 2) AS Bal90,
-    ROUND(ff.NetBal60, 2) AS Bal60,
-    ROUND(ff.NetBal30, 2) AS Bal30,
-    ROUND(ff.NetCurr, 2) AS Curr,
-    ROUND(ff.TotalCredits, 2) AS TotalCredits,
-    ROUND(ff.TotalProvision, 2) AS TotalProvision,
-    ROUND(ff.ExcessCredits, 2) AS ExcessCredits,
-    -- TotalGrossWIP carried through CTEs
-    ROUND(ff.TotalGrossWIP, 2) AS GrossWip
+    fa.GSTaskID,
+    
+    -- Calculate cumulative bucket sums for credit allocation
+    -- Bal180 (already have NetBal180 and CreditsAfter180)
+    ROUND(fa.NetBal180, 2) AS Bal180,
+    
+    -- Bal150 (already have NetBal150 and CreditsAfter150)
+    ROUND(fa.NetBal150, 2) AS Bal150,
+    
+    -- Bal120: Uses CreditsAfter150
+    ROUND(CASE 
+        WHEN fa.CreditsAfter150 <= 0 THEN fa.GrossBal120
+        WHEN fa.CreditsAfter150 >= fa.GrossBal120 THEN 0
+        ELSE fa.GrossBal120 - fa.CreditsAfter150
+    END, 2) AS Bal120,
+    
+    -- Bal90: Uses cumulative credits after 180+150+120
+    ROUND(CASE 
+        WHEN fa.TotalCredits <= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 THEN fa.GrossBal90
+        WHEN fa.TotalCredits >= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 THEN 0
+        ELSE fa.GrossBal90 - (fa.TotalCredits - fa.GrossBal180 - fa.GrossBal150 - fa.GrossBal120)
+    END, 2) AS Bal90,
+    
+    -- Bal60: Uses cumulative credits after 180+150+120+90
+    ROUND(CASE 
+        WHEN fa.TotalCredits <= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 THEN fa.GrossBal60
+        WHEN fa.TotalCredits >= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 THEN 0
+        ELSE fa.GrossBal60 - (fa.TotalCredits - fa.GrossBal180 - fa.GrossBal150 - fa.GrossBal120 - fa.GrossBal90)
+    END, 2) AS Bal60,
+    
+    -- Bal30: Uses cumulative credits after 180+150+120+90+60
+    ROUND(CASE 
+        WHEN fa.TotalCredits <= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 THEN fa.GrossBal30
+        WHEN fa.TotalCredits >= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 + fa.GrossBal30 THEN 0
+        ELSE fa.GrossBal30 - (fa.TotalCredits - fa.GrossBal180 - fa.GrossBal150 - fa.GrossBal120 - fa.GrossBal90 - fa.GrossBal60)
+    END, 2) AS Bal30,
+    
+    -- Curr: Uses cumulative credits after all prior buckets
+    ROUND(CASE 
+        WHEN fa.TotalCredits <= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 + fa.GrossBal30 THEN fa.GrossCurr
+        WHEN fa.TotalCredits >= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 + fa.GrossBal30 + fa.GrossCurr THEN 0
+        ELSE fa.GrossCurr - (fa.TotalCredits - fa.GrossBal180 - fa.GrossBal150 - fa.GrossBal120 - fa.GrossBal90 - fa.GrossBal60 - fa.GrossBal30)
+    END, 2) AS Curr,
+    
+    ROUND(fa.TotalCredits, 2) AS TotalCredits,
+    ROUND(fa.TotalProvision, 2) AS TotalProvision,
+    
+    -- Excess credits (if credits > total gross bucket WIP)
+    ROUND(CASE 
+        WHEN fa.TotalCredits > fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 + fa.GrossBal30 + fa.GrossCurr
+        THEN fa.TotalCredits - (fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 + fa.GrossBal30 + fa.GrossCurr)
+        ELSE 0
+    END, 2) AS ExcessCredits,
+    
+    ROUND(fa.TotalGrossWIP, 2) AS GrossWip
 INTO #FIFOResult
-FROM FIFOFinal ff;
+FROM #FIFOAging fa;
+
+-- Add clustered index for efficient final JOIN
+CREATE CLUSTERED INDEX IX_FIFOResult_GSTaskID ON #FIFOResult (GSTaskID);
 
 -- ============================================================================
--- PHASE 6: Get task metadata (one row per task)
+-- PHASE 6: Get task metadata (OPTIMIZED - ROW_NUMBER instead of GROUP BY MAX)
+-- ============================================================================
+-- Uses ROW_NUMBER() to get first row per task (more efficient than MAX on 13 cols)
 -- ============================================================================
 
 SELECT 
     GSTaskID,
-    MAX(GSClientID) AS GSClientID,
-    MAX(TaskCode) AS TaskCode,
-    MAX(ClientCode) AS ClientCode,
-    MAX(GroupCode) AS GroupCode,
-    MAX(ServLineCode) AS ServLineCode,
-    MAX(ServLineDesc) AS ServLineDesc,
-    MAX(TaskPartner) AS TaskPartner,
-    MAX(PartnerName) AS PartnerName,
-    MAX(TaskManager) AS TaskManager,
-    MAX(ManagerName) AS ManagerName,
-    MAX(TaskDesc) AS TaskDesc,
-    MAX(ClientName) AS ClientName,
-    MAX(GroupDesc) AS GroupDesc
+    GSClientID,
+    TaskCode,
+    ClientCode,
+    GroupCode,
+    ServLineCode,
+    ServLineDesc,
+    TaskPartner,
+    PartnerName,
+    TaskManager,
+    ManagerName,
+    TaskDesc,
+    ClientName,
+    GroupDesc
 INTO #TaskMetadata
-FROM #FilteredTransactions
-GROUP BY GSTaskID;
+FROM (
+    SELECT 
+        GSTaskID, GSClientID, TaskCode, ClientCode, GroupCode,
+        ServLineCode, ServLineDesc, TaskPartner, PartnerName,
+        TaskManager, ManagerName, TaskDesc, ClientName, GroupDesc,
+        ROW_NUMBER() OVER (PARTITION BY GSTaskID ORDER BY RowID) AS rn
+    FROM #FilteredTransactions
+) ranked
+WHERE rn = 1;
+
+-- Add clustered index for efficient final JOIN
+CREATE CLUSTERED INDEX IX_TaskMetadata_GSTaskID ON #TaskMetadata (GSTaskID);
 
 -- ============================================================================
 -- FINAL OUTPUT
@@ -557,6 +541,7 @@ ORDER BY tm.TaskPartner, tm.ClientCode, tm.TaskCode;
 -- ============================================================================
 
 DROP TABLE IF EXISTS #FilteredTransactions;
+DROP TABLE IF EXISTS #RawBuckets;
 DROP TABLE IF EXISTS #GrossWIP;
 DROP TABLE IF EXISTS #TaskCredits;
 DROP TABLE IF EXISTS #FIFOAging;
