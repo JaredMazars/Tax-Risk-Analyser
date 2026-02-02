@@ -208,13 +208,14 @@ SET @AsOfDate = ISNULL(@AsOfDate, GETDATE())
 -- ============================================================================
 -- CTE 8: CurrentPeriodMetrics
 -- Calculate receipts AND billings in the current period (last 30 days)
+-- Receipts: EntryType = 'Receipt', use -Total (handles reversals correctly)
 -- ============================================================================
 , CurrentPeriodMetrics AS (
     SELECT 
         GSClientID
         ,ServLineCode
         ,MasterServiceLineCode
-        ,ROUND(SUM(CASE WHEN Total < 0 THEN ABS(Total) ELSE 0 END), 2) AS CurrentPeriodReceipts
+        ,ROUND(SUM(CASE WHEN EntryType = 'Receipt' THEN -Total ELSE 0 END), 2) AS CurrentPeriodReceipts
         ,ROUND(SUM(CASE WHEN Total > 0 THEN Total ELSE 0 END), 2) AS CurrentPeriodBillings
     FROM AllTransactions
     WHERE TranDate > DATEADD(DAY, -30, @AsOfDate)

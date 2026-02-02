@@ -305,7 +305,7 @@ async function fetchMetricsForFiscalYear(
     const metrics = monthlyMetricsMap.get(monthKey);
     if (metrics) {
       const grossProduction = row.ltdTime; // Gross Production = Time only
-      const netRevenue = row.ltdTime + row.ltdAdj; // Net Revenue = Time + Adjustments
+      const netRevenue = row.ltdTime + row.ltdAdj + row.ltdProvision; // Net Revenue = Time + Adjustments + Provisions
       const grossProfit = netRevenue - row.ltdCost;
       
       const writeoffAmount = Math.abs(row.negativeAdj) + row.ltdProvision;
@@ -341,8 +341,8 @@ async function fetchMetricsForFiscalYear(
       wipMonthlyData.forEach(wipRow => {
         const wipDate = new Date(wipRow.month);
         if (wipDate >= trailing12Start && wipDate <= monthDate) {
-          // Net Revenue = Time + Adjustments
-          trailing12Revenue += wipRow.ltdTime + wipRow.ltdAdj;
+          // Net Revenue = Time + Adjustments + Provisions
+          trailing12Revenue += wipRow.ltdTime + wipRow.ltdAdj + wipRow.ltdProvision;
         }
       });
 
@@ -773,7 +773,7 @@ export const GET = secureRoute.query({
         const metrics = monthlyMetricsMap.get(monthKey);
         if (metrics) {
           const grossProduction = row.ltdTime; // Gross Production = Time only
-          const netRevenue = row.ltdTime + row.ltdAdj; // Net Revenue = Time + Adjustments
+          const netRevenue = row.ltdTime + row.ltdAdj + row.ltdProvision; // Net Revenue = Time + Adjustments + Provisions
           const grossProfit = netRevenue - row.ltdCost;
           
           // Writeoff % = (Negative Adjustments + Provisions) / Gross Time * 100
@@ -812,8 +812,8 @@ export const GET = secureRoute.query({
           wipMonthlyData.forEach(wipRow => {
             const wipDate = new Date(wipRow.month);
             if (wipDate >= trailing12Start && wipDate <= monthDate) {
-              // Net Revenue = Time + Adjustments
-              trailing12Revenue += wipRow.ltdTime + wipRow.ltdAdj;
+              // Net Revenue = Time + Adjustments + Provisions
+              trailing12Revenue += wipRow.ltdTime + wipRow.ltdAdj + wipRow.ltdProvision;
             }
           });
 

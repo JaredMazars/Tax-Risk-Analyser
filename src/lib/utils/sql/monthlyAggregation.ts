@@ -68,15 +68,15 @@ export function buildWipMonthlyAggregationQuery(
   cumulative: boolean = false,
   serviceLines?: string[]
 ): Prisma.Sql {
-  // Build dynamic filter based on report type
+  // Build dynamic filter based on report type (with table alias for Employee JOIN)
   const fieldFilter = filterField === 'TaskPartner' 
-    ? Prisma.sql`TaskPartner = ${employeeCode}`
-    : Prisma.sql`TaskManager = ${employeeCode}`;
+    ? Prisma.sql`w.TaskPartner = ${employeeCode}`
+    : Prisma.sql`w.TaskManager = ${employeeCode}`;
 
-  // Build service line filter if provided
+  // Build service line filter if provided (with table alias)
   const serviceLineFilter = serviceLines && serviceLines.length > 0
     ? Prisma.sql`
-      AND TaskCode IN (
+      AND w.TaskCode IN (
         SELECT TaskCode FROM Task t
         INNER JOIN ServiceLineExternal sle ON t.ServLineCode = sle.ServLineCode
         WHERE sle.masterCode IN (${Prisma.join(serviceLines)})
@@ -88,21 +88,22 @@ export function buildWipMonthlyAggregationQuery(
   if (!cumulative) {
     return Prisma.sql`
       SELECT 
-        DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
-        SUM(CASE WHEN TType = 'T' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdTime,
-        SUM(CASE WHEN TType = 'D' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdDisb,
-        SUM(CASE WHEN TType = 'ADJ' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdAdj,
-        SUM(CASE WHEN TType != 'P' THEN ISNULL(Cost, 0) ELSE 0 END) as ltdCost,
-        SUM(CASE WHEN TType = 'F' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdFee,
-        SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END) as ltdProvision,
-        SUM(CASE WHEN TType = 'ADJ' AND Amount < 0 THEN ISNULL(Amount, 0) ELSE 0 END) as negativeAdj
-      FROM WIPTransactions
+        DATEFROMPARTS(YEAR(w.TranDate), MONTH(w.TranDate), 1) as month,
+        SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdTime,
+        SUM(CASE WHEN w.TType = 'D' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdDisb,
+        SUM(CASE WHEN w.TType = 'ADJ' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdAdj,
+        SUM(CASE WHEN w.TType != 'P' AND (e.EmpCatCode IS NULL OR e.EmpCatCode != 'CARL') THEN ISNULL(w.Cost, 0) ELSE 0 END) as ltdCost,
+        SUM(CASE WHEN w.TType = 'F' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdFee,
+        SUM(CASE WHEN w.TType = 'P' THEN ISNULL(w.Amount, 0) ELSE 0 END) as ltdProvision,
+        SUM(CASE WHEN w.TType = 'ADJ' AND w.Amount < 0 THEN ISNULL(w.Amount, 0) ELSE 0 END) as negativeAdj
+      FROM WIPTransactions w
+        LEFT JOIN Employee e ON w.EmpCode = e.EmpCode
       WHERE ${fieldFilter}
-        AND TranDate >= ${startDate}
-        AND TranDate <= ${endDate}
+        AND w.TranDate >= ${startDate}
+        AND w.TranDate <= ${endDate}
         ${serviceLineFilter}
-      GROUP BY YEAR(TranDate), MONTH(TranDate)
-      ORDER BY YEAR(TranDate), MONTH(TranDate)
+      GROUP BY YEAR(w.TranDate), MONTH(w.TranDate)
+      ORDER BY YEAR(w.TranDate), MONTH(w.TranDate)
     `;
   }
 
@@ -110,20 +111,21 @@ export function buildWipMonthlyAggregationQuery(
   return Prisma.sql`
     WITH MonthlyTotals AS (
       SELECT 
-        DATEFROMPARTS(YEAR(TranDate), MONTH(TranDate), 1) as month,
-        SUM(CASE WHEN TType = 'T' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyTime,
-        SUM(CASE WHEN TType = 'D' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyDisb,
-        SUM(CASE WHEN TType = 'ADJ' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyAdj,
-        SUM(CASE WHEN TType != 'P' THEN ISNULL(Cost, 0) ELSE 0 END) as monthlyCost,
-        SUM(CASE WHEN TType = 'F' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyFee,
-        SUM(CASE WHEN TType = 'P' THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyProvision,
-        SUM(CASE WHEN TType = 'ADJ' AND Amount < 0 THEN ISNULL(Amount, 0) ELSE 0 END) as monthlyNegativeAdj
-      FROM WIPTransactions
+        DATEFROMPARTS(YEAR(w.TranDate), MONTH(w.TranDate), 1) as month,
+        SUM(CASE WHEN w.TType = 'T' THEN ISNULL(w.Amount, 0) ELSE 0 END) as monthlyTime,
+        SUM(CASE WHEN w.TType = 'D' THEN ISNULL(w.Amount, 0) ELSE 0 END) as monthlyDisb,
+        SUM(CASE WHEN w.TType = 'ADJ' THEN ISNULL(w.Amount, 0) ELSE 0 END) as monthlyAdj,
+        SUM(CASE WHEN w.TType != 'P' AND (e.EmpCatCode IS NULL OR e.EmpCatCode != 'CARL') THEN ISNULL(w.Cost, 0) ELSE 0 END) as monthlyCost,
+        SUM(CASE WHEN w.TType = 'F' THEN ISNULL(w.Amount, 0) ELSE 0 END) as monthlyFee,
+        SUM(CASE WHEN w.TType = 'P' THEN ISNULL(w.Amount, 0) ELSE 0 END) as monthlyProvision,
+        SUM(CASE WHEN w.TType = 'ADJ' AND w.Amount < 0 THEN ISNULL(w.Amount, 0) ELSE 0 END) as monthlyNegativeAdj
+      FROM WIPTransactions w
+        LEFT JOIN Employee e ON w.EmpCode = e.EmpCode
       WHERE ${fieldFilter}
-        AND TranDate >= ${startDate}
-        AND TranDate <= ${endDate}
+        AND w.TranDate >= ${startDate}
+        AND w.TranDate <= ${endDate}
         ${serviceLineFilter}
-      GROUP BY YEAR(TranDate), MONTH(TranDate)
+      GROUP BY YEAR(w.TranDate), MONTH(w.TranDate)
     )
     SELECT 
       month,
