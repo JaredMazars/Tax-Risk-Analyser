@@ -75,7 +75,6 @@ function mapWIPAgingSPToTask(row: WIPAgingSPResult): WIPAgingTaskData {
     },
     grossWip: row.GrossWip ?? 0,
     balWip: row.BalWip ?? 0,
-    ptdFeeAmt: row.PtdFeeAmt ?? 0,
     provision: row.Provision ?? 0,
     nettWip: row.NettWip ?? 0,
   };

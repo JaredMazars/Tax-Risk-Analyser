@@ -8,7 +8,8 @@
 -- Fees are applied against the OLDEST WIP first, reducing aged balances
 -- before current balances.
 --
--- VERSION: 4.0 - Performance Optimizations
+-- VERSION: 4.1 - Removed PtdFeeAmt from output (display only change)
+-- PREVIOUS: 4.0 - Performance Optimizations
 -- PREVIOUS: 3.5 - BalWip calculated directly as GrossWip - Credits
 -- PREVIOUS: 3.4 - Fixed NET amount calculation to match Profitability report
 -- PREVIOUS: 3.3 - Fixed overbilled task handling (negative BalWip)
@@ -523,8 +524,7 @@ SELECT
     -- This is BalWip = Time + Disb + Adj - Fees
     ROUND(ISNULL(fr.GrossWip, 0) - ISNULL(fr.TotalCredits, 0), 2) AS BalWip,
     
-    -- Credit and provision totals for reference
-    ROUND(-ISNULL(fr.TotalCredits, 0), 2) AS PtdFeeAmt,  -- Negative to match original convention (credits applied)
+    -- Provision total
     ROUND(ISNULL(fr.TotalProvision, 0), 2) AS Provision,
     
     -- Net WIP = BalWip + Provision (matches profitability NetWIP logic)

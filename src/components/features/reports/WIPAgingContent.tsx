@@ -308,7 +308,7 @@ export function WIPAgingContent({ fiscalYear, fiscalMonth, startDate, endDate, m
 
       {/* Aging Summary Cards */}
       {summaryTotals && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
           <div className="rounded-lg p-3 border border-forvis-gray-200 bg-white">
             <p className="text-xs text-forvis-gray-500 mb-1">Current (0-30)</p>
             <p className="text-lg font-bold text-forvis-gray-900">{formatCurrency(summaryTotals.curr)}</p>
@@ -364,79 +364,96 @@ export function WIPAgingContent({ fiscalYear, fiscalMonth, startDate, endDate, m
       {!isLoading && !error && data && (
         <>
           {/* Filters */}
-          <div className="mb-4 p-4 bg-white rounded-lg border border-forvis-gray-200">
-            <div className="flex items-center justify-between mb-3">
+          <div className="mb-4 p-3 bg-white rounded-lg shadow-corporate border border-forvis-gray-200">
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
+                <SearchMultiCombobox
+                  options={masterServiceLineOptions}
+                  value={filters.masterServiceLines}
+                  onChange={(values) =>
+                    setFilters((prev) => ({ ...prev, masterServiceLines: values as string[] }))
+                  }
+                  onSearchChange={handleSearch}
+                  placeholder="All Master SL"
+                  searchPlaceholder="Search master service lines..."
+                  minimumSearchChars={2}
+                  emptyMessage="Type 2+ characters to search"
+                />
+                <SearchMultiCombobox
+                  options={subServiceLineGroupOptions}
+                  value={filters.subServiceLineGroups}
+                  onChange={(values) =>
+                    setFilters((prev) => ({ ...prev, subServiceLineGroups: values as string[] }))
+                  }
+                  onSearchChange={handleSearch}
+                  placeholder="All Sub SL Groups"
+                  searchPlaceholder="Search sub service line groups..."
+                  minimumSearchChars={2}
+                  emptyMessage="Type 2+ characters to search"
+                />
+                <SearchMultiCombobox
+                  options={serviceLineOptions}
+                  value={filters.serviceLines}
+                  onChange={(values) =>
+                    setFilters((prev) => ({ ...prev, serviceLines: values as string[] }))
+                  }
+                  onSearchChange={handleSearch}
+                  placeholder="All Service Lines"
+                  searchPlaceholder="Search service lines..."
+                  minimumSearchChars={2}
+                  emptyMessage="Type 2+ characters to search"
+                />
+                <SearchMultiCombobox
+                  options={groupOptions}
+                  value={filters.groups}
+                  onChange={(values) =>
+                    setFilters((prev) => ({ ...prev, groups: values as string[] }))
+                  }
+                  onSearchChange={handleSearch}
+                  placeholder="All Groups"
+                  searchPlaceholder="Search groups..."
+                  minimumSearchChars={2}
+                  emptyMessage="Type 2+ characters to search"
+                />
+                <SearchMultiCombobox
+                  options={clientOptions}
+                  value={filters.clients}
+                  onChange={(values) =>
+                    setFilters((prev) => ({ ...prev, clients: values as string[] }))
+                  }
+                  onSearchChange={handleSearch}
+                  placeholder="All Clients"
+                  searchPlaceholder="Search by code or name..."
+                  minimumSearchChars={2}
+                  emptyMessage="Type 2+ characters to search clients"
+                />
+              </div>
+
+              {/* Actions Row */}
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-forvis-gray-500" />
-                <span className="text-sm font-medium text-forvis-gray-700">Filters</span>
+                {/* Active Filters Indicator */}
                 {hasActiveFilters && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-forvis-blue-100 text-forvis-blue-800">
-                    {activeFilterCount} active
-                  </span>
+                  <div className="flex items-center gap-2 text-xs text-forvis-gray-600">
+                    <Filter className="h-3.5 w-3.5" />
+                    <span className="font-medium">Active: {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Clear Filters Button */}
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 transition-colors"
+                    title="Clear all filters"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    <span>Clear</span>
+                  </button>
                 )}
               </div>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearAllFilters}
-                  className="inline-flex items-center gap-1 text-xs text-forvis-gray-500 hover:text-forvis-gray-700"
-                >
-                  <X className="h-3 w-3" />
-                  Clear all
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <SearchMultiCombobox
-                label="Master Service Lines"
-                options={masterServiceLineOptions}
-                value={filters.masterServiceLines}
-                onChange={(values) =>
-                  setFilters((prev) => ({ ...prev, masterServiceLines: values as string[] }))
-                }
-                onSearchChange={handleSearch}
-                placeholder="Search master service lines..."
-              />
-              <SearchMultiCombobox
-                label="Sub Service Line Groups"
-                options={subServiceLineGroupOptions}
-                value={filters.subServiceLineGroups}
-                onChange={(values) =>
-                  setFilters((prev) => ({ ...prev, subServiceLineGroups: values as string[] }))
-                }
-                onSearchChange={handleSearch}
-                placeholder="Search sub service line groups..."
-              />
-              <SearchMultiCombobox
-                label="Service Lines"
-                options={serviceLineOptions}
-                value={filters.serviceLines}
-                onChange={(values) =>
-                  setFilters((prev) => ({ ...prev, serviceLines: values as string[] }))
-                }
-                onSearchChange={handleSearch}
-                placeholder="Search service lines..."
-              />
-              <SearchMultiCombobox
-                label="Groups"
-                options={groupOptions}
-                value={filters.groups}
-                onChange={(values) =>
-                  setFilters((prev) => ({ ...prev, groups: values as string[] }))
-                }
-                onSearchChange={handleSearch}
-                placeholder="Search groups..."
-              />
-              <SearchMultiCombobox
-                label="Clients"
-                options={clientOptions}
-                value={filters.clients}
-                onChange={(values) =>
-                  setFilters((prev) => ({ ...prev, clients: values as string[] }))
-                }
-                onSearchChange={handleSearch}
-                placeholder="Search clients..."
-              />
             </div>
           </div>
 

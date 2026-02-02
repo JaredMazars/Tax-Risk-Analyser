@@ -54,9 +54,43 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<{key: keyof TaskWithWIPAndServiceLine; direction: 'asc' | 'desc'} | null>(null);
+  
+  // Handle sort
+  const handleSort = (key: keyof TaskWithWIPAndServiceLine) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
 
-  // Sort tasks by client code then task code
+  // Apply sorting
   const sortedTasks = [...tasks].sort((a, b) => {
+    // Apply custom sort if active
+    if (sortConfig) {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
+      }
+      
+      // Handle numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      
+      return 0;
+    }
+    
+    // Default sort by client code then task code
     const clientCompare = a.clientCode.localeCompare(b.clientCode);
     if (clientCompare !== 0) return clientCompare;
     return a.TaskCode.localeCompare(b.TaskCode);
@@ -123,19 +157,115 @@ export function TaskDetailsTable({ tasks }: TaskDetailsTableProps) {
             gridTemplateColumns: '1.5fr 2fr 140px 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
-          <div>Client</div>
-          <div>Task</div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('clientCode')}
+          >
+            <span>Client</span>
+            {sortConfig?.key === 'clientCode' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('TaskCode')}
+          >
+            <span>Task</span>
+            {sortConfig?.key === 'TaskCode' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
           <div className="min-w-[120px]">Service Line</div>
-          <div className="text-right">Net WIP</div>
-          <div className="text-right">WIP Provision</div>
-          <div className="text-right">Balance WIP</div>
-          <div className="text-right">Production</div>
-          <div className="text-right">Adjustments</div>
-          <div className="text-right">Net Revenue</div>
-          <div className="text-right">Adj %</div>
-          <div className="text-right">Cost</div>
-          <div className="text-right">Gross Profit</div>
-          <div className="text-right">GP %</div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('netWip')}
+          >
+            <span>Net WIP</span>
+            {sortConfig?.key === 'netWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdWipProvision')}
+          >
+            <span>WIP Provision</span>
+            {sortConfig?.key === 'ltdWipProvision' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('balWip')}
+          >
+            <span>Balance WIP</span>
+            {sortConfig?.key === 'balWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProduction')}
+          >
+            <span>Production</span>
+            {sortConfig?.key === 'grossProduction' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdAdj')}
+          >
+            <span>Adjustments</span>
+            {sortConfig?.key === 'ltdAdj' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('netRevenue')}
+          >
+            <span>Net Revenue</span>
+            {sortConfig?.key === 'netRevenue' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('adjustmentPercentage')}
+          >
+            <span>Adj %</span>
+            {sortConfig?.key === 'adjustmentPercentage' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdCost')}
+          >
+            <span>Cost</span>
+            {sortConfig?.key === 'ltdCost' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProfit')}
+          >
+            <span>Gross Profit</span>
+            {sortConfig?.key === 'grossProfit' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProfitPercentage')}
+          >
+            <span>GP %</span>
+            {sortConfig?.key === 'grossProfitPercentage' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
         </div>
 
         {/* Table Body */}

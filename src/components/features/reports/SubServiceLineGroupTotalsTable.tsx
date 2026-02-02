@@ -23,6 +23,8 @@ interface SubServiceLineGroupTotal {
   netRevenue: number;
   ltdCost: number;
   grossProfit: number;
+  adjustmentPercentage: number;
+  grossProfitPercentage: number;
 }
 
 interface SubServiceLineGroupTotalsTableProps {
@@ -53,6 +55,9 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<{key: keyof SubServiceLineGroupTotal; direction: 'asc' | 'desc'} | null>(null);
 
   // Aggregate tasks by sub service line group
   const subServiceLineGroupTotals = new Map<string, SubServiceLineGroupTotal>();
@@ -73,6 +78,8 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
         netRevenue: 0,
         ltdCost: 0,
         grossProfit: 0,
+        adjustmentPercentage: 0,
+        grossProfitPercentage: 0,
       });
     }
 
@@ -86,11 +93,52 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
     sslg.ltdCost += task.ltdCost;
     sslg.grossProfit += task.grossProfit;
   });
+  
+  // Calculate percentages for each sub service line group
+  subServiceLineGroupTotals.forEach((sslg) => {
+    sslg.adjustmentPercentage = sslg.grossProduction !== 0 
+      ? (sslg.ltdAdj / sslg.grossProduction) * 100 
+      : 0;
+    sslg.grossProfitPercentage = sslg.netRevenue !== 0 
+      ? (sslg.grossProfit / sslg.netRevenue) * 100 
+      : 0;
+  });
 
-  // Convert to array and sort by name
-  const sortedSubServiceLineGroups = Array.from(subServiceLineGroupTotals.values()).sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
+  // Handle sort
+  const handleSort = (key: keyof SubServiceLineGroupTotal) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
+
+  // Convert to array and apply sorting
+  const sortedSubServiceLineGroups = Array.from(subServiceLineGroupTotals.values()).sort((a, b) => {
+    // Apply custom sort if active
+    if (sortConfig) {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
+      }
+      
+      // Handle numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      
+      return 0;
+    }
+    
+    // Default sort by name
+    return a.name.localeCompare(b.name);
+  });
 
   // Pagination calculation
   const totalPages = Math.ceil(sortedSubServiceLineGroups.length / ITEMS_PER_PAGE);
@@ -152,17 +200,105 @@ export function SubServiceLineGroupTotalsTable({ tasks }: SubServiceLineGroupTot
             gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
-          <div>Sub Service Line Group</div>
-          <div className="text-right">Net WIP</div>
-          <div className="text-right">WIP Provision</div>
-          <div className="text-right">Balance WIP</div>
-          <div className="text-right">Production</div>
-          <div className="text-right">Adjustments</div>
-          <div className="text-right">Net Revenue</div>
-          <div className="text-right">Adj %</div>
-          <div className="text-right">Cost</div>
-          <div className="text-right">Gross Profit</div>
-          <div className="text-right">GP %</div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('name')}
+          >
+            <span>Sub Service Line Group</span>
+            {sortConfig?.key === 'name' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('totalWIP')}
+          >
+            <span>Net WIP</span>
+            {sortConfig?.key === 'totalWIP' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdWipProvision')}
+          >
+            <span>WIP Provision</span>
+            {sortConfig?.key === 'ltdWipProvision' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('balWip')}
+          >
+            <span>Balance WIP</span>
+            {sortConfig?.key === 'balWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProduction')}
+          >
+            <span>Production</span>
+            {sortConfig?.key === 'grossProduction' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdAdj')}
+          >
+            <span>Adjustments</span>
+            {sortConfig?.key === 'ltdAdj' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('netRevenue')}
+          >
+            <span>Net Revenue</span>
+            {sortConfig?.key === 'netRevenue' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('adjustmentPercentage')}
+          >
+            <span>Adj %</span>
+            {sortConfig?.key === 'adjustmentPercentage' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdCost')}
+          >
+            <span>Cost</span>
+            {sortConfig?.key === 'ltdCost' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProfit')}
+          >
+            <span>Gross Profit</span>
+            {sortConfig?.key === 'grossProfit' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProfitPercentage')}
+          >
+            <span>GP %</span>
+            {sortConfig?.key === 'grossProfitPercentage' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
         </div>
 
         {/* Table Body */}

@@ -4,7 +4,7 @@
  * WIP Aging Group Totals Table Component
  * 
  * Aggregates WIP aging data by group.
- * Columns: Group | Task Count | Curr | 30 | 60 | 90 | 120 | 150 | 180+ | Total | Fees | Provision | Net WIP
+ * Columns: Group | Task Count | Curr | 30 | 60 | 90 | 120 | 150 | 180+ | Total | Provision | Net WIP
  */
 
 import { useState, useMemo } from 'react';
@@ -27,7 +27,6 @@ interface GroupAggregation {
   bal150: number;
   bal180: number;
   balWip: number;
-  ptdFeeAmt: number;
   provision: number;
   nettWip: number;
 }
@@ -44,6 +43,19 @@ const formatCurrency = (amount: number) => {
 export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 25;
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<{key: keyof GroupAggregation; direction: 'asc' | 'desc'} | null>(null);
+  
+  // Handle sort
+  const handleSort = (key: keyof GroupAggregation) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
 
   // Aggregate by group
   const groupedData = useMemo(() => {
@@ -63,7 +75,6 @@ export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProp
         existing.bal150 += task.aging.bal150;
         existing.bal180 += task.aging.bal180;
         existing.balWip += task.balWip;
-        existing.ptdFeeAmt += task.ptdFeeAmt;
         existing.provision += task.provision;
         existing.nettWip += task.nettWip;
       } else {
@@ -79,17 +90,43 @@ export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProp
           bal150: task.aging.bal150,
           bal180: task.aging.bal180,
           balWip: task.balWip,
-          ptdFeeAmt: task.ptdFeeAmt,
           provision: task.provision,
           nettWip: task.nettWip,
         });
       }
     });
 
-    return Array.from(groupMap.values()).sort((a, b) => 
-      a.groupCode.localeCompare(b.groupCode)
-    );
-  }, [tasks]);
+    const aggregated = Array.from(groupMap.values());
+    
+    // Apply sorting if configured
+    if (sortConfig) {
+      return aggregated.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        
+        // Handle string comparison
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          const comparison = aValue.localeCompare(bValue);
+          return sortConfig.direction === 'asc' ? comparison : -comparison;
+        }
+        
+        // Handle numeric comparison
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        
+        // Handle null values
+        if (aValue === null && bValue !== null) return 1;
+        if (aValue !== null && bValue === null) return -1;
+        
+        return 0;
+      });
+    }
+    
+    // Default sort by group code
+    return aggregated.sort((a, b) => a.groupCode.localeCompare(b.groupCode));
+  }, [tasks, sortConfig]);
 
   // Pagination
   const totalPages = Math.ceil(groupedData.length / ITEMS_PER_PAGE);
@@ -108,7 +145,6 @@ export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProp
     bal150: groupedData.reduce((sum, g) => sum + g.bal150, 0),
     bal180: groupedData.reduce((sum, g) => sum + g.bal180, 0),
     balWip: groupedData.reduce((sum, g) => sum + g.balWip, 0),
-    ptdFeeAmt: groupedData.reduce((sum, g) => sum + g.ptdFeeAmt, 0),
     provision: groupedData.reduce((sum, g) => sum + g.provision, 0),
     nettWip: groupedData.reduce((sum, g) => sum + g.nettWip, 0),
   }), [groupedData]);
@@ -145,22 +181,117 @@ export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProp
           className="grid gap-2 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px',
+            gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px',
           }}
         >
-          <div>Group</div>
-          <div className="text-right">Tasks</div>
-          <div className="text-right">Curr</div>
-          <div className="text-right">30</div>
-          <div className="text-right">60</div>
-          <div className="text-right">90</div>
-          <div className="text-right">120</div>
-          <div className="text-right">150</div>
-          <div className="text-right">180+</div>
-          <div className="text-right">Total WIP</div>
-          <div className="text-right">Fees</div>
-          <div className="text-right">Provision</div>
-          <div className="text-right">Net WIP</div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('groupCode')}
+          >
+            <span>Group</span>
+            {sortConfig?.key === 'groupCode' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('taskCount')}
+          >
+            <span>Tasks</span>
+            {sortConfig?.key === 'taskCount' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('curr')}
+          >
+            <span>Curr</span>
+            {sortConfig?.key === 'curr' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal30')}
+          >
+            <span>30</span>
+            {sortConfig?.key === 'bal30' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal60')}
+          >
+            <span>60</span>
+            {sortConfig?.key === 'bal60' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal90')}
+          >
+            <span>90</span>
+            {sortConfig?.key === 'bal90' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal120')}
+          >
+            <span>120</span>
+            {sortConfig?.key === 'bal120' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal150')}
+          >
+            <span>150</span>
+            {sortConfig?.key === 'bal150' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal180')}
+          >
+            <span>180+</span>
+            {sortConfig?.key === 'bal180' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('balWip')}
+          >
+            <span>Total WIP</span>
+            {sortConfig?.key === 'balWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('provision')}
+          >
+            <span>Provision</span>
+            {sortConfig?.key === 'provision' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('nettWip')}
+          >
+            <span>Net WIP</span>
+            {sortConfig?.key === 'nettWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
         </div>
 
         {/* Table Body */}
@@ -171,7 +302,7 @@ export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProp
               className={`grid gap-2 py-2 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                 index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
               }`}
-              style={{ gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px' }}
+              style={{ gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px' }}
             >
               <div className="text-forvis-gray-900 truncate" title={`${group.groupCode} - ${group.groupDesc || 'No description'}`}>
                 <span className="font-medium">{group.groupCode}</span>
@@ -207,11 +338,6 @@ export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProp
               }`}>
                 {formatCurrency(group.balWip)}
               </div>
-              <div className={`text-right tabular-nums ${
-                group.ptdFeeAmt < 0 ? 'text-forvis-success-600' : 'text-forvis-gray-700'
-              }`}>
-                {formatCurrency(group.ptdFeeAmt)}
-              </div>
               <div className="text-right tabular-nums text-forvis-gray-700">
                 {formatCurrency(group.provision)}
               </div>
@@ -228,7 +354,7 @@ export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProp
             className="grid gap-2 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
               background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-              gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px'
+              gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px'
             }}
           >
             <div className="text-forvis-blue-800">
@@ -262,11 +388,6 @@ export function WIPAgingGroupTotalsTable({ tasks }: WIPAgingGroupTotalsTableProp
               grandTotals.balWip < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
             }`}>
               {formatCurrency(grandTotals.balWip)}
-            </div>
-            <div className={`text-right tabular-nums ${
-              grandTotals.ptdFeeAmt < 0 ? 'text-forvis-success-600' : 'text-forvis-blue-800'
-            }`}>
-              {formatCurrency(grandTotals.ptdFeeAmt)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
               {formatCurrency(grandTotals.provision)}

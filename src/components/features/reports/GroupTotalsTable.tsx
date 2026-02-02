@@ -22,6 +22,8 @@ interface GroupTotal {
   netRevenue: number;
   ltdCost: number;
   grossProfit: number;
+  adjustmentPercentage: number;
+  grossProfitPercentage: number;
 }
 
 interface GroupTotalsTableProps {
@@ -52,6 +54,9 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<{key: keyof GroupTotal; direction: 'asc' | 'desc'} | null>(null);
 
   // Aggregate tasks by group
   const groupTotals = new Map<string, GroupTotal>();
@@ -69,6 +74,8 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
         netRevenue: 0,
         ltdCost: 0,
         grossProfit: 0,
+        adjustmentPercentage: 0,
+        grossProfitPercentage: 0,
       });
     }
 
@@ -82,11 +89,52 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
     group.ltdCost += task.ltdCost;
     group.grossProfit += task.grossProfit;
   });
+  
+  // Calculate percentages for each group
+  groupTotals.forEach((group) => {
+    group.adjustmentPercentage = group.grossProduction !== 0 
+      ? (group.ltdAdj / group.grossProduction) * 100 
+      : 0;
+    group.grossProfitPercentage = group.netRevenue !== 0 
+      ? (group.grossProfit / group.netRevenue) * 100 
+      : 0;
+  });
 
-  // Convert to array and sort by group description
-  const sortedGroups = Array.from(groupTotals.values()).sort((a, b) =>
-    a.groupDesc.localeCompare(b.groupDesc)
-  );
+  // Handle sort
+  const handleSort = (key: keyof GroupTotal) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
+
+  // Convert to array and apply sorting
+  const sortedGroups = Array.from(groupTotals.values()).sort((a, b) => {
+    // Apply custom sort if active
+    if (sortConfig) {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      // Handle string comparison (for groupDesc/groupCode)
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
+      }
+      
+      // Handle numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      
+      return 0;
+    }
+    
+    // Default sort by group description
+    return a.groupDesc.localeCompare(b.groupDesc);
+  });
 
   // Pagination calculation
   const totalPages = Math.ceil(sortedGroups.length / ITEMS_PER_PAGE);
@@ -148,17 +196,105 @@ export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
             gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px',
           }}
         >
-          <div>Group Name</div>
-          <div className="text-right">Net WIP</div>
-          <div className="text-right">WIP Provision</div>
-          <div className="text-right">Balance WIP</div>
-          <div className="text-right">Production</div>
-          <div className="text-right">Adjustments</div>
-          <div className="text-right">Net Revenue</div>
-          <div className="text-right">Adj %</div>
-          <div className="text-right">Cost</div>
-          <div className="text-right">Gross Profit</div>
-          <div className="text-right">GP %</div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('groupDesc')}
+          >
+            <span>Group Name</span>
+            {sortConfig?.key === 'groupDesc' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('totalWIP')}
+          >
+            <span>Net WIP</span>
+            {sortConfig?.key === 'totalWIP' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdWipProvision')}
+          >
+            <span>WIP Provision</span>
+            {sortConfig?.key === 'ltdWipProvision' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('balWip')}
+          >
+            <span>Balance WIP</span>
+            {sortConfig?.key === 'balWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProduction')}
+          >
+            <span>Production</span>
+            {sortConfig?.key === 'grossProduction' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdAdj')}
+          >
+            <span>Adjustments</span>
+            {sortConfig?.key === 'ltdAdj' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('netRevenue')}
+          >
+            <span>Net Revenue</span>
+            {sortConfig?.key === 'netRevenue' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('adjustmentPercentage')}
+          >
+            <span>Adj %</span>
+            {sortConfig?.key === 'adjustmentPercentage' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdCost')}
+          >
+            <span>Cost</span>
+            {sortConfig?.key === 'ltdCost' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProfit')}
+          >
+            <span>Gross Profit</span>
+            {sortConfig?.key === 'grossProfit' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProfitPercentage')}
+          >
+            <span>GP %</span>
+            {sortConfig?.key === 'grossProfitPercentage' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
         </div>
 
         {/* Table Body */}

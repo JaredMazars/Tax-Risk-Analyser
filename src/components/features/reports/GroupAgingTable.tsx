@@ -45,6 +45,30 @@ export function GroupAgingTable({ clients }: GroupAgingTableProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+  
+  // Sort state - supports nested aging properties
+  const [sortConfig, setSortConfig] = useState<{key: string; direction: 'asc' | 'desc'} | null>(null);
+  
+  // Handle sort - supports nested properties like 'aging.current'
+  const handleSort = (key: string) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
+  
+  // Helper to get nested value
+  const getNestedValue = (obj: GroupTotal, path: string): any => {
+    const keys = path.split('.');
+    let value: any = obj;
+    for (const key of keys) {
+      value = value?.[key];
+      if (value === undefined) return undefined;
+    }
+    return value;
+  };
 
   // Aggregate clients by group
   const groupTotals = new Map<string, GroupTotal>();
@@ -90,10 +114,31 @@ export function GroupAgingTable({ clients }: GroupAgingTableProps) {
       : 0;
   });
 
-  // Convert to array and sort by group description
-  const sortedGroups = Array.from(groupTotals.values()).sort((a, b) =>
-    a.groupDesc.localeCompare(b.groupDesc)
-  );
+  // Apply sorting
+  const sortedGroups = Array.from(groupTotals.values()).sort((a, b) => {
+    // Apply custom sort if active
+    if (sortConfig) {
+      const aValue = getNestedValue(a, sortConfig.key);
+      const bValue = getNestedValue(b, sortConfig.key);
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
+      }
+      
+      // Handle numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      
+      return 0;
+    }
+    
+    // Default sort by group description
+    return a.groupDesc.localeCompare(b.groupDesc);
+  });
 
   // Pagination calculation
   const totalPages = Math.ceil(sortedGroups.length / ITEMS_PER_PAGE);
@@ -155,15 +200,87 @@ export function GroupAgingTable({ clients }: GroupAgingTableProps) {
             gridTemplateColumns: '2fr 80px 110px 100px 100px 100px 100px 100px 80px',
           }}
         >
-          <div>Group Name</div>
-          <div className="text-right">Clients</div>
-          <div className="text-right">Total Balance</div>
-          <div className="text-right">Current</div>
-          <div className="text-right">31-60</div>
-          <div className="text-right">61-90</div>
-          <div className="text-right">91-120</div>
-          <div className="text-right">120+</div>
-          <div className="text-right">Avg Days</div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('groupDesc')}
+          >
+            <span>Group Name</span>
+            {sortConfig?.key === 'groupDesc' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('clientCount')}
+          >
+            <span>Clients</span>
+            {sortConfig?.key === 'clientCount' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('totalBalance')}
+          >
+            <span>Total Balance</span>
+            {sortConfig?.key === 'totalBalance' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.current')}
+          >
+            <span>Current</span>
+            {sortConfig?.key === 'aging.current' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.days31_60')}
+          >
+            <span>31-60</span>
+            {sortConfig?.key === 'aging.days31_60' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.days61_90')}
+          >
+            <span>61-90</span>
+            {sortConfig?.key === 'aging.days61_90' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.days91_120')}
+          >
+            <span>91-120</span>
+            {sortConfig?.key === 'aging.days91_120' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.days120Plus')}
+          >
+            <span>120+</span>
+            {sortConfig?.key === 'aging.days120Plus' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('avgPaymentDaysOutstanding')}
+          >
+            <span>Avg Days</span>
+            {sortConfig?.key === 'avgPaymentDaysOutstanding' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
         </div>
 
         {/* Table Body */}

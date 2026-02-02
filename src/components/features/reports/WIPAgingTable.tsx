@@ -4,7 +4,7 @@
  * WIP Aging Table Component
  * 
  * Displays individual task rows with 7 aging buckets.
- * Columns: Client | Task | Service Line | Curr | 30 | 60 | 90 | 120 | 150 | 180+ | Total | Fees | Provision | Net WIP
+ * Columns: Client | Task | Service Line | Curr | 30 | 60 | 90 | 120 | 150 | 180+ | Total | Provision | Net WIP
  */
 
 import { useState } from 'react';
@@ -40,9 +40,54 @@ const getServiceLineBadgeColor = (servLineCode: string): 'blue' | 'purple' | 'gr
 export function WIPAgingTable({ tasks }: WIPAgingTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
+  
+  // Sort state - supports nested aging properties
+  const [sortConfig, setSortConfig] = useState<{key: string; direction: 'asc' | 'desc'} | null>(null);
+  
+  // Handle sort - supports nested properties like 'aging.curr'
+  const handleSort = (key: string) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
+  
+  // Helper to get nested value
+  const getNestedValue = (obj: WIPAgingTaskData, path: string): any => {
+    const keys = path.split('.');
+    let value: any = obj;
+    for (const key of keys) {
+      value = value?.[key];
+      if (value === undefined) return undefined;
+    }
+    return value;
+  };
 
-  // Sort tasks by client code then task code
+  // Apply sorting
   const sortedTasks = [...tasks].sort((a, b) => {
+    // Apply custom sort if active
+    if (sortConfig) {
+      const aValue = getNestedValue(a, sortConfig.key);
+      const bValue = getNestedValue(b, sortConfig.key);
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
+      }
+      
+      // Handle numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      
+      return 0;
+    }
+    
+    // Default sort by client code then task code
     const clientCompare = a.clientCode.localeCompare(b.clientCode);
     if (clientCompare !== 0) return clientCompare;
     return a.taskCode.localeCompare(b.taskCode);
@@ -65,7 +110,6 @@ export function WIPAgingTable({ tasks }: WIPAgingTableProps) {
     bal150: paginatedTasks.reduce((sum, t) => sum + t.aging.bal150, 0),
     bal180: paginatedTasks.reduce((sum, t) => sum + t.aging.bal180, 0),
     balWip: paginatedTasks.reduce((sum, t) => sum + t.balWip, 0),
-    ptdFeeAmt: paginatedTasks.reduce((sum, t) => sum + t.ptdFeeAmt, 0),
     provision: paginatedTasks.reduce((sum, t) => sum + t.provision, 0),
     nettWip: paginatedTasks.reduce((sum, t) => sum + t.nettWip, 0),
   };
@@ -102,23 +146,118 @@ export function WIPAgingTable({ tasks }: WIPAgingTableProps) {
           className="grid gap-2 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '1.5fr 1.5fr 120px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px',
+            gridTemplateColumns: '1.5fr 1.5fr 120px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px',
           }}
         >
-          <div>Client</div>
-          <div>Task</div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('clientCode')}
+          >
+            <span>Client</span>
+            {sortConfig?.key === 'clientCode' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('taskCode')}
+          >
+            <span>Task</span>
+            {sortConfig?.key === 'taskCode' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
           <div>Service Line</div>
-          <div className="text-right">Curr</div>
-          <div className="text-right">30</div>
-          <div className="text-right">60</div>
-          <div className="text-right">90</div>
-          <div className="text-right">120</div>
-          <div className="text-right">150</div>
-          <div className="text-right">180+</div>
-          <div className="text-right">Total WIP</div>
-          <div className="text-right">Fees</div>
-          <div className="text-right">Provision</div>
-          <div className="text-right">Net WIP</div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.curr')}
+          >
+            <span>Curr</span>
+            {sortConfig?.key === 'aging.curr' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.bal30')}
+          >
+            <span>30</span>
+            {sortConfig?.key === 'aging.bal30' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.bal60')}
+          >
+            <span>60</span>
+            {sortConfig?.key === 'aging.bal60' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.bal90')}
+          >
+            <span>90</span>
+            {sortConfig?.key === 'aging.bal90' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.bal120')}
+          >
+            <span>120</span>
+            {sortConfig?.key === 'aging.bal120' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.bal150')}
+          >
+            <span>150</span>
+            {sortConfig?.key === 'aging.bal150' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('aging.bal180')}
+          >
+            <span>180+</span>
+            {sortConfig?.key === 'aging.bal180' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('balWip')}
+          >
+            <span>Total WIP</span>
+            {sortConfig?.key === 'balWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('provision')}
+          >
+            <span>Provision</span>
+            {sortConfig?.key === 'provision' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('nettWip')}
+          >
+            <span>Net WIP</span>
+            {sortConfig?.key === 'nettWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
         </div>
 
         {/* Table Body */}
@@ -129,7 +268,7 @@ export function WIPAgingTable({ tasks }: WIPAgingTableProps) {
               className={`grid gap-2 py-2 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                 index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
               }`}
-              style={{ gridTemplateColumns: '1.5fr 1.5fr 120px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px' }}
+              style={{ gridTemplateColumns: '1.5fr 1.5fr 120px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px' }}
             >
               <div className="text-forvis-gray-900 truncate" title={`${task.clientCode} - ${task.clientName || 'Unnamed'}`}>
                 <span className="font-medium">{task.clientCode}</span>
@@ -172,11 +311,6 @@ export function WIPAgingTable({ tasks }: WIPAgingTableProps) {
               }`}>
                 {formatCurrency(task.balWip)}
               </div>
-              <div className={`text-right tabular-nums ${
-                task.ptdFeeAmt < 0 ? 'text-forvis-success-600' : 'text-forvis-gray-700'
-              }`}>
-                {formatCurrency(task.ptdFeeAmt)}
-              </div>
               <div className="text-right tabular-nums text-forvis-gray-700">
                 {formatCurrency(task.provision)}
               </div>
@@ -193,7 +327,7 @@ export function WIPAgingTable({ tasks }: WIPAgingTableProps) {
             className="grid gap-2 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
               background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-              gridTemplateColumns: '1.5fr 1.5fr 120px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px'
+              gridTemplateColumns: '1.5fr 1.5fr 120px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px'
             }}
           >
             <div className="text-forvis-blue-800" style={{ gridColumn: 'span 2' }}>
@@ -225,11 +359,6 @@ export function WIPAgingTable({ tasks }: WIPAgingTableProps) {
               grandTotals.balWip < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
             }`}>
               {formatCurrency(grandTotals.balWip)}
-            </div>
-            <div className={`text-right tabular-nums ${
-              grandTotals.ptdFeeAmt < 0 ? 'text-forvis-success-600' : 'text-forvis-blue-800'
-            }`}>
-              {formatCurrency(grandTotals.ptdFeeAmt)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
               {formatCurrency(grandTotals.provision)}

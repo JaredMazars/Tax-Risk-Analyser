@@ -49,6 +49,19 @@ export function ServiceLineReceiptsTable({ clients, viewMode, selectedMonth }: S
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<{key: keyof ServiceLineTotal; direction: 'asc' | 'desc'} | null>(null);
+  
+  // Handle sort
+  const handleSort = (key: keyof ServiceLineTotal) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
 
   // Get the key and name based on view mode
   const getKey = (client: ClientDebtorData): string => {
@@ -119,10 +132,31 @@ export function ServiceLineReceiptsTable({ clients, viewMode, selectedMonth }: S
     return totals;
   }, [clients, viewMode, selectedMonth]);
 
-  // Convert to array and sort by name
-  const sortedServiceLines = Array.from(serviceLineTotals.values()).sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
+  // Apply sorting
+  const sortedServiceLines = Array.from(serviceLineTotals.values()).sort((a, b) => {
+    // Apply custom sort if active
+    if (sortConfig) {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
+      }
+      
+      // Handle numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      
+      return 0;
+    }
+    
+    // Default sort by name
+    return a.name.localeCompare(b.name);
+  });
 
   // Pagination calculation
   const totalPages = Math.ceil(sortedServiceLines.length / ITEMS_PER_PAGE);
@@ -191,13 +225,69 @@ export function ServiceLineReceiptsTable({ clients, viewMode, selectedMonth }: S
             gridTemplateColumns: '1.5fr 110px 100px 100px 80px 100px 110px',
           }}
         >
-          <div>{getHeaderLabel()}</div>
-          <div className="text-right">Opening Bal</div>
-          <div className="text-right">Receipts</div>
-          <div className="text-right">Variance</div>
-          <div className="text-right">% Recov</div>
-          <div className="text-right">Billings</div>
-          <div className="text-right">Closing Bal</div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('name')}
+          >
+            <span>{getHeaderLabel()}</span>
+            {sortConfig?.key === 'name' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('openingBalance')}
+          >
+            <span>Opening Bal</span>
+            {sortConfig?.key === 'openingBalance' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('receipts')}
+          >
+            <span>Receipts</span>
+            {sortConfig?.key === 'receipts' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('variance')}
+          >
+            <span>Variance</span>
+            {sortConfig?.key === 'variance' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('recoveryPercent')}
+          >
+            <span>% Recov</span>
+            {sortConfig?.key === 'recoveryPercent' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('billings')}
+          >
+            <span>Billings</span>
+            {sortConfig?.key === 'billings' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('closingBalance')}
+          >
+            <span>Closing Bal</span>
+            {sortConfig?.key === 'closingBalance' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
         </div>
 
         {/* Table Body */}

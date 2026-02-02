@@ -26,7 +26,6 @@ interface MasterServiceLineAggregation {
   bal150: number;
   bal180: number;
   balWip: number;
-  ptdFeeAmt: number;
   provision: number;
   nettWip: number;
 }
@@ -43,6 +42,19 @@ const formatCurrency = (amount: number) => {
 export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterServiceLineTotalsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 25;
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<{key: keyof MasterServiceLineAggregation; direction: 'asc' | 'desc'} | null>(null);
+  
+  // Handle sort
+  const handleSort = (key: keyof MasterServiceLineAggregation) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
 
   // Aggregate by master service line
   const groupedData = useMemo(() => {
@@ -62,7 +74,6 @@ export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterSe
         existing.bal150 += task.aging.bal150;
         existing.bal180 += task.aging.bal180;
         existing.balWip += task.balWip;
-        existing.ptdFeeAmt += task.ptdFeeAmt;
         existing.provision += task.provision;
         existing.nettWip += task.nettWip;
       } else {
@@ -78,17 +89,39 @@ export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterSe
           bal150: task.aging.bal150,
           bal180: task.aging.bal180,
           balWip: task.balWip,
-          ptdFeeAmt: task.ptdFeeAmt,
           provision: task.provision,
           nettWip: task.nettWip,
         });
       }
     });
 
-    return Array.from(slMap.values()).sort((a, b) => 
-      a.masterServiceLineName.localeCompare(b.masterServiceLineName)
-    );
-  }, [tasks]);
+    const aggregated = Array.from(slMap.values());
+    
+    // Apply sorting if configured
+    if (sortConfig) {
+      return aggregated.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        
+        // Handle string comparison
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          const comparison = aValue.localeCompare(bValue);
+          return sortConfig.direction === 'asc' ? comparison : -comparison;
+        }
+        
+        // Handle numeric comparison
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        
+        return 0;
+      });
+    }
+    
+    // Default sort by name
+    return aggregated.sort((a, b) => a.masterServiceLineName.localeCompare(b.masterServiceLineName));
+  }, [tasks, sortConfig]);
 
   // Pagination
   const totalPages = Math.ceil(groupedData.length / ITEMS_PER_PAGE);
@@ -107,7 +140,6 @@ export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterSe
     bal150: groupedData.reduce((sum, g) => sum + g.bal150, 0),
     bal180: groupedData.reduce((sum, g) => sum + g.bal180, 0),
     balWip: groupedData.reduce((sum, g) => sum + g.balWip, 0),
-    ptdFeeAmt: groupedData.reduce((sum, g) => sum + g.ptdFeeAmt, 0),
     provision: groupedData.reduce((sum, g) => sum + g.provision, 0),
     nettWip: groupedData.reduce((sum, g) => sum + g.nettWip, 0),
   }), [groupedData]);
@@ -144,22 +176,117 @@ export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterSe
           className="grid gap-2 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
           style={{
             background: 'linear-gradient(to right, #2E5AAC, #25488A)',
-            gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px',
+            gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px',
           }}
         >
-          <div>Master Service Line</div>
-          <div className="text-right">Tasks</div>
-          <div className="text-right">Curr</div>
-          <div className="text-right">30</div>
-          <div className="text-right">60</div>
-          <div className="text-right">90</div>
-          <div className="text-right">120</div>
-          <div className="text-right">150</div>
-          <div className="text-right">180+</div>
-          <div className="text-right">Total WIP</div>
-          <div className="text-right">Fees</div>
-          <div className="text-right">Provision</div>
-          <div className="text-right">Net WIP</div>
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('masterServiceLineName')}
+          >
+            <span>Master Service Line</span>
+            {sortConfig?.key === 'masterServiceLineName' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('taskCount')}
+          >
+            <span>Tasks</span>
+            {sortConfig?.key === 'taskCount' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('curr')}
+          >
+            <span>Curr</span>
+            {sortConfig?.key === 'curr' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal30')}
+          >
+            <span>30</span>
+            {sortConfig?.key === 'bal30' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal60')}
+          >
+            <span>60</span>
+            {sortConfig?.key === 'bal60' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal90')}
+          >
+            <span>90</span>
+            {sortConfig?.key === 'bal90' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal120')}
+          >
+            <span>120</span>
+            {sortConfig?.key === 'bal120' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal150')}
+          >
+            <span>150</span>
+            {sortConfig?.key === 'bal150' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('bal180')}
+          >
+            <span>180+</span>
+            {sortConfig?.key === 'bal180' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('balWip')}
+          >
+            <span>Total WIP</span>
+            {sortConfig?.key === 'balWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('provision')}
+          >
+            <span>Provision</span>
+            {sortConfig?.key === 'provision' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('nettWip')}
+          >
+            <span>Net WIP</span>
+            {sortConfig?.key === 'nettWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
         </div>
 
         {/* Table Body */}
@@ -170,7 +297,7 @@ export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterSe
               className={`grid gap-2 py-2 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
                 index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
               }`}
-              style={{ gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px' }}
+              style={{ gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px' }}
             >
               <div className="text-forvis-gray-900 truncate font-medium" title={item.masterServiceLineName}>
                 {item.masterServiceLineName}
@@ -204,11 +331,6 @@ export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterSe
               }`}>
                 {formatCurrency(item.balWip)}
               </div>
-              <div className={`text-right tabular-nums ${
-                item.ptdFeeAmt < 0 ? 'text-forvis-success-600' : 'text-forvis-gray-700'
-              }`}>
-                {formatCurrency(item.ptdFeeAmt)}
-              </div>
               <div className="text-right tabular-nums text-forvis-gray-700">
                 {formatCurrency(item.provision)}
               </div>
@@ -225,7 +347,7 @@ export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterSe
             className="grid gap-2 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
             style={{
               background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
-              gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 100px 90px 100px'
+              gridTemplateColumns: '2fr 70px 90px 90px 90px 90px 90px 90px 90px 100px 90px 100px'
             }}
           >
             <div className="text-forvis-blue-800">
@@ -259,11 +381,6 @@ export function WIPAgingMasterServiceLineTotalsTable({ tasks }: WIPAgingMasterSe
               grandTotals.balWip < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
             }`}>
               {formatCurrency(grandTotals.balWip)}
-            </div>
-            <div className={`text-right tabular-nums ${
-              grandTotals.ptdFeeAmt < 0 ? 'text-forvis-success-600' : 'text-forvis-blue-800'
-            }`}>
-              {formatCurrency(grandTotals.ptdFeeAmt)}
             </div>
             <div className="text-right tabular-nums text-forvis-blue-800">
               {formatCurrency(grandTotals.provision)}

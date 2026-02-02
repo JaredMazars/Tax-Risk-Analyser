@@ -572,7 +572,6 @@ export interface WIPAgingTaskData {
   aging: WIPAgingBuckets;
   grossWip: number;    // Gross WIP before FIFO fee allocation
   balWip: number;      // Net WIP after FIFO (sum of all buckets)
-  ptdFeeAmt: number;   // Period-to-date fees applied (negative = credits)
   provision: number;   // WIP provision
   nettWip: number;     // Net WIP after all adjustments
 }
@@ -622,7 +621,6 @@ export interface WIPAgingSPResult {
   // Totals
   GrossWip: number;   // Gross WIP before FIFO fee allocation
   BalWip: number;     // Net WIP after FIFO
-  PtdFeeAmt: number;
   Provision: number;
   NettWip: number;
 }
