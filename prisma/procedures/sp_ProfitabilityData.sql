@@ -242,8 +242,8 @@ SELECT
     ,wa.LTDTimeCharged
     ,wa.LTDDisbCharged
     ,wa.LTDFeesBilled
-    ,wa.LTDAdjustments
-    ,(wa.OpeningP + wa.LTDWipProvision) AS LTDWipProvision  -- Total provisions (opening + period)
+    ,(wa.LTDAdjustments + wa.LTDWipProvision) AS LTDAdjustments  -- ADJ + P combined
+    ,(wa.OpeningP + wa.LTDWipProvision) AS LTDWipProvision  -- Total provisions (opening + period) for reference
     ,wa.LTDHours
     ,wa.LTDCost
     
@@ -256,9 +256,9 @@ SELECT
       + wa.LTDTimeCharged + wa.LTDDisbCharged + wa.LTDAdjustments + wa.LTDFeesBilled
       + wa.OpeningP + wa.LTDWipProvision) AS NetWIP
     
-    -- Calculated fields
-    ,(wa.LTDTimeCharged + wa.LTDAdjustments) AS NetRevenue
-    ,(wa.LTDTimeCharged + wa.LTDAdjustments - wa.LTDCost) AS GrossProfit
+    -- Calculated fields (Adjustments now includes Provisions)
+    ,(wa.LTDTimeCharged + wa.LTDAdjustments + wa.LTDWipProvision) AS NetRevenue
+    ,(wa.LTDTimeCharged + wa.LTDAdjustments + wa.LTDWipProvision - wa.LTDCost) AS GrossProfit
 
 FROM #Tasks t
     INNER JOIN #WIPAggregates wa ON t.GSTaskID = wa.GSTaskID
