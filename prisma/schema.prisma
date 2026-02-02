@@ -59,7 +59,6 @@ model AcceptanceQuestion {
   ClientAcceptanceAnswer ClientAcceptanceAnswer[]
 
   @@unique([questionnaireType, questionKey])
-  // Covering index (INCLUDE columns added via SQL migration)
   @@index([questionnaireType, order], map: "idx_accquestion_type_order_covering")
 }
 
@@ -225,9 +224,7 @@ model ApprovalStep {
   User_ApprovalStep_assignedToUserIdToUser  User?     @relation("ApprovalStep_assignedToUserIdToUser", fields: [assignedToUserId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_AssignedTo")
   User_ApprovalStep_delegatedToUserIdToUser User?     @relation("ApprovalStep_delegatedToUserIdToUser", fields: [delegatedToUserId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_ApprovalStep_DelegatedTo")
 
-  // Covering index (INCLUDE columns added via SQL migration)
   @@index([approvalId, stepOrder, status], map: "idx_approvalstep_approval_order_status_covering")
-  // User lookup index (kept)
   @@index([assignedToUserId])
 }
 
@@ -250,10 +247,8 @@ model BDActivity {
   BDContact     BDContact?    @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   BDOpportunity BDOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
-  // Covering indexes (INCLUDE columns added via SQL migration)
   @@index([assignedTo, status, dueDate], map: "idx_bdactivity_assigned_status_due_covering")
   @@index([opportunityId, createdAt(sort: Desc)], map: "idx_bdactivity_opp_created_covering")
-  // FK indexes (kept)
   @@index([opportunityId])
   @@index([contactId])
 }
@@ -323,18 +318,13 @@ model BDOpportunity {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   clientId            Int?
-  
-  // Assignment scheduling fields
-  assignmentType      String?
-  startDate           DateTime?
-  endDate             DateTime?
-  recurringFrequency  String?
-  
-  // Wizard tracking fields
-  wizardStep          Int?
   wizardCompleted     Boolean      @default(false)
   wizardData          String?      @db.NVarChar(Max)
-  
+  wizardStep          Int?
+  assignmentType      String?
+  endDate             DateTime?
+  recurringFrequency  String?
+  startDate           DateTime?
   BDActivity          BDActivity[]
   BDNote              BDNote[]
   Client              Client?      @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -342,12 +332,10 @@ model BDOpportunity {
   BDStage             BDStage      @relation(fields: [stageId], references: [id], onUpdate: NoAction)
   BDProposal          BDProposal[]
 
-  // Covering indexes (INCLUDE columns added via SQL migration)
   @@index([assignedTo, status], map: "idx_bdopp_assigned_status_covering")
   @@index([serviceLine, status], map: "idx_bdopp_serviceline_status_covering")
   @@index([createdAt(sort: Desc)], map: "idx_bdopp_created_covering")
   @@index([updatedAt(sort: Desc)], map: "idx_bdopp_updated_covering")
-  // FK indexes (kept)
   @@index([clientId])
   @@index([stageId])
   @@index([expectedCloseDate])
@@ -417,9 +405,7 @@ model BugReport {
   User_BugReport_resolvedByToUser User?     @relation("BugReport_resolvedByToUser", fields: [resolvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   User_BugReport_testedByToUser   User?     @relation("BugReport_testedByToUser", fields: [testedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Covering index (INCLUDE columns added via SQL migration)
   @@index([status, priority, reportedAt(sort: Desc)], map: "idx_bugreport_status_priority_covering")
-  // FK index (kept)
   @@index([reportedBy])
 }
 
@@ -435,87 +421,68 @@ model CategoryApprover {
   User_CategoryApprover_userIdToUser    User                  @relation("CategoryApprover_userIdToUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_CategoryApprover_User")
 
   @@unique([categoryId, userId], map: "UQ_CategoryApprover_CategoryId_UserId")
-  // Covering index (INCLUDE columns added via SQL migration)
   @@index([categoryId, stepOrder], map: "idx_categoryapprover_category_steporder_covering")
-  // FK index (kept)
   @@index([userId], map: "IX_CategoryApprover_UserId")
 }
 
 model Client {
-  id                    Int       @id @default(autoincrement())
-  clientCode            String    @unique @db.NVarChar(10)
-  clientNameFull        String?   @db.NVarChar(255)
-  groupCode             String    @db.NVarChar(10)
-  groupDesc             String    @db.NVarChar(150)
-  clientPartner         String    @db.NVarChar(10)
-  clientManager         String    @db.NVarChar(10)
-  clientIncharge        String    @db.NVarChar(10)
-  active                String    @db.VarChar(3)
-  clientDateOpen        DateTime?
-  clientDateTerminate   DateTime?
-  industry              String?   @db.NVarChar(255)
-  sector                String?   @db.NVarChar(255)
-  forvisMazarsIndustry  String?   @db.NVarChar(255)
-  forvisMazarsSector    String?   @db.NVarChar(255)
-  forvisMazarsSubsector String?   @db.NVarChar(255)
-  clientOCFlag          Boolean
-  clientTaxFlag         Boolean?
-  clientSecFlag         Boolean?
-  creditor              Boolean?
-  rolePlayer            Boolean
-  typeCode              String    @db.NVarChar(10)
-  typeDesc              String    @db.NVarChar(50)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  GSClientID            String    @unique @db.UniqueIdentifier
-
-  // Organization
-  officeCode String? @db.NVarChar(10)
-  busCatCode String? @db.NVarChar(10)
-
-  // Financial/Billing
-  billClient        String?  @db.NVarChar(10)
-  clientCreditHold  Boolean?
-  clientCreditLimit Decimal? @db.Decimal(18, 2)
-  clientCreditDays  Int?
-  statementType     String?  @db.NVarChar(20)
-
-  // Tax/Compliance
-  clientTaxNumber String? @db.NVarChar(50)
-  clientTaxVAT    String? @db.NVarChar(50)
-  taxNumPaye      String? @db.NVarChar(50)
-  taxNumSDL       String? @db.NVarChar(50)
-  taxNumUIF       String? @db.NVarChar(50)
-  taxNumWCA       String? @db.NVarChar(50)
-
-  // Identification
-  clientIDNumber    String? @db.NVarChar(50)
-  clientNationality String? @db.NVarChar(50)
-  clientResident    String? @db.NVarChar(3)
-
-  // Addresses
-  clientDAddress String? @db.NVarChar(Max)
-  clientPAddress String? @db.NVarChar(Max)
-  clientBAddress String? @db.NVarChar(Max)
-
-  // Banking
-  bankCode      String? @db.NVarChar(10)
-  bankAccNumber String? @db.NVarChar(50)
-  recCode       String? @db.NVarChar(10)
-
-  // Contact
-  email      String? @db.NVarChar(255)
-  clientTel  String? @db.NVarChar(50)
-  clientCell String? @db.NVarChar(50)
-  clientURL  String? @db.NVarChar(255)
-
-  // Other
-  countryID       String?  @db.NVarChar(10)
-  prospect        Boolean?
-  creditorControl String?  @db.NVarChar(50)
-  supplierRef     String?  @db.NVarChar(50)
-  clientComments  String?  @db.NVarChar(Max)
-
+  id                                Int                                 @id @default(autoincrement())
+  clientCode                        String                              @unique @db.NVarChar(10)
+  clientNameFull                    String?                             @db.NVarChar(255)
+  groupCode                         String                              @db.NVarChar(10)
+  groupDesc                         String                              @db.NVarChar(150)
+  clientPartner                     String                              @db.NVarChar(10)
+  clientManager                     String                              @db.NVarChar(10)
+  clientIncharge                    String                              @db.NVarChar(10)
+  active                            String                              @db.VarChar(3)
+  clientDateOpen                    DateTime?
+  clientDateTerminate               DateTime?
+  industry                          String?                             @db.NVarChar(255)
+  sector                            String?                             @db.NVarChar(255)
+  forvisMazarsIndustry              String?                             @db.NVarChar(255)
+  forvisMazarsSector                String?                             @db.NVarChar(255)
+  forvisMazarsSubsector             String?                             @db.NVarChar(255)
+  clientOCFlag                      Boolean
+  clientTaxFlag                     Boolean?
+  clientSecFlag                     Boolean?
+  creditor                          Boolean?
+  rolePlayer                        Boolean
+  typeCode                          String                              @db.NVarChar(10)
+  typeDesc                          String                              @db.NVarChar(50)
+  createdAt                         DateTime                            @default(now())
+  updatedAt                         DateTime                            @updatedAt
+  GSClientID                        String                              @unique @db.UniqueIdentifier
+  bankAccNumber                     String?                             @db.NVarChar(50)
+  bankCode                          String?                             @db.NVarChar(10)
+  billClient                        String?                             @db.NVarChar(10)
+  busCatCode                        String?                             @db.NVarChar(10)
+  clientBAddress                    String?                             @db.NVarChar(Max)
+  clientCell                        String?                             @db.NVarChar(50)
+  clientComments                    String?                             @db.NVarChar(Max)
+  clientCreditDays                  Int?
+  clientCreditHold                  Boolean?
+  clientCreditLimit                 Decimal?                            @db.Decimal(18, 2)
+  clientDAddress                    String?                             @db.NVarChar(Max)
+  clientIDNumber                    String?                             @db.NVarChar(50)
+  clientNationality                 String?                             @db.NVarChar(50)
+  clientPAddress                    String?                             @db.NVarChar(Max)
+  clientResident                    String?                             @db.NVarChar(3)
+  clientTaxNumber                   String?                             @db.NVarChar(50)
+  clientTaxVAT                      String?                             @db.NVarChar(50)
+  clientTel                         String?                             @db.NVarChar(50)
+  clientURL                         String?                             @db.NVarChar(255)
+  countryID                         String?                             @db.NVarChar(10)
+  creditorControl                   String?                             @db.NVarChar(50)
+  email                             String?                             @db.NVarChar(255)
+  officeCode                        String?                             @db.NVarChar(10)
+  prospect                          Boolean?
+  recCode                           String?                             @db.NVarChar(10)
+  statementType                     String?                             @db.NVarChar(20)
+  supplierRef                       String?                             @db.NVarChar(50)
+  taxNumPaye                        String?                             @db.NVarChar(50)
+  taxNumSDL                         String?                             @db.NVarChar(50)
+  taxNumUIF                         String?                             @db.NVarChar(50)
+  taxNumWCA                         String?                             @db.NVarChar(50)
   BDOpportunity                     BDOpportunity[]
   ClientAcceptance                  ClientAcceptance?
   ClientAcceptanceResponse          ClientAcceptanceResponse[]
@@ -541,6 +508,7 @@ model Client {
   @@index([prospect])
   @@index([officeCode])
   @@index([clientCreditHold])
+  @@index([GSClientID, groupCode, clientCode], map: "IX_Client_Profitability_Covering")
 }
 
 model ClientAcceptance {
@@ -591,7 +559,6 @@ model ClientAcceptanceAnswer {
   AcceptanceQuestion AcceptanceQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceAnswer_Question")
 
   @@unique([clientAcceptanceId, questionId])
-  // Covering index (INCLUDE columns added via SQL migration)
   @@index([clientAcceptanceId], map: "idx_clientaccanswer_acceptance_covering")
 }
 
@@ -860,37 +827,10 @@ model DrsTransactions {
   updatedAt         DateTime @updatedAt
   Client            Client   @relation(fields: [GSClientID], references: [GSClientID], onUpdate: NoAction)
 
-  // ============================================================================
-  // GRANULAR INDEXES (Query Pattern-Specific)
-  // Created via SQL migration - INCLUDE columns not supported in Prisma schema
-  // Migration: 20260130_granular_indexes_wip_drs
-  // Total Index Size: ~300-400 MB
-  // ============================================================================
-  //
-  // Index 1: idx_drs_biller_date (~100-120 MB, filtered)
-  //   Keys: (Biller, TranDate)
-  //   INCLUDE: (Total, EntryType, InvNumber, Reference, GSClientID, ClientCode, ClientNameFull, GroupCode, GroupDesc, ServLineCode)
-  //   Filter: WHERE Biller IS NOT NULL
-  //   Serves: Recoverability reports, biller-based queries
-  //   APIs: /api/my-reports/recoverability, /api/my-reports/overview
-  //
-  // Index 2: idx_drs_client_date (~120-150 MB, filtered)
-  //   Keys: (GSClientID, TranDate)
-  //   INCLUDE: (Total, EntryType, InvNumber, Reference, Biller, ClientCode, ClientNameFull, GroupCode, GroupDesc, ServLineCode, updatedAt)
-  //   Filter: WHERE GSClientID IS NOT NULL
-  //   Serves: Client debtor queries, balances
-  //   APIs: /api/clients/[id]/debtors, /api/clients/[id]/balances, /api/clients/[id]/debtors/details
-  //
-  // Index 3: idx_drs_client_group (~80-100 MB, filtered)
-  //   Keys: (GSClientID, GroupCode, TranDate)
-  //   INCLUDE: (Total, EntryType, ServLineCode, ClientCode)
-  //   Filter: WHERE GSClientID IS NOT NULL
-  //   Serves: Group-level debtor rollups
-  //   APIs: /api/groups/[groupCode]/debtors
-  //
-  // Note: Narration (TEXT type) excluded from all indexes - requires table lookup when needed
-  // Previous Migration: 20260128_optimize_drs_indexes (replaced)
-  // ============================================================================
+  @@index([TranDate], map: "idx_drs_trandate")
+  @@index([ClientCode, Biller, TranDate], map: "IX_DrsTransactions_ClientBased")
+  @@index([GSClientID, ServLineCode, InvNumber], map: "IX_DrsTransactions_InvoiceAging")
+  @@index([Biller, TranDate], map: "IX_DrsTransactions_Recoverability")
 }
 
 model EmailLog {
@@ -946,6 +886,7 @@ model Employee {
   @@index([SLGroup])
   @@index([WinLogon])
   @@index([EmpCode, Active], map: "idx_employee_empcode_active")
+  @@index([EmpCode], map: "IX_Employee_Profitability_Covering")
 }
 
 model ExternalLink {
@@ -1112,7 +1053,6 @@ model InAppNotification {
   Task                                    Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   User_InAppNotification_userIdToUser     User      @relation("InAppNotification_userIdToUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  // Covering indexes (INCLUDE columns added via SQL migration)
   @@index([userId, isRead], map: "idx_notification_user_read_covering")
   @@index([createdAt(sort: Desc)], map: "idx_notification_created_covering")
 }
@@ -1429,11 +1369,9 @@ model ReviewNote {
   ReviewNoteAttachment                  ReviewNoteAttachment[]
   ReviewNoteComment                     ReviewNoteComment[]
 
-  // Covering indexes (INCLUDE columns added via SQL migration)
   @@index([assignedTo, status], map: "idx_reviewnote_assigned_status_covering")
   @@index([taskId, status], map: "idx_reviewnote_task_status_covering")
   @@index([createdAt(sort: Desc)], map: "idx_reviewnote_created_covering")
-  // FK and query indexes (kept)
   @@index([taskId])
   @@index([categoryId])
   @@index([dueDate])
@@ -1526,11 +1464,11 @@ model ServiceLineExternal {
   updatedAt            DateTime @updatedAt
   Active               Boolean?
 
-  @@index([ServLineCode], map: "idx_servline_code")
   @@index([masterCode])
   @@index([ServLineCode])
   @@index([SLGroup])
   @@index([SubServlineGroupCode])
+  @@index([ServLineCode], map: "IX_ServiceLineExternal_Covering")
 }
 
 model ServiceLineMaster {
@@ -1543,9 +1481,9 @@ model ServiceLineMaster {
   updatedAt     DateTime        @updatedAt
   VaultDocument VaultDocument[]
 
-  @@index([code], map: "idx_master_sl_code")
   @@index([active])
   @@index([sortOrder])
+  @@index([code, active], map: "IX_ServiceLineMaster_CodeActive")
 }
 
 model ServiceLineTool {
@@ -1661,13 +1599,12 @@ model Task {
   @@index([GSClientID], map: "idx_task_gsclientid")
   @@index([ServLineCode, Active], map: "idx_task_servlinecode_active")
   @@index([GSClientID, Active, updatedAt(sort: Desc)])
-  @@index([GSClientID])
-  @@index([ServLineCode, Active])
   @@index([ServLineCode, Active, updatedAt(sort: Desc)])
   @@index([ServLineCode, SLGroup])
   @@index([TaskManager, Active])
   @@index([TaskPartner, Active])
   @@index([taskYear])
+  @@index([ServLineCode, TaskPartner, TaskManager, TaskCode, GSClientID], map: "IX_Task_Profitability_Covering")
 }
 
 model TaskAcceptance {
@@ -1813,10 +1750,8 @@ model TaskEngagementLetter {
   Task                    Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
   TemplateVersion         TemplateVersion? @relation(fields: [templateVersionId], references: [id])
 
-  // Covering indexes (INCLUDE columns added via SQL migration)
   @@index([dpaExtractionStatus], map: "idx_taskengagement_dpa_covering")
   @@index([elExtractionStatus], map: "idx_taskengagement_el_covering")
-  // FK indexes (kept)
   @@index([taskId])
   @@index([templateVersionId])
 }
@@ -2355,53 +2290,18 @@ model WIPTransactions {
   Client              Client?   @relation(fields: [GSClientID], references: [GSClientID], onDelete: NoAction, onUpdate: NoAction)
   Task                Task      @relation(fields: [GSTaskID], references: [GSTaskID], onUpdate: NoAction)
 
-  // ============================================================================
-  // GRANULAR INDEXES (Query Pattern-Specific)
-  // Created via SQL migration - INCLUDE columns not supported in Prisma schema
-  // Migration: 20260130_granular_indexes_wip_drs
-  // Table Size: 5.7 million rows | Total Index Size: ~600-700 MB
-  // ============================================================================
-  //
-  // Index 1: idx_wip_task (~50-60 MB)
-  //   Keys: (GSTaskID, TranDate)
-  //   INCLUDE: (Amount, Cost, Hour, TType, updatedAt)
-  //   Serves: Single task queries, task transactions
-  //   APIs: /api/tasks/[id]/wip, /api/tasks/[id]/transactions, /api/tasks/[id]/balances
-  //
-  // Index 2: idx_wip_client (~70-80 MB)
-  //   Keys: (GSClientID, TranDate)
-  //   INCLUDE: (Amount, Cost, Hour, TType, GSTaskID, TaskServLine, updatedAt)
-  //   Serves: Client WIP queries, client analytics
-  //   APIs: /api/clients/[id]/wip, /api/clients/[id]/balances, /api/clients/[id]/analytics
-  //
-  // Index 3: idx_wip_partner_date (~100-120 MB)
-  //   Keys: (TaskPartner, TranDate)
-  //   INCLUDE: (GSTaskID, Amount, Cost, Hour, TType, GSClientID, ClientCode, ClientName, TaskCode, TaskServLine)
-  //   Serves: Profitability reports for CARL/DIR/Local employees
-  //   APIs: /api/my-reports/profitability (partner filtering)
-  //
-  // Index 4: idx_wip_manager_date (~100-120 MB)
-  //   Keys: (TaskManager, TranDate)
-  //   INCLUDE: (GSTaskID, Amount, Cost, Hour, TType, GSClientID, ClientCode, ClientName, TaskCode, TaskServLine)
-  //   Serves: Profitability reports for non-CARL/DIR/Local employees
-  //   APIs: /api/my-reports/profitability (manager filtering)
-  //
-  // Index 5: idx_wip_date (~80-100 MB)
-  //   Keys: (TranDate, GSClientID, GSTaskID)
-  //   INCLUDE: (Amount, Cost, Hour, TType, EmpCode)
-  //   Serves: Date range queries, fiscal reports
-  //   APIs: /api/reports/fiscal-transactions
-  //
-  // Index 6: idx_wip_emp_date (~60-80 MB, filtered)
-  //   Keys: (EmpCode, TranDate, TType)
-  //   INCLUDE: (GSTaskID, Hour, Amount)
-  //   Filter: WHERE EmpCode IS NOT NULL
-  //   Serves: Employee time tracking, time accumulation
-  //   APIs: /api/tasks/[id]/analytics/time-accumulation
-  //
-  // Note: Narr (Text type) excluded from all indexes - requires key lookup if needed
-  // Previous Migration: 20260127_wiptransactions_2_covering_indexes (replaced)
-  // ============================================================================
+  @@index([GSClientID, TranDate, TType], map: "idx_wip_client")
+  @@index([TranDate, TType], map: "idx_wip_date")
+  @@index([TaskManager, TranDate, TType], map: "idx_wip_manager_date")
+  @@index([TaskPartner, TranDate, TType], map: "idx_wip_partner_date")
+  @@index([GSTaskID, TranDate, TType], map: "idx_wip_profitability_covering")
+  @@index([TaskServLine, TranDate], map: "idx_wip_serviceline")
+  @@index([GSTaskID, TranDate, TType], map: "idx_wip_task")
+  @@index([GSTaskID, TranDate, TType], map: "idx_WIPTransactions_FIFO_Aging")
+  @@index([TaskManager, GSTaskID, TranDate, TType], map: "idx_WIPTransactions_Manager_FIFO")
+  @@index([TaskPartner, GSTaskID, TranDate, TType], map: "idx_WIPTransactions_Partner_FIFO")
+  @@index([TaskServLine, GSTaskID, TranDate, TType], map: "idx_WIPTransactions_ServLine_FIFO")
+  @@index([EmpCode, GSTaskID, TranDate, TType], map: "IX_WIPTransactions_EmpCode_Covering")
 }
 
 model WorkspaceFile {

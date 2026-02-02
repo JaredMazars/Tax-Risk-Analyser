@@ -11,7 +11,7 @@ import type { TableInfo, ColumnInfo, IndexInfo } from '../types.js';
 
 export function registerSchemaTools(server: McpServer) {
   // List all tables
-  server.tool(
+  (server as unknown as { tool: Function }).tool(
     'list_tables',
     {},
     async () => {
@@ -51,12 +51,12 @@ export function registerSchemaTools(server: McpServer) {
   );
 
   // Describe table structure
-  server.tool(
+  (server as unknown as { tool: Function }).tool(
     'describe_table',
     {
       tableName: z.string().describe('Table name to describe'),
     },
-    async ({ tableName }) => {
+    async ({ tableName }: { tableName: string }) => {
       try {
         console.error(`[describe_table] Describing table: ${tableName}`);
         
@@ -105,12 +105,12 @@ export function registerSchemaTools(server: McpServer) {
   );
 
   // List indexes
-  server.tool(
+  (server as unknown as { tool: Function }).tool(
     'list_indexes',
     {
-      tableName: z.string().optional().describe('Filter by table name (optional)'),
+      tableName: z.string().default('').describe('Filter by table name (leave empty for all tables)'),
     },
-    async ({ tableName }) => {
+    async ({ tableName }: { tableName: string }) => {
       try {
         console.error(`[list_indexes] Fetching indexes${tableName ? ` for table: ${tableName}` : ''}...`);
         

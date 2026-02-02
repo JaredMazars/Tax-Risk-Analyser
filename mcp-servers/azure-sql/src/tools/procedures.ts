@@ -10,7 +10,7 @@ import type { StoredProcedureInfo, StoredProcedureResult } from '../types.js';
 
 export function registerStoredProcedureTools(server: McpServer) {
   // List all stored procedures
-  server.tool(
+  (server as unknown as { tool: Function }).tool(
     'list_stored_procedures',
     {},
     async () => {
@@ -55,12 +55,12 @@ export function registerStoredProcedureTools(server: McpServer) {
   );
 
   // Get stored procedure parameters
-  server.tool(
+  (server as unknown as { tool: Function }).tool(
     'describe_stored_procedure',
     {
       procedureName: z.string().describe('Stored procedure name'),
     },
-    async ({ procedureName }) => {
+    async ({ procedureName }: { procedureName: string }) => {
       try {
         console.error(`[describe_stored_procedure] Describing: ${procedureName}`);
         
@@ -102,21 +102,25 @@ export function registerStoredProcedureTools(server: McpServer) {
   );
 
   // Execute stored procedure
-  server.tool(
+  (server as unknown as { tool: Function }).tool(
     'execute_stored_procedure',
     {
       procedureName: z.string().describe('Stored procedure name (e.g., sp_ProfitabilityData)'),
-      parameters: z.record(z.any()).optional().describe('Parameters as key-value pairs (e.g., {"DateFrom": "2024-01-01", "DateTo": "2024-12-31"})'),
+      parameters: z.record(z.string(), z.unknown()).default({}).describe('Parameters as key-value pairs (e.g., {"DateFrom": "2024-01-01", "DateTo": "2024-12-31"})'),
+      timeout: z.number().default(120).describe('Execution timeout in seconds (default: 120, max: 300)'),
     },
-    async ({ procedureName, parameters }) => {
+    async ({ procedureName, parameters, timeout }: { procedureName: string; parameters: Record<string, unknown>; timeout: number }) => {
       try {
-        console.error(`[execute_stored_procedure] Executing: ${procedureName}`);
+        // Calculate timeout: user-provided (capped at 300s) or default 120s
+        const timeoutMs = Math.min(timeout || 120, 300) * 1000;
+        console.error(`[execute_stored_procedure] Executing: ${procedureName} (timeout ${timeoutMs / 1000}s)`);
         if (parameters) {
           console.error(`[execute_stored_procedure] Parameters:`, parameters);
         }
         
         const pool = await getConnection();
         const request = pool.request();
+        (request as unknown as { timeout: number }).timeout = timeoutMs;
 
         // Add parameters if provided
         if (parameters) {

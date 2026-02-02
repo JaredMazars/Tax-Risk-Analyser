@@ -27,7 +27,9 @@
 -- - My Reports Recoverability
 --
 -- INDEXES USED:
--- - idx_drs_biller_super_covering
+-- - idx_drs_biller_covering (Biller filter)
+-- - idx_drs_client_covering (Client filter)
+-- - idx_drs_serviceline_covering (Service line filter)
 --
 -- ============================================================================
 

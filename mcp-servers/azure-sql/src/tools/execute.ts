@@ -9,13 +9,14 @@ import { getConnection } from '../database.js';
 import type { ExecuteResult } from '../types.js';
 
 export function registerExecuteTool(server: McpServer) {
-  server.tool(
+  (server as unknown as { tool: Function }).tool(
     'execute_sql',
     {
-      sql: z.string().describe('SQL command to execute (INSERT, UPDATE, DELETE, or stored procedure)'),
+      sql: z.string().describe('SQL command to execute (INSERT, UPDATE, DELETE, CREATE INDEX, CREATE/ALTER PROCEDURE, etc.)'),
       confirm: z.boolean().describe('Must be true to execute (safety confirmation)'),
+      timeout: z.number().default(120).describe('Execution timeout in seconds (default: 120, max: 600 for DDL operations)'),
     },
-    async ({ sql, confirm }) => {
+    async ({ sql, confirm, timeout }: { sql: string; confirm: boolean; timeout: number }) => {
       try {
         // Require explicit confirmation
         if (!confirm) {
@@ -28,10 +29,14 @@ export function registerExecuteTool(server: McpServer) {
           throw new Error('SQL command cannot be empty');
         }
 
-        console.error('[execute_sql] Executing command...');
+        // Calculate timeout: user-provided (capped at 600s for DDL) or default 120s
+        const timeoutMs = Math.min(timeout || 120, 600) * 1000;
+        console.error(`[execute_sql] Executing command (timeout ${timeoutMs / 1000}s)...`);
         
         const pool = await getConnection();
-        const result = await pool.request().query(trimmedSql);
+        const request = pool.request();
+        (request as unknown as { timeout: number }).timeout = timeoutMs;
+        const result = await request.query(trimmedSql);
 
         const executeResult: ExecuteResult = {
           rowsAffected: result.rowsAffected[0] || 0,

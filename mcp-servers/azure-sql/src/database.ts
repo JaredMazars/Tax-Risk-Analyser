@@ -15,12 +15,12 @@ const config: sql.config = {
     encrypt: true,
     trustServerCertificate: false,
     connectTimeout: 30000,
-    requestTimeout: 30000,
+    requestTimeout: 120000, // 2 minutes for complex queries/stored procedures
   },
   pool: {
     max: 10,
     min: 0,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: 60000, // 60s idle timeout
   },
 };
 

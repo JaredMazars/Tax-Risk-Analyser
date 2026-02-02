@@ -1,0 +1,552 @@
+---
+description: SQL Server stored procedure optimization patterns - applies when creating, modifying, or optimizing stored procedures, working with .sql files in prisma/procedures/, or discussing query performance
+globs:
+  - "prisma/procedures/**/*.sql"
+  - "prisma/migrations/**/*.sql"
+---
+
+# Stored Procedure Optimization Patterns
+
+SQL Server | Performance | Indexing | Dynamic SQL | Temp Tables
+
+## When To Apply This Rule
+
+- Creating or optimizing stored procedures
+- Working with large tables (100K+ rows)
+- Building report procedures with optional parameters
+- Aggregating transaction data (WIPTransactions, DrsTransactions)
+- Creating indexes for stored procedure optimization
+
+## Quick Reference
+
+| Anti-Pattern | Solution | See Section |
+|--------------|----------|-------------|
+| `WHERE (@Param = '*' OR col = @Param)` | Dynamic SQL with conditional predicates | Sargable WHERE Clauses |
+| CTE for large aggregations | Temp table with explicit schema | Temp Tables vs CTEs |
+| `SELECT INTO #Temp` in sp_executesql | CREATE TABLE + INSERT INTO | Dynamic SQL Scope |
+| Repeated SUM in SELECT + HAVING | Pre-aggregate into temp table | Eliminate Duplicate Calculations |
+| Key lookups on JOIN columns | Covering indexes with INCLUDE | Index Design |
+| Missing statistics after index creation | UPDATE STATISTICS WITH FULLSCAN | Index Maintenance |
+
+## Sargable WHERE Clauses (CRITICAL)
+
+### Problem: OR-Based Wildcards Prevent Index Seeks
+
+```sql
+-- ❌ BAD: Non-sargable - forces table scan
+WHERE (t.ServLineCode = @ServLineCode OR @ServLineCode = '*')
+  AND (t.TaskPartner = @PartnerCode OR @PartnerCode = '*')
+  AND (t.TaskManager = @ManagerCode OR @ManagerCode = '*')
+```
+
+SQL Server cannot use index seeks when the predicate might match everything. This pattern causes full table scans regardless of parameter values.
+
+### Solution: Dynamic SQL with Conditional Predicates
+
+```sql
+-- ✅ GOOD: Sargable - enables index seeks
+DECLARE @sql NVARCHAR(MAX)
+DECLARE @params NVARCHAR(MAX)
+
+SET @sql = N'
+SELECT columns INTO #Results
+FROM [dbo].[Task] t
+    INNER JOIN [dbo].[Client] c ON t.GSClientID = c.GSClientID
+WHERE 1=1'
+
+-- Add predicates only when filter is not wildcard
+IF @ServLineCode != '*' SET @sql = @sql + N' AND t.ServLineCode = @p_ServLineCode'
+IF @PartnerCode != '*' SET @sql = @sql + N' AND t.TaskPartner = @p_PartnerCode'
+IF @ManagerCode != '*' SET @sql = @sql + N' AND t.TaskManager = @p_ManagerCode'
+IF @ClientCode != '*' SET @sql = @sql + N' AND c.clientCode = @p_ClientCode'
+
+SET @params = N'@p_ServLineCode nvarchar(max), @p_PartnerCode nvarchar(max), @p_ManagerCode nvarchar(max), @p_ClientCode nvarchar(max)'
+
+EXEC sp_executesql @sql, @params,
+    @p_ServLineCode = @ServLineCode,
+    @p_PartnerCode = @PartnerCode,
+    @p_ManagerCode = @ManagerCode,
+    @p_ClientCode = @ClientCode
+```
+
+### Alternative: OPTION (RECOMPILE)
+
+For simpler cases or when dynamic SQL complexity isn't warranted:
+
+```sql
+-- Simpler but uses more CPU (recompiles every execution)
+SELECT columns
+FROM [dbo].[Task] t
+WHERE (t.ServLineCode = @ServLineCode OR @ServLineCode = '*')
+OPTION (RECOMPILE)
+```
+
+**Use OPTION (RECOMPILE) when:**
+- Procedure called infrequently (<10 times/minute)
+- Query is simple
+- Dynamic SQL complexity outweighs benefit
+
+**Use Dynamic SQL when:**
+- Procedure called frequently
+- Multiple optional parameters
+- Large tables where scan vs seek matters significantly
+
+## Temp Tables vs CTEs (CRITICAL)
+
+### Problem: CTEs Are Not Materialized
+
+```sql
+-- ❌ BAD: CTE re-evaluated for each reference
+;WITH AggregatedData AS (
+    SELECT GSTaskID, SUM(Amount) AS TotalAmount
+    FROM WIPTransactions  -- 5.7M rows scanned
+    GROUP BY GSTaskID
+)
+SELECT *
+FROM AggregatedData
+WHERE TotalAmount > 0  -- CTE scanned again for filtering
+ORDER BY TotalAmount   -- CTE scanned again for sorting
+```
+
+In SQL Server, CTEs are **inline views**, not materialized results. Each reference re-executes the query.
+
+### Solution: Temp Tables for Large Aggregations
+
+```sql
+-- ✅ GOOD: Temp table materialized once
+SELECT 
+    GSTaskID,
+    SUM(Amount) AS TotalAmount
+INTO #AggregatedData
+FROM WIPTransactions  -- 5.7M rows scanned ONCE
+GROUP BY GSTaskID
+
+-- Add index for efficient access
+CREATE CLUSTERED INDEX IX_Agg_GSTaskID ON #AggregatedData (GSTaskID)
+
+-- Now filtering and sorting use the temp table
+SELECT *
+FROM #AggregatedData
+WHERE TotalAmount > 0
+ORDER BY TotalAmount
+
+DROP TABLE #AggregatedData
+```
+
+### Temp Table vs CTE Comparison
+
+| Aspect | CTE | Temp Table |
+|--------|-----|------------|
+| Materialization | None (re-evaluated) | Once (stored in tempdb) |
+| Indexes | Not possible | Clustered + nonclustered |
+| Statistics | Uses base table stats | Auto-created, accurate |
+| Multiple references | Re-executes each time | Single execution |
+| Memory pressure | Higher | Lower |
+| Best for | Simple subqueries, recursion | Large aggregations, multi-step logic |
+
+### When to Use Each
+
+**Use CTEs when:**
+- Single reference in the query
+- Small result set (<1000 rows)
+- Recursive queries (CTEs required)
+- Readability is priority over performance
+
+**Use Temp Tables when:**
+- Multiple references to same result
+- Large result sets (>10K rows)
+- Need indexes on intermediate results
+- Multi-step aggregation logic
+- Accurate cardinality estimates matter
+
+## Dynamic SQL and Temp Table Scope (CRITICAL)
+
+### Problem: Temp Tables Created in sp_executesql Are Not Visible Outside
+
+```sql
+-- ❌ BAD: #Tasks created inside sp_executesql is destroyed after EXEC
+DECLARE @sql NVARCHAR(MAX) = N'
+SELECT col1, col2 INTO #Tasks FROM Task WHERE condition'
+
+EXEC sp_executesql @sql
+
+-- ERROR: Cannot find the object "#Tasks"
+SELECT * FROM #Tasks
+```
+
+Temp tables created with `SELECT INTO` inside `sp_executesql` are scoped to that execution context and destroyed when it completes.
+
+### Solution: Create Temp Table Before sp_executesql
+
+```sql
+-- ✅ GOOD: Create structure first, then INSERT via dynamic SQL
+CREATE TABLE #Tasks (
+    clientCode NVARCHAR(10),
+    GSTaskID UNIQUEIDENTIFIER,
+    ServLineCode NVARCHAR(10)
+    -- Define all columns with explicit types
+)
+
+DECLARE @sql NVARCHAR(MAX) = N'
+INSERT INTO #Tasks
+SELECT clientCode, GSTaskID, ServLineCode
+FROM Task t
+WHERE 1=1'
+
+IF @ServLineCode != '*' SET @sql = @sql + N' AND t.ServLineCode = @p_ServLineCode'
+
+EXEC sp_executesql @sql, N'@p_ServLineCode nvarchar(max)', @p_ServLineCode = @ServLineCode
+
+-- #Tasks is visible and populated
+SELECT * FROM #Tasks
+
+DROP TABLE #Tasks
+```
+
+**Key Points:**
+1. CREATE TABLE with explicit schema **before** sp_executesql
+2. Use INSERT INTO (not SELECT INTO) inside dynamic SQL
+3. Temp table persists after sp_executesql completes
+4. Always DROP TABLE at procedure end
+
+## Eliminate Duplicate Calculations
+
+### Problem: HAVING Recalculates Aggregates from SELECT
+
+```sql
+-- ❌ BAD: SUM calculated twice (SELECT + HAVING)
+SELECT 
+    TaskCode,
+    SUM(CASE WHEN TType = 'T' THEN Amount ELSE 0 END) AS TimeAmount,
+    SUM(CASE WHEN TType = 'D' THEN Amount ELSE 0 END) AS DisbAmount
+FROM WIPTransactions
+GROUP BY TaskCode
+HAVING 
+    ABS(SUM(CASE WHEN TType = 'T' THEN Amount ELSE 0 END)) > 0.01  -- Recalculated!
+    OR ABS(SUM(CASE WHEN TType = 'D' THEN Amount ELSE 0 END)) > 0.01  -- Recalculated!
+```
+
+### Solution: Two-Stage Aggregation with Temp Table
+
+```sql
+-- ✅ GOOD: Aggregate once, filter with WHERE
+-- Stage 1: Compute all aggregates into temp table
+SELECT 
+    TaskCode,
+    SUM(CASE WHEN TType = 'T' THEN Amount ELSE 0 END) AS TimeAmount,
+    SUM(CASE WHEN TType = 'D' THEN Amount ELSE 0 END) AS DisbAmount
+INTO #Aggregates
+FROM WIPTransactions
+GROUP BY TaskCode
+
+-- Stage 2: Filter using stored values (no recalculation)
+SELECT *
+FROM #Aggregates
+WHERE ABS(TimeAmount) > 0.01 OR ABS(DisbAmount) > 0.01
+
+DROP TABLE #Aggregates
+```
+
+### Compute Derived Fields from Stored Values
+
+```sql
+-- ❌ BAD: Repeating SUM expressions for calculated fields
+SELECT 
+    SUM(CASE WHEN TType = 'T' THEN Amount ELSE 0 END) AS TimeCharged,
+    SUM(CASE WHEN TType = 'D' THEN Amount ELSE 0 END) AS DisbCharged,
+    -- Repeating same SUMs for TotalRevenue
+    SUM(CASE WHEN TType = 'T' THEN Amount ELSE 0 END) 
+        + SUM(CASE WHEN TType = 'D' THEN Amount ELSE 0 END) AS TotalRevenue
+```
+
+```sql
+-- ✅ GOOD: Store base values, compute derived in final SELECT
+-- Stage 1: Store base aggregates
+SELECT 
+    TaskCode,
+    SUM(CASE WHEN TType = 'T' THEN Amount ELSE 0 END) AS TimeCharged,
+    SUM(CASE WHEN TType = 'D' THEN Amount ELSE 0 END) AS DisbCharged
+INTO #Base
+FROM WIPTransactions
+GROUP BY TaskCode
+
+-- Stage 2: Compute derived fields from stored values
+SELECT 
+    TaskCode,
+    TimeCharged,
+    DisbCharged,
+    (TimeCharged + DisbCharged) AS TotalRevenue  -- Uses stored values
+FROM #Base
+```
+
+## Index Design for Stored Procedures
+
+### Covering Indexes (Eliminate Key Lookups)
+
+```sql
+-- ✅ GOOD: Key columns for WHERE/JOIN, INCLUDE for SELECT
+CREATE NONCLUSTERED INDEX IX_WIPTransactions_Profitability_Covering
+ON [dbo].[WIPTransactions] (GSTaskID, TranDate, TType)
+INCLUDE (Amount, Hour, Cost, EmpCode)
+WITH (ONLINE = ON, FILLFACTOR = 90);
+```
+
+**Key Column Selection:**
+1. **First:** Equality predicates in WHERE (most selective first)
+2. **Second:** Range predicates in WHERE
+3. **Third:** JOIN columns
+4. **Include:** All other columns needed in SELECT (avoids key lookup)
+
+### Index for Dynamic SQL Patterns
+
+When using dynamic SQL with optional parameters, create indexes for the most common filter combinations:
+
+```sql
+-- For ServLineCode filter (most common)
+CREATE NONCLUSTERED INDEX IX_Task_ServLine_Covering
+ON [dbo].[Task] (ServLineCode)
+INCLUDE (TaskPartner, TaskManager, GSClientID, GSTaskID)
+WITH (ONLINE = ON);
+
+-- For TaskPartner filter
+CREATE NONCLUSTERED INDEX IX_Task_Partner_Covering
+ON [dbo].[Task] (TaskPartner)
+INCLUDE (ServLineCode, TaskManager, GSClientID, GSTaskID)
+WITH (ONLINE = ON);
+
+-- Composite for multi-filter scenarios
+CREATE NONCLUSTERED INDEX IX_Task_Profitability_Covering
+ON [dbo].[Task] (ServLineCode, TaskPartner, TaskManager, TaskCode, GSClientID)
+INCLUDE (OfficeCode, ServLineDesc, TaskPartnerName, TaskManagerName, GSTaskID)
+WITH (ONLINE = ON);
+```
+
+### Index Creation Best Practices
+
+```sql
+-- Always check if index exists before creating
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes 
+    WHERE name = 'IX_MyIndex' 
+    AND object_id = OBJECT_ID('MyTable')
+)
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_MyIndex
+    ON [dbo].[MyTable] (KeyColumn)
+    INCLUDE (Column1, Column2)
+    WITH (ONLINE = ON, FILLFACTOR = 90);
+END
+
+-- Always update statistics after creating indexes
+UPDATE STATISTICS [dbo].[MyTable] WITH FULLSCAN;
+```
+
+**Index Creation Options:**
+- `ONLINE = ON`: Zero-downtime creation (required for production)
+- `FILLFACTOR = 90`: Leaves 10% free space for updates (use 90 for frequently updated tables)
+
+## Temp Table Best Practices
+
+### Always Add Clustered Index
+
+```sql
+CREATE TABLE #Results (
+    GSTaskID UNIQUEIDENTIFIER,
+    TotalAmount FLOAT
+)
+
+-- Add clustered index for JOIN operations
+CREATE CLUSTERED INDEX IX_Results_GSTaskID ON #Results (GSTaskID)
+```
+
+### Use Explicit Data Types
+
+```sql
+-- ✅ GOOD: Explicit types matching source columns
+CREATE TABLE #Tasks (
+    clientCode NVARCHAR(10),          -- Match Client.clientCode
+    GSTaskID UNIQUEIDENTIFIER,         -- Match Task.GSTaskID
+    Amount FLOAT                       -- Match WIPTransactions.Amount (MONEY type)
+)
+
+-- ❌ BAD: Implicit types from SELECT INTO
+SELECT clientCode, GSTaskID, Amount
+INTO #Tasks  -- Types inferred, may not match
+FROM ...
+```
+
+### Clean Up Temp Tables
+
+```sql
+-- At end of stored procedure
+IF OBJECT_ID('tempdb..#Tasks') IS NOT NULL DROP TABLE #Tasks
+IF OBJECT_ID('tempdb..#Aggregates') IS NOT NULL DROP TABLE #Aggregates
+```
+
+## Stored Procedure Template
+
+```sql
+-- ============================================================================
+-- [Procedure Name] (vX.X)
+-- [Brief description]
+-- ============================================================================
+--
+-- PURPOSE: [What this procedure does]
+--
+-- OPTIMIZATIONS:
+--   1. Dynamic SQL for sargable WHERE clauses
+--   2. Temp tables for materialized aggregations
+--   3. Single-pass aggregation (no duplicate calculations)
+--   4. Covering indexes for key lookups
+--
+-- PREREQUISITES:
+--   Run [migration file] for required indexes
+--
+-- ============================================================================
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[sp_ProcedureName] 
+     @Param1 nvarchar(max) = '*'
+    ,@Param2 nvarchar(max) = '*'
+    ,@DateFrom datetime = '1900/01/01'
+    ,@DateTo datetime = '2099/12/31'
+AS
+
+SET NOCOUNT ON
+
+-- ============================================================================
+-- STEP 1: Create temp table structures (before dynamic SQL)
+-- ============================================================================
+
+CREATE TABLE #FilteredData (
+    Id UNIQUEIDENTIFIER,
+    Column1 NVARCHAR(50),
+    Column2 NVARCHAR(100)
+)
+
+-- ============================================================================
+-- STEP 2: Build and execute dynamic SQL for sargable filtering
+-- ============================================================================
+
+DECLARE @sql NVARCHAR(MAX)
+DECLARE @params NVARCHAR(MAX)
+
+SET @sql = N'
+INSERT INTO #FilteredData
+SELECT Id, Column1, Column2
+FROM [dbo].[SourceTable]
+WHERE 1=1'
+
+IF @Param1 != '*' SET @sql = @sql + N' AND Column1 = @p_Param1'
+IF @Param2 != '*' SET @sql = @sql + N' AND Column2 = @p_Param2'
+
+SET @params = N'@p_Param1 nvarchar(max), @p_Param2 nvarchar(max)'
+
+EXEC sp_executesql @sql, @params,
+    @p_Param1 = @Param1,
+    @p_Param2 = @Param2
+
+-- Add index for subsequent joins
+CREATE CLUSTERED INDEX IX_Filtered_Id ON #FilteredData (Id)
+
+-- ============================================================================
+-- STEP 3: Aggregate into temp table (single scan)
+-- ============================================================================
+
+CREATE TABLE #Aggregates (
+    Id UNIQUEIDENTIFIER,
+    Metric1 FLOAT,
+    Metric2 FLOAT
+)
+
+INSERT INTO #Aggregates
+SELECT 
+    t.Id,
+    SUM(CASE WHEN condition1 THEN value ELSE 0 END) AS Metric1,
+    SUM(CASE WHEN condition2 THEN value ELSE 0 END) AS Metric2
+FROM #FilteredData f
+    INNER JOIN [dbo].[TransactionTable] t ON f.Id = t.ForeignId
+WHERE t.TranDate >= @DateFrom AND t.TranDate <= @DateTo
+GROUP BY t.Id
+
+CREATE CLUSTERED INDEX IX_Agg_Id ON #Aggregates (Id)
+
+-- ============================================================================
+-- STEP 4: Final SELECT with derived calculations
+-- ============================================================================
+
+SELECT 
+    f.Column1,
+    f.Column2,
+    a.Metric1,
+    a.Metric2,
+    (a.Metric1 + a.Metric2) AS DerivedMetric  -- Computed from stored values
+FROM #FilteredData f
+    INNER JOIN #Aggregates a ON f.Id = a.Id
+WHERE 
+    -- Filter on pre-computed values (no recalculation)
+    ABS(a.Metric1) > 0.01 OR ABS(a.Metric2) > 0.01
+ORDER BY f.Column1, f.Column2
+
+-- ============================================================================
+-- CLEANUP
+-- ============================================================================
+
+DROP TABLE #Aggregates
+DROP TABLE #FilteredData
+
+GO
+```
+
+## Performance Monitoring
+
+### Capture Execution Statistics
+
+```sql
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
+
+EXEC sp_ProcedureName @Param1 = 'value', @DateFrom = '2025-09-01';
+
+SET STATISTICS IO OFF;
+SET STATISTICS TIME OFF;
+```
+
+**What to Look For:**
+- **Logical reads**: Lower is better
+- **Scan count**: 1 per table is ideal
+- **CPU time**: Compare before/after optimization
+- **Elapsed time**: Total execution time
+
+### Check Index Usage
+
+```sql
+-- After 24 hours of production use
+SELECT 
+    OBJECT_NAME(i.object_id) AS TableName,
+    i.name AS IndexName,
+    ius.user_seeks AS Seeks,
+    ius.user_scans AS Scans,
+    ius.user_lookups AS Lookups,
+    ius.last_user_seek AS LastSeek
+FROM sys.indexes i
+LEFT JOIN sys.dm_db_index_usage_stats ius 
+    ON i.object_id = ius.object_id AND i.index_id = ius.index_id
+WHERE OBJECT_NAME(i.object_id) IN ('Task', 'Client', 'WIPTransactions', 'Employee')
+ORDER BY TableName, IndexName;
+```
+
+**Interpretation:**
+- High **seeks**: Index is being used effectively
+- High **scans**: May indicate missing or wrong index
+- High **lookups**: Need covering index (add INCLUDE columns)
+
+## Related Rules
+
+- **database-patterns.mdc**: Dual-ID convention, fiscal period utilities, Prisma patterns
+- **migration-rules.mdc**: Index creation via migrations, manual migrations for large tables
+- **performance-rules.mdc**: General performance patterns, caching strategy

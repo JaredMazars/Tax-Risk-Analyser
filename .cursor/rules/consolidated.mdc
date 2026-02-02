@@ -1,8 +1,9 @@
 ---
 alwaysApply: true
-version: 2.2.0
-lastUpdated: 2026-01-24
+version: 2.3.0
+lastUpdated: 2026-02-01
 changelog:
+  - "2.3.0 (2026-02-01): Added stored-procedure-rules.mdc for SQL Server SP optimization patterns"
   - "2.2.0 (2026-01-24): Extracted database/performance to separate files, added code duplication rule and mandatory plan mode"
   - "2.1.0 (2026-01-23): Added migration-rules.mdc for Prisma + SQL Server best practices"
   - "2.0.0 (2026-01-21): Removed security duplication, streamlined with references to specialized files"
@@ -34,6 +35,7 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 | Invalidate cache | Call specific cache invalidation functions | See performance-rules.mdc |
 | Add new tool | Register in ToolRegistry + database | See tool-system-rules.mdc |
 | Schema migration | Use `db push` for dev, `migrate dev` for production | See migration-rules.mdc |
+| Optimize stored procedure | Dynamic SQL, temp tables, covering indexes | See stored-procedure-rules.mdc |
 
 ## Specialized Rule Files (When To Consult)
 
@@ -96,6 +98,16 @@ Next.js 14 (App Router) | TypeScript (strict) | Prisma | React Query | Azure Ope
 - Always run `prisma migrate status` before deployments
 - NEVER use `mode: 'insensitive'` in Prisma queries (not supported by SQL Server)
 - Document manual migrations with README in migration folder
+
+### `.cursor/rules/stored-procedure-rules.mdc`
+**When:** Creating or optimizing SQL Server stored procedures
+**Key Rules:**
+- Use dynamic SQL for sargable WHERE clauses (avoid `OR @Param = '*'` pattern)
+- Use temp tables instead of CTEs for large aggregations (5K+ rows)
+- Create temp table structure BEFORE `sp_executesql` (scope visibility)
+- Pre-aggregate into temp tables to avoid duplicate calculations in HAVING
+- Create covering indexes with INCLUDE columns for key lookups
+- Always UPDATE STATISTICS after index creation
 
 ## TypeScript
 
@@ -371,6 +383,7 @@ Extract for reuse ≥3 uses | Refactor over copy-paste | Document with JSDoc for
 - `blob-storage-rules.mdc` - File uploads, Azure storage
 - `tool-system-rules.mdc` - Tool creation, junction tables
 - `ai-patterns.mdc` - Azure OpenAI, document intelligence, RAG
+- `stored-procedure-rules.mdc` - SQL Server stored procedure optimization
 
 **Rule Compliance is NOT optional** - Plans that don't verify rule alignment will be incomplete.
 
