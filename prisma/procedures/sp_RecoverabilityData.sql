@@ -1,5 +1,5 @@
 -- ============================================================================
--- sp_RecoverabilityData Stored Procedure
+-- sp_RecoverabilityData Stored Procedure (v2.0 - Optimized)
 -- Combined aging and current period data by client-serviceline
 -- ============================================================================
 --
@@ -17,14 +17,11 @@
 -- 6. Optional client filter for targeted queries
 -- 7. Explicit ROUND() to prevent rounding errors
 --
--- DIFFERENCES FROM PREVIOUS APPROACH:
--- - Single SP instead of two separate calls
--- - Transaction-level service line mapping (accurate for multi-serviceline clients)
--- - Returns client-serviceline combinations (can be merged in TypeScript)
--- - Current period billings included (not full 12-month history)
---
--- USED BY:
--- - My Reports Recoverability
+-- OPTIMIZATIONS (v2.0):
+-- 1. Dynamic SQL for sargable WHERE clauses (eliminates OR @Param = '*' pattern)
+-- 2. Temp table for AllTransactions (materialized once, indexed)
+-- 3. Temp tables for intermediate results (reduce CTE re-evaluation)
+-- 4. Clustered indexes on temp tables for efficient joins
 --
 -- INDEXES USED:
 -- - idx_drs_biller_covering (Biller filter)
@@ -33,12 +30,12 @@
 --
 -- ============================================================================
 
--- Drop procedure if exists
-IF OBJECT_ID('dbo.sp_RecoverabilityData', 'P') IS NOT NULL
-    DROP PROCEDURE dbo.sp_RecoverabilityData
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE PROCEDURE [dbo].[sp_RecoverabilityData]
+CREATE OR ALTER PROCEDURE [dbo].[sp_RecoverabilityData]
      @BillerCode nvarchar(max)
     ,@AsOfDate datetime = NULL
     ,@ClientCode nvarchar(max) = '*'
@@ -50,197 +47,231 @@ SET NOCOUNT ON
 -- Default @AsOfDate to current date if not provided
 SET @AsOfDate = ISNULL(@AsOfDate, GETDATE())
 
--- ============================================================================
--- CTE 1: AllTransactions
--- Fetch all transactions for biller up to AsOfDate
--- Join ServiceLineExternal at TRANSACTION level for accurate mapping
--- ============================================================================
-;WITH AllTransactions AS (
-    SELECT 
-        d.GSClientID
-        ,d.ClientCode
-        ,d.ClientNameFull
-        ,d.GroupCode
-        ,d.GroupDesc
-        ,d.ServLineCode
-        ,d.ServLineDesc
-        ,d.TranDate
-        ,d.EntryType
-        ,d.InvNumber
-        ,d.Total
-        -- Service line mapping at transaction level
-        ,ISNULL(sle.masterCode, d.ServLineCode) AS MasterServiceLineCode
-        ,ISNULL(sle.SubServlineGroupCode, '') AS SubServlineGroupCode
-        ,ISNULL(sle.SubServlineGroupDesc, '') AS SubServlineGroupDesc
-    FROM DrsTransactions d WITH (NOLOCK)
-    LEFT JOIN ServiceLineExternal sle ON d.ServLineCode = sle.ServLineCode
-    WHERE (@BillerCode = '*' OR d.Biller = @BillerCode)
-      AND d.TranDate <= @AsOfDate
-      AND (@ClientCode = '*' OR d.ClientCode = @ClientCode)
-      AND (@ServLineCode = '*' OR d.ServLineCode = @ServLineCode)
-)
+DECLARE @sql NVARCHAR(MAX)
+DECLARE @params NVARCHAR(MAX)
 
 -- ============================================================================
--- CTE 2: ClientServiceLineBalance
+-- STEP 1: AllTransactions temp table (materialized once, indexed)
+-- Fetch all transactions for biller up to AsOfDate using dynamic SQL
+-- ============================================================================
+
+CREATE TABLE #AllTransactions (
+    GSClientID UNIQUEIDENTIFIER
+    ,ClientCode NVARCHAR(20)
+    ,ClientNameFull NVARCHAR(255)
+    ,GroupCode NVARCHAR(20)
+    ,GroupDesc NVARCHAR(255)
+    ,ServLineCode NVARCHAR(20)
+    ,ServLineDesc NVARCHAR(255)
+    ,TranDate DATETIME
+    ,EntryType NVARCHAR(50)
+    ,InvNumber NVARCHAR(50)
+    ,Total FLOAT
+    ,MasterServiceLineCode NVARCHAR(50)
+    ,SubServlineGroupCode NVARCHAR(20)
+    ,SubServlineGroupDesc NVARCHAR(255)
+)
+
+SET @sql = N'
+INSERT INTO #AllTransactions
+SELECT 
+    d.GSClientID
+    ,d.ClientCode
+    ,d.ClientNameFull
+    ,d.GroupCode
+    ,d.GroupDesc
+    ,d.ServLineCode
+    ,d.ServLineDesc
+    ,d.TranDate
+    ,d.EntryType
+    ,d.InvNumber
+    ,d.Total
+    ,ISNULL(sle.masterCode, d.ServLineCode) AS MasterServiceLineCode
+    ,ISNULL(sle.SubServlineGroupCode, '''') AS SubServlineGroupCode
+    ,ISNULL(sle.SubServlineGroupDesc, '''') AS SubServlineGroupDesc
+FROM DrsTransactions d WITH (NOLOCK)
+LEFT JOIN ServiceLineExternal sle ON d.ServLineCode = sle.ServLineCode
+WHERE d.TranDate <= @p_AsOfDate'
+
+-- Add sargable predicates only when filter is not wildcard
+IF @BillerCode != '*' SET @sql = @sql + N' AND d.Biller = @p_BillerCode'
+IF @ClientCode != '*' SET @sql = @sql + N' AND d.ClientCode = @p_ClientCode'
+IF @ServLineCode != '*' SET @sql = @sql + N' AND d.ServLineCode = @p_ServLineCode'
+
+SET @params = N'@p_AsOfDate datetime, @p_BillerCode nvarchar(max), @p_ClientCode nvarchar(max), @p_ServLineCode nvarchar(max)'
+
+EXEC sp_executesql @sql, @params,
+    @p_AsOfDate = @AsOfDate,
+    @p_BillerCode = @BillerCode,
+    @p_ClientCode = @ClientCode,
+    @p_ServLineCode = @ServLineCode
+
+-- Create indexes for efficient lookups
+CREATE CLUSTERED INDEX IX_AllTrans_Client_SL ON #AllTransactions (GSClientID, ServLineCode, MasterServiceLineCode)
+CREATE NONCLUSTERED INDEX IX_AllTrans_InvNumber ON #AllTransactions (InvNumber) WHERE InvNumber IS NOT NULL AND InvNumber != ''
+
+-- ============================================================================
+-- STEP 2: ClientServiceLineBalance temp table
 -- Calculate total balance per client-serviceline combination
 -- ============================================================================
-, ClientServiceLineBalance AS (
-    SELECT 
-        GSClientID
-        ,MAX(ClientCode) AS ClientCode
-        ,MAX(ClientNameFull) AS ClientNameFull
-        ,MAX(GroupCode) AS GroupCode
-        ,MAX(GroupDesc) AS GroupDesc
-        ,ServLineCode
-        ,MAX(ServLineDesc) AS ServLineDesc
-        ,MasterServiceLineCode
-        ,MAX(SubServlineGroupCode) AS SubServlineGroupCode
-        ,MAX(SubServlineGroupDesc) AS SubServlineGroupDesc
-        ,ROUND(SUM(ISNULL(Total, 0)), 2) AS TotalBalance
-    FROM AllTransactions
-    GROUP BY GSClientID, ServLineCode, MasterServiceLineCode
-)
+
+SELECT 
+    GSClientID
+    ,MAX(ClientCode) AS ClientCode
+    ,MAX(ClientNameFull) AS ClientNameFull
+    ,MAX(GroupCode) AS GroupCode
+    ,MAX(GroupDesc) AS GroupDesc
+    ,ServLineCode
+    ,MAX(ServLineDesc) AS ServLineDesc
+    ,MasterServiceLineCode
+    ,MAX(SubServlineGroupCode) AS SubServlineGroupCode
+    ,MAX(SubServlineGroupDesc) AS SubServlineGroupDesc
+    ,ROUND(SUM(ISNULL(Total, 0)), 2) AS TotalBalance
+INTO #ClientServiceLineBalance
+FROM #AllTransactions
+GROUP BY GSClientID, ServLineCode, MasterServiceLineCode
+
+CREATE CLUSTERED INDEX IX_CSB_Client_SL ON #ClientServiceLineBalance (GSClientID, ServLineCode, MasterServiceLineCode)
 
 -- ============================================================================
--- CTE 3: InvoiceBalances
+-- STEP 3: InvoiceBalances temp table
 -- Group by InvNumber to calculate net balance and invoice date
--- InvoiceDate = MIN(TranDate) for positive amounts only
 -- ============================================================================
-, InvoiceBalances AS (
-    SELECT 
-        GSClientID
-        ,ServLineCode
-        ,MasterServiceLineCode
-        ,InvNumber
-        -- InvoiceDate: Use MIN of positive transactions only
-        ,ISNULL(
-            MIN(CASE WHEN Total > 0 THEN TranDate ELSE NULL END),
-            @AsOfDate
-        ) AS InvoiceDate
-        ,ROUND(SUM(ISNULL(Total, 0)), 2) AS NetBalance
-    FROM AllTransactions
-    WHERE InvNumber IS NOT NULL AND InvNumber != ''
-    GROUP BY GSClientID, ServLineCode, MasterServiceLineCode, InvNumber
-)
+
+SELECT 
+    GSClientID
+    ,ServLineCode
+    ,MasterServiceLineCode
+    ,InvNumber
+    ,ISNULL(
+        MIN(CASE WHEN Total > 0 THEN TranDate ELSE NULL END),
+        @AsOfDate
+    ) AS InvoiceDate
+    ,ROUND(SUM(ISNULL(Total, 0)), 2) AS NetBalance
+INTO #InvoiceBalances
+FROM #AllTransactions
+WHERE InvNumber IS NOT NULL AND InvNumber != ''
+GROUP BY GSClientID, ServLineCode, MasterServiceLineCode, InvNumber
+
+CREATE CLUSTERED INDEX IX_IB_Client_SL_Inv ON #InvoiceBalances (GSClientID, ServLineCode, MasterServiceLineCode, InvNumber)
 
 -- ============================================================================
--- CTE 4: OffsettingPairs
--- Detect invoice pairs with equal and opposite amounts within same client-serviceline
+-- STEP 4: Detect offsetting pairs and exclude from aging
 -- ============================================================================
-, OffsettingPairs AS (
-    SELECT DISTINCT 
-        i1.GSClientID
-        ,i1.ServLineCode
-        ,i1.MasterServiceLineCode
-        ,i1.InvNumber AS InvNumber1
-        ,i2.InvNumber AS InvNumber2
-    FROM InvoiceBalances i1
-    INNER JOIN InvoiceBalances i2 
-        ON i1.GSClientID = i2.GSClientID
-        AND i1.ServLineCode = i2.ServLineCode
-        AND i1.MasterServiceLineCode = i2.MasterServiceLineCode
-        AND ROUND(i1.NetBalance + i2.NetBalance, 2) = 0
-        AND i1.NetBalance <> 0
-        AND i1.InvNumber <> i2.InvNumber
-)
+
+SELECT DISTINCT 
+    i1.GSClientID
+    ,i1.ServLineCode
+    ,i1.MasterServiceLineCode
+    ,i1.InvNumber
+INTO #ExcludedInvoices
+FROM #InvoiceBalances i1
+INNER JOIN #InvoiceBalances i2 
+    ON i1.GSClientID = i2.GSClientID
+    AND i1.ServLineCode = i2.ServLineCode
+    AND i1.MasterServiceLineCode = i2.MasterServiceLineCode
+    AND ROUND(i1.NetBalance + i2.NetBalance, 2) = 0
+    AND i1.NetBalance <> 0
+    AND i1.InvNumber <> i2.InvNumber
+
+CREATE CLUSTERED INDEX IX_Excl_Client_SL_Inv ON #ExcludedInvoices (GSClientID, ServLineCode, MasterServiceLineCode, InvNumber)
 
 -- ============================================================================
--- CTE 5: ExcludedInvoices
--- Union of all invoices that should be excluded from aging
--- ============================================================================
-, ExcludedInvoices AS (
-    SELECT GSClientID, ServLineCode, MasterServiceLineCode, InvNumber1 AS InvNumber FROM OffsettingPairs
-    UNION
-    SELECT GSClientID, ServLineCode, MasterServiceLineCode, InvNumber2 AS InvNumber FROM OffsettingPairs
-)
-
--- ============================================================================
--- CTE 6: AgingCalculation
+-- STEP 5: AgingCalculation temp table
 -- Calculate days outstanding and assign to buckets
 -- ============================================================================
-, AgingCalculation AS (
-    SELECT 
-        ib.GSClientID
-        ,ib.ServLineCode
-        ,ib.MasterServiceLineCode
-        ,ib.InvNumber
-        ,ib.InvoiceDate
-        ,ib.NetBalance
-        ,DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) AS DaysOutstanding
-        ,CASE 
-            WHEN DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) <= 30 THEN 'Current'
-            WHEN DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) <= 60 THEN 'Days31_60'
-            WHEN DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) <= 90 THEN 'Days61_90'
-            WHEN DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) <= 120 THEN 'Days91_120'
-            ELSE 'Days120Plus'
-        END AS AgingBucket
-    FROM InvoiceBalances ib
-    WHERE NOT EXISTS (
-        SELECT 1 FROM ExcludedInvoices ei 
-        WHERE ei.GSClientID = ib.GSClientID 
-        AND ei.ServLineCode = ib.ServLineCode
-        AND ei.MasterServiceLineCode = ib.MasterServiceLineCode
-        AND ei.InvNumber = ib.InvNumber
-    )
-    AND ROUND(ib.NetBalance, 2) <> 0
+
+SELECT 
+    ib.GSClientID
+    ,ib.ServLineCode
+    ,ib.MasterServiceLineCode
+    ,ib.InvNumber
+    ,ib.InvoiceDate
+    ,ib.NetBalance
+    ,DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) AS DaysOutstanding
+    ,CASE 
+        WHEN DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) <= 30 THEN 'Current'
+        WHEN DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) <= 60 THEN 'Days31_60'
+        WHEN DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) <= 90 THEN 'Days61_90'
+        WHEN DATEDIFF(DAY, ib.InvoiceDate, @AsOfDate) <= 120 THEN 'Days91_120'
+        ELSE 'Days120Plus'
+    END AS AgingBucket
+INTO #AgingCalculation
+FROM #InvoiceBalances ib
+WHERE NOT EXISTS (
+    SELECT 1 FROM #ExcludedInvoices ei 
+    WHERE ei.GSClientID = ib.GSClientID 
+    AND ei.ServLineCode = ib.ServLineCode
+    AND ei.MasterServiceLineCode = ib.MasterServiceLineCode
+    AND ei.InvNumber = ib.InvNumber
 )
+AND ROUND(ib.NetBalance, 2) <> 0
+
+CREATE CLUSTERED INDEX IX_Aging_Client_SL ON #AgingCalculation (GSClientID, ServLineCode, MasterServiceLineCode)
 
 -- ============================================================================
--- CTE 7: ClientServiceLineAging
+-- STEP 6: ClientServiceLineAging temp table
 -- Aggregate aging buckets per client-serviceline
 -- ============================================================================
-, ClientServiceLineAging AS (
-    SELECT 
-        GSClientID
-        ,ServLineCode
-        ,MasterServiceLineCode
-        ,COUNT(DISTINCT InvNumber) AS InvoiceCount
-        ,ROUND(SUM(CASE WHEN AgingBucket = 'Current' THEN NetBalance ELSE 0 END), 2) AS AgingCurrent
-        ,ROUND(SUM(CASE WHEN AgingBucket = 'Days31_60' THEN NetBalance ELSE 0 END), 2) AS Aging31_60
-        ,ROUND(SUM(CASE WHEN AgingBucket = 'Days61_90' THEN NetBalance ELSE 0 END), 2) AS Aging61_90
-        ,ROUND(SUM(CASE WHEN AgingBucket = 'Days91_120' THEN NetBalance ELSE 0 END), 2) AS Aging91_120
-        ,ROUND(SUM(CASE WHEN AgingBucket = 'Days120Plus' THEN NetBalance ELSE 0 END), 2) AS Aging120Plus
-        ,ROUND(AVG(CAST(DaysOutstanding AS FLOAT)), 2) AS AvgDaysOutstanding
-    FROM AgingCalculation
-    GROUP BY GSClientID, ServLineCode, MasterServiceLineCode
-)
+
+SELECT 
+    GSClientID
+    ,ServLineCode
+    ,MasterServiceLineCode
+    ,COUNT(DISTINCT InvNumber) AS InvoiceCount
+    ,ROUND(SUM(CASE WHEN AgingBucket = 'Current' THEN NetBalance ELSE 0 END), 2) AS AgingCurrent
+    ,ROUND(SUM(CASE WHEN AgingBucket = 'Days31_60' THEN NetBalance ELSE 0 END), 2) AS Aging31_60
+    ,ROUND(SUM(CASE WHEN AgingBucket = 'Days61_90' THEN NetBalance ELSE 0 END), 2) AS Aging61_90
+    ,ROUND(SUM(CASE WHEN AgingBucket = 'Days91_120' THEN NetBalance ELSE 0 END), 2) AS Aging91_120
+    ,ROUND(SUM(CASE WHEN AgingBucket = 'Days120Plus' THEN NetBalance ELSE 0 END), 2) AS Aging120Plus
+    ,ROUND(AVG(CAST(DaysOutstanding AS FLOAT)), 2) AS AvgDaysOutstanding
+INTO #ClientServiceLineAging
+FROM #AgingCalculation
+GROUP BY GSClientID, ServLineCode, MasterServiceLineCode
+
+CREATE CLUSTERED INDEX IX_CSA_Client_SL ON #ClientServiceLineAging (GSClientID, ServLineCode, MasterServiceLineCode)
 
 -- ============================================================================
--- CTE 8: CurrentPeriodMetrics
+-- STEP 7: CurrentPeriodMetrics temp table
 -- Calculate receipts AND billings in the current period (last 30 days)
 -- Receipts: EntryType = 'Receipt', use -Total (handles reversals correctly)
 -- ============================================================================
-, CurrentPeriodMetrics AS (
-    SELECT 
-        GSClientID
-        ,ServLineCode
-        ,MasterServiceLineCode
-        ,ROUND(SUM(CASE WHEN EntryType = 'Receipt' THEN -Total ELSE 0 END), 2) AS CurrentPeriodReceipts
-        ,ROUND(SUM(CASE WHEN Total > 0 THEN Total ELSE 0 END), 2) AS CurrentPeriodBillings
-    FROM AllTransactions
-    WHERE TranDate > DATEADD(DAY, -30, @AsOfDate)
-      AND TranDate <= @AsOfDate
-    GROUP BY GSClientID, ServLineCode, MasterServiceLineCode
-)
+
+SELECT 
+    GSClientID
+    ,ServLineCode
+    ,MasterServiceLineCode
+    ,ROUND(SUM(CASE WHEN EntryType = 'Receipt' THEN -Total ELSE 0 END), 2) AS CurrentPeriodReceipts
+    ,ROUND(SUM(CASE WHEN Total > 0 THEN Total ELSE 0 END), 2) AS CurrentPeriodBillings
+INTO #CurrentPeriodMetrics
+FROM #AllTransactions
+WHERE TranDate > DATEADD(DAY, -30, @AsOfDate)
+  AND TranDate <= @AsOfDate
+GROUP BY GSClientID, ServLineCode, MasterServiceLineCode
+
+CREATE CLUSTERED INDEX IX_CPM_Client_SL ON #CurrentPeriodMetrics (GSClientID, ServLineCode, MasterServiceLineCode)
 
 -- ============================================================================
--- CTE 9: PriorBalance
+-- STEP 8: PriorBalance temp table
 -- Calculate balance before the current period (30 days ago)
 -- ============================================================================
-, PriorBalance AS (
-    SELECT 
-        GSClientID
-        ,ServLineCode
-        ,MasterServiceLineCode
-        ,ROUND(SUM(ISNULL(Total, 0)), 2) AS PriorMonthBalance
-    FROM AllTransactions
-    WHERE TranDate < DATEADD(DAY, -30, @AsOfDate)
-    GROUP BY GSClientID, ServLineCode, MasterServiceLineCode
-)
+
+SELECT 
+    GSClientID
+    ,ServLineCode
+    ,MasterServiceLineCode
+    ,ROUND(SUM(ISNULL(Total, 0)), 2) AS PriorMonthBalance
+INTO #PriorBalance
+FROM #AllTransactions
+WHERE TranDate < DATEADD(DAY, -30, @AsOfDate)
+GROUP BY GSClientID, ServLineCode, MasterServiceLineCode
+
+CREATE CLUSTERED INDEX IX_PB_Client_SL ON #PriorBalance (GSClientID, ServLineCode, MasterServiceLineCode)
 
 -- ============================================================================
--- Final SELECT: Merge all CTEs and return results with service line mappings
+-- STEP 9: Final SELECT - Join all temp tables
 -- ============================================================================
+
 SELECT 
     cb.GSClientID
     ,cb.ClientCode
@@ -249,12 +280,10 @@ SELECT
     ,cb.GroupDesc
     ,cb.ServLineCode
     ,cb.ServLineDesc
-    -- Service line mapping fields (mapped at transaction level)
     ,cb.MasterServiceLineCode
     ,ISNULL(slm.name, cb.ServLineDesc) AS MasterServiceLineName
     ,cb.SubServlineGroupCode
     ,cb.SubServlineGroupDesc
-    -- Balances and aging
     ,cb.TotalBalance
     ,ISNULL(ca.InvoiceCount, 0) AS InvoiceCount
     ,ISNULL(ca.AgingCurrent, 0) AS AgingCurrent
@@ -263,47 +292,36 @@ SELECT
     ,ISNULL(ca.Aging91_120, 0) AS Aging91_120
     ,ISNULL(ca.Aging120Plus, 0) AS Aging120Plus
     ,ISNULL(ca.AvgDaysOutstanding, 0) AS AvgDaysOutstanding
-    -- Current period metrics
     ,ISNULL(cpm.CurrentPeriodReceipts, 0) AS CurrentPeriodReceipts
     ,ISNULL(cpm.CurrentPeriodBillings, 0) AS CurrentPeriodBillings
-    -- Prior period
     ,ISNULL(pb.PriorMonthBalance, 0) AS PriorMonthBalance
-FROM ClientServiceLineBalance cb
-LEFT JOIN ClientServiceLineAging ca 
+FROM #ClientServiceLineBalance cb
+LEFT JOIN #ClientServiceLineAging ca 
     ON cb.GSClientID = ca.GSClientID 
     AND cb.ServLineCode = ca.ServLineCode
     AND cb.MasterServiceLineCode = ca.MasterServiceLineCode
-LEFT JOIN CurrentPeriodMetrics cpm 
+LEFT JOIN #CurrentPeriodMetrics cpm 
     ON cb.GSClientID = cpm.GSClientID 
     AND cb.ServLineCode = cpm.ServLineCode
     AND cb.MasterServiceLineCode = cpm.MasterServiceLineCode
-LEFT JOIN PriorBalance pb 
+LEFT JOIN #PriorBalance pb 
     ON cb.GSClientID = pb.GSClientID 
     AND cb.ServLineCode = pb.ServLineCode
     AND cb.MasterServiceLineCode = pb.MasterServiceLineCode
 LEFT JOIN ServiceLineMaster slm ON cb.MasterServiceLineCode = slm.code AND slm.active = 1
 ORDER BY cb.GroupCode, cb.ClientCode, cb.ServLineCode
-;
-GO
 
-PRINT 'sp_RecoverabilityData stored procedure created successfully';
-PRINT '';
-PRINT 'Key Features:';
-PRINT '  - One row per client-serviceline combination';
-PRINT '  - Transaction-level service line mapping (accurate for multi-serviceline clients)';
-PRINT '  - Ages ALL invoices (positive and negative)';
-PRINT '  - Detects and excludes offsetting invoice pairs';
-PRINT '  - Current period billings AND receipts';
-PRINT '  - Optional client filter for targeted queries';
-PRINT '  - Explicit ROUND() to prevent rounding errors';
-PRINT '';
-PRINT 'Example usage:';
-PRINT '  -- All clients and service lines';
-PRINT '  EXEC dbo.sp_RecoverabilityData @BillerCode = ''BLAW001'', @AsOfDate = ''2026-01-31'';';
-PRINT '';
-PRINT '  -- Filter by specific client';
-PRINT '  EXEC dbo.sp_RecoverabilityData @BillerCode = ''BLAW001'', @AsOfDate = ''2026-01-31'', @ClientCode = ''BOS0139'';';
-PRINT '';
-PRINT '  -- Filter by service line';
-PRINT '  EXEC dbo.sp_RecoverabilityData @BillerCode = ''BLAW001'', @AsOfDate = ''2026-01-31'', @ServLineCode = ''TAX'';';
+-- ============================================================================
+-- CLEANUP
+-- ============================================================================
+
+DROP TABLE #AllTransactions
+DROP TABLE #ClientServiceLineBalance
+DROP TABLE #InvoiceBalances
+DROP TABLE #ExcludedInvoices
+DROP TABLE #AgingCalculation
+DROP TABLE #ClientServiceLineAging
+DROP TABLE #CurrentPeriodMetrics
+DROP TABLE #PriorBalance
+
 GO
