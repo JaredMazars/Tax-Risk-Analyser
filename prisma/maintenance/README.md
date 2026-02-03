@@ -1,301 +1,487 @@
-# Azure SQL Database Maintenance Scripts
+# Database Maintenance Scripts
 
-Automated maintenance scripts for **gt3-db** Azure SQL Database.
+Comprehensive SQL Server maintenance toolkit for diagnosing and resolving slow stored procedure performance.
 
-## Overview
+## 📋 Quick Start
 
-This directory contains SQL scripts to enable and maintain Azure SQL Database automatic features:
+**Your stored procedures are slow? Start here:**
 
-- **Automatic Index Management** - Azure creates/drops indexes based on workload
-- **Query Plan Protection** - Auto-revert bad query plans
-- **Background Statistics Updates** - Non-blocking statistics updates
-- **Index Fragmentation Monitoring** - Quarterly health checks
+1. **First, check if plan cache needs clearing** (most common fix):
+   ```sql
+   -- Run this in SSMS to clear old cached plans
+   sqlcmd -S your_server -d your_database -i 05_clear_procedure_cache.sql
+   ```
 
-## Quick Start
+2. **Check what's currently running**:
+   ```sql
+   sqlcmd -S your_server -d your_database -i 01_check_running_processes.sql
+   ```
 
-### 1. Enable Automatic Features (Run Once)
+3. **Analyze stored procedure performance**:
+   ```sql
+   sqlcmd -S your_server -d your_database -i 04_analyze_sp_performance.sql
+   ```
 
-**Script:** `enable-automatic-features.sql`  
-**When:** Run this once on your production database  
-**Duration:** ~30 seconds  
-**Impact:** Zero downtime, enables Azure's native automatic tuning
+## 📁 Script Overview
 
-```bash
-# Option A: Via Azure Portal Query Editor
-# 1. Go to Azure Portal → gt3-db → Query editor
-# 2. Paste contents of enable-automatic-features.sql
-# 3. Click Run
-
-# Option B: Via Azure CLI
-az sql db query \
-  --server gt3-sql-server \
-  --database gt3-db \
-  --resource-group rg-fmza-gt3 \
-  --file ./enable-automatic-features.sql
-
-# Option C: Via Azure Data Studio
-# 1. Connect to gt3-sql-server → gt3-db
-# 2. Open enable-automatic-features.sql
-# 3. Execute (F5)
-```
-
-**What This Enables:**
-- ✅ Automatic index creation/removal based on workload patterns
-- ✅ Query plan regression protection (auto-revert bad plans)
-- ✅ Asynchronous statistics updates (no query blocking)
-- ✅ Query Store for performance monitoring
-
-**Verify:**
-After running, check Azure Portal → gt3-db → Automatic Tuning blade to see status and recommendations.
+| Script | Purpose | When to Run | Duration |
+|---|---|---|---|
+| **00_daily_maintenance.sql** | Combined daily routine | Daily 2:00 AM (automated) | 15-20 min |
+| **01_check_running_processes.sql** | Monitor active sessions, blocking | When users report slowness | < 1 min |
+| **02_update_statistics.sql** | Update stats for query optimizer | Weekly, after bulk changes | 5-10 min |
+| **03_rebuild_indexes.sql** | Fix fragmented indexes | Monthly, or when > 30% fragmented | 10-30 min |
+| **04_analyze_sp_performance.sql** | Diagnose slow stored procedures | Weekly, during troubleshooting | 1-2 min |
+| **05_clear_procedure_cache.sql** | Clear old cached query plans | After index changes, stat updates | < 1 min |
 
 ---
 
-### 2. Quarterly Health Check (Every 3 Months)
+## 🔧 Detailed Script Guide
 
-**Script:** `check-database-health.sql`  
-**When:** Run every 3 months (or when investigating performance issues)  
-**Duration:** 2-5 minutes  
-**Impact:** Read-only queries, no performance impact
+### 00_daily_maintenance.sql - Automated Daily Routine
 
-```bash
-# Run via Azure Portal, CLI, or Azure Data Studio (same as above)
-az sql db query \
-  --server gt3-sql-server \
-  --database gt3-db \
-  --resource-group rg-fmza-gt3 \
-  --file ./check-database-health.sql
-```
+**Purpose**: Comprehensive maintenance combining health checks, statistics updates, fragmentation analysis, and performance monitoring.
 
-**What It Checks:**
-1. **Index Fragmentation** - Identifies indexes needing rebuild/reorganize
-2. **Statistics Age** - Shows stale statistics (>30 days old)
-3. **Automatic Tuning Status** - Verifies automatic features are working
-4. **Query Store Health** - Checks Query Store storage and status
-5. **Database Size** - Monitors growth and capacity
-
-**Interpreting Results:**
-
-| Fragmentation | Action Needed |
-|---------------|---------------|
-| < 10% | ✅ No action needed |
-| 10-30% | ⚠️ Consider reorganizing if performance issues exist |
-| > 30% | ⚠️ Run `rebuild-fragmented-indexes.sql` |
-
-**Recommended Schedule:**
-- January 15
-- April 15
-- July 15
-- October 15
-
----
-
-### 3. Index Rebuild (Only If Needed)
-
-**Script:** `rebuild-fragmented-indexes.sql`  
-**When:** Only if health check shows >30% fragmentation  
-**Duration:** 10 minutes - 2 hours (depends on database size)  
-**Impact:** Runs during maintenance window, may cause brief locks
-
-⚠️ **Important:** Only run this if `check-database-health.sql` shows high fragmentation.
-
-```bash
-# Run during off-peak hours (recommended: Sunday 2:00 AM)
-az sql db query \
-  --server gt3-sql-server \
-  --database gt3-db \
-  --resource-group rg-fmza-gt3 \
-  --file ./rebuild-fragmented-indexes.sql
-```
-
-**What It Does:**
-- **Rebuilds** indexes with >30% fragmentation (creates new index, removes old one)
-- **Reorganizes** indexes with 10-30% fragmentation (defragments in-place)
-- **Skips** indexes with <10% fragmentation
-- **Provides** detailed progress and timing information
-
-**Best Practices:**
-- Run during maintenance window (low traffic period)
-- Monitor execution via Azure Portal → Query Performance Insight
-- Expected to run 1-2 times per year (fragmentation builds slowly)
-
----
-
-## Maintenance Schedule
-
-### One-Time Setup
-- [ ] Run `enable-automatic-features.sql` (5 minutes)
-- [ ] Verify in Azure Portal → Automatic Tuning blade
-
-### Quarterly (Every 3 Months)
-- [ ] Run `check-database-health.sql` (5 minutes)
-- [ ] Review results for fragmentation and statistics issues
-- [ ] If >30% fragmentation: Schedule index rebuild during maintenance window
-
-### As Needed
-- [ ] Run `rebuild-fragmented-indexes.sql` (only if health check shows issues)
-
----
-
-## Connection Methods
-
-### Method 1: Azure Portal Query Editor (Easiest)
-
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to: SQL databases → gt3-db
-3. Click "Query editor" in left menu
-4. Authenticate with admin credentials
-5. Paste SQL script and click "Run"
-
-**Pros:** No tools needed, web-based  
-**Cons:** Large result sets may be truncated
-
-### Method 2: Azure CLI (Automation-Friendly)
-
-```bash
-# Prerequisites: Azure CLI installed and logged in
-az login
-
-# Run script
-az sql db query \
-  --server gt3-sql-server \
-  --database gt3-db \
-  --resource-group rg-fmza-gt3 \
-  --file ./script-name.sql
-```
-
-**Pros:** Scriptable, good for automation  
-**Cons:** Requires Azure CLI installation
-
-### Method 3: Azure Data Studio (Best for Development)
-
-1. Download [Azure Data Studio](https://docs.microsoft.com/sql/azure-data-studio/download)
-2. Connect to: `gt3-sql-server.database.windows.net`
-3. Database: `gt3-db`
-4. Authentication: Azure Active Directory or SQL Authentication
-5. Open SQL file and press F5 to execute
-
-**Pros:** Full IDE, great result visualization, IntelliSense  
-**Cons:** Requires tool installation
-
-### Method 4: From CI/CD Pipeline
-
-Add to `.github/workflows/azure-deploy.yml`:
-
-```yaml
-- name: Run Database Health Check (Monthly)
-  if: github.event.schedule == '0 0 1 * *'  # First of every month
-  run: |
-    az sql db query \
-      --server gt3-sql-server \
-      --database gt3-db \
-      --resource-group rg-fmza-gt3 \
-      --file ./prisma/maintenance/check-database-health.sql
-```
-
----
-
-## Monitoring Automatic Tuning
-
-### View Automatic Tuning Recommendations
-
-**Azure Portal:**
-1. Go to SQL databases → gt3-db
-2. Click "Automatic Tuning" in left menu
-3. View recommendations and actions taken
-
-**T-SQL Query:**
+**Recommended Setup**: SQL Server Agent Job
 ```sql
-SELECT 
-    reason,
-    score,
-    state_desc,
-    last_refresh,
-    details
-FROM sys.dm_db_tuning_recommendations
-WHERE state_desc = 'Active'
-ORDER BY score DESC;
+-- Job Name: Daily Database Maintenance
+-- Schedule: Daily at 02:00 AM
+-- Duration: 15-20 minutes
+-- Safe during business hours if needed
 ```
 
-### Monitor Query Performance
+**What It Does**:
+1. ✅ Checks for blocking queries
+2. ✅ Checks for long-running queries (> 1 minute)
+3. ✅ Updates statistics on key tables (WIPTransactions, DrsTransactions, Task, etc.)
+4. ✅ Analyzes index fragmentation
+5. ✅ Reports stored procedure performance
+6. ✅ Captures system health metrics
 
-**Azure Portal:**
-1. Go to SQL databases → gt3-db
-2. Click "Query Performance Insight"
-3. View top queries, resource consumption, and trends
+**Output**: Comprehensive report with action items if issues detected.
 
 ---
 
-## Troubleshooting
+### 01_check_running_processes.sql - Process Monitoring
 
-### Automatic Tuning Not Showing Recommendations
+**Purpose**: Identify blocking, long-running queries, and resource-intensive sessions.
 
-**Possible Causes:**
-- Query Store is not enabled → Run `enable-automatic-features.sql`
-- Not enough workload data collected → Wait 24-48 hours after enabling
-- Database tier doesn't support Automatic Tuning → Verify you're on GeneralPurpose or higher
+**When to Run**:
+- Users report system slowness
+- Stored procedures taking longer than usual
+- During high-load periods
+- As part of troubleshooting workflow
 
-**Check Status:**
+**What It Analyzes**:
+1. **Active Sessions** (sp_who2 alternative)
+   - Shows all active connections with CPU, I/O, wait times
+2. **Blocking Chains**
+   - WHO is blocking WHOM
+   - Shows wait resources and SQL text of blocked queries
+3. **Long-Running Queries** (> 30 seconds)
+   - Full SQL text with execution stats
+4. **Resource-Intensive Sessions**
+   - High I/O operations
+5. **Wait Statistics**
+   - Current wait types (disk I/O, locks, parallelism)
+6. **Stored Procedure Execution**
+   - Which SPs are currently running
+
+**How to Interpret**:
+```
+ElapsedSec > 30: Query is slow
+BlockedBy > 0: Session waiting on another session (blocking)
+High LogicalReads: Lots of I/O (check for missing indexes)
+WaitType = PAGEIOLATCH_*: Disk I/O bottleneck
+WaitType = LCK_*: Locking contention
+WaitType = CXPACKET: Parallelism waits (normal for large queries)
+```
+
+---
+
+### 02_update_statistics.sql - Statistics Maintenance
+
+**Purpose**: Update statistics so SQL Server query optimizer can choose optimal execution plans.
+
+**Why Statistics Matter**:
+- Query optimizer uses statistics to estimate row counts
+- Stale statistics → poor execution plans (table scans instead of index seeks)
+- SQL Server auto-updates, but not always frequently enough
+- **Critical after bulk data changes** (imports, deletes > 10% of rows)
+
+**When to Run**:
+- **Weekly** for transaction tables (WIPTransactions, DrsTransactions)
+- **After bulk operations** (imports, deletes)
+- **When SPs suddenly slow down**
+- **After creating new indexes** (required!)
+
+**Tables Updated**:
+1. WIPTransactions (5.7M rows) - **Most critical**
+2. DrsTransactions (1M+ rows)
+3. Task (100K+ rows)
+4. Client
+5. Employee
+6. Debtors
+7. Wip
+
+**Performance Impact**:
+- Uses `WITH FULLSCAN` for most accurate stats
+- Creates brief shared table locks (typically < 1 second)
+- **Safe to run during business hours**
+
+**After Running**:
+- Clear procedure cache to force recompilation with new stats:
+  ```sql
+  DBCC FREEPROCCACHE;
+  ```
+- Or recompile specific SP:
+  ```sql
+  EXEC sp_recompile 'sp_ProfitabilityData';
+  ```
+
+---
+
+### 03_rebuild_indexes.sql - Index Maintenance
+
+**Purpose**: Reduce index fragmentation to improve query performance.
+
+**What Is Fragmentation**:
+- **Logical**: Index pages not in sequential order
+- **Physical**: Data pages not contiguous on disk
+- **Effect**: Extra I/O operations, slower queries
+- **Cause**: Builds up with inserts/updates/deletes over time
+
+**Fragmentation Thresholds**:
+| Fragmentation | Action | Method | Business Hours Safe? |
+|---|---|---|---|
+| < 10% | ✅ NONE | Index is healthy | N/A |
+| 10-30% | ⚠️ REORGANIZE | Online, faster | ✅ Yes |
+| > 30% | 🔴 REBUILD | Offline or ONLINE=ON | ⚠️ Depends* |
+
+\* REBUILD with `ONLINE=ON` requires Enterprise Edition
+
+**When to Run**:
+- **Monthly** for transaction tables
+- **Weekly** if heavy insert/update/delete activity
+- **After bulk data operations**
+- **When queries slow despite good statistics**
+
+**How to Use**:
+1. Run **PART 1: ANALYZE FRAGMENTATION** first (always safe)
+2. Review recommendations
+3. Uncomment **PART 2: EXECUTE MAINTENANCE** during appropriate window:
+   - **REORGANIZE**: Safe during business hours
+   - **REBUILD**: Off-hours unless Enterprise Edition with ONLINE=ON
+
+**Output**: Shows which indexes need maintenance and performs it.
+
+---
+
+### 04_analyze_sp_performance.sql - Stored Procedure Diagnostics
+
+**Purpose**: Identify slow stored procedures and diagnose root causes.
+
+**What It Analyzes**:
+1. **Slowest SPs by Total Duration**
+   - Which SPs consuming most database time overall
+2. **Slowest SPs by Average Duration**
+   - Which SPs have highest per-execution time
+3. **High I/O SPs**
+   - Which SPs doing excessive logical reads (memory + disk)
+4. **Parameter Sniffing Candidates**
+   - SPs with high variance (min vs max execution time)
+   - Indicates cached plan not optimal for all parameters
+5. **Query Plan Analysis**
+   - Checks for table scans, missing indexes
+   - Analyzes seek vs scan ratios
+6. **Recompilation Statistics**
+   - How often SPs are recompiling
+   - Age of cached plans
+
+**When to Run**:
+- **Weekly** performance monitoring
+- **When users report slowness**
+- **After deploying new stored procedures**
+- **After applying index changes**
+
+**Key Metrics**:
+```
+AvgMs: Average execution time in milliseconds
+  Target: < 500ms for most queries
+  
+AvgReads: Average logical reads
+  Target: < 10,000 for client queries
+          < 50,000 for complex reports
+  
+MaxMinRatio: Max time / Min time
+  > 10: Strong parameter sniffing indicator
+  
+TableScanStatus: "TABLE SCAN DETECTED" = Bad (especially on large tables)
+```
+
+**Recommendations**:
+- **For slow SPs**: Check query plans, add missing indexes
+- **For high I/O**: Review execution plans, create covering indexes
+- **For parameter sniffing**: Add `OPTION (RECOMPILE)` or use dynamic SQL
+- **For old plans**: Clear procedure cache or recompile specific SP
+
+---
+
+### 05_clear_procedure_cache.sql - Force Query Plan Recompilation
+
+**Purpose**: Clear old cached query plans and force recompilation with current statistics and indexes.
+
+**When to Run** (CRITICAL):
+- ✅ **After creating new indexes** (REQUIRED!)
+- ✅ **After updating statistics** (Recommended)
+- ✅ **After schema changes**
+- ✅ **When SPs slow despite healthy indexes/stats**
+- ✅ **After missing indexes migration was applied**
+
+**Why This Matters**:
+Your stored procedures may be using cached query plans that were compiled **before** the new indexes existed. Even though the indexes are now present, SQL Server continues using the old plan (which does table scans instead of index seeks).
+
+**Two Options**:
+
+**Option 1: Clear ALL cached plans** (nuclear option)
 ```sql
-SELECT * FROM sys.database_automatic_tuning_options;
+DBCC FREEPROCCACHE;  -- Clears entire plan cache
 ```
+- ✅ Ensures all SPs recompile with new indexes/stats
+- ⚠️ Causes temporary CPU spike as plans recompile
+- ⚠️ Safe but may cause brief slowdown
 
-### Health Check Script Times Out
-
-**Solution:** Run script during off-peak hours. Fragmentation analysis can take 5-10 minutes on large databases.
-
-### Index Rebuild Script Fails
-
-**Common Errors:**
-- **Insufficient permissions** → Requires `db_ddladmin` role
-- **Long-running transactions** → Run during maintenance window
-- **Out of space** → Index rebuild requires temp space (ensure sufficient capacity)
-
-**Check Permissions:**
+**Option 2: Recompile specific SPs** (surgical approach)
 ```sql
-SELECT * FROM sys.database_principals 
-WHERE name = USER_NAME();
+EXEC sp_recompile 'sp_ProfitabilityData';
+EXEC sp_recompile 'sp_WipMonthly';
+EXEC sp_recompile 'sp_DrsMonthly';
+-- etc.
+```
+- ✅ More controlled
+- ✅ No system-wide impact
+- ⚠️ Must do each SP individually
+
+**Recommended Workflow**:
+```sql
+-- 1. Clear cache
+DBCC FREEPROCCACHE;
+
+-- 2. Wait 5 minutes for plans to recompile
+
+-- 3. Test SP performance
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
+
+EXEC sp_ProfitabilityData @ClientCode = 'TEST001', @DateFrom = '2024-09-01';
+
+-- 4. Verify improvement (should see index seeks instead of scans)
 ```
 
 ---
 
-## FAQ
+## 🎯 Common Troubleshooting Workflows
 
-### Q: Do I need to disable Automatic Tuning before running index rebuild?
-**A:** No, they work independently. Automatic Tuning creates new indexes; rebuild script maintains existing ones.
+### Workflow 1: "Stored Procedures Are Slow"
 
-### Q: How often should I run the health check?
-**A:** Every 3 months is sufficient. Fragmentation builds slowly over time.
+```bash
+# Step 1: Check current activity
+sqlcmd -S server -d database -i 01_check_running_processes.sql
+# Look for: Blocking, long-running queries, high I/O
 
-### Q: Will Automatic Tuning solve all performance issues?
-**A:** No. It helps with index optimization, but you still need to:
-- Design proper indexes for complex queries
-- Monitor and optimize slow queries
-- Review query plans regularly
-- Run index maintenance for fragmentation
+# Step 2: Clear procedure cache (most common fix if indexes already in place)
+sqlcmd -S server -d database -i 05_clear_procedure_cache.sql
 
-### Q: Can I automate the index rebuild?
-**A:** Yes, but defer until health checks prove it's necessary. Options:
-- Azure Functions (Consumption plan)
-- Azure Container Apps Scheduled Job
-- GitHub Actions cron job
+# Step 3: Analyze SP performance
+sqlcmd -S server -d database -i 04_analyze_sp_performance.sql
+# Look for: High AvgMs, table scans, parameter sniffing
 
-### Q: What's the cost of Automatic Tuning?
-**A:** $0 - It's included with GeneralPurpose tier and higher.
+# Step 4: Update statistics if stale
+sqlcmd -S server -d database -i 02_update_statistics.sql
+
+# Step 5: Check index fragmentation
+sqlcmd -S server -d database -i 03_rebuild_indexes.sql
+```
+
+### Workflow 2: "After Applying Missing Indexes Migration"
+
+```bash
+# CRITICAL: Indexes are in place but SPs still using old plans
+
+# Step 1: Verify indexes exist
+sqlcmd -S server -d database -Q "SELECT name FROM sys.indexes WHERE name LIKE 'IX_%Covering'"
+
+# Step 2: Clear procedure cache (REQUIRED!)
+sqlcmd -S server -d database -i 05_clear_procedure_cache.sql
+
+# Step 3: Update statistics
+sqlcmd -S server -d database -i 02_update_statistics.sql
+
+# Step 4: Test SP performance
+sqlcmd -S server -d database -Q "SET STATISTICS IO ON; EXEC sp_ProfitabilityData @ClientCode = 'TEST001'"
+```
+
+### Workflow 3: "After Bulk Data Import"
+
+```bash
+# Step 1: Update statistics (CRITICAL after bulk changes)
+sqlcmd -S server -d database -i 02_update_statistics.sql
+
+# Step 2: Check index fragmentation
+sqlcmd -S server -d database -i 03_rebuild_indexes.sql
+# Rebuild if > 30% fragmented
+
+# Step 3: Clear procedure cache
+sqlcmd -S server -d database -i 05_clear_procedure_cache.sql
+```
+
+### Workflow 4: "User Reports System Is Slow Right Now"
+
+```bash
+# Step 1: Check running processes (IMMEDIATE)
+sqlcmd -S server -d database -i 01_check_running_processes.sql
+# Look for: Blocking chains, long-running queries
+
+# If blocking detected:
+sqlcmd -S server -d database -Q "KILL <blocked_spid>"  # Only if safe to do so
+
+# Step 2: Check SP performance
+sqlcmd -S server -d database -i 04_analyze_sp_performance.sql
+```
 
 ---
 
-## Related Documentation
+## 📊 Performance Targets
 
-- [Azure SQL Automatic Tuning](https://learn.microsoft.com/azure/azure-sql/database/automatic-tuning-overview)
-- [Query Store](https://learn.microsoft.com/sql/relational-databases/performance/monitoring-performance-by-using-the-query-store)
-- [Index Maintenance Best Practices](https://learn.microsoft.com/sql/relational-databases/indexes/reorganize-and-rebuild-indexes)
+| Stored Procedure | Current | Target | Method to Achieve |
+|---|---|---|---|
+| sp_ProfitabilityData (client) | 5-10s | 300-500ms | ClientCode index + clear cache |
+| sp_ProfitabilityData (partner) | 3-5s | 500-800ms | Partner index + clear cache |
+| sp_WipMonthly | 2-3s | 400-600ms | Partner/Manager indexes + stats |
+| sp_DrsMonthly | 1-2s | 200-400ms | Biller index + stats |
 
 ---
 
-## Database Information
+## 🔄 SQL Server Agent Job Setup
 
-- **Server:** gt3-sql-server
-- **Database:** gt3-db
-- **Resource Group:** rg-fmza-gt3
-- **Tier:** GeneralPurpose (Gen5, 1 vCore)
-- **Location:** South Africa North
+**Automated Daily Maintenance:**
+
+1. Open **SQL Server Management Studio** (SSMS)
+2. Expand **SQL Server Agent** → **Jobs**
+3. Right-click **Jobs** → **New Job**
+4. **General Tab**:
+   - Name: `Daily Database Maintenance`
+   - Category: `Database Maintenance`
+   - Description: `Automated statistics update, fragmentation check, and performance monitoring`
+5. **Steps Tab** → **New**:
+   - Step name: `Run Daily Maintenance`
+   - Type: `Transact-SQL script (T-SQL)`
+   - Database: `[Your database name]`
+   - Command: Copy contents of `00_daily_maintenance.sql`
+6. **Schedules Tab** → **New**:
+   - Name: `Daily 2 AM`
+   - Frequency: `Daily` at `02:00:00`
+   - Enabled: ✅ Yes
+7. **Notifications Tab**:
+   - Configure email alerts on failure (requires Database Mail setup)
+8. Click **OK** to save job
+
+**Test Job**:
+```sql
+-- Right-click job → Start Job at Step
+-- Review Job History for output
+```
+
+---
+
+## 🚨 Current Database Health Status
+
+Based on MCP tests run on 2026-02-03:
+
+### ✅ Excellent Health
+
+- **Missing Indexes Migration**: ✅ Applied (all 5 indexes exist and enabled)
+- **ClientCode Column**: ✅ Exists in WIPTransactions
+- **Index Fragmentation**: ✅ Excellent (all < 1% - GOOD status)
+- **Statistics**: ✅ Current (all updated today, 0 days old)
+
+### ⚠️ Likely Issue: Stale Query Plans
+
+**Problem**: Indexes are perfect, but stored procedures may be using **cached plans compiled before indexes existed**.
+
+**Solution**: Run `05_clear_procedure_cache.sql` to force recompilation.
+
+---
+
+## 📚 Related Documentation
+
+- **[Missing Indexes Analysis](../docs/optimization/MISSING_INDEXES_ANALYSIS.md)** - Detailed analysis of 16 missing indexes (1.5M improvement points)
+- **[Stored Procedure Rules](../.cursor/rules/stored-procedure-rules.mdc)** - SP optimization patterns
+- **[Database Patterns](../.cursor/rules/database-patterns.mdc)** - Database conventions
+- **[Performance Rules](../.cursor/rules/performance-rules.mdc)** - General performance guidelines
+
+---
+
+## 🔧 Command Line Usage
+
+**Using sqlcmd** (Windows Command Prompt or PowerShell):
+
+```powershell
+# Single script execution
+sqlcmd -S your_server_name -d your_database_name -i 01_check_running_processes.sql
+
+# With output to file
+sqlcmd -S your_server_name -d your_database_name -i 00_daily_maintenance.sql -o maintenance_log.txt
+
+# With Windows Authentication
+sqlcmd -S your_server_name -d your_database_name -E -i 01_check_running_processes.sql
+
+# With SQL Server Authentication
+sqlcmd -S your_server_name -d your_database_name -U username -P password -i 02_update_statistics.sql
+```
+
+**Using SSMS**:
+
+1. Open script in SSMS (File → Open → File)
+2. Select correct database in dropdown
+3. Press F5 or click Execute
+4. Review results in Messages and Results tabs
+
+---
+
+## ⚙️ Configuration
+
+All scripts are self-contained and require no configuration. However, you can customize:
+
+**Tables to Maintain** - Edit these scripts to add/remove tables:
+- `02_update_statistics.sql` - Add additional tables to statistics update
+- `03_rebuild_indexes.sql` - Modify table filter in fragmentation query
+
+**Thresholds** - Adjust performance thresholds:
+- `01_check_running_processes.sql` - Change long-running threshold (currently 30 seconds)
+- `04_analyze_sp_performance.sql` - Adjust slow query thresholds (currently 1 second avg)
+
+---
+
+## 🆘 Support & Troubleshooting
+
+**Scripts not running?**
+- Verify SQL Server Agent is running: Services → SQL Server Agent (instance name)
+- Check job history: SQL Server Agent → Jobs → Right-click job → View History
+
+**Permission errors?**
+- Requires `VIEW SERVER STATE` permission
+- Some operations require `db_ddladmin` or `sysadmin`
+
+**Need help interpreting results?**
+- Each script includes interpretation guide in output
+- See "Common Troubleshooting Workflows" section above
+- Consult related documentation files
+
+---
+
+## 📝 Version History
+
+- **v1.0** (2026-02-03): Initial release
+  - 6 maintenance scripts created
+  - Comprehensive documentation
+  - Tested with mapper database structure

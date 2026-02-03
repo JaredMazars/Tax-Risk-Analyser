@@ -1,7 +1,10 @@
 -- ============================================================================
--- Profitability Data Stored Procedure (v4.2 - WIP Transaction Attribution Fix)
+-- Profitability Data Stored Procedure (v4.3 - All Filters Optimized)
 -- Full profitability metrics including Cost, Hours, and Adjustments
 -- ============================================================================
+--
+-- v4.3 FIX: Add GroupCode filter to Step 1 WIPTransactions aggregation
+--           Enables index seek for group filtering (was only in Step 2)
 --
 -- v4.2 FIX: Filter PartnerCode/ManagerCode on WIPTransactions instead of Task
 --           This ensures consistency with Overview graph which uses transaction-level
@@ -113,6 +116,9 @@ WHERE 1=1'
 IF @PartnerCode != '*' SET @sql = @sql + N' AND w.TaskPartner = @p_PartnerCode'
 IF @ManagerCode != '*' SET @sql = @sql + N' AND w.TaskManager = @p_ManagerCode'
 
+-- ClientCode filter on WIPTransactions.ClientCode (NEW - enables index seek for client details)
+IF @ClientCode != '*' SET @sql = @sql + N' AND w.ClientCode = @p_ClientCode'
+
 -- ServiceLine filter on WIPTransactions.TaskServLine
 IF @ServLineCode != '*' SET @sql = @sql + N' AND w.TaskServLine = @p_ServLineCode'
 
@@ -122,20 +128,25 @@ IF @TaskCode != '*' SET @sql = @sql + N' AND w.TaskCode = @p_TaskCode'
 -- EmpCode filter
 IF @EmpCode != '*' SET @sql = @sql + N' AND w.EmpCode = @p_EmpCode'
 
+-- GroupCode filter on WIPTransactions.GroupCode (enables index seek for group filtering)
+IF @GroupCode != '*' SET @sql = @sql + N' AND w.GroupCode = @p_GroupCode'
+
 SET @sql = @sql + N'
 GROUP BY w.GSTaskID
 OPTION (RECOMPILE)'
 
-SET @params = N'@p_DateFrom datetime, @p_DateTo datetime, @p_PartnerCode nvarchar(max), @p_ManagerCode nvarchar(max), @p_ServLineCode nvarchar(max), @p_TaskCode nvarchar(max), @p_EmpCode nvarchar(max)'
+SET @params = N'@p_DateFrom datetime, @p_DateTo datetime, @p_ClientCode nvarchar(max), @p_PartnerCode nvarchar(max), @p_ManagerCode nvarchar(max), @p_ServLineCode nvarchar(max), @p_TaskCode nvarchar(max), @p_EmpCode nvarchar(max), @p_GroupCode nvarchar(max)'
 
 EXEC sp_executesql @sql, @params,
     @p_DateFrom = @DateFrom,
     @p_DateTo = @DateTo,
+    @p_ClientCode = @ClientCode,
     @p_PartnerCode = @PartnerCode,
     @p_ManagerCode = @ManagerCode,
     @p_ServLineCode = @ServLineCode,
     @p_TaskCode = @TaskCode,
-    @p_EmpCode = @EmpCode
+    @p_EmpCode = @EmpCode,
+    @p_GroupCode = @GroupCode
 
 -- Create clustered index for efficient join
 CREATE CLUSTERED INDEX IX_WIPAgg_GSTaskID ON #WIPAggregates (GSTaskID)
