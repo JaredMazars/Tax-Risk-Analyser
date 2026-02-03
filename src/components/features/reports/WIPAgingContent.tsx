@@ -8,12 +8,12 @@
  * Supports multiple view modes (Task, Client, Group, Service Line hierarchy) and filtering.
  */
 
-import { useState, useMemo, useCallback } from 'react';
-import { Layers, Building2, ListTodo, X, Filter, LayoutList, FolderTree, Tag } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Layers, Building2, ListTodo, LayoutList, FolderTree, Tag } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui';
 import { Banner } from '@/components/ui/Banner';
-import { SearchMultiCombobox, SearchMultiComboboxOption } from '@/components/ui/SearchMultiCombobox';
 import { useWIPAgingReport } from '@/hooks/reports/useWIPAgingReport';
+import { ReportFilters, type ReportFiltersState } from './ReportFilters';
 import { WIPAgingTable } from './WIPAgingTable';
 import { WIPAgingGroupTotalsTable } from './WIPAgingGroupTotalsTable';
 import { WIPAgingClientTotalsTable } from './WIPAgingClientTotalsTable';
@@ -22,14 +22,6 @@ import { WIPAgingSubServiceLineGroupTotalsTable } from './WIPAgingSubServiceLine
 import { WIPAgingServiceLineTotalsTable } from './WIPAgingServiceLineTotalsTable';
 
 type ViewMode = 'group' | 'client' | 'task' | 'master-service-line' | 'sub-service-line-group' | 'service-line';
-
-interface WIPAgingFiltersState {
-  clients: string[];
-  serviceLines: string[];
-  groups: string[];
-  masterServiceLines: string[];
-  subServiceLineGroups: string[];
-}
 
 interface WIPAgingContentProps {
   fiscalYear?: number;
@@ -51,16 +43,13 @@ const formatCurrency = (amount: number) => {
 export function WIPAgingContent({ fiscalYear, fiscalMonth, startDate, endDate, mode }: WIPAgingContentProps) {
   // State for view mode and filters
   const [viewMode, setViewMode] = useState<ViewMode>('master-service-line');
-  const [filters, setFilters] = useState<WIPAgingFiltersState>({
+  const [filters, setFilters] = useState<ReportFiltersState>({
     clients: [],
     serviceLines: [],
     groups: [],
     masterServiceLines: [],
     subServiceLineGroups: [],
   });
-
-  // Filter search handlers (managed by SearchMultiCombobox internally, but we need to provide the callback)
-  const handleSearch = (_search: string) => { /* Search handled internally */ };
 
   // Fetch data with date params from parent
   const { data, isLoading, error } = useWIPAgingReport({
@@ -71,84 +60,37 @@ export function WIPAgingContent({ fiscalYear, fiscalMonth, startDate, endDate, m
     mode,
   });
 
-  // Extract unique options from data
-  const { clientOptions, serviceLineOptions, groupOptions, masterServiceLineOptions, subServiceLineGroupOptions } = useMemo(() => {
-    if (!data?.tasks) {
-      return { clientOptions: [], serviceLineOptions: [], groupOptions: [], masterServiceLineOptions: [], subServiceLineGroupOptions: [] };
-    }
-
-    const clientMap = new Map<string, SearchMultiComboboxOption>();
-    const serviceLineMap = new Map<string, SearchMultiComboboxOption>();
-    const groupMap = new Map<string, SearchMultiComboboxOption>();
-    const masterServiceLineMap = new Map<string, SearchMultiComboboxOption>();
-    const subServiceLineGroupMap = new Map<string, SearchMultiComboboxOption>();
-
-    data.tasks.forEach((task) => {
-      if (task.GSClientID && !clientMap.has(task.clientCode)) {
-        clientMap.set(task.clientCode, {
-          id: task.clientCode,
-          label: `${task.clientCode} - ${task.clientName || 'Unnamed'}`,
-        });
-      }
-      if (!serviceLineMap.has(task.servLineCode)) {
-        serviceLineMap.set(task.servLineCode, {
-          id: task.servLineCode,
-          label: task.servLineDesc,
-        });
-      }
-      if (task.groupCode && !groupMap.has(task.groupCode)) {
-        groupMap.set(task.groupCode, {
-          id: task.groupCode,
-          label: task.groupDesc || task.groupCode,
-        });
-      }
-      if (task.masterServiceLineCode && !masterServiceLineMap.has(task.masterServiceLineCode)) {
-        masterServiceLineMap.set(task.masterServiceLineCode, {
-          id: task.masterServiceLineCode,
-          label: task.masterServiceLineName || task.masterServiceLineCode,
-        });
-      }
-      if (task.subServlineGroupCode && !subServiceLineGroupMap.has(task.subServlineGroupCode)) {
-        subServiceLineGroupMap.set(task.subServlineGroupCode, {
-          id: task.subServlineGroupCode,
-          label: task.subServlineGroupDesc || task.subServlineGroupCode,
-        });
-      }
-    });
-
-    return {
-      clientOptions: Array.from(clientMap.values()).sort((a, b) => a.label.localeCompare(b.label)),
-      serviceLineOptions: Array.from(serviceLineMap.values()).sort((a, b) => a.label.localeCompare(b.label)),
-      groupOptions: Array.from(groupMap.values()).sort((a, b) => a.label.localeCompare(b.label)),
-      masterServiceLineOptions: Array.from(masterServiceLineMap.values()).sort((a, b) => a.label.localeCompare(b.label)),
-      subServiceLineGroupOptions: Array.from(subServiceLineGroupMap.values()).sort((a, b) => a.label.localeCompare(b.label)),
-    };
-  }, [data]);
-
   // Apply filters
   const filteredTasks = useMemo(() => {
     if (!data?.tasks) return [];
 
     let filtered = data.tasks;
 
+    // Multi-select client filter (filters.clients contains GSClientID values)
     if (filters.clients.length > 0) {
-      filtered = filtered.filter((task) => filters.clients.includes(task.clientCode));
+      filtered = filtered.filter((task) => 
+        task.GSClientID && filters.clients.includes(task.GSClientID)
+      );
     }
 
+    // Multi-select service line filter
     if (filters.serviceLines.length > 0) {
       filtered = filtered.filter((task) => filters.serviceLines.includes(task.servLineCode));
     }
 
+    // Multi-select group filter
     if (filters.groups.length > 0) {
       filtered = filtered.filter((task) => task.groupCode && filters.groups.includes(task.groupCode));
     }
 
+    // Multi-select master service line filter
     if (filters.masterServiceLines.length > 0) {
       filtered = filtered.filter((task) => 
         filters.masterServiceLines.includes(task.masterServiceLineCode)
       );
     }
 
+    // Multi-select sub service line group filter
     if (filters.subServiceLineGroups.length > 0) {
       filtered = filtered.filter((task) => 
         filters.subServiceLineGroups.includes(task.subServlineGroupCode)
@@ -174,25 +116,6 @@ export function WIPAgingContent({ fiscalYear, fiscalMonth, startDate, endDate, m
       nettWip: filteredTasks.reduce((sum, t) => sum + t.nettWip, 0),
     };
   }, [filteredTasks]);
-
-  // Check if any filters are active
-  const hasActiveFilters = 
-    filters.clients.length > 0 || 
-    filters.serviceLines.length > 0 || 
-    filters.groups.length > 0 ||
-    filters.masterServiceLines.length > 0 ||
-    filters.subServiceLineGroups.length > 0;
-  const activeFilterCount = 
-    filters.clients.length + 
-    filters.serviceLines.length + 
-    filters.groups.length +
-    filters.masterServiceLines.length +
-    filters.subServiceLineGroups.length;
-
-  // Clear all filters
-  const clearAllFilters = useCallback(() => {
-    setFilters({ clients: [], serviceLines: [], groups: [], masterServiceLines: [], subServiceLineGroups: [] });
-  }, []);
 
   return (
     <div>
@@ -364,98 +287,15 @@ export function WIPAgingContent({ fiscalYear, fiscalMonth, startDate, endDate, m
       {!isLoading && !error && data && (
         <>
           {/* Filters */}
-          <div className="mb-4 p-3 bg-white rounded-lg shadow-corporate border border-forvis-gray-200">
-            <div className="space-y-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
-                <SearchMultiCombobox
-                  options={masterServiceLineOptions}
-                  value={filters.masterServiceLines}
-                  onChange={(values) =>
-                    setFilters((prev) => ({ ...prev, masterServiceLines: values as string[] }))
-                  }
-                  onSearchChange={handleSearch}
-                  placeholder="All Master SL"
-                  searchPlaceholder="Search master service lines..."
-                  minimumSearchChars={2}
-                  emptyMessage="Type 2+ characters to search"
-                />
-                <SearchMultiCombobox
-                  options={subServiceLineGroupOptions}
-                  value={filters.subServiceLineGroups}
-                  onChange={(values) =>
-                    setFilters((prev) => ({ ...prev, subServiceLineGroups: values as string[] }))
-                  }
-                  onSearchChange={handleSearch}
-                  placeholder="All Sub SL Groups"
-                  searchPlaceholder="Search sub service line groups..."
-                  minimumSearchChars={2}
-                  emptyMessage="Type 2+ characters to search"
-                />
-                <SearchMultiCombobox
-                  options={serviceLineOptions}
-                  value={filters.serviceLines}
-                  onChange={(values) =>
-                    setFilters((prev) => ({ ...prev, serviceLines: values as string[] }))
-                  }
-                  onSearchChange={handleSearch}
-                  placeholder="All Service Lines"
-                  searchPlaceholder="Search service lines..."
-                  minimumSearchChars={2}
-                  emptyMessage="Type 2+ characters to search"
-                />
-                <SearchMultiCombobox
-                  options={groupOptions}
-                  value={filters.groups}
-                  onChange={(values) =>
-                    setFilters((prev) => ({ ...prev, groups: values as string[] }))
-                  }
-                  onSearchChange={handleSearch}
-                  placeholder="All Groups"
-                  searchPlaceholder="Search groups..."
-                  minimumSearchChars={2}
-                  emptyMessage="Type 2+ characters to search"
-                />
-                <SearchMultiCombobox
-                  options={clientOptions}
-                  value={filters.clients}
-                  onChange={(values) =>
-                    setFilters((prev) => ({ ...prev, clients: values as string[] }))
-                  }
-                  onSearchChange={handleSearch}
-                  placeholder="All Clients"
-                  searchPlaceholder="Search by code or name..."
-                  minimumSearchChars={2}
-                  emptyMessage="Type 2+ characters to search clients"
-                />
-              </div>
-
-              {/* Actions Row */}
-              <div className="flex items-center gap-2">
-                {/* Active Filters Indicator */}
-                {hasActiveFilters && (
-                  <div className="flex items-center gap-2 text-xs text-forvis-gray-600">
-                    <Filter className="h-3.5 w-3.5" />
-                    <span className="font-medium">Active: {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''}</span>
-                  </div>
-                )}
-
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Clear Filters Button */}
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 transition-colors"
-                    title="Clear all filters"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    <span>Clear</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          <ReportFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            availableTasks={data.tasks}
+            fieldMappings={{
+              clientNameField: 'clientName',
+              serviceLineNameField: 'servLineDesc',
+            }}
+          />
 
           {/* Filtered Count */}
           {filteredTasks.length !== data.tasks.length && (

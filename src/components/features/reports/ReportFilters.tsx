@@ -22,17 +22,22 @@ export interface ReportFiltersState {
   subServiceLineGroups: string[];    // Multi-select sub serv group codes
 }
 
-interface ReportFiltersProps {
+interface ReportFiltersProps<T = TaskWithWIPAndServiceLine> {
   filters: ReportFiltersState;
   onFiltersChange: (filters: ReportFiltersState) => void;
-  availableTasks: TaskWithWIPAndServiceLine[];
+  availableTasks: T[];
+  fieldMappings?: {
+    clientNameField?: keyof T;
+    serviceLineNameField?: keyof T;
+  };
 }
 
-export function ReportFilters({
+export function ReportFilters<T = TaskWithWIPAndServiceLine>({
   filters,
   onFiltersChange,
   availableTasks,
-}: ReportFiltersProps) {
+  fieldMappings,
+}: ReportFiltersProps<T>) {
   // Local search states for each filter
   const [clientSearch, setClientSearch] = useState('');
   const [serviceLineSearch, setServiceLineSearch] = useState('');
@@ -40,15 +45,19 @@ export function ReportFilters({
   const [masterServiceLineSearch, setMasterServiceLineSearch] = useState('');
   const [subServiceLineGroupSearch, setSubServiceLineGroupSearch] = useState('');
 
+  // Field name defaults (backward compatible)
+  const clientNameField = (fieldMappings?.clientNameField || 'clientNameFull') as keyof T;
+  const serviceLineNameField = (fieldMappings?.serviceLineNameField || 'serviceLineName') as keyof T;
+
   // Extract unique options from available tasks
   const { clientOptions, serviceLineOptions, groupOptions, masterServiceLineOptions, subServiceLineGroupOptions } = useMemo(() => {
     // Clients
     const clientMap = new Map<string, SearchMultiComboboxOption>();
-    availableTasks.forEach((task) => {
+    availableTasks.forEach((task: any) => {
       if (!clientMap.has(task.GSClientID)) {
         clientMap.set(task.GSClientID, {
           id: task.GSClientID,
-          label: `${task.clientCode} - ${task.clientNameFull || 'Unnamed Client'}`,
+          label: `${task.clientCode} - ${task[clientNameField] || 'Unnamed Client'}`,
         });
       }
     });
@@ -58,11 +67,11 @@ export function ReportFilters({
 
     // Service Lines
     const serviceLineMap = new Map<string, SearchMultiComboboxOption>();
-    availableTasks.forEach((task) => {
+    availableTasks.forEach((task: any) => {
       if (!serviceLineMap.has(task.servLineCode)) {
         serviceLineMap.set(task.servLineCode, {
           id: task.servLineCode,
-          label: task.serviceLineName,
+          label: task[serviceLineNameField],
         });
       }
     });
@@ -72,7 +81,7 @@ export function ReportFilters({
 
     // Groups
     const groupMap = new Map<string, SearchMultiComboboxOption>();
-    availableTasks.forEach((task) => {
+    availableTasks.forEach((task: any) => {
       if (!groupMap.has(task.groupCode)) {
         groupMap.set(task.groupCode, {
           id: task.groupCode,
@@ -86,7 +95,7 @@ export function ReportFilters({
 
     // Master Service Lines
     const masterServiceLineMap = new Map<string, SearchMultiComboboxOption>();
-    availableTasks.forEach((task) => {
+    availableTasks.forEach((task: any) => {
       if (!masterServiceLineMap.has(task.masterServiceLineCode)) {
         masterServiceLineMap.set(task.masterServiceLineCode, {
           id: task.masterServiceLineCode,
@@ -100,7 +109,7 @@ export function ReportFilters({
 
     // Sub Service Line Groups
     const subServiceLineGroupMap = new Map<string, SearchMultiComboboxOption>();
-    availableTasks.forEach((task) => {
+    availableTasks.forEach((task: any) => {
       const code = task.subServlineGroupCode || task.servLineCode;
       if (!subServiceLineGroupMap.has(code)) {
         subServiceLineGroupMap.set(code, {
@@ -120,7 +129,7 @@ export function ReportFilters({
       masterServiceLineOptions: masterServiceLines,
       subServiceLineGroupOptions: subServiceLineGroups,
     };
-  }, [availableTasks]);
+  }, [availableTasks, clientNameField, serviceLineNameField]);
 
   // Filter options based on search (client-side)
   const filteredClientOptions = useMemo(() => {
