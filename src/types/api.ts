@@ -627,12 +627,13 @@ export interface WIPAgingSPResult {
 
 /**
  * Helper type to convert SP result to existing MonthlyMetrics
+ * NetRevenue formula matches sp_ProfitabilityData: T + ADJ + Provisions
  */
 export function mapWipMonthlyToMetrics(
   wipRow: WipMonthlyResult,
   drsRow: DrsMonthlyResult | null
 ): Partial<MonthlyMetrics> {
-  const netRevenue = wipRow.LTDTime + wipRow.LTDAdj;
+  const netRevenue = wipRow.LTDTime + wipRow.LTDAdj + wipRow.LTDProvision;
   const grossProfit = netRevenue - wipRow.LTDCost;
   const writeoffAmount = wipRow.LTDNegativeAdj + wipRow.LTDProvision;
   const writeoffPercentage = wipRow.LTDTime !== 0 ? (writeoffAmount / wipRow.LTDTime) * 100 : 0;

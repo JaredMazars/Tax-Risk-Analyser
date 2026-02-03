@@ -41,14 +41,15 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Convert WipLTD SP result to TaskWithWIPAndServiceLine format
+ * Uses SP's pre-calculated NetRevenue and GrossProfit for consistency
+ * NetRevenue = LTDTimeCharged + LTDAdjustments + LTDWipProvision
  */
 function mapWipLTDToTask(row: WipLTDResult): TaskWithWIPAndServiceLine {
-  // Use SP's correct life-to-date NetWIP calculation (balance sheet item)
-  // NetWIP includes ALL transactions regardless of date range parameters
+  // Use SP's correct life-to-date calculations (includes provisions in revenue)
   const netWip = row.NetWIP;
-  const netRevenue = row.LTDTimeCharged + row.LTDAdjustments;
+  const netRevenue = row.NetRevenue;
   const grossProduction = row.LTDTimeCharged;
-  const grossProfit = netRevenue - row.LTDCost;
+  const grossProfit = row.GrossProfit;
   const adjustmentPercentage = grossProduction !== 0 ? (row.LTDAdjustments / grossProduction) * 100 : 0;
   const grossProfitPercentage = netRevenue !== 0 ? (grossProfit / netRevenue) * 100 : 0;
 

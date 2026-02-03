@@ -8,7 +8,12 @@
 -- Fees are applied against the OLDEST WIP first, reducing aged balances
 -- before current balances.
 --
--- VERSION: 4.1 - Removed PtdFeeAmt from output (display only change)
+-- VERSION: 4.3 - Fixed bucket sum for overbilled tasks (negative BalWip)
+--                Curr bucket now allows negative values when excess credits exist
+-- PREVIOUS: 4.2 - Fixed bucket sum to match BalWip
+--                 Negative bucket amounts now treated as additional FIFO credits
+--                 This ensures SUM(buckets) = BalWip for accurate aging display
+-- PREVIOUS: 4.1 - Removed PtdFeeAmt from output (display only change)
 -- PREVIOUS: 4.0 - Performance Optimizations
 -- PREVIOUS: 3.5 - BalWip calculated directly as GrossWip - Credits
 -- PREVIOUS: 3.4 - Fixed NET amount calculation to match Profitability report
@@ -274,6 +279,8 @@ GROUP BY GSTaskID;
 CREATE CLUSTERED INDEX IX_RawBuckets_GSTaskID ON #RawBuckets (GSTaskID);
 
 -- Stage 2: Apply > 0 check from stored values (no duplicate calculations)
+-- v4.2: Also calculate NegativeBucketTotal = sum of negative raw bucket values
+--       This amount is "lost" when flooring negatives to 0, and must be treated as additional credits
 SELECT 
     GSTaskID,
     -- If bucket net is negative, set to 0 (FIFO only applies to positive amounts)
@@ -285,7 +292,18 @@ SELECT
     ROUND(CASE WHEN RawBal30 > 0 THEN RawBal30 ELSE 0 END, 2) AS GrossBal30,
     ROUND(CASE WHEN RawCurr > 0 THEN RawCurr ELSE 0 END, 2) AS GrossCurr,
     ROUND(TotalGrossWIP, 2) AS TotalGrossWIP,
-    ROUND(TotalProvision, 2) AS TotalProvision
+    ROUND(TotalProvision, 2) AS TotalProvision,
+    -- v4.2: Sum of negative bucket amounts (always <= 0)
+    -- Used to ensure displayed buckets sum to BalWip
+    ROUND(
+        CASE WHEN RawBal180 < 0 THEN RawBal180 ELSE 0 END +
+        CASE WHEN RawBal150 < 0 THEN RawBal150 ELSE 0 END +
+        CASE WHEN RawBal120 < 0 THEN RawBal120 ELSE 0 END +
+        CASE WHEN RawBal90 < 0 THEN RawBal90 ELSE 0 END +
+        CASE WHEN RawBal60 < 0 THEN RawBal60 ELSE 0 END +
+        CASE WHEN RawBal30 < 0 THEN RawBal30 ELSE 0 END +
+        CASE WHEN RawCurr < 0 THEN RawCurr ELSE 0 END
+    , 2) AS NegativeBucketTotal
 INTO #GrossWIP
 FROM #RawBuckets;
 
@@ -298,21 +316,49 @@ DROP TABLE #RawBuckets;
 -- ============================================================================
 -- PHASE 3: Calculate total credits per task
 -- ============================================================================
--- Credits = NET sum of F (Fee) transactions
+-- Credits = NET sum of F (Fee) transactions + ABS(NegativeBucketTotal)
+-- 
+-- v4.2 FIX: NegativeBucketTotal represents bucket amounts floored to 0.
+--           These negatives are included in TotalGrossWIP (so BalWip is correct),
+--           but were excluded from bucket display. By treating them as additional
+--           credits, we reduce the displayed buckets further so they sum to BalWip.
+--
+-- EffectiveCredits = TotalCredits (F transactions) + ABS(NegativeBucketTotal)
+--
 -- This matches profitability logic: BalWip = (T + D + ADJ) - F
 -- F is summed as-is (positive F = fees billed, negative F = fee reversals)
 -- The net F amount is what reduces WIP
--- NOTE: T/D/ADJ negative amounts are already netted into GrossWIP (Phase 2)
 -- NOTE: P (provisions) are excluded - they only affect NetWIP, not BalWip
 -- ============================================================================
 
+-- First, aggregate F transactions per task
+IF OBJECT_ID('tempdb..#FeeCredits') IS NOT NULL DROP TABLE #FeeCredits;
+
 SELECT 
     GSTaskID,
-    ROUND(SUM(ISNULL(Amount, 0)), 2) AS TotalCredits
-INTO #TaskCredits
+    ROUND(SUM(ISNULL(Amount, 0)), 2) AS FeeCredits
+INTO #FeeCredits
 FROM #FilteredTransactions
 WHERE TType = 'F'
 GROUP BY GSTaskID;
+
+CREATE CLUSTERED INDEX IX_FeeCredits_GSTaskID ON #FeeCredits (GSTaskID);
+
+-- Combine F credits with NegativeBucketTotal from #GrossWIP
+-- v4.2: Track both FeeCreditsOnly (for BalWip) and EffectiveCredits (for FIFO)
+SELECT 
+    g.GSTaskID,
+    -- FeeCreditsOnly: Original F transaction credits (used for BalWip calculation)
+    ROUND(ISNULL(fc.FeeCredits, 0), 2) AS FeeCreditsOnly,
+    -- EffectiveCredits = FeeCredits + ABS(NegativeBucketTotal)
+    -- Used for FIFO bucket distribution to ensure buckets sum to BalWip
+    ROUND(ISNULL(fc.FeeCredits, 0) + ABS(ISNULL(g.NegativeBucketTotal, 0)), 2) AS TotalCredits
+INTO #TaskCredits
+FROM #GrossWIP g
+LEFT JOIN #FeeCredits fc ON g.GSTaskID = fc.GSTaskID;
+
+-- Cleanup intermediate table
+DROP TABLE #FeeCredits;
 
 -- Add clustered index for JOIN in Phase 4
 CREATE CLUSTERED INDEX IX_TaskCredits_GSTaskID ON #TaskCredits (GSTaskID);
@@ -331,8 +377,11 @@ SELECT
     g.GrossBal180, g.GrossBal150, g.GrossBal120, g.GrossBal90, 
     g.GrossBal60, g.GrossBal30, g.GrossCurr,
     
-    -- Total credits to apply
+    -- Total credits to apply (EffectiveCredits for FIFO bucket distribution)
     ISNULL(c.TotalCredits, 0) AS TotalCredits,
+    
+    -- v4.2: Original F credits only (for BalWip calculation)
+    ISNULL(c.FeeCreditsOnly, 0) AS FeeCreditsOnly,
     
     -- FIFO Allocation: Apply credits from oldest to newest
     -- Step 1: Bal180 absorbs credits first
@@ -417,14 +466,17 @@ SELECT
     END, 2) AS Bal30,
     
     -- Curr: Uses cumulative credits after all prior buckets
+    -- v4.2: Allow negative Curr when excess credits exist (to ensure buckets sum to BalWip for overbilled tasks)
     ROUND(CASE 
         WHEN fa.TotalCredits <= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 + fa.GrossBal30 THEN fa.GrossCurr
-        WHEN fa.TotalCredits >= fa.GrossBal180 + fa.GrossBal150 + fa.GrossBal120 + fa.GrossBal90 + fa.GrossBal60 + fa.GrossBal30 + fa.GrossCurr THEN 0
         ELSE fa.GrossCurr - (fa.TotalCredits - fa.GrossBal180 - fa.GrossBal150 - fa.GrossBal120 - fa.GrossBal90 - fa.GrossBal60 - fa.GrossBal30)
     END, 2) AS Curr,
     
     ROUND(fa.TotalCredits, 2) AS TotalCredits,
     ROUND(fa.TotalProvision, 2) AS TotalProvision,
+    
+    -- v4.2: Original F credits only (for BalWip calculation)
+    ROUND(fa.FeeCreditsOnly, 2) AS FeeCreditsOnly,
     
     -- Excess credits (if credits > total gross bucket WIP)
     ROUND(CASE 
@@ -519,16 +571,17 @@ SELECT
     -- Gross WIP (before FIFO fee allocation)
     ROUND(ISNULL(fr.GrossWip, 0), 2) AS GrossWip,
     
-    -- Net WIP = TotalGrossWIP - TotalCredits (matches profitability formula exactly)
-    -- TotalGrossWIP = NET(T + D + ADJ), TotalCredits = NET(F)
+    -- Net WIP = TotalGrossWIP - FeeCreditsOnly (matches profitability formula exactly)
+    -- TotalGrossWIP = NET(T + D + ADJ), FeeCreditsOnly = NET(F)
     -- This is BalWip = Time + Disb + Adj - Fees
-    ROUND(ISNULL(fr.GrossWip, 0) - ISNULL(fr.TotalCredits, 0), 2) AS BalWip,
+    -- v4.2: Use FeeCreditsOnly (not TotalCredits which includes bucket adjustments)
+    ROUND(ISNULL(fr.GrossWip, 0) - ISNULL(fr.FeeCreditsOnly, 0), 2) AS BalWip,
     
     -- Provision total
     ROUND(ISNULL(fr.TotalProvision, 0), 2) AS Provision,
     
     -- Net WIP = BalWip + Provision (matches profitability NetWIP logic)
-    ROUND(ISNULL(fr.GrossWip, 0) - ISNULL(fr.TotalCredits, 0) + ISNULL(fr.TotalProvision, 0), 2) AS NettWip
+    ROUND(ISNULL(fr.GrossWip, 0) - ISNULL(fr.FeeCreditsOnly, 0) + ISNULL(fr.TotalProvision, 0), 2) AS NettWip
 
 FROM #TaskMetadata tm
 LEFT JOIN #FIFOResult fr ON tm.GSTaskID = fr.GSTaskID

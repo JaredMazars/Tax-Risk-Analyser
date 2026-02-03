@@ -28,6 +28,10 @@ import { prisma } from '@/lib/db/prisma';
 import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
+
+// Cache version - increment to invalidate all overview caches when SP formula changes
+// v3: Added multi-service-line filter support
+const CACHE_VERSION = 'v3';
 import { logger } from '@/lib/utils/logger';
 import type { MyReportsOverviewData, MonthlyMetrics } from '@/types/api';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
@@ -93,7 +97,7 @@ async function fetchMetricsForFiscalYear(
     isPartnerReport,
     dateFrom: startDate,
     dateTo: endDate,
-    servLineCode: serviceLines?.length === 1 ? serviceLines[0] : undefined,
+    servLineCode: serviceLines && serviceLines.length > 0 ? serviceLines.join(',') : undefined,
   });
 }
 
@@ -183,7 +187,7 @@ export const GET = secureRoute.query({
         
         // Check cache for multi-year data
         const serviceLineKey = serviceLines.length > 0 ? serviceLines.join(',') : 'all';
-        const cacheKey = `${CACHE_PREFIXES.USER}my-reports:overview:all-years:${serviceLineKey}:${user.id}`;
+        const cacheKey = `${CACHE_PREFIXES.USER}my-reports:overview:${CACHE_VERSION}:all-years:${serviceLineKey}:${user.id}`;
         const cached = await cache.get<MyReportsOverviewData>(cacheKey);
         if (cached) {
           logger.info('Returning cached multi-year overview report', { userId: user.id, filterMode });
@@ -226,7 +230,7 @@ export const GET = secureRoute.query({
       // Handle fiscal year single-year mode
       if (mode === 'fiscal' && typeof fiscalYear === 'number') {
         const serviceLineKey = serviceLines.length > 0 ? serviceLines.join(',') : 'all';
-        const cacheKey = `${CACHE_PREFIXES.USER}my-reports:overview:fy${fiscalYear}:${serviceLineKey}:${user.id}`;
+        const cacheKey = `${CACHE_PREFIXES.USER}my-reports:overview:${CACHE_VERSION}:fy${fiscalYear}:${serviceLineKey}:${user.id}`;
         
         const cached = await cache.get<MyReportsOverviewData>(cacheKey);
         if (cached) {
@@ -271,7 +275,7 @@ export const GET = secureRoute.query({
         const endDate = endOfMonth(parseISO(endDateParam));
 
         const serviceLineKey = serviceLines.length > 0 ? serviceLines.join(',') : 'all';
-        const cacheKey = `${CACHE_PREFIXES.USER}my-reports:overview:custom:${format(startDate, 'yyyy-MM-dd')}:${format(endDate, 'yyyy-MM-dd')}:${serviceLineKey}:${user.id}`;
+        const cacheKey = `${CACHE_PREFIXES.USER}my-reports:overview:${CACHE_VERSION}:custom:${format(startDate, 'yyyy-MM-dd')}:${format(endDate, 'yyyy-MM-dd')}:${serviceLineKey}:${user.id}`;
         
         const cached = await cache.get<MyReportsOverviewData>(cacheKey);
         if (cached) {
@@ -287,7 +291,7 @@ export const GET = secureRoute.query({
           isPartnerReport,
           dateFrom: startDate,
           dateTo: endDate,
-          servLineCode: serviceLines.length === 1 ? serviceLines[0] : undefined,
+          servLineCode: serviceLines.length > 0 ? serviceLines.join(',') : undefined,
         });
 
         const report: MyReportsOverviewData = {

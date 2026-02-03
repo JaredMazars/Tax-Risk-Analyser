@@ -1,7 +1,14 @@
 -- ============================================================================
--- WipMonthly Stored Procedure (v1.0)
+-- WipMonthly Stored Procedure (v2.2)
 -- Monthly WIP transaction aggregations for Overview report
 -- ============================================================================
+--
+-- v2.2: Support multiple service line codes (comma-separated) using STRING_SPLIT
+--
+-- v2.1: Fixed BalWip to include opening balance from before @DateFrom
+--       BalWip now shows actual WIP balance (historical + period activity)
+--
+-- v2.0: Added LTDHours and BalWip fields to match TypeScript WipMonthlyResult
 --
 -- PURPOSE: Provides monthly WIP metrics (Time, Disbursements, Adjustments, Cost, etc.)
 --          Supports both cumulative (fiscal year running totals) and non-cumulative modes
@@ -46,9 +53,53 @@ SET NOCOUNT ON
 
 DECLARE @sql NVARCHAR(MAX)
 DECLARE @params NVARCHAR(MAX)
+DECLARE @OpeningBalWip FLOAT = 0
 
 -- ============================================================================
--- STEP 1: Create temp table for monthly aggregations
+-- STEP 1: Calculate opening WIP balance (transactions BEFORE @DateFrom)
+-- ============================================================================
+
+CREATE TABLE #OpeningBalance (
+    OpeningBalWip FLOAT
+)
+
+SET @sql = N'
+INSERT INTO #OpeningBalance
+SELECT 
+    SUM(CASE WHEN w.TType IN (''T'', ''D'', ''ADJ'') THEN ISNULL(w.Amount, 0) 
+             WHEN w.TType = ''F'' THEN -ISNULL(w.Amount, 0) 
+             ELSE 0 END) AS OpeningBalWip
+FROM [dbo].[WIPTransactions] w
+WHERE w.TranDate < @p_DateFrom'
+
+-- Add partner or manager filter
+IF @PartnerCode != '*'
+    SET @sql = @sql + N' AND w.TaskPartner = @p_PartnerCode'
+ELSE IF @ManagerCode != '*'
+    SET @sql = @sql + N' AND w.TaskManager = @p_ManagerCode'
+
+-- Add service line filter if specified (supports comma-separated list)
+IF @ServLineCode != '*'
+    SET @sql = @sql + N'
+    AND w.TaskCode IN (
+        SELECT TaskCode FROM [dbo].[Task] t
+        INNER JOIN [dbo].[ServiceLineExternal] sle ON t.ServLineCode = sle.ServLineCode
+        WHERE sle.masterCode IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_ServLineCode, '',''))
+    )'
+
+SET @params = N'@p_PartnerCode nvarchar(max), @p_ManagerCode nvarchar(max), @p_ServLineCode nvarchar(max), @p_DateFrom datetime'
+
+EXEC sp_executesql @sql, @params,
+    @p_PartnerCode = @PartnerCode,
+    @p_ManagerCode = @ManagerCode,
+    @p_ServLineCode = @ServLineCode,
+    @p_DateFrom = @DateFrom
+
+SELECT @OpeningBalWip = ISNULL(OpeningBalWip, 0) FROM #OpeningBalance
+DROP TABLE #OpeningBalance
+
+-- ============================================================================
+-- STEP 2: Create temp table for monthly aggregations
 -- ============================================================================
 
 CREATE TABLE #MonthlyBase (
@@ -60,10 +111,11 @@ CREATE TABLE #MonthlyBase (
     ,LTDFee FLOAT
     ,LTDProvision FLOAT
     ,LTDNegativeAdj FLOAT
+    ,LTDHours FLOAT
 )
 
 -- ============================================================================
--- STEP 2: Build dynamic SQL for sargable filtering
+-- STEP 3: Build dynamic SQL for sargable filtering
 -- ============================================================================
 
 SET @sql = N'
@@ -77,6 +129,7 @@ SELECT
     ,SUM(CASE WHEN w.TType = ''F'' THEN ISNULL(w.Amount, 0) ELSE 0 END) AS LTDFee
     ,SUM(CASE WHEN w.TType = ''P'' THEN ISNULL(w.Amount, 0) ELSE 0 END) AS LTDProvision
     ,SUM(CASE WHEN w.TType = ''ADJ'' AND w.Amount < 0 THEN ISNULL(w.Amount, 0) ELSE 0 END) AS LTDNegativeAdj
+    ,SUM(CASE WHEN w.TType = ''T'' THEN ISNULL(w.Hour, 0) ELSE 0 END) AS LTDHours
 FROM [dbo].[WIPTransactions] w
     LEFT JOIN [dbo].[Employee] e ON w.EmpCode = e.EmpCode
 WHERE w.TranDate >= @p_DateFrom 
@@ -88,13 +141,13 @@ IF @PartnerCode != '*'
 ELSE IF @ManagerCode != '*'
     SET @sql = @sql + N' AND w.TaskManager = @p_ManagerCode'
 
--- Add service line filter if specified
+-- Add service line filter if specified (supports comma-separated list)
 IF @ServLineCode != '*'
     SET @sql = @sql + N'
     AND w.TaskCode IN (
         SELECT TaskCode FROM [dbo].[Task] t
         INNER JOIN [dbo].[ServiceLineExternal] sle ON t.ServLineCode = sle.ServLineCode
-        WHERE sle.masterCode = @p_ServLineCode
+        WHERE sle.masterCode IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_ServLineCode, '',''))
     )'
 
 SET @sql = @sql + N'
@@ -112,12 +165,13 @@ EXEC sp_executesql @sql, @params,
     @p_DateTo = @DateTo
 
 -- ============================================================================
--- STEP 3: Return results (cumulative or non-cumulative)
+-- STEP 4: Return results (cumulative or non-cumulative)
 -- ============================================================================
 
 IF @IsCumulative = 1
 BEGIN
     -- Cumulative mode: Running totals via window function
+    -- BalWip = Opening balance + cumulative (T + D + ADJ - F)
     SELECT 
         [Month]
         ,SUM(LTDTime) OVER (ORDER BY [Month] ROWS UNBOUNDED PRECEDING) AS LTDTime
@@ -127,12 +181,15 @@ BEGIN
         ,SUM(LTDFee) OVER (ORDER BY [Month] ROWS UNBOUNDED PRECEDING) AS LTDFee
         ,SUM(LTDProvision) OVER (ORDER BY [Month] ROWS UNBOUNDED PRECEDING) AS LTDProvision
         ,SUM(LTDNegativeAdj) OVER (ORDER BY [Month] ROWS UNBOUNDED PRECEDING) AS LTDNegativeAdj
+        ,SUM(LTDHours) OVER (ORDER BY [Month] ROWS UNBOUNDED PRECEDING) AS LTDHours
+        ,@OpeningBalWip + SUM(LTDTime + LTDDisb + LTDAdj - LTDFee) OVER (ORDER BY [Month] ROWS UNBOUNDED PRECEDING) AS BalWip
     FROM #MonthlyBase
     ORDER BY [Month]
 END
 ELSE
 BEGIN
     -- Non-cumulative mode: Monthly values
+    -- BalWip = T + D + ADJ - F (monthly WIP movement)
     SELECT 
         [Month]
         ,LTDTime
@@ -142,12 +199,14 @@ BEGIN
         ,LTDFee
         ,LTDProvision
         ,LTDNegativeAdj
+        ,LTDHours
+        ,(LTDTime + LTDDisb + LTDAdj - LTDFee) AS BalWip
     FROM #MonthlyBase
     ORDER BY [Month]
 END
 
 -- ============================================================================
--- CLEANUP
+-- STEP 5: CLEANUP
 -- ============================================================================
 
 DROP TABLE #MonthlyBase

@@ -281,9 +281,10 @@ export async function fetchOverviewMetricsFromSP(
   const metricsMap = new Map<string, Partial<MonthlyMetrics>>();
 
   // Process WIP cumulative data (for display)
+  // NetRevenue formula matches sp_ProfitabilityData: T + ADJ + Provisions
   wipCumulativeData.forEach(row => {
     const monthKey = format(new Date(row.Month), 'yyyy-MM');
-    const netRevenue = row.LTDTime + row.LTDAdj;
+    const netRevenue = row.LTDTime + row.LTDAdj + row.LTDProvision;
     const grossProfit = netRevenue - row.LTDCost;
     const writeoffAmount = row.LTDNegativeAdj + row.LTDProvision;
     const writeoffPercentage = row.LTDTime !== 0 ? (writeoffAmount / row.LTDTime) * 100 : 0;
@@ -319,11 +320,12 @@ export async function fetchOverviewMetricsFromSP(
     const trailing12Start = subMonths(monthDate, 11);
     
     // Calculate trailing 12-month net revenue for WIP lockup
+    // NetRevenue formula matches sp_ProfitabilityData: T + ADJ + Provisions
     let trailing12Revenue = 0;
     wipNonCumulativeData.forEach(wipRow => {
       const wipDate = new Date(wipRow.Month);
       if (wipDate >= trailing12Start && wipDate <= monthDate) {
-        trailing12Revenue += wipRow.LTDTime + wipRow.LTDAdj;
+        trailing12Revenue += wipRow.LTDTime + wipRow.LTDAdj + wipRow.LTDProvision;
       }
     });
 
