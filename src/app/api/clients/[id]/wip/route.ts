@@ -151,6 +151,8 @@ export const GET = secureRoute.queryWithParams({
 
     // Determine fiscal year and date range
     const currentFY = getCurrentFiscalPeriod().fiscalYear;
+    // When fiscalYear is not provided in fiscal mode, treat as "all-time" (LTD)
+    const isAllTime = mode === 'fiscal' && !fiscalYearParam;
     const fiscalYear = fiscalYearParam ? parseInt(fiscalYearParam, 10) : currentFY;
     
     let startDate: Date;
@@ -160,8 +162,12 @@ export const GET = secureRoute.queryWithParams({
       // Custom date range
       startDate = startOfMonth(parseISO(startDateParam));
       endDate = endOfMonth(parseISO(endDateParam));
+    } else if (isAllTime) {
+      // All-time (LTD): use very wide date range to capture all historical data
+      startDate = new Date('1900-01-01');
+      endDate = new Date();
     } else {
-      // Fiscal year mode (default)
+      // Fiscal year mode with specific year
       const { start, end } = getFiscalYearRange(fiscalYear);
       startDate = start;
       
@@ -176,7 +182,8 @@ export const GET = secureRoute.queryWithParams({
     logger.debug('Fetching client WIP data', {
       clientCode: client.clientCode,
       mode,
-      fiscalYear,
+      isAllTime,
+      fiscalYear: isAllTime ? null : fiscalYear,
       fiscalMonth: fiscalMonthParam,
       dateRange: { start: startDate.toISOString(), end: endDate.toISOString() },
     });
@@ -317,7 +324,8 @@ export const GET = secureRoute.queryWithParams({
       // Period information
       period: {
         mode,
-        fiscalYear,
+        isAllTime,
+        fiscalYear: isAllTime ? null : fiscalYear,
         fiscalMonth: fiscalMonthParam,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),

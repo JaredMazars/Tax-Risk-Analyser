@@ -73,6 +73,8 @@ export const GET = secureRoute.queryWithParams({
 
     // Determine fiscal year and date range
     const currentFY = getCurrentFiscalPeriod().fiscalYear;
+    // When fiscalYear is not provided in fiscal mode, treat as "all-time" (LTD)
+    const isAllTime = mode === 'fiscal' && !fiscalYearParam;
     const fiscalYear = fiscalYearParam ? parseInt(fiscalYearParam, 10) : currentFY;
     
     let asOfDate: Date;
@@ -80,8 +82,12 @@ export const GET = secureRoute.queryWithParams({
     if (mode === 'custom' && endDateParam) {
       // Custom date range - use end date as asOfDate
       asOfDate = endOfMonth(parseISO(endDateParam));
+    } else if (isAllTime) {
+      // All-time (LTD): use current date for aging snapshot
+      // This shows all current outstanding balances regardless of when they were created
+      asOfDate = new Date();
     } else {
-      // Fiscal year mode (default)
+      // Fiscal year mode with specific year
       const { end } = getFiscalYearRange(fiscalYear);
       
       // If fiscalMonth is provided, use end of that month as asOfDate
@@ -101,10 +107,11 @@ export const GET = secureRoute.queryWithParams({
     logger.debug('Fetching client debtors data', {
       clientCode: client.clientCode,
       mode,
-      fiscalYear,
+      isAllTime,
+      fiscalYear: isAllTime ? null : fiscalYear,
       fiscalMonth: fiscalMonthParam,
       asOfDate: asOfDate.toISOString(),
-      isCurrentFY: fiscalYear === currentFY,
+      isCurrentFY: !isAllTime && fiscalYear === currentFY,
     });
 
     // Call stored procedure
@@ -241,7 +248,8 @@ export const GET = secureRoute.queryWithParams({
       // Period information
       period: {
         mode,
-        fiscalYear,
+        isAllTime,
+        fiscalYear: isAllTime ? null : fiscalYear,
         fiscalMonth: fiscalMonthParam,
         asOfDate: asOfDate.toISOString(),
       },
