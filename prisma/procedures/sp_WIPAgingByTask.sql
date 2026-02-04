@@ -1,7 +1,11 @@
 -- ============================================================================
--- sp_WIPAgingByTask Stored Procedure
+-- sp_WIPAgingByTask Stored Procedure (v4.4 - Multi-Select Partner/Manager)
 -- WIP aging analysis by task with FIFO fee allocation
 -- ============================================================================
+--
+-- v4.4 FIX: Add support for comma-separated partner/manager codes
+--           Enables multi-select filtering for Country Management reports
+--           Uses STRING_SPLIT for comma-separated values
 --
 -- PURPOSE:
 -- Calculates WIP aging by task using FIFO (First-In, First-Out) methodology.
@@ -178,9 +182,15 @@ DECLARE @SQL nvarchar(max);
 DECLARE @Where nvarchar(max) = N'WHERE w.TranDate <= @pAsOfDate';
 
 -- Add filter conditions only for non-wildcard parameters
-IF @TaskPartner <> '*'
+-- Supports comma-separated list of codes for multi-select filtering
+IF @TaskPartner <> '*' AND CHARINDEX(',', @TaskPartner) > 0
+    SET @Where = @Where + N' AND w.TaskPartner IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@pTaskPartner, '',''))';
+ELSE IF @TaskPartner <> '*'
     SET @Where = @Where + N' AND w.TaskPartner = @pTaskPartner';
-IF @TaskManager <> '*'
+
+IF @TaskManager <> '*' AND CHARINDEX(',', @TaskManager) > 0
+    SET @Where = @Where + N' AND w.TaskManager IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@pTaskManager, '',''))';
+ELSE IF @TaskManager <> '*'
     SET @Where = @Where + N' AND w.TaskManager = @pTaskManager';
 IF @ClientCode <> '*'
     SET @Where = @Where + N' AND w.ClientCode = @pClientCode';

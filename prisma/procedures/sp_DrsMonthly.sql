@@ -1,7 +1,10 @@
 -- ============================================================================
--- DrsMonthly Stored Procedure (v2.2)
+-- DrsMonthly Stored Procedure (v2.3)
 -- Monthly DRS transaction aggregations for Overview report
 -- ============================================================================
+--
+-- v2.3: Support multiple biller codes (comma-separated) using STRING_SPLIT
+--       Enables multi-select filtering for Country Management reports
 --
 -- v2.2: Support multiple service line codes (comma-separated) using STRING_SPLIT
 --
@@ -74,8 +77,10 @@ SELECT
 FROM [dbo].[DrsTransactions] d
 WHERE d.TranDate < @p_DateFrom'
 
--- Add biller filter
-IF @BillerCode != '*'
+-- Add biller filter (supports comma-separated list for multi-select)
+IF @BillerCode != '*' AND CHARINDEX(',', @BillerCode) > 0
+    SET @sql = @sql + N' AND d.Biller IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_BillerCode, '',''))'
+ELSE IF @BillerCode != '*'
     SET @sql = @sql + N' AND d.Biller = @p_BillerCode'
 
 -- Add service line filter if specified (supports comma-separated list)
@@ -137,8 +142,10 @@ FROM [dbo].[DrsTransactions] d
 WHERE d.TranDate >= @p_DateFrom 
     AND d.TranDate <= @p_DateTo'
 
--- Add biller filter (sargable - enables index seek)
-IF @BillerCode != '*'
+-- Add biller filter (sargable - enables index seek, supports comma-separated list)
+IF @BillerCode != '*' AND CHARINDEX(',', @BillerCode) > 0
+    SET @sql = @sql + N' AND d.Biller IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_BillerCode, '',''))'
+ELSE IF @BillerCode != '*'
     SET @sql = @sql + N' AND d.Biller = @p_BillerCode'
 
 -- Add service line filter if specified (supports comma-separated list)

@@ -408,45 +408,6 @@ export interface WipMonthlyResult {
 }
 
 /**
- * DrsLTD stored procedure result
- * Client-level debtors aggregations with aging buckets
- */
-export interface DrsLTDResult {
-  GSClientID: string;
-  ClientCode: string;
-  ClientNameFull: string | null;
-  GroupCode: string;
-  GroupDesc: string;
-  ServLineCode: string;
-  ServLineDesc: string;
-  OfficeCode: string;
-  OfficeDesc: string;
-  Biller: string;
-  BillerName: string;
-  ClientPartner: string;
-  ClientPartnerName: string;
-  ClientManager: string;
-  ClientManagerName: string;
-  // LTD metrics
-  LTDInvoiced: number;
-  LTDCreditNotes: number;
-  LTDReceipts: number;
-  LTDJournals: number;
-  LTDWriteOffs: number;
-  BalDrs: number;
-  // Aging buckets
-  InvoiceCount: number;
-  AgingCurrent: number;
-  Aging31_60: number;
-  Aging61_90: number;
-  Aging91_120: number;
-  Aging120Plus: number;
-  // Payment metrics (v2)
-  AvgPaymentDaysPaid: number | null;  // Weighted avg days to pay for fully paid invoices
-  AvgDaysOutstanding: number;         // Weighted avg days outstanding for unpaid invoices
-}
-
-/**
  * DrsMonthly stored procedure result
  * Monthly debtors aggregations for Overview charts
  */
@@ -496,37 +457,6 @@ export interface RecoverabilityDataResult {
   CurrentPeriodBillings: number;
   // Prior period (30 days ago)
   PriorMonthBalance: number;
-}
-
-/**
- * sp_RecoverabilityMonthly stored procedure result (MONTHLY RECEIPTS DATA)
- * Per-client-serviceline monthly receipts with proper fiscal boundaries
- * 
- * @deprecated No longer used - Receipts now derived from sp_RecoverabilityData current period fields
- * Kept for backward compatibility only
- */
-export interface RecoverabilityMonthlyResult {
-  GSClientID: string;
-  ClientCode: string;
-  ClientNameFull: string | null;
-  GroupCode: string;
-  GroupDesc: string;
-  ServLineCode: string;
-  ServLineDesc: string;
-  // Service line mapping fields
-  MasterServiceLineCode: string;
-  MasterServiceLineName: string;
-  SubServlineGroupCode: string;
-  SubServlineGroupDesc: string;
-  // Monthly data
-  MonthEnd: Date;
-  MonthLabel: string;  // 'Sep', 'Oct', etc.
-  OpeningBalance: number;  // Cumulative before month start
-  Receipts: number;
-  Billings: number;
-  Variance: number;         // Receipts - OpeningBalance
-  RecoveryPercent: number;  // (Receipts / OpeningBalance) * 100
-  ClosingBalance: number;   // Opening + Billings - Receipts
 }
 
 // ============================================================================
@@ -652,30 +582,67 @@ export function mapWipMonthlyToMetrics(
   };
 }
 
+// ============================================================================
+// Country Management Summary SP Results
+// ============================================================================
+
 /**
- * Helper type to convert DrsLTD result to existing ClientDebtorData
+ * sp_ProfitabilitySummaryByPartner/Manager stored procedure result
+ * Pre-aggregated profitability metrics by partner or manager
  */
-export function mapDrsLTDToClientDebtor(row: DrsLTDResult): Partial<ClientDebtorData> {
-  return {
-    GSClientID: row.GSClientID,
-    clientCode: row.ClientCode,
-    clientNameFull: row.ClientNameFull,
-    groupCode: row.GroupCode,
-    groupDesc: row.GroupDesc,
-    servLineCode: row.ServLineCode,
-    serviceLineName: row.ServLineDesc,
-    totalBalance: row.BalDrs,
-    aging: {
-      current: row.AgingCurrent,
-      days31_60: row.Aging31_60,
-      days61_90: row.Aging61_90,
-      days91_120: row.Aging91_120,
-      days120Plus: row.Aging120Plus,
-    },
-    invoiceCount: row.InvoiceCount,
-    avgPaymentDaysOutstanding: row.AvgDaysOutstanding,
-    avgPaymentDaysPaid: row.AvgPaymentDaysPaid,
-  };
+export interface ProfitabilitySummaryResult {
+  // Identifier (PartnerCode or ManagerCode depending on SP used)
+  PartnerCode?: string;
+  ManagerCode?: string;
+  PartnerName?: string;
+  ManagerName?: string;
+  // Counts
+  TaskCount: number;
+  ClientCount: number;
+  // Opening balance
+  OpeningBalance: number;
+  // Period metrics
+  LTDTimeCharged: number;
+  LTDDisbCharged: number;
+  LTDFeesBilled: number;
+  LTDAdjustments: number;
+  LTDHours: number;
+  LTDCost: number;
+  // Calculated WIP values
+  BalWip: number;
+  NetWIP: number;
+  // Profitability
+  NetRevenue: number;
+  GrossProfit: number;
+  GPPercentage: number;
+}
+
+/**
+ * sp_WIPAgingSummaryByPartner/Manager stored procedure result
+ * Pre-aggregated WIP aging buckets by partner or manager
+ */
+export interface WIPAgingSummaryResult {
+  // Identifier (PartnerCode or ManagerCode depending on SP used)
+  PartnerCode?: string;
+  ManagerCode?: string;
+  PartnerName?: string;
+  ManagerName?: string;
+  // Counts
+  TaskCount: number;
+  ClientCount: number;
+  // Aging buckets
+  Curr: number;
+  Bal30: number;
+  Bal60: number;
+  Bal90: number;
+  Bal120: number;
+  Bal150: number;
+  Bal180: number;
+  // WIP totals
+  GrossWIP: number;
+  BalWIP: number;
+  NettWIP: number;
+  TotalProvision: number;
 }
 
 

@@ -28,52 +28,12 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
-import { RecoverabilityReportData, ClientDebtorData, MonthlyReceiptData, DrsLTDResult, DrsMonthlyResult } from '@/types/api';
+import { RecoverabilityReportData, ClientDebtorData, MonthlyReceiptData } from '@/types/api';
 import { format, startOfMonth, endOfMonth, parseISO, subMonths, addMonths } from 'date-fns';
 import { getCurrentFiscalPeriod, getFiscalYearRange, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';
 import type { AgingBuckets } from '@/lib/services/analytics/debtorAggregation';
-import { 
-  fetchRecoverabilityFromSP, 
-  executeDrsMonthly,
-  executeRecoverabilityData,
-} from '@/lib/services/reports/storedProcedureService';
+import { executeRecoverabilityData } from '@/lib/services/reports/storedProcedureService';
 import type { RecoverabilityDataResult } from '@/types/api';
-
-/**
- * Convert DrsLTDv2 SP result to ClientDebtorData format
- */
-function mapDrsLTDToClientDebtor(
-  row: DrsLTDResult,
-  monthlyReceipts: MonthlyReceiptData[]
-): ClientDebtorData {
-  return {
-    GSClientID: row.GSClientID,
-    clientCode: row.ClientCode,
-    clientNameFull: row.ClientNameFull,
-    groupCode: row.GroupCode,
-    groupDesc: row.GroupDesc,
-    servLineCode: row.ServLineCode,
-    serviceLineName: row.ServLineDesc,
-    masterServiceLineCode: '', // Will be populated separately
-    masterServiceLineName: '',
-    subServlineGroupCode: '',
-    subServlineGroupDesc: '',
-    totalBalance: row.BalDrs,
-    aging: {
-      current: row.AgingCurrent,
-      days31_60: row.Aging31_60,
-      days61_90: row.Aging61_90,
-      days91_120: row.Aging91_120,
-      days120Plus: row.Aging120Plus,
-    },
-    currentPeriodReceipts: row.LTDReceipts,
-    priorMonthBalance: 0, // Would need separate calculation
-    invoiceCount: row.InvoiceCount,
-    avgPaymentDaysOutstanding: row.AvgDaysOutstanding,
-    avgPaymentDaysPaid: row.AvgPaymentDaysPaid,
-    monthlyReceipts,
-  };
-}
 
 /**
  * Generate list of months for fiscal year (Sep-Aug)

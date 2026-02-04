@@ -1,7 +1,11 @@
 -- ============================================================================
--- Profitability Data Stored Procedure (v4.3 - All Filters Optimized)
+-- Profitability Data Stored Procedure (v4.4 - Multi-Select Partner/Manager)
 -- Full profitability metrics including Cost, Hours, and Adjustments
 -- ============================================================================
+--
+-- v4.4 FIX: Add support for comma-separated partner/manager codes
+--           Enables multi-select filtering for Country Management reports
+--           Uses STRING_SPLIT for comma-separated values
 --
 -- v4.3 FIX: Add GroupCode filter to Step 1 WIPTransactions aggregation
 --           Enables index seek for group filtering (was only in Step 2)
@@ -113,8 +117,16 @@ FROM [dbo].[WIPTransactions] w
 WHERE 1=1'
 
 -- Partner/Manager filter on WIPTransactions (transaction-level attribution)
-IF @PartnerCode != '*' SET @sql = @sql + N' AND w.TaskPartner = @p_PartnerCode'
-IF @ManagerCode != '*' SET @sql = @sql + N' AND w.TaskManager = @p_ManagerCode'
+-- Supports comma-separated list of codes for multi-select filtering
+IF @PartnerCode != '*' AND CHARINDEX(',', @PartnerCode) > 0
+    SET @sql = @sql + N' AND w.TaskPartner IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_PartnerCode, '',''))'
+ELSE IF @PartnerCode != '*'
+    SET @sql = @sql + N' AND w.TaskPartner = @p_PartnerCode'
+
+IF @ManagerCode != '*' AND CHARINDEX(',', @ManagerCode) > 0
+    SET @sql = @sql + N' AND w.TaskManager IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_ManagerCode, '',''))'
+ELSE IF @ManagerCode != '*'
+    SET @sql = @sql + N' AND w.TaskManager = @p_ManagerCode'
 
 -- ClientCode filter on WIPTransactions.ClientCode (NEW - enables index seek for client details)
 IF @ClientCode != '*' SET @sql = @sql + N' AND w.ClientCode = @p_ClientCode'

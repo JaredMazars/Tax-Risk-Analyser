@@ -1,7 +1,7 @@
 /**
  * Stored Procedure Service for My Reports
  * 
- * Provides wrapper functions to call WipLTD, WipMonthly, DrsLTD, and DrsMonthly
+ * Provides wrapper functions to call sp_WipMonthly, sp_DrsMonthly, and other
  * stored procedures with proper TypeScript typing.
  * 
  * These functions can be used as drop-in replacements for the existing
@@ -14,7 +14,6 @@ import { logger } from '@/lib/utils/logger';
 import type { 
   WipLTDResult, 
   WipMonthlyResult, 
-  DrsLTDResult, 
   DrsMonthlyResult,
   MonthlyMetrics 
 } from '@/types/api';
@@ -84,7 +83,7 @@ export interface WipMonthlyParams {
 }
 
 /**
- * Execute WipMonthly stored procedure
+ * Execute sp_WipMonthly stored procedure
  * Returns monthly WIP aggregations for Overview charts
  */
 export async function executeWipMonthly(params: WipMonthlyParams): Promise<WipMonthlyResult[]> {
@@ -92,7 +91,7 @@ export async function executeWipMonthly(params: WipMonthlyParams): Promise<WipMo
   
   try {
     const results = await prisma.$queryRaw<WipMonthlyResult[]>`
-      EXEC dbo.WipMonthly 
+      EXEC dbo.sp_WipMonthly 
         @PartnerCode = ${params.partnerCode ?? '*'},
         @ManagerCode = ${params.managerCode ?? '*'},
         @ServLineCode = ${params.servLineCode ?? '*'},
@@ -101,7 +100,7 @@ export async function executeWipMonthly(params: WipMonthlyParams): Promise<WipMo
         @IsCumulative = ${params.isCumulative !== false ? 1 : 0}
     `;
 
-    logger.debug('WipMonthly executed', {
+    logger.debug('sp_WipMonthly executed', {
       params: { ...params, dateFrom: params.dateFrom.toISOString(), dateTo: params.dateTo.toISOString() },
       resultCount: results.length,
       durationMs: Date.now() - startTime,
@@ -109,57 +108,7 @@ export async function executeWipMonthly(params: WipMonthlyParams): Promise<WipMo
 
     return results;
   } catch (error) {
-    logger.error('WipMonthly execution failed', { params, error });
-    throw error;
-  }
-}
-
-// ============================================================================
-// DrsLTDv2 - Client-level debtors aggregations for Recoverability
-// High-performance version with payment metrics
-// ============================================================================
-
-export interface DrsLTDParams {
-  servLineCode?: string;
-  groupCode?: string;
-  clientCode?: string;
-  billerCode: string;  // Required - filters by Biller
-  dateTo: Date;        // LTD up to this date (no dateFrom - always from inception)
-  asOfDate?: Date;     // For aging calculation (defaults to dateTo)
-}
-
-/**
- * Execute DrsLTDv2 stored procedure
- * Returns client-level debtors aggregations with aging buckets and payment metrics
- * 
- * New in v2:
- * - AvgPaymentDaysPaid: Weighted average days to pay for fully paid invoices
- * - Improved invoice matching logic
- * - Single-pass CTE architecture for better performance
- */
-export async function executeDrsLTD(params: DrsLTDParams): Promise<DrsLTDResult[]> {
-  const startTime = Date.now();
-  
-  try {
-    const results = await prisma.$queryRaw<DrsLTDResult[]>`
-      EXEC dbo.DrsLTDv2 
-        @ServLineCode = ${params.servLineCode ?? '*'},
-        @GroupCode = ${params.groupCode ?? '*'},
-        @ClientCode = ${params.clientCode ?? '*'},
-        @BillerCode = ${params.billerCode},
-        @DateTo = ${params.dateTo},
-        @AsOfDate = ${params.asOfDate ?? params.dateTo}
-    `;
-
-    logger.debug('DrsLTDv2 executed', {
-      params: { ...params, dateTo: params.dateTo.toISOString() },
-      resultCount: results.length,
-      durationMs: Date.now() - startTime,
-    });
-
-    return results;
-  } catch (error) {
-    logger.error('DrsLTDv2 execution failed', { params, error });
+    logger.error('sp_WipMonthly execution failed', { params, error });
     throw error;
   }
 }
@@ -177,7 +126,7 @@ export interface DrsMonthlyParams {
 }
 
 /**
- * Execute DrsMonthly stored procedure
+ * Execute sp_DrsMonthly stored procedure
  * Returns monthly debtors aggregations for Overview charts
  */
 export async function executeDrsMonthly(params: DrsMonthlyParams): Promise<DrsMonthlyResult[]> {
@@ -185,7 +134,7 @@ export async function executeDrsMonthly(params: DrsMonthlyParams): Promise<DrsMo
   
   try {
     const results = await prisma.$queryRaw<DrsMonthlyResult[]>`
-      EXEC dbo.DrsMonthly 
+      EXEC dbo.sp_DrsMonthly 
         @BillerCode = ${params.billerCode},
         @ServLineCode = ${params.servLineCode ?? '*'},
         @DateFrom = ${params.dateFrom},
@@ -193,7 +142,7 @@ export async function executeDrsMonthly(params: DrsMonthlyParams): Promise<DrsMo
         @IsCumulative = ${params.isCumulative !== false ? 1 : 0}
     `;
 
-    logger.debug('DrsMonthly executed', {
+    logger.debug('sp_DrsMonthly executed', {
       params: { ...params, dateFrom: params.dateFrom.toISOString(), dateTo: params.dateTo.toISOString() },
       resultCount: results.length,
       durationMs: Date.now() - startTime,
@@ -201,7 +150,7 @@ export async function executeDrsMonthly(params: DrsMonthlyParams): Promise<DrsMo
 
     return results;
   } catch (error) {
-    logger.error('DrsMonthly execution failed', { params, error });
+    logger.error('sp_DrsMonthly execution failed', { params, error });
     throw error;
   }
 }
@@ -403,22 +352,36 @@ export async function fetchProfitabilityFromSP(
 }
 
 /**
- * Fetch recoverability data using DrsLTDv2 stored procedure
+ * Fetch business-wide profitability data using sp_ProfitabilityData stored procedure
  * 
- * Note: DrsLTDv2 always fetches from inception (no dateFrom needed).
- * The dateTo parameter controls the LTD cutoff, and asOfDate controls aging calculation.
+ * Unlike fetchProfitabilityFromSP, this function returns ALL tasks business-wide
+ * with optional filtering by partner and/or manager codes.
+ * 
+ * @param dateFrom - Start date for the period
+ * @param dateTo - End date for the period
+ * @param partnerCodes - Optional array of partner codes to filter by (comma-separated to SP)
+ * @param managerCodes - Optional array of manager codes to filter by (comma-separated to SP)
  */
-export async function fetchRecoverabilityFromSP(
-  empCode: string,
+export async function fetchProfitabilityFromSPBusinessWide(
+  dateFrom: Date,
   dateTo: Date,
-  asOfDate?: Date,
-  servLineCode?: string
-): Promise<DrsLTDResult[]> {
-  return executeDrsLTD({
-    billerCode: empCode,
-    servLineCode,
+  partnerCodes?: string[],
+  managerCodes?: string[]
+): Promise<WipLTDResult[]> {
+  // Convert arrays to comma-separated strings for SP
+  // '*' means no filter (all data)
+  const partnerCode = partnerCodes && partnerCodes.length > 0 
+    ? partnerCodes.join(',') 
+    : '*';
+  const managerCode = managerCodes && managerCodes.length > 0 
+    ? managerCodes.join(',') 
+    : '*';
+
+  return executeProfitabilityData({
+    partnerCode,
+    managerCode,
+    dateFrom,
     dateTo,
-    asOfDate,
   });
 }
 
@@ -469,56 +432,6 @@ export async function executeRecoverabilityData(
     return results;
   } catch (error) {
     logger.error('sp_RecoverabilityData execution failed', { params, error });
-    throw error;
-  }
-}
-
-// ============================================================================
-// Monthly Receipts Data (PROPER FISCAL MONTH BOUNDARIES)
-// ============================================================================
-
-export interface RecoverabilityMonthlyParams {
-  billerCode: string;
-  dateFrom: Date;
-  dateTo: Date;
-  servLineCode?: string;
-}
-
-/**
- * Execute sp_RecoverabilityMonthly stored procedure
- * Returns per-client-serviceline monthly receipts with proper fiscal boundaries:
- * - Opening balance = cumulative before month start (ensures Nov closing = Dec opening)
- * - Receipts = negative transactions in month
- * - Billings = positive transactions in month
- * - Closing balance = Opening + Billings - Receipts
- */
-export async function executeRecoverabilityMonthly(
-  params: RecoverabilityMonthlyParams
-): Promise<import('@/types/api').RecoverabilityMonthlyResult[]> {
-  const startTime = Date.now();
-  
-  try {
-    const results = await prisma.$queryRaw<import('@/types/api').RecoverabilityMonthlyResult[]>`
-      EXEC dbo.sp_RecoverabilityMonthly
-        @BillerCode = ${params.billerCode},
-        @DateFrom = ${params.dateFrom},
-        @DateTo = ${params.dateTo},
-        @ServLineCode = ${params.servLineCode ?? '*'}
-    `;
-
-    logger.debug('sp_RecoverabilityMonthly executed', {
-      params: { 
-        ...params, 
-        dateFrom: params.dateFrom.toISOString(),
-        dateTo: params.dateTo.toISOString()
-      },
-      resultCount: results.length,
-      durationMs: Date.now() - startTime,
-    });
-
-    return results;
-  } catch (error) {
-    logger.error('sp_RecoverabilityMonthly execution failed', { params, error });
     throw error;
   }
 }
@@ -689,6 +602,210 @@ export async function executeGroupGraphData(
     return results;
   } catch (error) {
     logger.error('sp_GroupGraphData execution failed', { params, error });
+    throw error;
+  }
+}
+
+// ============================================================================
+// Country Management Summary SPs
+// Pre-aggregated data for executive dashboards
+// ============================================================================
+
+export interface ProfitabilitySummaryParams {
+  servLineCode?: string;
+  partnerCodes?: string[];
+  managerCodes?: string[];
+  dateFrom: Date;
+  dateTo: Date;
+}
+
+export interface WIPAgingSummaryParams {
+  servLineCode?: string;
+  partnerCodes?: string[];
+  managerCodes?: string[];
+  asOfDate: Date;
+}
+
+/**
+ * Execute sp_ProfitabilitySummaryByPartner stored procedure
+ * Returns partner-level profitability summary (~50-100 rows)
+ * Uses extended timeout (120s) for business-wide queries
+ */
+export async function executeProfitabilitySummaryByPartner(
+  params: ProfitabilitySummaryParams
+): Promise<import('@/types/api').ProfitabilitySummaryResult[]> {
+  const startTime = Date.now();
+  
+  // Convert arrays to comma-separated strings
+  const partnerCode = params.partnerCodes && params.partnerCodes.length > 0 
+    ? params.partnerCodes.join(',') 
+    : '*';
+  
+  try {
+    // Use transaction with extended timeout for business-wide queries
+    const results = await prisma.$transaction(
+      async (tx) => {
+        return tx.$queryRaw<import('@/types/api').ProfitabilitySummaryResult[]>`
+          EXEC dbo.sp_ProfitabilitySummaryByPartner
+            @ServLineCode = ${params.servLineCode ?? '*'},
+            @PartnerCode = ${partnerCode},
+            @DateFrom = ${params.dateFrom},
+            @DateTo = ${params.dateTo}
+        `;
+      },
+      { timeout: 120000 } // 2 minutes timeout
+    );
+
+    logger.debug('sp_ProfitabilitySummaryByPartner executed', {
+      params: { 
+        ...params, 
+        dateFrom: params.dateFrom.toISOString(),
+        dateTo: params.dateTo.toISOString()
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_ProfitabilitySummaryByPartner execution failed', { params, error });
+    throw error;
+  }
+}
+
+/**
+ * Execute sp_ProfitabilitySummaryByManager stored procedure
+ * Returns manager-level profitability summary (~200-300 rows)
+ * Uses extended timeout (120s) for business-wide queries
+ */
+export async function executeProfitabilitySummaryByManager(
+  params: ProfitabilitySummaryParams
+): Promise<import('@/types/api').ProfitabilitySummaryResult[]> {
+  const startTime = Date.now();
+  
+  // Convert arrays to comma-separated strings
+  const managerCode = params.managerCodes && params.managerCodes.length > 0 
+    ? params.managerCodes.join(',') 
+    : '*';
+  
+  try {
+    // Use transaction with extended timeout for business-wide queries
+    const results = await prisma.$transaction(
+      async (tx) => {
+        return tx.$queryRaw<import('@/types/api').ProfitabilitySummaryResult[]>`
+          EXEC dbo.sp_ProfitabilitySummaryByManager
+            @ServLineCode = ${params.servLineCode ?? '*'},
+            @ManagerCode = ${managerCode},
+            @DateFrom = ${params.dateFrom},
+            @DateTo = ${params.dateTo}
+        `;
+      },
+      { timeout: 120000 } // 2 minutes timeout
+    );
+
+    logger.debug('sp_ProfitabilitySummaryByManager executed', {
+      params: { 
+        ...params, 
+        dateFrom: params.dateFrom.toISOString(),
+        dateTo: params.dateTo.toISOString()
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_ProfitabilitySummaryByManager execution failed', { params, error });
+    throw error;
+  }
+}
+
+/**
+ * Execute sp_WIPAgingSummaryByPartner stored procedure
+ * Returns partner-level WIP aging summary (~50-100 rows)
+ * Uses extended timeout (120s) for business-wide queries
+ */
+export async function executeWIPAgingSummaryByPartner(
+  params: WIPAgingSummaryParams
+): Promise<import('@/types/api').WIPAgingSummaryResult[]> {
+  const startTime = Date.now();
+  
+  // Convert arrays to comma-separated strings
+  const partnerCode = params.partnerCodes && params.partnerCodes.length > 0 
+    ? params.partnerCodes.join(',') 
+    : '*';
+  
+  try {
+    // Use transaction with extended timeout for business-wide queries
+    const results = await prisma.$transaction(
+      async (tx) => {
+        return tx.$queryRaw<import('@/types/api').WIPAgingSummaryResult[]>`
+          EXEC dbo.sp_WIPAgingSummaryByPartner
+            @ServLineCode = ${params.servLineCode ?? '*'},
+            @PartnerCode = ${partnerCode},
+            @AsOfDate = ${params.asOfDate}
+        `;
+      },
+      { timeout: 120000 } // 2 minutes timeout
+    );
+
+    logger.debug('sp_WIPAgingSummaryByPartner executed', {
+      params: { 
+        ...params, 
+        asOfDate: params.asOfDate.toISOString()
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_WIPAgingSummaryByPartner execution failed', { params, error });
+    throw error;
+  }
+}
+
+/**
+ * Execute sp_WIPAgingSummaryByManager stored procedure
+ * Returns manager-level WIP aging summary (~200-300 rows)
+ * Uses extended timeout (120s) for business-wide queries
+ */
+export async function executeWIPAgingSummaryByManager(
+  params: WIPAgingSummaryParams
+): Promise<import('@/types/api').WIPAgingSummaryResult[]> {
+  const startTime = Date.now();
+  
+  // Convert arrays to comma-separated strings
+  const managerCode = params.managerCodes && params.managerCodes.length > 0 
+    ? params.managerCodes.join(',') 
+    : '*';
+  
+  try {
+    // Use transaction with extended timeout for business-wide queries
+    const results = await prisma.$transaction(
+      async (tx) => {
+        return tx.$queryRaw<import('@/types/api').WIPAgingSummaryResult[]>`
+          EXEC dbo.sp_WIPAgingSummaryByManager
+            @ServLineCode = ${params.servLineCode ?? '*'},
+            @ManagerCode = ${managerCode},
+            @AsOfDate = ${params.asOfDate}
+        `;
+      },
+      { timeout: 120000 } // 2 minutes timeout
+    );
+
+    logger.debug('sp_WIPAgingSummaryByManager executed', {
+      params: { 
+        ...params, 
+        asOfDate: params.asOfDate.toISOString()
+      },
+      resultCount: results.length,
+      durationMs: Date.now() - startTime,
+    });
+
+    return results;
+  } catch (error) {
+    logger.error('sp_WIPAgingSummaryByManager execution failed', { params, error });
     throw error;
   }
 }

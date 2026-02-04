@@ -1,7 +1,10 @@
 -- ============================================================================
--- sp_RecoverabilityData Stored Procedure (v2.0 - Optimized)
+-- sp_RecoverabilityData Stored Procedure (v2.1 - Multi-Select Biller)
 -- Combined aging and current period data by client-serviceline
 -- ============================================================================
+--
+-- v2.1 FIX: Add support for comma-separated biller codes
+--           Enables multi-select filtering for Country Management reports
 --
 -- PURPOSE:
 -- Single optimized stored procedure that returns per-client-serviceline
@@ -94,7 +97,11 @@ LEFT JOIN ServiceLineExternal sle ON d.ServLineCode = sle.ServLineCode
 WHERE d.TranDate <= @p_AsOfDate'
 
 -- Add sargable predicates only when filter is not wildcard
-IF @BillerCode != '*' SET @sql = @sql + N' AND d.Biller = @p_BillerCode'
+-- Biller filter supports comma-separated list for multi-select
+IF @BillerCode != '*' AND CHARINDEX(',', @BillerCode) > 0 
+    SET @sql = @sql + N' AND d.Biller IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_BillerCode, '',''))'
+ELSE IF @BillerCode != '*' 
+    SET @sql = @sql + N' AND d.Biller = @p_BillerCode'
 IF @ClientCode != '*' SET @sql = @sql + N' AND d.ClientCode = @p_ClientCode'
 IF @ServLineCode != '*' SET @sql = @sql + N' AND d.ServLineCode = @p_ServLineCode'
 

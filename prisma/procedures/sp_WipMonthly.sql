@@ -1,7 +1,10 @@
 -- ============================================================================
--- WipMonthly Stored Procedure (v2.2)
+-- WipMonthly Stored Procedure (v2.3)
 -- Monthly WIP transaction aggregations for Overview report
 -- ============================================================================
+--
+-- v2.3: Support multiple partner/manager codes (comma-separated) using STRING_SPLIT
+--       Enables multi-select filtering for Country Management reports
 --
 -- v2.2: Support multiple service line codes (comma-separated) using STRING_SPLIT
 --
@@ -72,9 +75,13 @@ SELECT
 FROM [dbo].[WIPTransactions] w
 WHERE w.TranDate < @p_DateFrom'
 
--- Add partner or manager filter
-IF @PartnerCode != '*'
+-- Add partner or manager filter (supports comma-separated list for multi-select)
+IF @PartnerCode != '*' AND CHARINDEX(',', @PartnerCode) > 0
+    SET @sql = @sql + N' AND w.TaskPartner IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_PartnerCode, '',''))'
+ELSE IF @PartnerCode != '*'
     SET @sql = @sql + N' AND w.TaskPartner = @p_PartnerCode'
+ELSE IF @ManagerCode != '*' AND CHARINDEX(',', @ManagerCode) > 0
+    SET @sql = @sql + N' AND w.TaskManager IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_ManagerCode, '',''))'
 ELSE IF @ManagerCode != '*'
     SET @sql = @sql + N' AND w.TaskManager = @p_ManagerCode'
 
@@ -135,9 +142,13 @@ FROM [dbo].[WIPTransactions] w
 WHERE w.TranDate >= @p_DateFrom 
     AND w.TranDate <= @p_DateTo'
 
--- Add partner or manager filter (sargable - enables index seek)
-IF @PartnerCode != '*'
+-- Add partner or manager filter (sargable - enables index seek, supports comma-separated list)
+IF @PartnerCode != '*' AND CHARINDEX(',', @PartnerCode) > 0
+    SET @sql = @sql + N' AND w.TaskPartner IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_PartnerCode, '',''))'
+ELSE IF @PartnerCode != '*'
     SET @sql = @sql + N' AND w.TaskPartner = @p_PartnerCode'
+ELSE IF @ManagerCode != '*' AND CHARINDEX(',', @ManagerCode) > 0
+    SET @sql = @sql + N' AND w.TaskManager IN (SELECT LTRIM(RTRIM(value)) FROM STRING_SPLIT(@p_ManagerCode, '',''))'
 ELSE IF @ManagerCode != '*'
     SET @sql = @sql + N' AND w.TaskManager = @p_ManagerCode'
 

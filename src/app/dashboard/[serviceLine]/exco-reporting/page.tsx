@@ -11,6 +11,7 @@ import {
   Target,
   ShieldCheck,
   ArrowRight,
+  BarChart3,
 } from 'lucide-react';
 import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
@@ -18,6 +19,14 @@ import { ServiceLine } from '@/types';
 import { GRADIENTS } from '@/lib/design-system/gradients';
 
 const sections = [
+  {
+    id: 'performance-reports',
+    name: 'Performance Reports',
+    description: 'Business-wide profitability, WIP aging, recoverability, and overview metrics with partner/manager filtering',
+    icon: BarChart3,
+    reportCount: 4,
+    highlight: true, // Feature highlight for new section
+  },
   {
     id: 'financial-analysis',
     name: 'Financial Analysis',
@@ -151,8 +160,15 @@ export default function ExcoReportingPage() {
                       <p className="text-xs text-forvis-gray-600 mb-3 line-clamp-2">
                         {section.description}
                       </p>
-                      <div className="inline-flex items-center px-2 py-1 rounded-full bg-forvis-blue-100 text-forvis-blue-700">
-                        <span className="text-xs font-medium">{section.reportCount} {section.reportCount === 1 ? 'Report' : 'Reports'}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="inline-flex items-center px-2 py-1 rounded-full bg-forvis-blue-100 text-forvis-blue-700">
+                          <span className="text-xs font-medium">{section.reportCount} {section.reportCount === 1 ? 'Report' : 'Reports'}</span>
+                        </div>
+                        {'highlight' in section && section.highlight && (
+                          <div className="inline-flex items-center px-2 py-1 rounded-full bg-forvis-success-100 text-forvis-success-700 border border-forvis-success-200">
+                            <span className="text-xs font-medium">New</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
