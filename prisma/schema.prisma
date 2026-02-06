@@ -15,7 +15,7 @@ model AcceptanceAnswer {
   answer                   String?                  @db.NVarChar(Max)
   comment                  String?                  @db.NVarChar(Max)
   createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
   ClientAcceptanceResponse ClientAcceptanceResponse @relation(fields: [responseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_EngagementResponse")
   AcceptanceQuestion       AcceptanceQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcceptanceAnswer_Question")
 
@@ -54,7 +54,7 @@ model AcceptanceQuestion {
   riskWeight             Float                    @default(1.0)
   highRiskAnswers        String?                  @db.NVarChar(500)
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
   AcceptanceAnswer       AcceptanceAnswer[]
   ClientAcceptanceAnswer ClientAcceptanceAnswer[]
 
@@ -525,7 +525,7 @@ model ClientAcceptance {
   validUntil             DateTime?
   lastReviewedAt         DateTime?
   createdAt              DateTime                 @default(now(), map: "DF_ClientAcceptance_createdAt")
-  updatedAt              DateTime                 @default(now(), map: "DF_ClientAcceptance_updatedAt")
+  updatedAt              DateTime                 @updatedAt
   userId                 String?
   researchData           String?                  @db.NVarChar(Max)
   researchedAt           DateTime?
@@ -554,7 +554,7 @@ model ClientAcceptanceAnswer {
   answer             String?            @db.NVarChar(Max)
   comment            String?            @db.NVarChar(Max)
   createdAt          DateTime           @default(now(), map: "DF_ClientAcceptanceAnswer_createdAt")
-  updatedAt          DateTime           @default(now(), map: "DF_ClientAcceptanceAnswer_updatedAt")
+  updatedAt          DateTime           @updatedAt
   ClientAcceptance   ClientAcceptance   @relation(fields: [clientAcceptanceId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceAnswer_ClientAcceptance")
   AcceptanceQuestion AcceptanceQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ClientAcceptanceAnswer_Question")
 
@@ -575,7 +575,7 @@ model ClientAcceptanceResponse {
   reviewedBy         String?              @db.NVarChar(200)
   reviewedAt         DateTime?
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
   AcceptanceAnswer   AcceptanceAnswer[]
   AcceptanceDocument AcceptanceDocument[]
   Client             Client               @relation(fields: [clientId], references: [id], onUpdate: NoAction, map: "FK_ClientAcceptanceResponse_Client")
@@ -2052,7 +2052,7 @@ model VaultDocument {
   archivedAt            DateTime?
   archivedBy            String?
   createdAt             DateTime               @default(now(), map: "DF__VaultDocu__creat__74B941B4")
-  updatedAt             DateTime               @default(now(), map: "DF__VaultDocu__updat__75AD65ED")
+  updatedAt             DateTime               @updatedAt
   documentVersion       String?                @db.NVarChar(50)
   Approval              Approval?              @relation(fields: [approvalId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_VaultDocument_Approval")
   VaultDocumentCategory VaultDocumentCategory  @relation(fields: [categoryId], references: [id], onUpdate: NoAction, map: "FK_VaultDocument_Category")
@@ -2083,7 +2083,7 @@ model VaultDocumentCategory {
   active            Boolean            @default(true, map: "DF__VaultDocu__activ__6D181FEC")
   sortOrder         Int                @default(0, map: "DF__VaultDocu__sortO__6E0C4425")
   createdAt         DateTime           @default(now(), map: "DF__VaultDocu__creat__6F00685E")
-  updatedAt         DateTime           @default(now(), map: "DF__VaultDocu__updat__6FF48C97")
+  updatedAt         DateTime           @updatedAt
   CategoryApprover  CategoryApprover[]
   VaultDocument     VaultDocument[]
   VaultDocumentType VaultDocumentType? @relation(fields: [documentType], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "FK_VaultDocumentCategory_DocumentType")
@@ -2103,7 +2103,7 @@ model VaultDocumentType {
   active                Boolean                 @default(true, map: "DF__VaultDocu__activ__06D7F1EF")
   sortOrder             Int                     @default(0, map: "DF__VaultDocu__sortO__07CC1628")
   createdAt             DateTime                @default(now(), map: "DF__VaultDocu__creat__08C03A61")
-  updatedAt             DateTime                @default(now(), map: "DF__VaultDocu__updat__09B45E9A")
+  updatedAt             DateTime                @updatedAt
   VaultDocument         VaultDocument[]
   VaultDocumentCategory VaultDocumentCategory[]
 

@@ -161,4 +161,4 @@ const quarters = await getFiscalPeriods({ fiscalYear: 2024, groupBy: 'quarter' }
 - `dbo.GetFiscalMonth(date)` - Returns fiscal month 1-12 (1=Sep, 12=Aug)
 - `dbo.GetFiscalPeriodKey(date)` - Returns period key for joins
 
-**Documentation:** See `docs/FISCAL_PERIOD_USAGE.md` for complete guide
+**Documentation:** See `docs/guides/FISCAL_PERIOD_USAGE.md` for complete guide

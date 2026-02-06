@@ -24,7 +24,7 @@ The Forvis Mazars color system is designed to convey professionalism, trustworth
 - ✅ Maintain brand identity
 - ✅ Support clear visual hierarchy
 
-**Visual Reference:** See `docs/color-reference.html` for interactive color swatches and examples.
+**Visual Reference:** See `docs/design-system/color-reference.html` for interactive color swatches and examples.
 
 ## Forvis Color Palette
 

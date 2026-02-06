@@ -555,33 +555,6 @@ export interface WIPAgingSPResult {
   NettWip: number;
 }
 
-/**
- * Helper type to convert SP result to existing MonthlyMetrics
- * NetRevenue formula matches sp_ProfitabilityData: T + ADJ + Provisions
- */
-export function mapWipMonthlyToMetrics(
-  wipRow: WipMonthlyResult,
-  drsRow: DrsMonthlyResult | null
-): Partial<MonthlyMetrics> {
-  const netRevenue = wipRow.LTDTime + wipRow.LTDAdj + wipRow.LTDProvision;
-  const grossProfit = netRevenue - wipRow.LTDCost;
-  const writeoffAmount = wipRow.LTDNegativeAdj + wipRow.LTDProvision;
-  const writeoffPercentage = wipRow.LTDTime !== 0 ? (writeoffAmount / wipRow.LTDTime) * 100 : 0;
-
-  return {
-    month: wipRow.Month.toISOString().slice(0, 7), // 'YYYY-MM'
-    netRevenue,
-    grossProfit,
-    writeoffPercentage,
-    negativeAdj: wipRow.LTDNegativeAdj,
-    provisions: wipRow.LTDProvision,
-    grossTime: wipRow.LTDTime,
-    wipBalance: wipRow.BalWip,
-    collections: drsRow?.Collections ?? 0,
-    debtorsBalance: drsRow?.BalDrs ?? 0,
-  };
-}
-
 // ============================================================================
 // Country Management Summary SP Results
 // ============================================================================
@@ -644,10 +617,6 @@ export interface WIPAgingSummaryResult {
   NettWIP: number;
   TotalProvision: number;
 }
-
-
-
-
 
 
 

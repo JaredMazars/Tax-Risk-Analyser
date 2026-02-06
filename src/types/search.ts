@@ -79,5 +79,3 @@ export interface SearchResponse {
   query: string;
   sources: ('internal' | 'external')[];
 }
-
-

@@ -100,5 +100,3 @@ export interface EmailSendResult {
   messageId?: string;
   error?: string;
 }
-
-

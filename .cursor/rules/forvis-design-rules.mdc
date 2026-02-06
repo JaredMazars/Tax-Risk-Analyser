@@ -188,7 +188,7 @@ style={{ background: 'linear-gradient(135deg, #B8546E 0%, #872F48 50%, #581E2F 1
 
 ## 3. Semantic & Data Visualization Colors
 
-**Visual Reference:** See [`docs/color-reference.html`](../docs/color-reference.html) for interactive examples and complete palette visualization.
+**Visual Reference:** See [`docs/design-system/color-reference.html`](../docs/design-system/color-reference.html) for interactive examples and complete palette visualization.
 
 ### Semantic Status Colors
 

@@ -12,10 +12,6 @@ export enum TaskStage {
   ARCHIVED = 'ARCHIVED',
 }
 
-export type TaskStageType = TaskStage;
-
-
-
 
 
 

@@ -36,4 +36,3 @@ declare module 'jspdf-autotable' {
 
   export default function autoTable(doc: jsPDF, options: UserOptions): void;
 }
-

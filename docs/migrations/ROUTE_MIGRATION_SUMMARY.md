@@ -15,7 +15,7 @@ Successfully migrated route review checklist from single 3,000-line file (`ROUTE
 
 ### Master Files
 - `ROUTE_REVIEW_INDEX.md` - Central dashboard with progress tracking
-- `docs/ROUTE_REVIEW_STANDARDS.md` - Shared review checklists and patterns
+- `docs/route-reviews/ROUTE_REVIEW_STANDARDS.md` - Shared review checklists and patterns
 
 ### Domain Files (in `docs/route-reviews/`)
 1. `AUTH_ROUTES.md` - Authentication & session management (6 routes)
@@ -168,6 +168,6 @@ Original checklist archived at:
 ## References
 
 - Master Index: `/ROUTE_REVIEW_INDEX.md`
-- Review Standards: `/docs/ROUTE_REVIEW_STANDARDS.md`
+- Review Standards: `/docs/route-reviews/ROUTE_REVIEW_STANDARDS.md`
 - Domain Files: `/docs/route-reviews/*.md`
-- Migration Guide: `/docs/MIGRATION_GUIDE_SECURE_ROUTE.md`
+- Migration Guide: `/docs/migrations/MIGRATION_GUIDE_SECURE_ROUTE.md`

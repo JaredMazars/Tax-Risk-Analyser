@@ -286,7 +286,7 @@ Documentation lives in `docs/design-system/`. Update relevant files when:
 
 ### External Resources
 
-- **Color Reference**: `docs/color-reference.html` (visual palette)
+- **Color Reference**: `docs/design-system/color-reference.html` (visual palette)
 - **Tailwind Config**: `tailwind.config.ts` (color definitions)
 - **Route Review**: `/docs/route-reviews/` (API route standards)
 

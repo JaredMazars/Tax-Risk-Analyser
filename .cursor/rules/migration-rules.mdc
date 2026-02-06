@@ -402,7 +402,7 @@ npx prisma migrate status
 
 ### Example: WIP Indexes Migration
 
-**Reference:** `/docs/APPLY_WIP_MIGRATION_MANUALLY.md`
+**Reference:** `/docs/migrations/APPLY_WIP_MIGRATION_MANUALLY.md`
 
 ```bash
 # Migration timed out via Prisma CLI
@@ -1076,7 +1076,7 @@ ALTER INDEX idx_name ON TableName REBUILD;
 UPDATE STATISTICS TableName WITH FULLSCAN;
 ```
 
-**Reference:** `/docs/WIP_INDEX_MAINTENANCE.md`
+**Reference:** `/docs/optimization/WIP_INDEX_MAINTENANCE.md`
 
 ---
 
@@ -1118,7 +1118,7 @@ Create `README.md` in migration folder:
 
 **Examples:**
 - `/prisma/migrations/20260123063454_replace_simple_with_covering_wip_indexes/README.md`
-- `/docs/APPLY_WIP_MIGRATION_MANUALLY.md`
+- `/docs/migrations/APPLY_WIP_MIGRATION_MANUALLY.md`
 
 ---
 
@@ -1167,9 +1167,9 @@ npx prisma studio                       # Browse database
 
 ## Related Documentation
 
-- **Manual Migration Guide:** `/docs/APPLY_WIP_MIGRATION_MANUALLY.md`
-- **Index Maintenance:** `/docs/WIP_INDEX_MAINTENANCE.md`
-- **Query Optimization:** `/docs/WIP_QUERY_OPTIMIZATION_SUMMARY.md`
+- **Manual Migration Guide:** `/docs/migrations/APPLY_WIP_MIGRATION_MANUALLY.md`
+- **Index Maintenance:** `/docs/optimization/WIP_INDEX_MAINTENANCE.md`
+- **Query Optimization:** `/docs/optimization/WIP_QUERY_OPTIMIZATION_SUMMARY.md`
 - **Migration Examples:** `/prisma/migrations/*/README.md`
 - **Prisma Docs:** https://www.prisma.io/docs/guides/migrate/developing-with-prisma-migrate
 

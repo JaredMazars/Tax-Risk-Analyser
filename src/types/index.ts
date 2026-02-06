@@ -347,7 +347,7 @@ export interface TaskTeam {
   clientName?: string | null;
   clientCode?: string | null;
   // Allocations for this team member (from allocation API)
-  allocations?: any[];
+  allocations?: AllocationPeriod[];
   // Employee ID (for non-client allocation planning)
   employeeId?: number;
   // Indicates if the user has an account (false for pending accounts)
@@ -753,6 +753,9 @@ export * from './task-stages';
 // Re-export analytics types
 export * from './analytics';
 
+// Re-export branded ID types
+export * from './branded';
+
 /**
  * Tax Adjustment Model
  * Centralized type definition for TaxAdjustment to prevent duplication
@@ -810,18 +813,6 @@ export interface AdjustmentDocument {
   createdAt: Date;
   updatedAt: Date;
 }
-
-// Extended types with employee names (enriched via joins)
-
-/**
- * Client with enriched employee names (DEPRECATED)
- * The base Client interface now includes employee name fields.
- * This type is kept for backwards compatibility but is now equivalent to Client.
- * 
- * @deprecated Use Client interface directly - it now includes enriched employee names
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ClientWithEmployees extends Client {}
 
 /**
  * DrsTransactions already has employee names from external system

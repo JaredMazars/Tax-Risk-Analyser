@@ -106,5 +106,3 @@ export interface SendMessageData {
   taskId?: number;
   actionUrl?: string;
 }
-
-

@@ -341,4 +341,3 @@ export interface ReviewNotePermissions {
   canAddComment: boolean;
   canAddAttachment: boolean;
 }
-

@@ -4,29 +4,14 @@
  * Centralized role hierarchy logic for the two-tier security model:
  * 1. System Level (User.role) - SYSTEM_ADMIN, USER
  * 2. Service Line Level (ServiceLineUser.role and TaskTeam.role) - ADMINISTRATOR, PARTNER, MANAGER, SUPERVISOR, USER, VIEWER
+ * 
+ * Enums are defined once in @/types/index.ts and re-exported here for convenience.
  */
 
-/**
- * System Roles - User.role
- * ONLY these two roles should exist at the system level
- */
-export enum SystemRole {
-  SYSTEM_ADMIN = 'SYSTEM_ADMIN', // Full system access, bypasses all checks
-  USER = 'USER',                  // Regular user, requires service line assignments
-}
+import { SystemRole, ServiceLineRole } from '@/types';
 
-/**
- * Service Line Roles - ServiceLineUser.role and TaskTeam.role
- * Used to control access within a service line and on task teams
- */
-export enum ServiceLineRole {
-  ADMINISTRATOR = 'ADMINISTRATOR', // Service line administrator (highest)
-  PARTNER = 'PARTNER',             // Partner level (can approve letters)
-  MANAGER = 'MANAGER',             // Manager level
-  SUPERVISOR = 'SUPERVISOR',       // Supervisor level
-  USER = 'USER',                   // Staff level
-  VIEWER = 'VIEWER',               // View-only access (lowest)
-}
+// Re-export enums so existing consumers of roleHierarchy don't break
+export { SystemRole, ServiceLineRole };
 
 /**
  * Service Line Role Hierarchy

@@ -261,7 +261,7 @@ After changing or adding files, verify:
 - ✅ Static imports only (no `await import()` except AI/ML)
 - ✅ Correct import paths (no stale imports)
 
-**Full Route Review:** See `/ROUTE_REVIEW_INDEX.md` for route review dashboard. Detailed review standards in `/docs/ROUTE_REVIEW_STANDARDS.md`. Domain-specific reviews in `/docs/route-reviews/*.md`.
+**Full Route Review:** See `/ROUTE_REVIEW_INDEX.md` for route review dashboard. Detailed review standards in `/docs/route-reviews/ROUTE_REVIEW_STANDARDS.md`. Domain-specific reviews in `/docs/route-reviews/*.md`.
 
 ## Performance (REQUIRED)
 
