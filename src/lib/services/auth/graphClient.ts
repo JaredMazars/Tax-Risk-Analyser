@@ -1,8 +1,18 @@
 import { Client } from '@microsoft/microsoft-graph-client';
 import { ClientSecretCredential } from '@azure/identity';
 import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
+import { logger } from '@/lib/utils/logger';
 
-// Ensure required environment variables are configured
+/**
+ * Sanitize a string for safe use in OData filter expressions.
+ * Escapes single quotes (OData string delimiter) to prevent OData injection.
+ * Also strips control characters that could alter query semantics.
+ */
+function sanitizeODataValue(value: string): string {
+  return value
+    .replace(/'/g, "''")          // Escape single quotes (OData standard)
+    .replace(/[\x00-\x1f\x7f]/g, ''); // Strip control characters
+}
 
 /**
  * Create Microsoft Graph client for server-side operations
@@ -25,6 +35,7 @@ function createGraphClient(): Client | null {
 
     return Client.initWithMiddleware({ authProvider });
   } catch (error) {
+    logger.error('Failed to create Microsoft Graph client', { error });
     return null;
   }
 }
@@ -62,16 +73,20 @@ export async function searchADUsers(query: string, limit: number = 20): Promise<
   }
 
   try {
+    // Sanitize query to prevent OData injection
+    const sanitizedQuery = sanitizeODataValue(query);
+
     // Search users by displayName or userPrincipalName
     const response = await client
       .api('/users')
-      .filter(`startswith(displayName,'${query}') or startswith(userPrincipalName,'${query}') or startswith(mail,'${query}')`)
+      .filter(`startswith(displayName,'${sanitizedQuery}') or startswith(userPrincipalName,'${sanitizedQuery}') or startswith(mail,'${sanitizedQuery}')`)
       .select('id,userPrincipalName,displayName,mail,jobTitle,department,officeLocation,mobilePhone,businessPhones,city,country,companyName,employeeId,employeeType,givenName,surname')
       .top(limit)
       .get();
 
     return response.value || [];
   } catch (error) {
+    logger.error('Failed to search Active Directory users', { error });
     throw new Error('Failed to search Active Directory users');
   }
 }
@@ -96,6 +111,7 @@ export async function getADUser(userIdOrEmail: string): Promise<GraphUser | null
 
     return user;
   } catch (error) {
+    logger.error('Failed to get AD user', { userIdOrEmail, error });
     return null;
   }
 }
@@ -122,12 +138,9 @@ export async function listADUsers(limit: number = 50): Promise<GraphUser[]> {
 
     return response.value || [];
   } catch (error) {
+    logger.error('Failed to list Active Directory users', { error });
     throw new Error('Failed to list Active Directory users');
   }
 }
-
-
-
-
 
 

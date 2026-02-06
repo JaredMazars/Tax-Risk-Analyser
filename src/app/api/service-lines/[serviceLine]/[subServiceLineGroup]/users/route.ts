@@ -4,7 +4,8 @@ import { getUserServiceLines } from '@/lib/services/service-lines/serviceLineSer
 import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { mapEmployeeCategoryToRole } from '@/lib/utils/serviceLineUtils';
-import { NON_CLIENT_EVENT_LABELS, NonClientEventType } from '@/types';
+import { NonClientEventType } from '@/types';
+import { NON_CLIENT_EVENT_LABELS } from '@/constants/nonClientEvents';
 import { mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 

@@ -2,7 +2,8 @@
 
 import { Users, Building2, Calendar, List, X, Globe } from 'lucide-react';
 import { MultiSelect } from '@/components/ui';
-import { NonClientEventType, NON_CLIENT_EVENT_CONFIG } from '@/types';
+import { NonClientEventType } from '@/types';
+import { NON_CLIENT_EVENT_CONFIG } from '@/constants/nonClientEvents';
 import { useGlobalEmployeePlannerFilters } from '@/hooks/planning/useGlobalEmployeePlannerFilters';
 import { useGlobalClientPlannerFilters } from '@/hooks/planning/useGlobalClientPlannerFilters';
 

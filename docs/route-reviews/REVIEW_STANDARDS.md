@@ -1,6 +1,6 @@
 # Code Review Standards
 
-**Version**: 3.0
+**Version**: 3.1
 **Last Updated**: February 6, 2026
 
 Comprehensive review checklists for all layers of the application. Apply the relevant sections based on what you are reviewing.
@@ -18,8 +18,10 @@ Comprehensive review checklists for all layers of the application. Apply the rel
 7. [Correctness & Observability Checklist](#correctness--observability-checklist)
 8. [Resilience Checklist](#resilience-checklist)
 9. [AI-Specific Checklist](#ai-specific-checklist)
-10. [Severity Levels](#severity-levels)
-11. [Review Best Practices](#review-best-practices)
+10. [Stored Procedure Checklist](#stored-procedure-checklist)
+11. [Code Quality Checklist](#code-quality-checklist)
+12. [Severity Levels](#severity-levels)
+13. [Review Best Practices](#review-best-practices)
 
 ---
 
@@ -203,6 +205,7 @@ For routes that create, update, or delete data:
 - [ ] Unique constraints are validated before insert (prevents race condition errors)
 - [ ] Orphaned records are prevented
 - [ ] **Data model relationships validated** -- Task-to-Client and Client-to-Group boundaries enforced
+- [ ] **Employee vs User table usage** -- Employee table used for staff queries (`Active = 'Yes'`); User table only for authentication/session data; never filter employees by `WinLogon` presence
 - [ ] **Approval system integration** (if applicable) -- Uses centralized `approvalService.createApproval()`
 - [ ] Audit trail for sensitive data changes (who changed what, when)
 - [ ] Multi-step mutations use `prisma.$transaction`
@@ -272,6 +275,53 @@ For routes using Azure OpenAI or AI-powered features:
 
 ---
 
+## Stored Procedure Checklist
+
+For SQL Server stored procedures and raw SQL queries:
+
+### Query Optimization
+- [ ] **Sargable WHERE clauses** -- No `OR @Param = '*'` anti-pattern; use dynamic SQL for optional filters
+- [ ] **Temp tables over repeated CTEs** -- Use temp tables for large aggregations (5K+ rows) instead of CTEs referenced multiple times
+- [ ] **Pre-aggregate into temp tables** -- Avoid duplicate calculations in HAVING clauses by pre-aggregating
+- [ ] **Dynamic SQL for optional parameters** -- Build WHERE clause dynamically instead of `WHERE (@Param IS NULL OR Column = @Param)`
+
+### Index Design
+- [ ] **Covering indexes with INCLUDE columns** -- Eliminate key lookups by including frequently selected columns
+- [ ] **Key column size** -- Max 900 bytes for key columns; use INCLUDE for large VARCHAR columns
+- [ ] **UPDATE STATISTICS after index creation** -- Always run after creating indexes on large tables
+- [ ] **Index fragmentation** -- Rebuild indexes with >30% fragmentation
+
+### Execution & Safety
+- [ ] **Parameterized queries** -- All dynamic SQL uses `sp_executesql` with parameters (no string concatenation)
+- [ ] **Temp table scope** -- Create temp table structure BEFORE `sp_executesql` for scope visibility
+- [ ] **Timeout awareness** -- Long-running operations documented with estimated execution time
+- [ ] **Transaction handling** -- Explicit BEGIN/COMMIT TRANSACTION for multi-step operations
+
+**See**: `.cursor/rules/stored-procedure-rules.mdc` for complete optimization patterns
+
+---
+
+## Code Quality Checklist
+
+Applicable across all phases and file types:
+
+### File Standards
+- [ ] **File size** -- Files under 500 lines (document exceptions if justified, e.g., large data definition files)
+- [ ] **File naming** -- camelCase file names (e.g., `taskService.ts`, `useTaskDetail.ts`)
+- [ ] **No duplicate code** -- Extract shared logic to utilities at 3+ occurrences
+- [ ] **No deprecated code** -- Remove unused exports, dead functions, commented-out blocks
+
+### Import Standards
+- [ ] **Static imports only** -- No `await import()` in handlers (exception: AI/ML dependencies for bundle size)
+- [ ] **Correct import paths** -- All `@/*` paths resolve; no stale imports from moved/deleted files
+- [ ] **No circular dependencies** -- Imports do not form circular chains
+
+### Documentation
+- [ ] **JSDoc for public utilities** -- Exported functions in `lib/utils/` have JSDoc with param descriptions
+- [ ] **Complex logic documented** -- Non-obvious business rules have inline comments explaining "why"
+
+---
+
 ## Severity Levels
 
 | Severity | Description | Action Required |
@@ -314,3 +364,4 @@ A file can be signed off when:
 - [AI Patterns](../../.cursor/rules/ai-patterns.mdc)
 - [Tool System Rules](../../.cursor/rules/tool-system-rules.mdc)
 - [Migration Rules](../../.cursor/rules/migration-rules.mdc)
+- [Stored Procedure Rules](../../.cursor/rules/stored-procedure-rules.mdc)

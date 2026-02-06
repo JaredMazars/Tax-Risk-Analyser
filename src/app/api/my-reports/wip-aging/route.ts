@@ -32,7 +32,7 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
-import type { WIPAgingReportData, WIPAgingTaskData, WIPAgingSPResult } from '@/types/api';
+import type { WIPAgingReportData, WIPAgingTaskData, WIPAgingSPResult } from '@/types/reports';
 import { format, parseISO, endOfMonth } from 'date-fns';
 import { fetchWIPAgingFromSP } from '@/lib/services/reports/storedProcedureService';
 import { getCurrentFiscalPeriod, getFiscalMonthEndDate, FISCAL_MONTHS } from '@/lib/utils/fiscalPeriod';

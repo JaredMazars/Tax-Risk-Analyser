@@ -100,28 +100,6 @@ export interface VaultDocumentFilters {
   tags?: string[];
 }
 
-export interface CreateVaultDocumentInput {
-  title: string;
-  description?: string;
-  documentType: VaultDocumentType;
-  categoryId: number;
-  scope: VaultDocumentScope;
-  serviceLine?: string;
-  tags?: string[];
-  effectiveDate?: string;
-  expiryDate?: string;
-}
-
-export interface UpdateVaultDocumentInput {
-  title?: string;
-  description?: string;
-  categoryId?: number;
-  documentType?: VaultDocumentType;
-  tags?: string[];
-  effectiveDate?: string;
-  expiryDate?: string;
-}
-
 /**
  * Category Approver Types
  * For managing approvers assigned to document vault categories
@@ -138,17 +116,6 @@ export interface CategoryApprover {
     name: string | null;
     email: string;
   };
-}
-
-export interface VaultCategoryWithApprovers extends VaultDocumentCategoryDTO {
-  approvers: CategoryApprover[];
-  approverCount: number;
-  documentCount?: number;
-}
-
-export interface CategoryApproverAssignment {
-  userId: string;
-  stepOrder: number;
 }
 
 /**

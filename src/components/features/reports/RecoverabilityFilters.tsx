@@ -12,7 +12,7 @@
 import { useMemo, useState } from 'react';
 import { X, Filter } from 'lucide-react';
 import { SearchMultiCombobox, SearchMultiComboboxOption } from '@/components/ui/SearchMultiCombobox';
-import type { ClientDebtorData } from '@/types/api';
+import type { ClientDebtorData } from '@/types/reports';
 
 export interface RecoverabilityFiltersState {
   clients: (string | number)[];     // Multi-select client IDs

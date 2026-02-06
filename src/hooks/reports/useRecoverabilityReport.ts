@@ -6,7 +6,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import type { RecoverabilityReportData } from '@/types/api';
+import type { RecoverabilityReportData } from '@/types/reports';
 
 export interface UseRecoverabilityReportParams {
   fiscalYear?: number;        // If provided, show fiscal year view

@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db/prisma';
 import { Feature } from './features';
 import { roleHasFeature, getRoleFeatures } from './featurePermissions';
 import { SystemRole, ServiceLineRole } from '@/types';
+import { getServiceLineRoleLevel } from '@/lib/utils/roleHierarchy';
 import { logger } from '@/lib/utils/logger';
 
 /**
@@ -192,23 +193,14 @@ export async function getUserFeatures(
 
 /**
  * Get the highest service line role from a list of roles
- * Role hierarchy: ADMINISTRATOR > PARTNER > MANAGER > SUPERVISOR > USER > VIEWER
+ * Uses canonical hierarchy from roleHierarchy.ts
  */
 function getHighestServiceLineRole(roles: ServiceLineRole[]): ServiceLineRole | null {
-  const roleHierarchy: Record<ServiceLineRole, number> = {
-    [ServiceLineRole.ADMINISTRATOR]: 6,
-    [ServiceLineRole.PARTNER]: 5,
-    [ServiceLineRole.MANAGER]: 4,
-    [ServiceLineRole.SUPERVISOR]: 3,
-    [ServiceLineRole.USER]: 2,
-    [ServiceLineRole.VIEWER]: 1,
-  };
-
   let highestRole: ServiceLineRole | null = null;
   let highestLevel = 0;
 
   for (const role of roles) {
-    const level = roleHierarchy[role] || 0;
+    const level = getServiceLineRoleLevel(role);
     if (level > highestLevel) {
       highestLevel = level;
       highestRole = role;

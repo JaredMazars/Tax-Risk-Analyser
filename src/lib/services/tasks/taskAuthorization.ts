@@ -8,8 +8,12 @@
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 import { TaskId } from '@/types/branded';
-import { isSystemAdmin, isPartner } from '@/lib/services/auth/authorization';
+import { isSystemAdmin } from '@/lib/services/auth/auth';
 import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
+import { ServiceLineRole } from '@/types';
+import {
+  checkSubGroupAccess,
+} from '@/lib/services/service-lines/serviceLineService';
 
 /**
  * Task access type - indicates HOW the user has access
@@ -359,9 +363,54 @@ export async function canApproveAcceptance(
   taskId: TaskId
 ): Promise<boolean> {
   try {
-    // Delegate to authorization service which handles sub-groups
-    const { canApproveAcceptance: canApproveFromAuth } = await import('@/lib/services/auth/authorization');
-    return await canApproveFromAuth(userId, taskId);
+    // Check if user is a system admin
+    const isAdmin = await isSystemAdmin(userId);
+    if (isAdmin) return true;
+
+    // Get the task's service line code
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { ServLineCode: true },
+    });
+
+    if (!task) {
+      logger.warn('Task not found for approval check', { taskId });
+      return false;
+    }
+
+    // Map ServLineCode to SubServlineGroupCode
+    const serviceLineExternal = await prisma.serviceLineExternal.findFirst({
+      where: { ServLineCode: task.ServLineCode },
+      select: {
+        SubServlineGroupCode: true,
+        masterCode: true,
+      },
+    });
+
+    if (!serviceLineExternal?.SubServlineGroupCode) {
+      logger.warn('No sub-service line group found for task', { taskId, servLineCode: task.ServLineCode });
+      return false;
+    }
+
+    // Check if user has access to this sub-group with ADMINISTRATOR or PARTNER role
+    const hasAdminAccess = await checkSubGroupAccess(userId, serviceLineExternal.SubServlineGroupCode, ServiceLineRole.ADMINISTRATOR);
+    const hasPartnerAccess = await checkSubGroupAccess(userId, serviceLineExternal.SubServlineGroupCode, ServiceLineRole.PARTNER);
+
+    const isServiceLinePartner = hasAdminAccess || hasPartnerAccess;
+
+    // Also verify they have task access
+    if (isServiceLinePartner) {
+      const hasTaskAccess = await prisma.taskTeam.findFirst({
+        where: {
+          taskId,
+          userId,
+        },
+      });
+
+      return !!hasTaskAccess;
+    }
+
+    return false;
   } catch (error) {
     logger.error('Error checking approval permission', { userId, taskId, error });
     return false;

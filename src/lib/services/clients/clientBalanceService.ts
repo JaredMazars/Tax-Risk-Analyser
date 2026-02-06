@@ -6,7 +6,7 @@
  */
 
 import { executeProfitabilityData, executeRecoverabilityData } from '@/lib/services/reports/storedProcedureService';
-import type { WipLTDResult, RecoverabilityDataResult } from '@/types/api';
+import type { WipLTDResult, RecoverabilityDataResult } from '@/types/reports';
 import type { WIPBalances } from '@/lib/services/clients/clientBalanceCalculation';
 import { logger } from '@/lib/utils/logger';
 

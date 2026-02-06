@@ -105,13 +105,3 @@ export interface ClientSearchResult {
   groupCode: string;
 }
 
-/**
- * Template option for proposal generation
- */
-export interface TemplateOption {
-  id: number;
-  name: string;
-  description: string | null;
-  type: string;
-  serviceLine: string | null;
-}

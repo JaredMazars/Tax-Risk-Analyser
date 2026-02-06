@@ -8,7 +8,7 @@
 
 import { useState, useMemo } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
-import type { WIPAgingTaskData } from '@/types/api';
+import type { WIPAgingTaskData } from '@/types/reports';
 
 interface WIPAgingMasterServiceLineTotalsTableProps {
   tasks: WIPAgingTaskData[];

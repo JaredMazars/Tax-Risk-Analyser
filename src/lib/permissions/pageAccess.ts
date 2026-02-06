@@ -11,6 +11,7 @@ import { prisma } from '@/lib/db/prisma';
 import { SystemRole, ServiceLineRole } from '@/types';
 import { PageAccessLevel, PageAccessResult, PageRole } from '@/types/pagePermissions';
 import { PAGE_PERMISSIONS, getDefaultAccessLevel } from './pagePermissions';
+import { getServiceLineRoleLevel } from '@/lib/utils/roleHierarchy';
 import { logger } from '@/lib/utils/logger';
 import { getCachedPagePermission, setCachedPagePermission } from '@/lib/cache/pagePermissionCache';
 import { getConventionBasedPermission, extractServiceLineFromPath } from '@/lib/services/admin/pageDiscovery';
@@ -60,22 +61,13 @@ async function getUserHighestServiceLineRole(
     return null;
   }
 
-  // Get highest role among relevant assignments
-  const roleHierarchy: Record<ServiceLineRole, number> = {
-    ADMINISTRATOR: 6,
-    PARTNER: 5,
-    MANAGER: 4,
-    SUPERVISOR: 3,
-    USER: 2,
-    VIEWER: 1,
-  };
-
+  // Get highest role among relevant assignments (uses canonical hierarchy from roleHierarchy.ts)
   let highestRole: ServiceLineRole | null = null;
   let highestRank = 0;
 
   for (const assignment of assignments) {
     const role = assignment.role as ServiceLineRole;
-    const rank = roleHierarchy[role] || 0;
+    const rank = getServiceLineRoleLevel(role);
     if (rank > highestRank) {
       highestRole = role;
       highestRank = rank;

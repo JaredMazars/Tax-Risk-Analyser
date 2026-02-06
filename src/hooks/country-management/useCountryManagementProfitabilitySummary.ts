@@ -5,7 +5,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import type { ProfitabilitySummaryResult } from '@/types/api';
+import type { ProfitabilitySummaryResult } from '@/types/reports';
 
 export interface ProfitabilitySummaryResponse {
   data: ProfitabilitySummaryResult[];

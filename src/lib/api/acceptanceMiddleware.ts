@@ -7,10 +7,15 @@ import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 import { ServiceLineRole } from '@/types';
 import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
+import { isSystemAdmin } from '@/lib/services/auth/auth';
 
 /**
  * Validate that a user has access to a project
  * Returns true if user has access (either through project membership or SYSTEM_ADMIN role)
+ * 
+ * NOTE: This function has a side effect -- it auto-adds task partners/managers to TaskTeam
+ * if they have matching user accounts but no existing membership. This ensures partners
+ * and managers mapped from the Employee table always appear on the task team.
  */
 export async function validateAcceptanceAccess(
   taskId: number,
@@ -73,8 +78,8 @@ export async function validateAcceptanceAccess(
                   logger.info('Auto-added partner/manager in validateAcceptanceAccess', {
                     userId: matchingUser.id, taskId, role, empCode: emp.EmpCode,
                   });
-                } catch (createError: any) {
-                  if (createError.code !== 'P2002') {
+                } catch (createError: unknown) {
+                  if ((createError as Record<string, unknown>)?.code !== 'P2002') {
                     logger.error('Failed to auto-create TaskTeam in validateAcceptanceAccess', {
                       userId: matchingUser.id, taskId, role, error: createError,
                     });
@@ -108,13 +113,10 @@ export async function validateAcceptanceAccess(
     });
 
     if (!access) {
-      // Check if user is SYSTEM_ADMIN
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { role: true },
-      });
+      // Check if user is SYSTEM_ADMIN (uses canonical async check from auth.ts)
+      const isAdmin = await isSystemAdmin(userId);
 
-      if (user?.role !== 'SYSTEM_ADMIN') {
+      if (!isAdmin) {
         logger.warn('User access denied', {
           userId,
           taskId,
@@ -159,13 +161,9 @@ export async function canApproveAcceptanceValidation(
   userId: string
 ): Promise<boolean> {
   try {
-    // Check if user is SYSTEM_ADMIN
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    if (user?.role === 'SYSTEM_ADMIN') {
+    // Check if user is SYSTEM_ADMIN (uses canonical async check from auth.ts)
+    const isAdmin = await isSystemAdmin(userId);
+    if (isAdmin) {
       return true;
     }
 
@@ -245,10 +243,6 @@ export async function validateDocumentAccess(
     return { hasAccess: false };
   }
 }
-
-
-
-
 
 
 

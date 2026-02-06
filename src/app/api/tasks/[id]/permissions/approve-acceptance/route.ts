@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { canApproveAcceptance } from '@/lib/services/auth/authorization';
+import { canApproveAcceptance } from '@/lib/services/tasks/taskAuthorization';
 import { successResponse, parseTaskId } from '@/lib/utils/apiUtils';
 import { toTaskId } from '@/types/branded';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';

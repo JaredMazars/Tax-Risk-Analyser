@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
-import type { ProfitabilitySummaryResult } from '@/types/api';
+import type { ProfitabilitySummaryResult } from '@/types/reports';
 
 interface PartnerSummaryTableProps {
   data: ProfitabilitySummaryResult[];

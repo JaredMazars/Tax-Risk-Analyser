@@ -3,7 +3,7 @@
  * Type definitions for the Review Notebook tool
  */
 
-import type { ReviewNote, ReviewNoteComment, ReviewNoteAttachment, ReviewNoteAssignee, ReviewCategory, User } from '@prisma/client';
+import type { ReviewNote, ReviewNoteComment, ReviewNoteAttachment, ReviewNoteAssignee, ReviewCategory } from '@prisma/client';
 
 // ============================================================================
 // Enums
@@ -129,21 +129,6 @@ export interface CreateReviewNoteDTO {
   assignees?: string[]; // Array of user IDs to assign
 }
 
-export interface AddReviewNoteAssigneeDTO {
-  userId: string;
-  isForwarded?: boolean;
-}
-
-export interface RemoveReviewNoteAssigneeDTO {
-  userId: string;
-}
-
-export interface CreateReviewNoteCommentDTO {
-  reviewNoteId: number;
-  comment: string;
-  isInternal?: boolean;
-}
-
 export interface CreateReviewCategoryDTO {
   name: string;
   description?: string;
@@ -184,10 +169,6 @@ export interface ChangeReviewNoteStatusDTO {
   status: ReviewNoteStatus;
   comment?: string;
   reason?: string; // For rejection
-}
-
-export interface AssignReviewNoteDTO {
-  assignedTo: string;
 }
 
 // ============================================================================
@@ -249,38 +230,6 @@ export interface ReviewNoteAnalytics {
   }>;
 }
 
-export interface ReviewNoteReportFilter {
-  taskId: number;
-  status?: ReviewNoteStatus[];
-  priority?: ReviewNotePriority[];
-  categoryId?: number[];
-  assignedTo?: string[];
-  raisedBy?: string[];
-  dateFrom?: Date | string;
-  dateTo?: Date | string;
-  includeComments?: boolean;
-  includeAttachments?: boolean;
-}
-
-export interface ReviewNoteReportData {
-  task: {
-    TaskCode: string;
-    TaskDesc: string;
-  };
-  generatedAt: Date;
-  generatedBy: {
-    name: string;
-    email: string;
-  };
-  filters: ReviewNoteReportFilter;
-  summary: {
-    totalNotes: number;
-    byStatus: Record<ReviewNoteStatus, number>;
-    byPriority: Record<ReviewNotePriority, number>;
-  };
-  notes: ReviewNoteWithRelations[];
-}
-
 // ============================================================================
 // List Response
 // ============================================================================
@@ -305,39 +254,4 @@ export interface StatusTransition {
   to: ReviewNoteStatus;
   allowedRoles: string[]; // 'RAISER' | 'ASSIGNEE' | 'PARTNER' | 'SYSTEM_ADMIN'
   requiresComment?: boolean;
-}
-
-export const STATUS_TRANSITIONS: StatusTransition[] = [
-  { from: ReviewNoteStatus.OPEN, to: ReviewNoteStatus.IN_PROGRESS, allowedRoles: ['ASSIGNEE'] },
-  { from: ReviewNoteStatus.OPEN, to: ReviewNoteStatus.ADDRESSED, allowedRoles: ['ASSIGNEE'], requiresComment: true },
-  { from: ReviewNoteStatus.OPEN, to: ReviewNoteStatus.CLEARED, allowedRoles: ['RAISER'], requiresComment: true },
-  { from: ReviewNoteStatus.OPEN, to: ReviewNoteStatus.REJECTED, allowedRoles: ['RAISER'], requiresComment: true },
-  { from: ReviewNoteStatus.IN_PROGRESS, to: ReviewNoteStatus.ADDRESSED, allowedRoles: ['ASSIGNEE'], requiresComment: true },
-  { from: ReviewNoteStatus.IN_PROGRESS, to: ReviewNoteStatus.OPEN, allowedRoles: ['ASSIGNEE'] },
-  { from: ReviewNoteStatus.ADDRESSED, to: ReviewNoteStatus.CLEARED, allowedRoles: ['RAISER'], requiresComment: true },
-  { from: ReviewNoteStatus.ADDRESSED, to: ReviewNoteStatus.REJECTED, allowedRoles: ['RAISER'], requiresComment: true },
-  { from: ReviewNoteStatus.ADDRESSED, to: ReviewNoteStatus.IN_PROGRESS, allowedRoles: ['ASSIGNEE'] },
-];
-
-// ============================================================================
-// Helper Types
-// ============================================================================
-
-export interface ReviewNoteActivity {
-  timestamp: Date;
-  action: string;
-  actor: string;
-  actorName: string;
-  details?: string;
-}
-
-export interface ReviewNotePermissions {
-  canEdit: boolean;
-  canDelete: boolean;
-  canChangeStatus: boolean;
-  canClear: boolean;
-  canReject: boolean;
-  canReassign: boolean;
-  canAddComment: boolean;
-  canAddAttachment: boolean;
 }

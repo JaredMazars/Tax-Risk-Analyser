@@ -19,7 +19,7 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
-import type { WIPAgingSummaryResult } from '@/types/api';
+import type { WIPAgingSummaryResult } from '@/types/reports';
 import { format, parseISO } from 'date-fns';
 import { 
   executeWIPAgingSummaryByPartner, 

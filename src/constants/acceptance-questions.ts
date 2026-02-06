@@ -13,7 +13,7 @@ export type QuestionnaireType =
   | 'ACCEPTANCE_FULL' 
   | 'ACCEPTANCE_LITE';
 
-export type FieldType = 'RADIO' | 'TEXTAREA' | 'SELECT' | 'FILE_UPLOAD' | 'BUTTON' | 'PLACEHOLDER';
+type FieldType = 'RADIO' | 'TEXTAREA' | 'SELECT' | 'FILE_UPLOAD' | 'BUTTON' | 'PLACEHOLDER';
 
 export interface AcceptanceQuestionDef {
   questionKey: string;
@@ -1150,22 +1150,6 @@ export function getAllQuestions(type: QuestionnaireType): AcceptanceQuestionDef[
   const sections = getQuestionnaireDefinition(type);
   return sections.flatMap((section) => section.questions);
 }
-
-export function getQuestionBySectionAndKey(
-  type: QuestionnaireType,
-  sectionKey: string,
-  questionKey: string
-): AcceptanceQuestionDef | undefined {
-  const sections = getQuestionnaireDefinition(type);
-  const section = sections.find((s) => s.key === sectionKey);
-  return section?.questions.find((q) => q.questionKey === questionKey);
-}
-
-
-
-
-
-
 
 
 

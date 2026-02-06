@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Task, TaskTeam, ServiceLineRole } from '@/types';
+import { Task, TaskTeam, TaskTeamAllocation, ServiceLineRole } from '@/types';
 import { 
   Table,
   FilePen,
@@ -367,7 +367,7 @@ export function TaskDetailContent({
 
   const [activeTab, setActiveTab] = useState(getDefaultTab());
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState<ServiceLineRole | string>('USER');
+  const [currentUserRole, setCurrentUserRole] = useState<ServiceLineRole>(ServiceLineRole.USER);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [hasManuallySelectedTab, setHasManuallySelectedTab] = useState(false);
 
@@ -384,22 +384,22 @@ export function TaskDetailContent({
     id: member.id,
     taskId: parseInt(taskId),
     userId: member.userId,
-    role: member.role,
+    role: member.role as ServiceLineRole,
     createdAt: new Date(member.createdAt || Date.now()),
     startDate: member.startDate ? new Date(member.startDate) : undefined,
     endDate: member.endDate ? new Date(member.endDate) : undefined,
     allocatedHours: member.allocatedHours,
     allocatedPercentage: member.allocatedPercentage,
     actualHours: member.actualHours,
-    User: member.User || member.user,
-    taskName: (member as any).taskName,
-    taskCode: (member as any).taskCode,
-    clientName: (member as any).clientName,
-    clientCode: (member as any).clientCode,
-    allocations: member.allocations,
-    employeeId: (member as any).employeeId,
-    hasAccount: (member as any).hasAccount,
-    employeeStatus: (member as any).employeeStatus,
+    user: member.User || member.user,
+    taskName: (member as unknown as Record<string, string>).taskName,
+    taskCode: (member as unknown as Record<string, string>).taskCode,
+    clientName: (member as unknown as Record<string, string>).clientName,
+    clientCode: (member as unknown as Record<string, string>).clientCode,
+    allocations: member.allocations as TaskTeamAllocation[] | undefined,
+    employeeId: (member as unknown as Record<string, number>).employeeId,
+    hasAccount: (member as unknown as Record<string, boolean>).hasAccount,
+    employeeStatus: (member as unknown as Record<string, unknown>).employeeStatus as TaskTeam['employeeStatus'],
   }));
 
   // Ensure specific tab is selected when initialTab or initialNoteId is provided - run FIRST
@@ -436,12 +436,12 @@ export function TaskDetailContent({
         if (response.ok) {
           const result = await response.json();
           const data = result.data || result;
-          setCurrentUserRole(data.role || 'USER');
+          setCurrentUserRole((data.role as ServiceLineRole) || ServiceLineRole.USER);
           setCurrentUserId(data.userId || '');
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
-        setCurrentUserRole('USER');
+        setCurrentUserRole(ServiceLineRole.USER);
       }
     };
 
@@ -538,8 +538,8 @@ export function TaskDetailContent({
                   <div>
                     <h2 className="text-2xl font-semibold text-forvis-gray-900">Team Planner</h2>
                     <p className="text-sm font-normal text-forvis-gray-600 mt-1">
-                      {currentUserRole === 'ADMIN' 
-                        ? 'Manage resource allocations and capacity • Your role: ADMIN' 
+                      {currentUserRole === ServiceLineRole.ADMINISTRATOR 
+                        ? 'Manage resource allocations and capacity • Your role: ADMINISTRATOR' 
                         : `View team member allocations • Your role: ${currentUserRole || 'Loading...'}`
                       }
                     </p>

@@ -9,7 +9,7 @@
 
 import { useState, useMemo } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
-import type { ClientDebtorData } from '@/types/api';
+import type { ClientDebtorData } from '@/types/reports';
 
 interface ClientReceiptsTableProps {
   clients: ClientDebtorData[];

@@ -127,13 +127,6 @@ export const SERVICE_LINE_CONFIGS: Record<ServiceLine, ServiceLineConfig> = {
 };
 
 /**
- * Get service line config
- */
-export function getServiceLineConfig(serviceLine: ServiceLine): ServiceLineConfig | null {
-  return SERVICE_LINE_CONFIGS[serviceLine] || null;
-}
-
-/**
  * Icon component mapping - maps icon names to React components
  * Single source of truth for service line icons
  */

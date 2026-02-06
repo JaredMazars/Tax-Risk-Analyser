@@ -33,7 +33,7 @@ import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 // v3: Added multi-service-line filter support
 const CACHE_VERSION = 'v3';
 import { logger } from '@/lib/utils/logger';
-import type { MyReportsOverviewData, MonthlyMetrics } from '@/types/api';
+import type { MyReportsOverviewData, MonthlyMetrics } from '@/types/reports';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { getCurrentFiscalPeriod, getFiscalYearRange } from '@/lib/utils/fiscalPeriod';
 import { fetchOverviewMetricsFromSP } from '@/lib/services/reports/storedProcedureService';

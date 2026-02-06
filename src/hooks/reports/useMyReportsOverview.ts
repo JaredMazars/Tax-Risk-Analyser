@@ -5,7 +5,8 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import type { ApiResponse, MyReportsOverviewData } from '@/types/api';
+import type { ApiResponse } from '@/types/api';
+import type { MyReportsOverviewData } from '@/types/reports';
 
 export interface UseMyReportsOverviewParams {
   fiscalYear?: number | 'all'; // If provided, show fiscal year view or all years comparison

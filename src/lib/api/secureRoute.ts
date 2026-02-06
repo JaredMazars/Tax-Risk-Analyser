@@ -284,8 +284,18 @@ async function withSecurity<TSchema extends z.ZodSchema>(
     }
     
     // 7. Execute handler
+    // Guard: if requireAuth was not false, user is guaranteed non-null by the auth check above.
+    // If requireAuth is false, user may be null -- handlers opting out of auth must handle this.
+    if (!user && options.requireAuth !== false) {
+      // This should never happen (auth check above returns 401), but fail secure.
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     const context: SecureContext<z.infer<TSchema>> = {
-      user: user!,
+      user: user as SessionUser,
       data: data as z.infer<TSchema>,
       rateLimit: rateLimitInfo,
     };

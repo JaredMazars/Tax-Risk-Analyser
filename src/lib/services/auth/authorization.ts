@@ -1,9 +1,13 @@
 /**
  * Authorization Service
- * Handles system-level, service-line-level, and task-level permissions
  * 
- * This service provides role-based checks and delegates feature-based
- * permission checks to the new feature permission system.
+ * @deprecated This module is being phased out. Prefer importing from canonical locations:
+ * - `isSystemAdmin` -> `@/lib/services/auth/auth` (async DB) or `@/lib/utils/systemAdmin` (sync)
+ * - `canApproveAcceptance` / `canApproveEngagementLetter` -> `@/lib/services/tasks/taskAuthorization`
+ * - `hasFeature` / `canManageTasks` etc -> use `checkFeature` from `@/lib/permissions/checkFeature` directly
+ * - `getUserSystemRole` / `getServiceLineRole` -> `@/lib/services/service-lines/serviceLineService`
+ * 
+ * Re-exports are maintained for backward compatibility.
  */
 
 import { prisma } from '@/lib/db/prisma';
@@ -14,35 +18,15 @@ import { Feature } from '@/lib/permissions/features';
 import {
   getServiceLineRole as getServiceLineRoleFromService,
   checkServiceLineAccess as checkAccessFromService,
-  checkSubGroupAccess,
 } from '@/lib/services/service-lines/serviceLineService';
 
 /**
  * Check if user is a System Admin (database lookup)
  * 
- * Use this variant when you need to check system admin status by user ID via database lookup.
- * For other use cases:
- * - For simple role string checks: use `isSystemAdmin()` from `@/lib/utils/roleHierarchy`
- * - For user objects in memory: use `isSystemAdmin()` from `@/lib/utils/systemAdmin`
- * 
- * @param userId - User ID to check
- * @returns true if user is SYSTEM_ADMIN
- * @see {@link roleHierarchy.isSystemAdmin} for role string checks
- * @see {@link systemAdmin.isSystemAdmin} for user object checks
+ * @deprecated Use `isSystemAdmin()` from `@/lib/services/auth/auth` instead.
+ * This re-export is kept for backward compatibility.
  */
-export async function isSystemAdmin(userId: string): Promise<boolean> {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    return user?.role === SystemRole.SYSTEM_ADMIN;
-  } catch (error) {
-    logger.error('Error checking system admin', { userId, error });
-    return false;
-  }
-}
+export { isSystemAdmin } from './auth';
 
 /**
  * Get user's system role
@@ -125,78 +109,15 @@ export async function hasServiceLineAccess(
 
 /**
  * Check if user can approve client acceptance for a task
- * Rules: SYSTEM_ADMIN OR Administrator/Partner (ServiceLineUser.role = ADMINISTRATOR or PARTNER)
+ * @deprecated Use `canApproveAcceptance()` from `@/lib/services/tasks/taskAuthorization` instead.
  */
-export async function canApproveAcceptance(
-  userId: string,
-  taskId: number
-): Promise<boolean> {
-  try {
-    // Check if user is a system admin
-    const isAdmin = await isSystemAdmin(userId);
-    if (isAdmin) return true;
-
-    // Get the task's service line code
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { ServLineCode: true },
-    });
-
-    if (!task) {
-      logger.warn('Task not found for approval check', { taskId });
-      return false;
-    }
-
-    // Map ServLineCode to SubServlineGroupCode
-    const serviceLineExternal = await prisma.serviceLineExternal.findFirst({
-      where: { ServLineCode: task.ServLineCode },
-      select: { 
-        SubServlineGroupCode: true,
-        masterCode: true,
-      },
-    });
-
-    if (!serviceLineExternal?.SubServlineGroupCode) {
-      logger.warn('No sub-service line group found for task', { taskId, servLineCode: task.ServLineCode });
-      return false;
-    }
-
-    // Check if user has access to this sub-group with ADMINISTRATOR or PARTNER role
-    const hasAdminAccess = await checkSubGroupAccess(userId, serviceLineExternal.SubServlineGroupCode, ServiceLineRole.ADMINISTRATOR);
-    const hasPartnerAccess = await checkSubGroupAccess(userId, serviceLineExternal.SubServlineGroupCode, ServiceLineRole.PARTNER);
-    
-    const isServiceLinePartner = hasAdminAccess || hasPartnerAccess;
-    
-    // Also verify they have task access
-    if (isServiceLinePartner) {
-      const hasTaskAccess = await prisma.taskTeam.findFirst({
-        where: {
-          taskId,
-          userId,
-        },
-      });
-      
-      return !!hasTaskAccess;
-    }
-
-    return false;
-  } catch (error) {
-    logger.error('Error checking approval permission', { userId, taskId, error });
-    return false;
-  }
-}
+export { canApproveAcceptance } from '@/lib/services/tasks/taskAuthorization';
 
 /**
  * Check if user can approve engagement letter for a task
- * Same rules as acceptance: SYSTEM_ADMIN OR Administrator/Partner
+ * @deprecated Use `canApproveEngagementLetter()` from `@/lib/services/tasks/taskAuthorization` instead.
  */
-export async function canApproveEngagementLetter(
-  userId: string,
-  taskId: number
-): Promise<boolean> {
-  // Same logic as acceptance approval
-  return canApproveAcceptance(userId, taskId);
-}
+export { canApproveEngagementLetter } from '@/lib/services/tasks/taskAuthorization';
 
 /**
  * Check if user has a specific feature

@@ -5,6 +5,11 @@
  * and payment metrics for recoverability analytics
  */
 
+import type { AgingBuckets } from '@/types/reports';
+
+// Re-export AgingBuckets for backwards compatibility
+export type { AgingBuckets };
+
 export interface DebtorTransactionRecord {
   TranDate: Date;
   Total: number | null;
@@ -14,14 +19,6 @@ export interface DebtorTransactionRecord {
   Narration: string | null;
   ServLineCode: string;
   updatedAt: Date;
-}
-
-export interface AgingBuckets {
-  current: number;       // 0-30 days
-  days31_60: number;     // 31-60 days
-  days61_90: number;     // 61-90 days
-  days91_120: number;    // 91-120 days
-  days120Plus: number;   // 120+ days
 }
 
 export interface DebtorMetrics {

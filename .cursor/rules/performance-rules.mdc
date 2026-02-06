@@ -1,9 +1,10 @@
 ---
 alwaysApply: true
-version: 1.1.0
-lastUpdated: 2026-01-24
-description: Performance optimization patterns for imports, database queries, caching, and request handling - mandatory requirements for all files
+version: 1.2.0
+lastUpdated: 2026-02-06
+description: Performance optimization patterns for imports, database queries, caching, request handling, and resilience - mandatory requirements for all files
 changelog:
+  - "1.2.0 (2026-02-06): Added Resilience section (timeouts, retry, circuit breaker, graceful degradation) to align with route review standards"
   - "1.1.0 (2026-01-24): Changed to always applied - explicit select, logger usage, and static imports are required everywhere"
   - "1.0.0 (2026-01-24): Initial performance patterns documentation"
 ---
@@ -79,6 +80,28 @@ queryClient.invalidateQueries({ queryKey: ['clients', clientId] });
 **List Caching:** Only first 3 pages cached (5min TTL), searches skipped.
 
 **Performance:** Uses SCAN (not KEYS) for pattern invalidation, silent failure on cache errors.
+
+## Resilience
+
+For routes or services that call external APIs (Azure OpenAI, Microsoft Graph, blob storage, etc.):
+
+- **Timeouts** - All external API calls MUST have explicit timeouts (30-60s max)
+- **Retry with backoff** - Transient failures (429, 503) retry with exponential backoff + jitter
+  - Use `retryUtils.ts` from `@/lib/utils/retryUtils` for standardized retry logic
+- **Graceful degradation** - When dependencies are unavailable, return cached/default responses instead of failing
+- **Circuit breaker** - Frequently-failing external services should be circuit-broken to prevent cascading failures
+- **Fallback values** - Non-critical data (analytics, AI suggestions) should fall back to cached or empty state
+- **Dead letter handling** - Failed async operations (queue workers, email) must be logged and retryable
+
+```typescript
+// Example: External API call with timeout and retry
+import { withRetry } from '@/lib/utils/retryUtils';
+
+const result = await withRetry(
+  () => externalApiCall({ timeout: 30000 }),
+  { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }
+);
+```
 
 ## Logging
 

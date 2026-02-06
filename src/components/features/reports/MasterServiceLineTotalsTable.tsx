@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
-import type { TaskWithWIPAndServiceLine } from '@/types/api';
+import type { TaskWithWIPAndServiceLine } from '@/types/reports';
 import { GRADIENTS } from '@/lib/design-system/gradients';
 
 interface MasterServiceLineTotal {

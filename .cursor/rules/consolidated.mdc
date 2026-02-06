@@ -1,8 +1,9 @@
 ---
 alwaysApply: true
-version: 2.3.0
-lastUpdated: 2026-02-01
+version: 2.4.0
+lastUpdated: 2026-02-06
 changelog:
+  - "2.4.0 (2026-02-06): Added Employee table check to Post-Edit Validation, cascade delete rule to Data Integrity, error response rules to Error Handling - route review alignment"
   - "2.3.0 (2026-02-01): Added stored-procedure-rules.mdc for SQL Server SP optimization patterns"
   - "2.2.0 (2026-01-24): Extracted database/performance to separate files, added code duplication rule and mandatory plan mode"
   - "2.1.0 (2026-01-23): Added migration-rules.mdc for Prisma + SQL Server best practices"
@@ -253,6 +254,7 @@ After changing or adding files, verify:
 - ✅ `take` limits on `findMany()` for large tables
 - ✅ No N+1 queries - use `include` or batch with `Promise.all()`
 - ✅ Transactions for multi-step mutations
+- ✅ Employee queries use Employee table with `Active = 'Yes'` (not User table)
 
 ### All Files
 - ✅ No `any` types - use `unknown` or proper interfaces
@@ -287,11 +289,18 @@ return handleApiError(error, 'Context');
 
 Codes: `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN`, `UNAUTHORIZED`
 
+**Error Response Rules:**
+- Use 4xx status codes for client errors (validation, not found, forbidden), 5xx for server errors
+- Never return raw stack traces in error responses
+- Include stable error codes (from `ErrorCodes`) for programmatic handling
+- Error messages must not leak sensitive data (internal paths, SQL details, user PII)
+
 ## Data Integrity
 
 - Validate foreign key references exist before insert/update
 - Idempotency for critical mutations (retrying POST/PUT shouldn't create duplicates)
 - Check unique constraints before insert to prevent race condition errors
+- Cascade deletes must be intentional and documented (verify no orphaned records)
 - Timezone: store/return UTC, convert on frontend
 - Decimal precision: use `Decimal.js` for financial data, never floats
 

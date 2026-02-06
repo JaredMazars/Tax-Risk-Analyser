@@ -16,7 +16,7 @@ import type {
   WipMonthlyResult, 
   DrsMonthlyResult,
   MonthlyMetrics 
-} from '@/types/api';
+} from '@/types/reports';
 import { format, subMonths } from 'date-fns';
 
 // ============================================================================
@@ -406,11 +406,11 @@ export interface RecoverabilityDataParams {
  */
 export async function executeRecoverabilityData(
   params: RecoverabilityDataParams
-): Promise<import('@/types/api').RecoverabilityDataResult[]> {
+): Promise<import('@/types/reports').RecoverabilityDataResult[]> {
   const startTime = Date.now();
   
   try {
-    const results = await prisma.$queryRaw<import('@/types/api').RecoverabilityDataResult[]>`
+    const results = await prisma.$queryRaw<import('@/types/reports').RecoverabilityDataResult[]>`
       EXEC dbo.sp_RecoverabilityData 
         @BillerCode = ${params.billerCode},
         @AsOfDate = ${params.asOfDate},
@@ -459,11 +459,11 @@ export interface WIPAgingParams {
  */
 export async function executeWIPAging(
   params: WIPAgingParams
-): Promise<import('@/types/api').WIPAgingSPResult[]> {
+): Promise<import('@/types/reports').WIPAgingSPResult[]> {
   const startTime = Date.now();
   
   try {
-    const results = await prisma.$queryRaw<import('@/types/api').WIPAgingSPResult[]>`
+    const results = await prisma.$queryRaw<import('@/types/reports').WIPAgingSPResult[]>`
       EXEC dbo.sp_WIPAgingByTask
         @TaskPartner = ${params.taskPartner ?? '*'},
         @TaskManager = ${params.taskManager ?? '*'},
@@ -497,7 +497,7 @@ export async function fetchWIPAgingFromSP(
   empCode: string,
   isPartnerReport: boolean,
   asOfDate: Date
-): Promise<import('@/types/api').WIPAgingSPResult[]> {
+): Promise<import('@/types/reports').WIPAgingSPResult[]> {
   return executeWIPAging({
     taskPartner: isPartnerReport ? empCode : undefined,
     taskManager: isPartnerReport ? undefined : empCode,
@@ -633,7 +633,7 @@ export interface WIPAgingSummaryParams {
  */
 export async function executeProfitabilitySummaryByPartner(
   params: ProfitabilitySummaryParams
-): Promise<import('@/types/api').ProfitabilitySummaryResult[]> {
+): Promise<import('@/types/reports').ProfitabilitySummaryResult[]> {
   const startTime = Date.now();
   
   // Convert arrays to comma-separated strings
@@ -645,7 +645,7 @@ export async function executeProfitabilitySummaryByPartner(
     // Use transaction with extended timeout for business-wide queries
     const results = await prisma.$transaction(
       async (tx) => {
-        return tx.$queryRaw<import('@/types/api').ProfitabilitySummaryResult[]>`
+        return tx.$queryRaw<import('@/types/reports').ProfitabilitySummaryResult[]>`
           EXEC dbo.sp_ProfitabilitySummaryByPartner
             @ServLineCode = ${params.servLineCode ?? '*'},
             @PartnerCode = ${partnerCode},
@@ -680,7 +680,7 @@ export async function executeProfitabilitySummaryByPartner(
  */
 export async function executeProfitabilitySummaryByManager(
   params: ProfitabilitySummaryParams
-): Promise<import('@/types/api').ProfitabilitySummaryResult[]> {
+): Promise<import('@/types/reports').ProfitabilitySummaryResult[]> {
   const startTime = Date.now();
   
   // Convert arrays to comma-separated strings
@@ -692,7 +692,7 @@ export async function executeProfitabilitySummaryByManager(
     // Use transaction with extended timeout for business-wide queries
     const results = await prisma.$transaction(
       async (tx) => {
-        return tx.$queryRaw<import('@/types/api').ProfitabilitySummaryResult[]>`
+        return tx.$queryRaw<import('@/types/reports').ProfitabilitySummaryResult[]>`
           EXEC dbo.sp_ProfitabilitySummaryByManager
             @ServLineCode = ${params.servLineCode ?? '*'},
             @ManagerCode = ${managerCode},
@@ -727,7 +727,7 @@ export async function executeProfitabilitySummaryByManager(
  */
 export async function executeWIPAgingSummaryByPartner(
   params: WIPAgingSummaryParams
-): Promise<import('@/types/api').WIPAgingSummaryResult[]> {
+): Promise<import('@/types/reports').WIPAgingSummaryResult[]> {
   const startTime = Date.now();
   
   // Convert arrays to comma-separated strings
@@ -739,7 +739,7 @@ export async function executeWIPAgingSummaryByPartner(
     // Use transaction with extended timeout for business-wide queries
     const results = await prisma.$transaction(
       async (tx) => {
-        return tx.$queryRaw<import('@/types/api').WIPAgingSummaryResult[]>`
+        return tx.$queryRaw<import('@/types/reports').WIPAgingSummaryResult[]>`
           EXEC dbo.sp_WIPAgingSummaryByPartner
             @ServLineCode = ${params.servLineCode ?? '*'},
             @PartnerCode = ${partnerCode},
@@ -772,7 +772,7 @@ export async function executeWIPAgingSummaryByPartner(
  */
 export async function executeWIPAgingSummaryByManager(
   params: WIPAgingSummaryParams
-): Promise<import('@/types/api').WIPAgingSummaryResult[]> {
+): Promise<import('@/types/reports').WIPAgingSummaryResult[]> {
   const startTime = Date.now();
   
   // Convert arrays to comma-separated strings
@@ -784,7 +784,7 @@ export async function executeWIPAgingSummaryByManager(
     // Use transaction with extended timeout for business-wide queries
     const results = await prisma.$transaction(
       async (tx) => {
-        return tx.$queryRaw<import('@/types/api').WIPAgingSummaryResult[]>`
+        return tx.$queryRaw<import('@/types/reports').WIPAgingSummaryResult[]>`
           EXEC dbo.sp_WIPAgingSummaryByManager
             @ServLineCode = ${params.servLineCode ?? '*'},
             @ManagerCode = ${managerCode},

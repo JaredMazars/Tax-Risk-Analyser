@@ -24,7 +24,7 @@ import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { successResponse } from '@/lib/utils/apiUtils';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { logger } from '@/lib/utils/logger';
-import type { TasksByGroupReport } from '@/types/api';
+import type { TasksByGroupReport } from '@/types/reports';
 
 export const dynamic = 'force-dynamic';
 

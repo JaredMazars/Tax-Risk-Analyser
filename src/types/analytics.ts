@@ -95,72 +95,8 @@ export interface CreditRating {
   documents?: AnalyticsDocument[];
 }
 
-export interface CreditRatingWithDocuments extends CreditRating {
-  documents: AnalyticsDocument[];
-}
-
 export interface GenerateCreditRatingRequest {
   documentIds: number[];
-}
-
-export interface GenerateCreditRatingResponse {
-  success: boolean;
-  data?: CreditRating;
-  error?: string;
-}
-
-export interface AnalyticsDocumentsResponse {
-  success: boolean;
-  data?: {
-    documents: AnalyticsDocument[];
-    totalCount: number;
-  };
-  error?: string;
-}
-
-export interface CreditRatingsResponse {
-  success: boolean;
-  data?: {
-    ratings: CreditRating[];
-    totalCount: number;
-  };
-  error?: string;
-}
-
-export interface LatestCreditRatingResponse {
-  success: boolean;
-  data?: CreditRating;
-  error?: string;
-}
-
-export interface FinancialRatiosResponse {
-  success: boolean;
-  data?: FinancialRatios;
-  error?: string;
-}
-
-// Utility types for document upload
-export interface UploadDocumentData {
-  file: File;
-  documentType: AnalyticsDocumentType;
-}
-
-// For trend analysis
-export interface RatingTrend {
-  date: Date;
-  ratingGrade: CreditRatingGrade;
-  ratingScore: number;
-  change?: number; // vs previous rating
-  trend?: 'UP' | 'DOWN' | 'STABLE';
-}
-
-// For ratio comparison
-export interface RatioComparison {
-  current: number;
-  previous?: number;
-  industryAverage?: number;
-  benchmark?: number;
-  status: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
 }
 
 // ============================================
@@ -227,10 +163,3 @@ export interface TaskTimeAccumulationData {
   employeeData: EmployeeTimeAccumulation[];
 }
 
-/**
- * API response wrapper for time accumulation data
- */
-export interface TaskTimeAccumulationResponse {
-  success: boolean;
-  data: TaskTimeAccumulationData;
-}

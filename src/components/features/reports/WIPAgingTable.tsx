@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
 import { Badge } from '@/components/ui/Badge';
-import type { WIPAgingTaskData } from '@/types/api';
+import type { WIPAgingTaskData } from '@/types/reports';
 
 interface WIPAgingTableProps {
   tasks: WIPAgingTaskData[];

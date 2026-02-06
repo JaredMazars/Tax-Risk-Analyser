@@ -12,7 +12,7 @@
 import { useMemo, useState } from 'react';
 import { X, Filter } from 'lucide-react';
 import { SearchMultiCombobox, SearchMultiComboboxOption } from '@/components/ui/SearchMultiCombobox';
-import type { TaskWithWIPAndServiceLine } from '@/types/api';
+import type { TaskWithWIPAndServiceLine } from '@/types/reports';
 
 export interface ReportFiltersState {
   clients: (string | number)[];     // Multi-select client IDs

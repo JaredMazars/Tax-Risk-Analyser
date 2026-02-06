@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
-import type { WIPAgingSummaryResult } from '@/types/api';
+import type { WIPAgingSummaryResult } from '@/types/reports';
 
 interface WIPAgingManagerSummaryTableProps {
   data: WIPAgingSummaryResult[];

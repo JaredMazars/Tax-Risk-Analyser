@@ -43,7 +43,7 @@ export default function TaskTeamsPage() {
       if (data.success) {
         // Get current user from session (you might need to adjust this based on your auth setup)
         // For now, we'll just use the first admin user
-        const adminUser = data.data.users.find((u: TaskTeam) => u.role === 'ADMIN');
+        const adminUser = data.data.users.find((u: TaskTeam) => u.role === ServiceLineRole.ADMINISTRATOR);
         if (adminUser) {
           setCurrentUserId(adminUser.userId);
           setCurrentUserRole(adminUser.role);

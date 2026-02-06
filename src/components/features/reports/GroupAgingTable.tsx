@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
-import type { ClientDebtorData, AgingBuckets } from '@/types/api';
+import type { ClientDebtorData, AgingBuckets } from '@/types/reports';
 
 interface GroupTotal {
   groupCode: string;

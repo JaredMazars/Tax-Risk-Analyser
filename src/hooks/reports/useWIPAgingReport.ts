@@ -8,7 +8,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import type { WIPAgingReportData } from '@/types/api';
+import type { WIPAgingReportData } from '@/types/reports';
 
 export interface UseWIPAgingReportParams {
   fiscalYear?: number;        // If provided, show fiscal year view

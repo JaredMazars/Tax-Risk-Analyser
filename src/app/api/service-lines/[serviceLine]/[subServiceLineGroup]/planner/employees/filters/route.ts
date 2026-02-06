@@ -5,7 +5,7 @@ import { successResponse } from '@/lib/utils/apiUtils';
 import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { cache, CACHE_PREFIXES } from '@/lib/services/cache/CacheService';
 import { mapEmployeesToUsers } from '@/lib/services/employees/employeeService';
-import { NON_CLIENT_EVENT_CONFIG } from '@/types';
+import { NON_CLIENT_EVENT_CONFIG } from '@/constants/nonClientEvents';
 import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { getCachedServiceLineMapping } from '@/lib/services/service-lines/serviceLineCache';
 

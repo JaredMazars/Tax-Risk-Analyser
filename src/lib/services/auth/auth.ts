@@ -1,4 +1,4 @@
-import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
+import { ConfidentialClientApplication, CryptoProvider, type AuthorizationUrlRequest } from '@azure/msal-node';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { randomBytes, createHash } from 'crypto';
@@ -6,25 +6,11 @@ import { prisma } from '../../db/prisma';
 import { withRetry, RetryPresets } from '../../utils/retryUtils';
 import type { Session, SessionUser } from './types';
 import { cache } from '@/lib/services/cache/CacheService';
+import { SessionManager } from './sessionManager';
 import type { NextRequest } from 'next/server';
 import { ensureSharedServiceAccess } from '@/lib/services/service-lines/serviceLineService';
-
-// Helper for conditional logging (avoid importing logger to prevent Edge Runtime issues)
-const log = {
-  info: (message: string, meta?: any) => {
-    if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
-      // console.log(`[INFO] ${message}`, meta || '');
-    }
-  },
-  warn: (message: string, meta?: any) => {
-    if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
-      console.warn(`[WARN] ${message}`, meta || '');
-    }
-  },
-  error: (message: string, error?: any) => {
-    console.error(`[ERROR] ${message}`, error?.message || error || '');
-  },
-};
+import { logger } from '@/lib/utils/logger';
+import { SystemRole } from '@/types';
 
 const msalConfig = {
   auth: {
@@ -83,15 +69,11 @@ function getClientIP(headers: { get: (name: string) => string | null }): string 
  * @param prompt - Optional prompt parameter ('login', 'select_account', 'consent', 'none')
  */
 export async function getAuthUrl(redirectUri: string, prompt?: string | null): Promise<string> {
-  const authCodeUrlParameters: any = {
+  const authCodeUrlParameters: AuthorizationUrlRequest = {
     scopes: ['user.read', 'openid', 'profile', 'email'],
     redirectUri,
+    ...(prompt ? { prompt } : {}),
   };
-
-  // Add prompt parameter if provided (e.g., 'login' forces re-authentication)
-  if (prompt) {
-    authCodeUrlParameters.prompt = prompt;
-  }
 
   const authUrl = await pca.getAuthCodeUrl(authCodeUrlParameters);
   return authUrl;
@@ -118,7 +100,7 @@ export async function handleCallback(code: string, redirectUri: string) {
     redirectUri,
   };
 
-  log.info('Attempting token exchange with Azure AD', { 
+  logger.info('Attempting token exchange with Azure AD', { 
     redirectUri, 
     hasCode: !!code,
     codeLength: code?.length 
@@ -128,7 +110,7 @@ export async function handleCallback(code: string, redirectUri: string) {
   try {
     response = await pca.acquireTokenByCode(tokenRequest);
   } catch (error) {
-    log.error('Azure AD token exchange failed', error);
+    logger.error('Azure AD token exchange failed', error);
     // Re-throw with additional context
     const enhancedError = new Error(
       `Azure AD token exchange failed: ${error instanceof Error ? error.message : String(error)}`
@@ -141,14 +123,14 @@ export async function handleCallback(code: string, redirectUri: string) {
   }
   
   if (!response || !response.account) {
-    log.error('Token response missing account information', { 
+    logger.error('Token response missing account information', { 
       hasResponse: !!response,
       hasAccount: !!response?.account 
     });
     throw new Error('Failed to acquire token - no account information in response');
   }
   
-  log.info('Token exchange successful', { 
+  logger.info('Token exchange successful', { 
     accountId: response.account.homeAccountId,
     username: response.account.username 
   });
@@ -158,7 +140,7 @@ export async function handleCallback(code: string, redirectUri: string) {
   const userId = response.account.homeAccountId || response.account.localAccountId;
 
   // Find or create user in database with retry logic for Azure SQL cold-start
-  log.info('Looking up user in database', { email });
+  logger.info('Looking up user in database', { email });
   
   let dbUser = await withRetry(
     async () => {
@@ -171,7 +153,7 @@ export async function handleCallback(code: string, redirectUri: string) {
   );
 
   if (!dbUser) {
-    log.info('Creating new user in database', { email, userId });
+    logger.info('Creating new user in database', { email, userId });
     
     // Check if this is the first user in the system
     const userCount = await withRetry(
@@ -186,7 +168,7 @@ export async function handleCallback(code: string, redirectUri: string) {
     const assignedRole = isFirstUser ? 'SYSTEM_ADMIN' : 'USER';
     
     if (isFirstUser) {
-      log.info('Creating first user in system - assigning SYSTEM_ADMIN role', { email });
+      logger.info('Creating first user in system - assigning SYSTEM_ADMIN role', { email });
     }
     
     // Create new user in database with retry logic
@@ -207,7 +189,7 @@ export async function handleCallback(code: string, redirectUri: string) {
     );
     
     if (isFirstUser) {
-      log.info('First system administrator created successfully', { 
+      logger.info('First system administrator created successfully', { 
         userId: dbUser.id, 
         email: dbUser.email 
       });
@@ -217,10 +199,10 @@ export async function handleCallback(code: string, redirectUri: string) {
     if (dbUser.role !== 'SYSTEM_ADMIN') {
       try {
         await ensureSharedServiceAccess(dbUser.id);
-        log.info('Assigned shared services access to new user', { userId: dbUser.id });
+        logger.info('Assigned shared services access to new user', { userId: dbUser.id });
       } catch (error) {
         // Log error but don't fail authentication
-        log.error('Failed to assign shared services access', error);
+        logger.error('Failed to assign shared services access', error);
       }
     }
   }
@@ -233,7 +215,7 @@ export async function handleCallback(code: string, redirectUri: string) {
     systemRole: dbUser.role || 'USER', // SYSTEM_ADMIN or USER
   };
 
-  log.info('User authenticated successfully', { userId: user.id, email: user.email, systemRole: user.systemRole });
+  logger.info('User authenticated successfully', { userId: user.id, email: user.email, systemRole: user.systemRole });
   
   return user;
 }
@@ -257,7 +239,7 @@ export async function createSession(
   const sessionJti = randomBytes(16).toString('hex');
   
   // Include fingerprint in JWT payload for validation
-  const payload: any = { user };
+  const payload: Record<string, unknown> = { user };
   if (fingerprint) {
     payload.fingerprint = fingerprint;
   }
@@ -273,7 +255,7 @@ export async function createSession(
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
   const sessionId = `sess_${sessionJti}`;
   
-  log.info('Creating session in database', { userId: user.id, sessionId, hasFingerprint: !!fingerprint });
+  logger.info('Creating session in database', { userId: user.id, sessionId, hasFingerprint: !!fingerprint });
   
   await withRetry(
     async () => {
@@ -306,7 +288,7 @@ export async function createSession(
   };
   await cache.set(`session:${token}`, sessionData, 3600);
 
-  log.info('Session created successfully', { userId: user.id, sessionId });
+  logger.info('Session created successfully', { userId: user.id, sessionId });
 
   return token;
 }
@@ -339,7 +321,7 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
     if (cachedSession) {
       // Check if cached session hasn't expired
       if (new Date(cachedSession.expires) > new Date()) {
-        log.info('Session cache hit', { userId: cachedSession.userId });
+        logger.info('Session cache hit', { userId: cachedSession.userId });
         return cachedSession;
       }
       // Expired - remove from cache
@@ -352,7 +334,20 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
       async () => {
         return await prisma.session.findUnique({
           where: { sessionToken: token },
-          include: { User: true },
+          select: {
+            id: true,
+            sessionToken: true,
+            userId: true,
+            expires: true,
+            User: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
         });
       },
       RetryPresets.AUTH_DATABASE,
@@ -391,11 +386,11 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
     };
     
     await cache.set(cacheKey, sessionData, 3600); // 1 hour
-    log.info('Session cached', { userId: session.userId });
+    logger.info('Session cached', { userId: session.userId });
 
     return sessionData;
   } catch (error) {
-    log.error('Failed to get session from database', error);
+    logger.error('Failed to get session from database', error);
     return null;
   }
 }
@@ -403,15 +398,12 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
 /**
  * Verify JWT token only (no database check)
  * Use this in middleware/edge runtime where Prisma is not available
+ * 
+ * @deprecated Import from '@/lib/services/auth/jwt' instead.
+ * This re-export is kept for backward compatibility. The jwt.ts version
+ * supports secret rotation (tries current then old secret).
  */
-export async function verifySessionJWTOnly(token: string): Promise<Session | null> {
-  try {
-    const verified = await jwtVerify(token, JWT_SECRET);
-    return verified.payload as unknown as Session;
-  } catch (error) {
-    return null;
-  }
-}
+export { verifySessionJWTOnly } from './jwt';
 
 /**
  * Verify and decode session token
@@ -433,7 +425,7 @@ export async function verifySession(
     if (fingerprintEnabled && verified.payload.fingerprint && userAgent && ipAddress) {
       const currentFingerprint = generateFingerprint(userAgent, ipAddress);
       if (verified.payload.fingerprint !== currentFingerprint) {
-        log.error('Session fingerprint mismatch - possible session hijacking attempt', {
+        logger.error('Session fingerprint mismatch - possible session hijacking attempt', {
           userId: (verified.payload as any).user?.id,
         });
         return null;
@@ -650,7 +642,7 @@ export async function checkClientAccess(
 
     return !!taskAccess;
   } catch (error) {
-    log.error('Error checking client access', error);
+    logger.error('Error checking client access', error);
     return false;
   }
 }
@@ -677,7 +669,13 @@ export async function getUserTaskRole(
 }
 
 /**
- * Check if user is a System Admin (SYSTEM_ADMIN or legacy ADMIN role)
+ * Check if user is a System Admin by user ID (async database lookup)
+ * 
+ * Use this variant when you only have a user ID and need a database check.
+ * For user objects or role strings in memory: use `isSystemAdmin()` from `@/lib/utils/systemAdmin`
+ * 
+ * @param userId - User ID to check
+ * @returns true if user is SYSTEM_ADMIN
  */
 export async function isSystemAdmin(userId: string): Promise<boolean> {
   try {
@@ -686,9 +684,9 @@ export async function isSystemAdmin(userId: string): Promise<boolean> {
       select: { role: true },
     });
 
-    // Check for SYSTEM_ADMIN (current) or ADMIN (legacy support)
-    return user?.role === 'SYSTEM_ADMIN' || user?.role === 'ADMIN';
+    return user?.role === SystemRole.SYSTEM_ADMIN || user?.role === 'ADMIN';
   } catch (error) {
+    logger.error('Error checking system admin status', { userId, error });
     return false;
   }
 }
@@ -721,32 +719,18 @@ export async function requireTaskRole(
 
 /**
  * Delete a specific session from database
+ * Delegates to SessionManager for distributed invalidation via Redis Pub/Sub
  */
 export async function deleteSession(token: string): Promise<void> {
-  try {
-    // Delete from cache
-    await cache.delete(`session:${token}`);
-    
-    // Delete from database
-    await prisma.session.delete({
-      where: { sessionToken: token },
-    });
-  } catch (error) {
-    // Session might not exist, which is fine
-  }
+  await SessionManager.invalidateSession(token);
 }
 
 /**
  * Delete all sessions for a user (logout from all devices)
+ * Delegates to SessionManager for distributed invalidation via Redis Pub/Sub
  */
 export async function deleteAllUserSessions(userId: string): Promise<void> {
-  // Invalidate all session caches for this user
-  await cache.invalidate(`session:`);
-  
-  // Delete from database
-  await prisma.session.deleteMany({
-    where: { userId },
-  });
+  await SessionManager.invalidateAllUserSessions(userId);
 }
 
 /**
@@ -787,7 +771,7 @@ export async function checkUserPermission(
   resource: string,
   action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
 ): Promise<boolean> {
-  log.warn('checkUserPermission is deprecated. Use checkFeature() from @/lib/permissions/checkFeature instead.', { resource, action });
+  logger.warn('checkUserPermission is deprecated. Use checkFeature() from @/lib/permissions/checkFeature instead.', { resource, action });
   return false;
 }
 
@@ -800,7 +784,7 @@ export async function requirePermission(
   resource: string,
   action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
 ): Promise<void> {
-  log.warn('requirePermission is deprecated. Use requireFeature() from @/lib/permissions/checkFeature instead.', { resource, action });
+  logger.warn('requirePermission is deprecated. Use requireFeature() from @/lib/permissions/checkFeature instead.', { resource, action });
   throw new Error(`Permission denied: ${action} on ${resource} - Use feature-based permissions instead`);
 }
 

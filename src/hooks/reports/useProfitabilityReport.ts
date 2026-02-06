@@ -5,7 +5,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import type { ProfitabilityReportData } from '@/types/api';
+import type { ProfitabilityReportData } from '@/types/reports';
 
 export interface UseProfitabilityReportParams {
   fiscalYear?: number;        // If provided, show fiscal year view

@@ -35,7 +35,7 @@ import { useMyReportsOverview } from '@/hooks/reports/useMyReportsOverview';
 import { Input, Button, Banner, LoadingSpinner } from '@/components/ui';
 import { FiscalYearSelector } from '@/components/features/reports/FiscalYearSelector';
 import { ServiceLineFilterSelector } from '@/components/features/reports/ServiceLineFilterSelector';
-import type { MonthlyMetrics } from '@/types/api';
+import type { MonthlyMetrics } from '@/types/reports';
 import {
   LineChart,
   Line,

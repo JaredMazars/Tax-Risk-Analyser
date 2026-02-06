@@ -137,8 +137,8 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
 
         return {
           id: -(index + 1), // Use negative IDs for virtual service line access
-          serviceLine: sl,
-          role: 'ADMINISTRATOR',
+          serviceLine: sl as ServiceLine,
+          role: ServiceLineRole.ADMINISTRATOR,
           taskCount,
           activeTaskCount,
           name: nameMap.get(sl),
@@ -326,8 +326,8 @@ export async function getUserServiceLines(userId: string): Promise<ServiceLineWi
 
       result.push({
         id: assignments[0]!.id,
-        serviceLine: masterCode,
-        role,
+        serviceLine: masterCode as ServiceLine,
+        role: role as ServiceLineRole,
         taskCount,
         activeTaskCount,
         name: nameMap.get(masterCode),

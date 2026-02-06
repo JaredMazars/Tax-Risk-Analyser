@@ -1,3 +1,5 @@
+import type { TaskTeamAllocation } from './allocations';
+
 export interface MappedData {
   id: number;
   accountCode: string;
@@ -291,8 +293,8 @@ export interface Task {
 export interface ServiceLineUser {
   id: number;
   userId: string;
-  serviceLine: ServiceLine | string;
-  role: ServiceLineRole | string;
+  serviceLine: ServiceLine;
+  role: ServiceLineRole;
   createdAt: Date;
   updatedAt: Date;
   user?: {
@@ -312,42 +314,39 @@ export interface SubServiceLineGroup {
   masterCode: string;
 }
 
+// Shared user shape for team member relations
+export interface TaskTeamUser {
+  id: string;
+  name: string | null;
+  email: string;
+  image?: string | null;
+  jobTitle?: string | null;
+  officeLocation?: string | null;
+}
+
 // Task Team Access
 export interface TaskTeam {
   id: number;
   taskId: number;
   userId: string;
-  role: ServiceLineRole | string;
+  role: ServiceLineRole;
   startDate?: Date | null;
   endDate?: Date | null;
   allocatedHours?: number | null;
   allocatedPercentage?: number | null;
   actualHours?: number | null;
   createdAt: Date;
-  user?: {
-    id: string;
-    name: string | null;
-    email: string;
-    image?: string | null;
-    jobTitle?: string | null;
-    officeLocation?: string | null;
-  };
-  // API returns User with capital U from Prisma
-  User?: {
-    id: string;
-    name: string | null;
-    email: string;
-    image?: string | null;
-    jobTitle?: string | null;
-    officeLocation?: string | null;
-  };
+  /** Lowercase alias – used by some API response transformations */
+  user?: TaskTeamUser;
+  /** Prisma relation name (canonical) – returned directly from Prisma queries */
+  User?: TaskTeamUser;
   // Optional task/client display fields (for allocation display)
   taskName?: string | null;
   taskCode?: string | null;
   clientName?: string | null;
   clientCode?: string | null;
   // Allocations for this team member (from allocation API)
-  allocations?: AllocationPeriod[];
+  allocations?: TaskTeamAllocation[];
   // Employee ID (for non-client allocation planning)
   employeeId?: number;
   // Indicates if the user has an account (false for pending accounts)
@@ -373,107 +372,15 @@ export interface TaskTeamWithIndependence extends TaskTeam {
   independenceConfirmation: TaskIndependenceConfirmation | null;
 }
 
-// Allocation Period (for grouping multiple allocations by user)
-export interface AllocationPeriod {
-  allocationId: number;
-  startDate: Date | null;
-  endDate: Date | null;
-  allocatedHours: number | null;
-  allocatedPercentage: number | null;
-  actualHours: number | null;
-}
-
-// Grouped Task Team (user with multiple allocation periods)
-export interface GroupedTaskTeam {
-  userId: string;
-  userName: string | null;
-  userEmail: string;
-  userImage?: string | null;
-  role: ServiceLineRole | string;
-  allocations: AllocationPeriod[];
-  totalAllocatedHours: number;
-  totalActualHours: number;
-}
-
-// Non-Client Allocation
-export interface NonClientAllocation {
-  id: number;
-  employeeId: number;
-  eventType: NonClientEventType;
-  startDate: Date;
-  endDate: Date;
-  allocatedHours: number;
-  allocatedPercentage: number;
-  notes?: string | null;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-  employee?: {
-    id: number;
-    EmpCode: string;
-    EmpName: string;
-    EmpNameFull: string;
-  };
-}
-
-// Non-Client Event Type Labels
-export const NON_CLIENT_EVENT_LABELS: Record<NonClientEventType, string> = {
-  [NonClientEventType.TRAINING]: 'Training',
-  [NonClientEventType.ANNUAL_LEAVE]: 'Annual Leave',
-  [NonClientEventType.SICK_LEAVE]: 'Sick Leave',
-  [NonClientEventType.PUBLIC_HOLIDAY]: 'Public Holiday',
-  [NonClientEventType.PERSONAL]: 'Personal',
-  [NonClientEventType.ADMINISTRATIVE]: 'Administrative',
-};
-
-// Non-Client Event Type Colors (gradients for timeline display)
-export const NON_CLIENT_EVENT_COLORS: Record<NonClientEventType, { from: string; to: string }> = {
-  [NonClientEventType.TRAINING]: { from: '#10B981', to: '#059669' },
-  [NonClientEventType.ANNUAL_LEAVE]: { from: '#3B82F6', to: '#2563EB' },
-  [NonClientEventType.SICK_LEAVE]: { from: '#F59E0B', to: '#D97706' },
-  [NonClientEventType.PUBLIC_HOLIDAY]: { from: '#8B5CF6', to: '#7C3AED' },
-  [NonClientEventType.PERSONAL]: { from: '#EC4899', to: '#DB2777' },
-  [NonClientEventType.ADMINISTRATIVE]: { from: '#6B7280', to: '#4B5563' },
-};
-
-export interface TeamAllocation {
-  id: number;
-  taskId: number;
-  taskName: string;
-  role: ServiceLineRole | string;
-  startDate: Date | null;
-  endDate: Date | null;
-  allocatedHours: number | null;
-  allocatedPercentage: number | null;
-  actualHours: number | null;
-}
-
-export interface TeamMemberWithAllocations {
-  userId: string;
-  user: {
-    id: string;
-    name: string | null;
-    email: string;
-    image?: string | null;
-    jobGradeCode?: string | null;
-  };
-  role: string;
-  id: number;
-  employeeId?: number;
-  allocations: TeamAllocation[];
-  hasAccount?: boolean;
-  employeeStatus?: EmployeeStatus;
-}
-
 export interface TaskAcceptance {
   id: number;
   taskId: number;
   acceptanceApproved: boolean;
-  approvedBy?: string | null;
-  approvedAt?: Date | null;
-  questionnaireType?: string | null;
-  overallRiskScore?: number | null;
-  riskRating?: string | null;
+  approvedBy: string | null;        // DB nullable
+  approvedAt: Date | null;          // DB nullable
+  questionnaireType: string | null;  // DB nullable
+  overallRiskScore: number | null;   // DB nullable
+  riskRating: string | null;         // DB nullable
   createdAt: Date;
   updatedAt: Date;
 }
@@ -483,17 +390,17 @@ export interface TaskEngagementLetter {
   taskId: number;
   generated: boolean;
   uploaded: boolean;
-  filePath?: string | null;
-  content?: string | null;
-  templateId?: number | null;
-  generatedAt?: Date | null;
-  generatedBy?: string | null;
-  uploadedAt?: Date | null;
-  uploadedBy?: string | null;
+  filePath: string | null;      // DB nullable
+  content: string | null;       // DB nullable
+  templateId: number | null;    // DB nullable
+  generatedAt: Date | null;     // DB nullable
+  generatedBy: string | null;   // DB nullable
+  uploadedAt: Date | null;      // DB nullable
+  uploadedBy: string | null;    // DB nullable
   dpaUploaded: boolean;
-  dpaFilePath?: string | null;
-  dpaUploadedAt?: Date | null;
-  dpaUploadedBy?: string | null;
+  dpaFilePath: string | null;   // DB nullable
+  dpaUploadedAt: Date | null;   // DB nullable
+  dpaUploadedBy: string | null; // DB nullable
   createdAt: Date;
   updatedAt: Date;
 }
@@ -554,154 +461,6 @@ export interface EmployeeSearchResult {
   } | null;
 }
 
-// Tax Opinion Models
-export interface OpinionDraft {
-  id: number;
-  taskId: number;
-  version: number;
-  title: string;
-  content: string;
-  status: string;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-  documents?: OpinionDocument[];
-  sections?: OpinionSection[];
-  chatMessages?: OpinionChatMessage[];
-}
-
-export interface OpinionDocument {
-  id: number;
-  opinionDraftId: number;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  filePath: string;
-  category: string;
-  extractedText?: string | null;
-  vectorized: boolean;
-  uploadedBy: string;
-  createdAt: Date;
-}
-
-export interface OpinionSection {
-  id: number;
-  opinionDraftId: number;
-  sectionType: string;
-  title: string;
-  content: string;
-  aiGenerated: boolean;
-  reviewed: boolean;
-  reviewedBy?: string | null;
-  reviewedAt?: Date | null;
-  order: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface OpinionChatMessage {
-  id: number;
-  opinionDraftId: number;
-  role: string;
-  content: string;
-  metadata?: string | null;
-  sectionGenerationId?: string | null;
-  sectionType?: string | null;
-  createdAt: Date;
-}
-
-export interface ResearchNote {
-  id: number;
-  taskId: number;
-  title: string;
-  content: string;
-  tags?: string | null;
-  category?: string | null;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface LegalPrecedent {
-  id: number;
-  taskId: number;
-  caseName: string;
-  citation: string;
-  court?: string | null;
-  year?: number | null;
-  summary: string;
-  relevance?: string | null;
-  link?: string | null;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Tax Administration Models
-export interface SarsResponse {
-  id: number;
-  taskId: number;
-  referenceNumber: string;
-  subject: string;
-  content: string;
-  status: string;
-  responseType: string;
-  deadline?: Date | null;
-  sentDate?: Date | null;
-  receivedDate?: Date | null;
-  documentPath?: string | null;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface AdministrationDocument {
-  id: number;
-  taskId: number;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  filePath: string;
-  category: string;
-  description?: string | null;
-  version: number;
-  uploadedBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ComplianceChecklistItem {
-  id: number;
-  taskId: number;
-  title: string;
-  description?: string | null;
-  dueDate?: Date | null;
-  priority: string;
-  status: string;
-  assignedTo?: string | null;
-  completedAt?: Date | null;
-  completedBy?: string | null;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface FilingStatus {
-  id: number;
-  taskId: number;
-  filingType: string;
-  description?: string | null;
-  status: string;
-  deadline?: Date | null;
-  submittedDate?: Date | null;
-  approvedDate?: Date | null;
-  referenceNumber?: string | null;
-  notes?: string | null;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 // Client Documents
 export enum DocumentType {
   ENGAGEMENT_LETTER = 'ENGAGEMENT_LETTER',
@@ -756,63 +515,11 @@ export * from './analytics';
 // Re-export branded ID types
 export * from './branded';
 
-/**
- * Tax Adjustment Model
- * Centralized type definition for TaxAdjustment to prevent duplication
- * Matches Prisma schema
- */
-export interface TaxAdjustment {
-  id: number;
-  taskId: number;
-  type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT' | string;
-  description: string;
-  amount: number;
-  status: string;
-  sourceDocuments?: string | null;
-  extractedData?: string | null;
-  calculationDetails?: string | null;
-  notes?: string | null;
-  sarsSection?: string | null;
-  confidenceScore?: number | null;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
-  AdjustmentDocument?: AdjustmentDocument[];
-}
+// Re-export tax domain types
+export * from './tax';
 
-/**
- * Tax Adjustment Display Type
- * Simplified version for display purposes (without relations)
- */
-export interface TaxAdjustmentDisplay {
-  id: number;
-  type: 'DEBIT' | 'CREDIT' | 'ALLOWANCE' | 'RECOUPMENT' | string;
-  description: string;
-  amount: number;
-  status: string;
-  sarsSection?: string | null;
-  confidenceScore?: number | null;
-  notes?: string | null;
-  createdAt?: Date | string;
-}
-
-/**
- * Adjustment Document Model
- */
-export interface AdjustmentDocument {
-  id: number;
-  taskId: number;
-  taxAdjustmentId?: number | null;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  filePath: string;
-  uploadedBy?: string | null;
-  extractionStatus: string;
-  extractedData?: string | null;
-  extractionError?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// Re-export allocation domain types
+export * from './allocations';
 
 /**
  * DrsTransactions already has employee names from external system
@@ -856,58 +563,6 @@ export interface DrsTransaction {
   createdAt: Date;
   updatedAt: Date;
 }
-
-// Non-Client Event Type Configuration
-export const NON_CLIENT_EVENT_CONFIG: Record<NonClientEventType, {
-  label: string;
-  shortLabel: string;
-  icon: string;
-  gradient: string;
-  description: string;
-}> = {
-  [NonClientEventType.TRAINING]: {
-    label: 'Training',
-    shortLabel: 'Training',
-    icon: '📚',
-    gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-    description: 'Professional development and training sessions'
-  },
-  [NonClientEventType.ANNUAL_LEAVE]: {
-    label: 'Annual Leave',
-    shortLabel: 'Leave',
-    icon: '🏖️',
-    gradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-    description: 'Scheduled annual leave/vacation'
-  },
-  [NonClientEventType.SICK_LEAVE]: {
-    label: 'Sick Leave',
-    shortLabel: 'Sick',
-    icon: '🤒',
-    gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-    description: 'Sick leave and medical appointments'
-  },
-  [NonClientEventType.PUBLIC_HOLIDAY]: {
-    label: 'Public Holiday',
-    shortLabel: 'Holiday',
-    icon: '🎉',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-    description: 'Public holidays and firm closures'
-  },
-  [NonClientEventType.PERSONAL]: {
-    label: 'Personal',
-    shortLabel: 'Personal',
-    icon: '👤',
-    gradient: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
-    description: 'Personal time off'
-  },
-  [NonClientEventType.ADMINISTRATIVE]: {
-    label: 'Administrative',
-    shortLabel: 'Admin',
-    icon: '📋',
-    gradient: 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)',
-    description: 'Administrative tasks and internal work'
-  }
-};
 
 /**
  * Metric types for profitability tracking

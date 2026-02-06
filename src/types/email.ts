@@ -25,35 +25,6 @@ export enum EmailStatus {
 }
 
 /**
- * Notification preference
- */
-export interface NotificationPreference {
-  id: number;
-  userId: string;
-  taskId: number | null;
-  notificationType: string;
-  emailEnabled: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * Email log entry
- */
-export interface EmailLog {
-  id: number;
-  recipientEmail: string;
-  recipientUserId: string | null;
-  emailType: string;
-  subject: string;
-  status: string;
-  errorMessage: string | null;
-  metadata: string | null;
-  sentAt: Date | null;
-  createdAt: Date;
-}
-
-/**
  * User info for email templates
  */
 export interface EmailUser {

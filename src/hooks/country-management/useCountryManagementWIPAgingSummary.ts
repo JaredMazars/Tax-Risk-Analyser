@@ -5,7 +5,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import type { WIPAgingSummaryResult } from '@/types/api';
+import type { WIPAgingSummaryResult } from '@/types/reports';
 
 export interface WIPAgingSummaryResponse {
   data: WIPAgingSummaryResult[];

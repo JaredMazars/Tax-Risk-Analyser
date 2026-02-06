@@ -648,7 +648,7 @@ export class ApprovalService {
         return {
           success: true,
           approval: updatedApproval,
-          workflowType: step.Approval.workflowType,
+          workflowType: step.Approval.workflowType as WorkflowType,
           workflowId: step.Approval.workflowId,
           nextStep: nextStep || null,
           isComplete,
@@ -716,7 +716,7 @@ export class ApprovalService {
         return {
           success: true,
           approval: updatedApproval,
-          workflowType: step.Approval.workflowType,
+          workflowType: step.Approval.workflowType as WorkflowType,
           workflowId: step.Approval.workflowId,
           nextStep: null,
           isComplete: true,

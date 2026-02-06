@@ -165,23 +165,6 @@ export function canSupervise(role: string): boolean {
 }
 
 /**
- * Check if user is system administrator (simple role check)
- * 
- * Use this variant when you have a role string to check.
- * For other use cases:
- * - For user objects in memory: use `isSystemAdmin()` from `@/lib/utils/systemAdmin`
- * - For database lookups by user ID: use `isSystemAdmin()` from `@/lib/services/auth/authorization`
- * 
- * @param role - The user's system role
- * @returns true if system administrator
- * @see {@link systemAdmin.isSystemAdmin} for user object checks
- * @see {@link authorization.isSystemAdmin} for database lookups
- */
-export function isSystemAdmin(role: string): boolean {
-  return role === SystemRole.SYSTEM_ADMIN;
-}
-
-/**
  * Check if user has Partner-level access
  * Partners and Administrators (service line) or System Admins (system level) have partner access
  * @param role - The user's role (can be system or service line role, may be undefined)

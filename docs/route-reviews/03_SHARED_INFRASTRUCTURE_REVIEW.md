@@ -195,6 +195,8 @@ See [REVIEW_STANDARDS.md](./REVIEW_STANDARDS.md) -- apply **Performance Checklis
 
 ## SQL Utils (4 files)
 
+Apply **Stored Procedure Checklist** from [REVIEW_STANDARDS.md](./REVIEW_STANDARDS.md) for any raw SQL or stored procedure logic. See also `.cursor/rules/stored-procedure-rules.mdc`.
+
 - [ ] `src/lib/utils/sql/index.ts` -- SQL utilities exports
   - **Issues Found**: _None yet_
   - **Fixes Applied**: _None yet_

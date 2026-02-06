@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { AgingBuckets, DebtorMetrics } from '@/lib/services/analytics/debtorAggregation';
+import type { AgingBuckets } from '@/types/reports';
+import type { DebtorMetrics } from '@/lib/services/analytics/debtorAggregation';
 
 // Query Keys
 export const groupDebtorsKeys = {

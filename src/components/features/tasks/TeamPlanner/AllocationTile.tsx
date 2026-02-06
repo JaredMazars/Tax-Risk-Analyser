@@ -6,7 +6,7 @@ import { AllocationData, GanttPosition, TimeScale, RowMetadata } from './types';
 import { getRoleGradient, formatHours, formatPercentage, getDayPixelWidth, snapToDay, pixelsToDays, calculateBusinessDays, calculateAvailableHours, getUtilizationBlendColor } from './utils';
 import { debounce } from './optimizations';
 import { format, addDays, startOfDay } from 'date-fns';
-import { NON_CLIENT_EVENT_COLORS, NON_CLIENT_EVENT_LABELS } from '@/types';
+import { NON_CLIENT_EVENT_COLORS, NON_CLIENT_EVENT_LABELS } from '@/constants/nonClientEvents';
 
 interface AllocationTileProps {
   allocation: AllocationData;

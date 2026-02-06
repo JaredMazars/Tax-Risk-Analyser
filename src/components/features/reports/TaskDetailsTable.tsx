@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { Pagination } from '@/components/shared/Pagination';
 import { Badge } from '@/components/ui/Badge';
-import type { TaskWithWIPAndServiceLine } from '@/types/api';
+import type { TaskWithWIPAndServiceLine } from '@/types/reports';
 
 interface TaskDetailsTableProps {
   tasks: TaskWithWIPAndServiceLine[];

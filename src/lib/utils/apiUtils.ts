@@ -1,14 +1,26 @@
+import { NextRequest } from 'next/server';
 import { prisma } from '../db/prisma';
 import { AppError, ErrorCodes } from './errorHandler';
 import { Prisma } from '@prisma/client';
 import { GSClientIDSchema } from '@/lib/validation/schemas';
+import {
+  TaskId, toTaskId,
+  AdjustmentId, toAdjustmentId,
+  ToolId, toToolId,
+  DocumentId, toDocumentId,
+  ApprovalId, toApprovalId,
+  GSClientID as GSClientIDType,
+  toGSClientID as toGSClientIDBranded,
+} from '@/types/branded';
 
 /**
  * Common utility functions for API routes
  */
 
 /**
- * Generic numeric ID parser and validator
+ * Generic numeric ID parser and validator for route params.
+ * Use the entity-specific parsers (parseTaskId, parseAdjustmentId, etc.) when available
+ * for branded type safety. Use this function for entities without a dedicated parser.
  * @param id - String ID from route params
  * @param entityName - Name of the entity (e.g., 'Project', 'Adjustment', 'Document')
  * @param required - Whether the ID is required (default: true)
@@ -20,25 +32,18 @@ export function parseNumericId(
   entityName: string,
   required: boolean = true
 ): number {
-  if (!id || id === 'undefined' || id === 'null') {
-    if (required) {
-      throw new AppError(
-        400,
-        `${entityName} ID is required`,
-        ErrorCodes.VALIDATION_ERROR,
-        { providedId: id, type: typeof id }
-      );
-    }
+  const sanitized = sanitizeRouteParam(id);
+  if (!sanitized) {
     throw new AppError(
       400,
-      `Invalid ${entityName} ID`,
+      required ? `${entityName} ID is required` : `Invalid ${entityName} ID`,
       ErrorCodes.VALIDATION_ERROR,
-      { providedId: id }
+      { providedId: id, type: typeof id }
     );
   }
-  
-  const parsedId = Number.parseInt(id, 10);
-  
+
+  const parsedId = Number.parseInt(sanitized, 10);
+
   if (Number.isNaN(parsedId) || parsedId <= 0) {
     throw new AppError(
       400,
@@ -47,28 +52,71 @@ export function parseNumericId(
       { providedId: id, parsedValue: parsedId }
     );
   }
-  
+
   return parsedId;
+}
+
+/**
+ * Sanitize route param values that may arrive as literal strings "undefined" or "null"
+ * from Next.js dynamic route segments.
+ * @param id - Raw string from route params
+ * @returns The id if valid, or undefined if it's a sentinel value
+ */
+function sanitizeRouteParam(id: string | undefined): string | undefined {
+  if (!id || id === 'undefined' || id === 'null') {
+    return undefined;
+  }
+  return id;
+}
+
+/**
+ * Parse and validate a numeric ID from route params, returning a branded type.
+ * Handles route-param edge cases (undefined, 'undefined', 'null' strings) before
+ * delegating to the branded converter.
+ * @param id - String ID from route params
+ * @param entityName - Name of the entity for error messages
+ * @param converter - Branded type converter function
+ * @param required - Whether the ID is required (default: true)
+ * @returns Validated branded numeric ID
+ * @throws AppError if ID is invalid or missing
+ */
+function parseNumericIdBranded<T>(
+  id: string | undefined,
+  entityName: string,
+  converter: (value: unknown) => T,
+  required: boolean = true
+): T {
+  const sanitized = sanitizeRouteParam(id);
+  if (!sanitized) {
+    throw new AppError(
+      400,
+      required ? `${entityName} ID is required` : `Invalid ${entityName} ID`,
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id, type: typeof id }
+    );
+  }
+  return converter(sanitized);
 }
 
 /**
  * Parse and validate task ID from route params
  * @param id - String ID from route params
- * @returns Validated numeric task ID
+ * @returns Validated branded TaskId
  * @throws AppError if ID is invalid
  */
-export function parseTaskId(id: string | undefined): number {
-  return parseNumericId(id, 'Task');
+export function parseTaskId(id: string | undefined): TaskId {
+  return parseNumericIdBranded(id, 'Task', toTaskId);
 }
 
 /**
  * Parse and validate GSClientID (GUID) from route params
  * @param id - String ID from route params
- * @returns Validated GSClientID string
+ * @returns Validated branded GSClientID
  * @throws AppError if ID is invalid
  */
-export function parseGSClientID(id: string | undefined): string {
-  if (!id || id === 'undefined' || id === 'null') {
+export function parseGSClientID(id: string | undefined): GSClientIDType {
+  const sanitized = sanitizeRouteParam(id);
+  if (!sanitized) {
     throw new AppError(
       400,
       'Client ID is required',
@@ -76,9 +124,9 @@ export function parseGSClientID(id: string | undefined): string {
       { providedId: id, type: typeof id }
     );
   }
-  
-  const result = GSClientIDSchema.safeParse(id);
-  
+
+  const result = GSClientIDSchema.safeParse(sanitized);
+
   if (!result.success) {
     throw new AppError(
       400,
@@ -87,49 +135,48 @@ export function parseGSClientID(id: string | undefined): string {
       { providedId: id }
     );
   }
-  
-  return result.data;
-}
 
+  return toGSClientIDBranded(result.data);
+}
 
 /**
  * Parse and validate adjustment ID from route params
  * @param id - String ID from route params
- * @returns Validated numeric adjustment ID
+ * @returns Validated branded AdjustmentId
  * @throws AppError if ID is invalid
  */
-export function parseAdjustmentId(id: string | undefined): number {
-  return parseNumericId(id, 'Adjustment');
+export function parseAdjustmentId(id: string | undefined): AdjustmentId {
+  return parseNumericIdBranded(id, 'Adjustment', toAdjustmentId);
 }
 
 /**
  * Parse and validate tool ID from route params
  * @param id - String ID from route params
- * @returns Validated numeric tool ID
+ * @returns Validated branded ToolId
  * @throws AppError if ID is invalid
  */
-export function parseToolId(id: string | undefined): number {
-  return parseNumericId(id, 'Tool');
+export function parseToolId(id: string | undefined): ToolId {
+  return parseNumericIdBranded(id, 'Tool', toToolId);
 }
 
 /**
  * Parse and validate document ID from route params
  * @param id - String ID from route params
- * @returns Validated numeric document ID
+ * @returns Validated branded DocumentId
  * @throws AppError if ID is invalid
  */
-export function parseDocumentId(id: string): number {
-  return parseNumericId(id, 'Document', false);
+export function parseDocumentId(id: string): DocumentId {
+  return parseNumericIdBranded(id, 'Document', toDocumentId, false);
 }
 
 /**
  * Parse and validate approval ID from route params
  * @param id - String ID from route params
- * @returns Validated numeric approval ID
+ * @returns Validated branded ApprovalId
  * @throws AppError if ID is invalid
  */
-export function parseApprovalId(id: string | undefined): number {
-  return parseNumericId(id, 'Approval');
+export function parseApprovalId(id: string | undefined): ApprovalId {
+  return parseNumericIdBranded(id, 'Approval', toApprovalId);
 }
 
 /**
@@ -302,6 +349,54 @@ export async function verifyAdjustmentBelongsToTask(
   }
 }
 
+
+/**
+ * Extract pagination params from request
+ * @param request - The incoming request
+ * @returns Object with page, limit, and offset
+ */
+export function getPaginationParams(request: NextRequest): {
+  page: number;
+  limit: number;
+  offset: number;
+} {
+  const { searchParams } = new URL(request.url);
+  const page = Number.parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
+  const offset = (page - 1) * limit;
+  
+  return { page, limit, offset };
+}
+
+/**
+ * Extract sort params from request
+ * @param request - The incoming request
+ * @param defaultSort - Default sort field (default: 'createdAt')
+ * @param allowedFields - Optional allowlist of permitted sort fields. If provided, user-supplied
+ *   sortBy values not in this list will be replaced with defaultSort to prevent field enumeration.
+ *   Callers SHOULD provide this for security.
+ */
+export function getSortParams(
+  request: NextRequest,
+  defaultSort: string = 'createdAt',
+  allowedFields?: string[]
+): {
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+} {
+  const { searchParams } = new URL(request.url);
+  let sortBy = searchParams.get('sortBy') || defaultSort;
+
+  // Validate against allowlist if provided
+  if (allowedFields && !allowedFields.includes(sortBy)) {
+    sortBy = defaultSort;
+  }
+
+  const sortOrderParam = searchParams.get('sortOrder');
+  const sortOrder: 'asc' | 'desc' = sortOrderParam === 'asc' ? 'asc' : 'desc';
+  
+  return { sortBy, sortOrder };
+}
 
 /**
  * Standard success response formatter

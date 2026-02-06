@@ -10,7 +10,8 @@ import { getDateRange, generateTimelineColumns, calculateTotalHours, calculateTo
 import { memoizedCalculateTotalHours, memoizedCalculateTotalPercentage } from './optimizations';
 import { Button, LoadingSpinner, ErrorModal } from '@/components/ui';
 import { Calendar, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
-import { ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
+import { ServiceLineRole } from '@/types';
+import { NON_CLIENT_EVENT_LABELS } from '@/constants/nonClientEvents';
 import { startOfDay, format, isSameDay, addDays, addWeeks } from 'date-fns';
 import { useDeleteNonClientAllocation } from '@/hooks/planning/useNonClientAllocations';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';

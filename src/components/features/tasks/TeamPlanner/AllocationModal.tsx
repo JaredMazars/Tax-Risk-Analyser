@@ -5,7 +5,8 @@ import { AllocationData } from './types';
 import { Button, Input } from '@/components/ui';
 import { X, Calendar, Clock, Percent, AlertCircle } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { ServiceLineRole, NON_CLIENT_EVENT_LABELS } from '@/types';
+import { ServiceLineRole } from '@/types';
+import { NON_CLIENT_EVENT_LABELS } from '@/constants/nonClientEvents';
 import { calculateBusinessDays, calculateAvailableHours, calculateAllocationPercentage } from './utils';
 import { GRADIENTS } from '@/lib/design-system/gradients';
 

@@ -3,17 +3,7 @@
  * Centralized types for the reusable approval framework
  */
 
-import type { Approval, ApprovalStep, ApprovalRoute, ApprovalDelegation } from '@prisma/client';
-
-/**
- * Approval status
- */
-export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-
-/**
- * Approval step status
- */
-export type ApprovalStepStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SKIPPED';
+import type { Approval, ApprovalStep } from '@prisma/client';
 
 /**
  * Approval priority
@@ -56,25 +46,6 @@ export interface ApprovalWithSteps extends Approval {
 }
 
 /**
- * Approval step with user data
- */
-export interface ApprovalStepWithUsers extends ApprovalStep {
-  User_ApprovalStep_assignedToUserIdToUser?: {
-    id: string;
-    name: string | null;
-    email: string;
-  } | null;
-  User_ApprovalStep_approvedByIdToUser?: {
-    id: string;
-    name: string | null;
-  } | null;
-  User_ApprovalStep_delegatedToUserIdToUser?: {
-    id: string;
-    name: string | null;
-  } | null;
-}
-
-/**
  * Route configuration structure
  */
 export interface RouteConfig {
@@ -109,17 +80,6 @@ export interface CreateApprovalConfig {
 }
 
 /**
- * Configuration for creating a route
- */
-export interface CreateRouteConfig {
-  workflowType: WorkflowType;
-  routeName: string;
-  description?: string;
-  routeConfig: RouteConfig;
-  isDefault?: boolean;
-}
-
-/**
  * Configuration for delegation
  */
 export interface DelegationConfig {
@@ -136,7 +96,7 @@ export interface DelegationConfig {
 export interface ApprovalActionResult {
   success: boolean;
   approval: Approval;
-  workflowType: string;
+  workflowType: WorkflowType;
   workflowId: number;
   nextStep?: ApprovalStep | null;
   isComplete: boolean;
@@ -168,18 +128,3 @@ export interface WorkflowRegistryEntry {
   getDisplayDescription?: (data: unknown) => string;
 }
 
-/**
- * Active delegation
- */
-export interface ActiveDelegation extends ApprovalDelegation {
-  FromUser: {
-    id: string;
-    name: string | null;
-    email: string;
-  };
-  ToUser: {
-    id: string;
-    name: string | null;
-    email: string;
-  };
-}

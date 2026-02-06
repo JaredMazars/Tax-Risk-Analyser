@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui';
 import { X, Calendar, Clock, Percent, FileText } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
-import { NonClientEventType, NON_CLIENT_EVENT_LABELS } from '@/types';
+import { NonClientEventType } from '@/types';
+import { NON_CLIENT_EVENT_LABELS } from '@/constants/nonClientEvents';
 import { calculateBusinessDays, calculateAvailableHours } from './utils';
 import { GRADIENTS } from '@/lib/design-system/gradients';
 
