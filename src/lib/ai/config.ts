@@ -2,11 +2,10 @@ import { createAzure } from '@ai-sdk/azure';
 
 /**
  * Initialize Azure OpenAI provider with API key
- * Resource: walte-mflcntql-swedencentral
- * Region: Sweden Central
+ * Resource name is configurable via AZURE_OPENAI_RESOURCE_NAME environment variable
  */
 const azure = createAzure({
-  resourceName: 'walte-mflcntql-swedencentral',
+  resourceName: process.env.AZURE_OPENAI_RESOURCE_NAME || 'walte-mflcntql-swedencentral',
   apiKey: process.env.AZURE_OPENAI_API_KEY || '',
 });
 

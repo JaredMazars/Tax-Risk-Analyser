@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { X, Send } from 'lucide-react';
 import { useSendMessage } from '@/hooks/notifications/useNotifications';
 import { SendMessageData } from '@/types/notification';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface SendMessageModalProps {
   isOpen: boolean;
   onClose: () => void;
   recipientUserId?: string;
   recipientName?: string;
-  projectId?: number;
-  projectName?: string;
+  taskId?: number;
+  taskName?: string;
 }
 
 export function SendMessageModal({
@@ -19,19 +20,32 @@ export function SendMessageModal({
   onClose,
   recipientUserId: initialRecipientId,
   recipientName: initialRecipientName,
-  projectId: initialProjectId,
-  projectName: initialProjectName,
+  taskId: initialTaskId,
+  taskName: initialTaskName,
 }: SendMessageModalProps) {
   const [recipientUserId, setRecipientUserId] = useState(initialRecipientId || '');
   const [recipientName, setRecipientName] = useState(initialRecipientName || '');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [projectId, setProjectId] = useState<number | undefined>(initialProjectId);
+  const [taskId, setTaskId] = useState<number | undefined>(initialTaskId);
   const [actionUrl, setActionUrl] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
   
   const sendMessage = useSendMessage();
 
@@ -40,7 +54,7 @@ export function SendMessageModal({
     if (isOpen) {
       setRecipientUserId(initialRecipientId || '');
       setRecipientName(initialRecipientName || '');
-      setProjectId(initialProjectId);
+      setTaskId(initialTaskId);
       setTitle('');
       setMessage('');
       setActionUrl('');
@@ -48,7 +62,7 @@ export function SendMessageModal({
       setSearchQuery('');
       setSearchResults([]);
     }
-  }, [isOpen, initialRecipientId, initialRecipientName, initialProjectId]);
+  }, [isOpen, initialRecipientId, initialRecipientName, initialTaskId]);
 
   // Search users
   useEffect(() => {
@@ -105,15 +119,19 @@ export function SendMessageModal({
       recipientUserId,
       title: title.trim(),
       message: message.trim(),
-      projectId,
+      taskId: taskId,
       actionUrl: actionUrl.trim() || undefined,
     };
 
     try {
       await sendMessage.mutateAsync(data);
       onClose();
-      // Show success message (could use a toast library)
-      alert('Message sent successfully!');
+      setAlertModal({
+        isOpen: true,
+        title: 'Success',
+        message: 'Message sent successfully!',
+        variant: 'success',
+      });
     } catch (error) {
       setErrors({ submit: error instanceof Error ? error.message : 'Failed to send message' });
     }
@@ -151,7 +169,7 @@ export function SendMessageModal({
               onClick={onClose}
               className="bg-white rounded-md text-gray-400 hover:text-gray-500"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
 
@@ -214,12 +232,12 @@ export function SendMessageModal({
                     {errors.recipient && <p className="mt-1 text-sm text-red-600">{errors.recipient}</p>}
                   </div>
 
-                  {/* Project (if pre-filled, show read-only) */}
-                  {initialProjectId && initialProjectName && (
+                  {/* Task (if pre-filled, show read-only) */}
+                  {initialTaskId && initialTaskName && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Project</label>
+                      <label className="block text-sm font-medium text-gray-700">Task</label>
                       <div className="mt-1 p-2 border border-gray-300 rounded-md bg-gray-50">
-                        <span className="text-sm text-gray-900">{initialProjectName}</span>
+                        <span className="text-sm text-gray-900">{initialTaskName}</span>
                       </div>
                     </div>
                   )}
@@ -275,7 +293,7 @@ export function SendMessageModal({
                       value={actionUrl}
                       onChange={(e) => setActionUrl(e.target.value)}
                       className="mt-1 shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                      placeholder="/dashboard/projects/123"
+                      placeholder="/dashboard/tasks/123"
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       Optional link for the recipient to navigate to
@@ -296,7 +314,7 @@ export function SendMessageModal({
                       disabled={sendMessage.isPending}
                       className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <PaperAirplaneIcon className="h-5 w-5 mr-2" />
+                      <Send className="h-5 w-5 mr-2" />
                       {sendMessage.isPending ? 'Sending...' : 'Send Message'}
                     </button>
                     <button
@@ -313,6 +331,15 @@ export function SendMessageModal({
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </div>
   );
 }

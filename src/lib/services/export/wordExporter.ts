@@ -12,7 +12,7 @@ import { OpinionSection } from '@/types';
 export interface WordExportOptions {
   title: string;
   sections: OpinionSection[];
-  projectName?: string;
+  taskName?: string;
   clientName?: string;
 }
 
@@ -21,7 +21,7 @@ export class WordExporter {
    * Generate Word document from opinion sections
    */
   static async generateDocument(options: WordExportOptions): Promise<Buffer> {
-    const { title, sections, projectName, clientName } = options;
+    const { title, sections, taskName, clientName } = options;
 
     const doc = new Document({
       sections: [
@@ -56,10 +56,10 @@ export class WordExporter {
                   }),
                 ]
               : []),
-            ...(projectName
+            ...(taskName
               ? [
                   new Paragraph({
-                    text: `Project: ${projectName}`,
+                    text: `Task: ${taskName}`,
                     alignment: AlignmentType.CENTER,
                     spacing: {
                       after: 100,
@@ -234,12 +234,12 @@ export class WordExporter {
   static async exportOpinion(
     title: string,
     sections: OpinionSection[],
-    metadata?: { projectName?: string; clientName?: string }
+    metadata?: { taskName?: string; clientName?: string }
   ): Promise<Buffer> {
     return await this.generateDocument({
       title,
       sections: sections.sort((a, b) => a.order - b.order),
-      projectName: metadata?.projectName,
+      taskName: metadata?.taskName,
       clientName: metadata?.clientName,
     });
   }

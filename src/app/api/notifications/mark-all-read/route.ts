@@ -1,30 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { notificationService } from '@/lib/services/notifications/notificationService';
+import { secureRoute } from '@/lib/api/secureRoute';
+
+// Schema for optional taskId filter
+const MarkAllReadSchema = z.object({
+  taskId: z.number().int().positive().optional(),
+}).strict();
 
 /**
  * POST /api/notifications/mark-all-read
  * Mark all notifications as read (optionally filtered by project)
  */
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    let projectId: number | undefined;
-
-    try {
-      const body = await request.json();
-      projectId = body.projectId;
-    } catch {
-      // Body is optional
-    }
-
-    const updatedCount = await notificationService.markAllAsRead(user.id, projectId);
+export const POST = secureRoute.mutation({
+  schema: MarkAllReadSchema,
+  handler: async (request, { user, data }) => {
+    const updatedCount = await notificationService.markAllAsRead(user.id, data?.taskId);
 
     return NextResponse.json(
       successResponse({
@@ -32,9 +24,5 @@ export async function POST(request: NextRequest) {
         updatedCount,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/notifications/mark-all-read');
-  }
-}
-
-
+  },
+});

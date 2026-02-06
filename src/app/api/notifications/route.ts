@@ -1,64 +1,55 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { notificationService } from '@/lib/services/notifications/notificationService';
-import { NotificationFilters } from '@/types/notification';
+import { secureRoute } from '@/lib/api/secureRoute';
+
+// Query params schema with string coercion (URL params are always strings)
+const NotificationQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  isRead: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
+  taskId: z.coerce.number().int().positive().optional(),
+  types: z.string().optional().transform(val => val ? val.split(',').filter(Boolean) : undefined),
+  readStatus: z.enum(['all', 'unread', 'read']).optional(),
+}).strict();
 
 /**
  * GET /api/notifications
  * Get user's in-app notifications with pagination and filters
  */
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
-    const page = Number.parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = Number.parseInt(searchParams.get('pageSize') || '20', 10);
-    const isReadParam = searchParams.get('isRead');
-    const projectIdParam = searchParams.get('projectId');
+    
+    const queryParams = NotificationQuerySchema.parse({
+      page: searchParams.get('page') ?? undefined,
+      pageSize: searchParams.get('pageSize') ?? undefined,
+      isRead: searchParams.get('isRead') ?? undefined,
+      taskId: searchParams.get('taskId') ?? undefined,
+      types: searchParams.get('types') ?? undefined,
+      readStatus: searchParams.get('readStatus') ?? undefined,
+    });
 
-    const filters: NotificationFilters = {
-      page,
-      pageSize,
-    };
-
-    // Only set isRead filter if explicitly provided
-    if (isReadParam !== null && isReadParam !== undefined) {
-      filters.isRead = isReadParam === 'true';
-    }
-
-    // Only set projectId filter if provided and valid
-    if (projectIdParam !== null && projectIdParam !== undefined) {
-      const parsedProjectId = Number.parseInt(projectIdParam, 10);
-      if (!Number.isNaN(parsedProjectId)) {
-        filters.projectId = parsedProjectId;
-      }
-    }
-
-    const response = await notificationService.getUserNotifications(user.id, filters);
+    const response = await notificationService.getUserNotifications(user.id, {
+      page: queryParams.page,
+      pageSize: queryParams.pageSize,
+      isRead: queryParams.isRead,
+      taskId: queryParams.taskId,
+      types: queryParams.types,
+      readStatus: queryParams.readStatus,
+    });
 
     return NextResponse.json(successResponse(response));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/notifications');
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/notifications
  * Delete all read notifications
  */
-export async function DELETE(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const DELETE = secureRoute.mutation({
+  handler: async (request, { user }) => {
     const deletedCount = await notificationService.deleteAllRead(user.id);
 
     return NextResponse.json(
@@ -67,9 +58,5 @@ export async function DELETE(request: NextRequest) {
         deletedCount,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/notifications');
-  }
-}
-
-
+  },
+});

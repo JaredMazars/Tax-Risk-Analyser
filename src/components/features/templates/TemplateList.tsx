@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import {
-  DocumentTextIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-  PencilIcon,
-  TrashIcon,
-} from '@heroicons/react/24/outline';
+  FileText,
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Copy,
+} from 'lucide-react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface TemplateSection {
@@ -22,7 +23,6 @@ interface Template {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -31,16 +31,18 @@ interface Template {
 
 interface TemplateListProps {
   templates: Template[];
-  onDelete: (id: number) => void;
-  onToggleActive: (id: number, active: boolean) => void;
+  onDelete?: (id: number) => void;
+  onToggleActive?: (id: number, active: boolean) => void;
+  onCopy?: (id: number) => void;
 }
 
-export function TemplateList({ templates, onDelete, onToggleActive }: TemplateListProps) {
+export function TemplateList({ templates, onDelete, onToggleActive, onCopy }: TemplateListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('');
   const [filterServiceLine, setFilterServiceLine] = useState<string>('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<number | null>(null);
+  const [copyingId, setCopyingId] = useState<number | null>(null);
 
   const filteredTemplates = templates.filter((template) => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -56,7 +58,7 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
       {/* Filters */}
       <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
           <input
             type="text"
             placeholder="Search templates..."
@@ -100,7 +102,7 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-start space-x-3 flex-1">
                 <div className="p-2 bg-forvis-blue-50 rounded-lg">
-                  <DocumentTextIcon className="h-6 w-6 text-forvis-blue-600" />
+                  <FileText className="h-6 w-6 text-forvis-blue-600" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-forvis-gray-900">
@@ -132,14 +134,6 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
                 </div>
               )}
 
-              {template.projectType && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-forvis-gray-600">Project Type:</span>
-                  <span className="font-medium text-forvis-gray-900">
-                    {template.projectType.replace(/_/g, ' ')}
-                  </span>
-                </div>
-              )}
 
               <div className="flex items-center justify-between text-sm">
                 <span className="text-forvis-gray-600">Sections:</span>
@@ -167,27 +161,46 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
                 href={`/dashboard/admin/templates/${template.id}`}
                 className="flex-1 btn-primary text-center"
               >
-                <PencilIcon className="h-4 w-4 mr-2 inline" />
+                <Pencil className="h-4 w-4 mr-2 inline" />
                 Edit
               </Link>
               
-              <button
-                onClick={() => onToggleActive(template.id, !template.active)}
-                className="px-3 py-2 text-sm font-medium border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50"
-              >
-                {template.active ? 'Deactivate' : 'Activate'}
-              </button>
+              {onCopy && (
+                <button
+                  onClick={async () => {
+                    setCopyingId(template.id);
+                    await onCopy(template.id);
+                    setCopyingId(null);
+                  }}
+                  disabled={copyingId === template.id}
+                  className="p-2 text-forvis-blue-600 hover:bg-forvis-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Copy template"
+                >
+                  <Copy className="h-5 w-5" />
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  setTemplateToDelete(template.id);
-                  setShowDeleteModal(true);
-                }}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                title="Delete template"
-              >
-                <TrashIcon className="h-5 w-5" />
-              </button>
+              {onToggleActive && (
+                <button
+                  onClick={() => onToggleActive(template.id, !template.active)}
+                  className="px-3 py-2 text-sm font-medium border border-forvis-gray-300 rounded-lg hover:bg-forvis-gray-50"
+                >
+                  {template.active ? 'Deactivate' : 'Activate'}
+                </button>
+              )}
+
+              {onDelete && (
+                <button
+                  onClick={() => {
+                    setTemplateToDelete(template.id);
+                    setShowDeleteModal(true);
+                  }}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                  title="Delete template"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -195,7 +208,7 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
 
       {filteredTemplates.length === 0 && (
         <div className="text-center py-12">
-          <DocumentTextIcon className="h-12 w-12 mx-auto text-forvis-gray-400 mb-4" />
+          <FileText className="h-12 w-12 mx-auto text-forvis-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-forvis-gray-900 mb-1">
             No templates found
           </h3>
@@ -215,7 +228,7 @@ export function TemplateList({ templates, onDelete, onToggleActive }: TemplateLi
           setTemplateToDelete(null);
         }}
         onConfirm={() => {
-          if (templateToDelete !== null) {
+          if (templateToDelete !== null && onDelete) {
             onDelete(templateToDelete);
             setShowDeleteModal(false);
             setTemplateToDelete(null);

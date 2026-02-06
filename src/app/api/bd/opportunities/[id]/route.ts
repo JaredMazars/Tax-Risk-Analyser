@@ -1,88 +1,91 @@
 /**
- * BD Opportunity by ID API Routes
- * GET /api/bd/opportunities/[id] - Get opportunity details
- * PUT /api/bd/opportunities/[id] - Update opportunity
- * DELETE /api/bd/opportunities/[id] - Delete opportunity
+ * BD Opportunity API Routes
+ * 
+ * GET /api/bd/opportunities/[id] - Get a single opportunity
+ * DELETE /api/bd/opportunities/[id] - Delete a draft opportunity
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { UpdateBDOpportunitySchema } from '@/lib/validation/schemas';
-import {
-  getOpportunityById,
-  updateOpportunity,
-  deleteOpportunity,
-} from '@/lib/services/bd/opportunityService';
+import { NextResponse } from 'next/server';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { prisma } from '@/lib/db/prisma';
+import { logger } from '@/lib/utils/logger';
+import { invalidateWorkspaceCounts } from '@/lib/services/cache/cacheInvalidation';
+import { getOpportunityById } from '@/lib/services/bd/opportunityService';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const opportunityId = Number.parseInt(id);
+/**
+ * GET /api/bd/opportunities/[id]
+ * Get a single BD opportunity with all relations
+ */
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user, params }) => {
+    const opportunityId = parseNumericId(params.id, 'Opportunity ID');
 
     const opportunity = await getOpportunityById(opportunityId);
 
     if (!opportunity) {
-      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Opportunity not found' },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(successResponse(opportunity));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/opportunities/[id]');
-  }
-}
+  },
+});
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * DELETE /api/bd/opportunities/[id]
+ * Delete a draft BD opportunity
+ */
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_OPPORTUNITIES,
+  handler: async (request, { user, params }) => {
+    const opportunityId = parseNumericId(params.id, 'Opportunity ID');
+
+    // Verify opportunity exists and is a draft
+    const opportunity = await prisma.bDOpportunity.findUnique({
+      where: { id: opportunityId },
+      select: { 
+        id: true, 
+        status: true, 
+        createdBy: true,
+        serviceLine: true,
+      },
+    });
+
+    if (!opportunity) {
+      return NextResponse.json(
+        { success: false, error: 'Opportunity not found' },
+        { status: 404 }
+      );
     }
 
-    const { id } = await context.params;
-    const opportunityId = Number.parseInt(id);
-
-    const body = await request.json();
-    const validated = UpdateBDOpportunitySchema.parse(body);
-
-    const opportunity = await updateOpportunity(opportunityId, validated);
-
-    return NextResponse.json(successResponse(opportunity));
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/bd/opportunities/[id]');
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Only allow deleting drafts
+    if (opportunity.status !== 'DRAFT') {
+      return NextResponse.json(
+        { success: false, error: 'Only draft opportunities can be deleted' },
+        { status: 400 }
+      );
     }
 
-    const { id } = await context.params;
-    const opportunityId = Number.parseInt(id);
+    // Delete the draft opportunity (cascade deletes related records)
+    await prisma.bDOpportunity.delete({
+      where: { id: opportunityId },
+    });
 
-    await deleteOpportunity(opportunityId);
+    // Invalidate caches
+    await invalidateWorkspaceCounts(opportunity.serviceLine, undefined);
 
-    return NextResponse.json(successResponse({ deleted: true }));
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/bd/opportunities/[id]');
-  }
-}
+    logger.info('Draft opportunity deleted', {
+      opportunityId,
+      userId: user.id,
+      createdBy: opportunity.createdBy,
+    });
 
+    return NextResponse.json(
+      successResponse({ message: 'Draft deleted successfully' })
+    );
+  },
+});

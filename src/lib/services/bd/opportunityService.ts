@@ -10,7 +10,7 @@ export interface OpportunityWithRelations {
   id: number;
   title: string;
   description: string | null;
-  clientId: number | null;
+  clientId: number | null;  // Renamed from GSClientID for clarity
   companyName: string | null;
   serviceLine: string;
   value: number | null;
@@ -20,6 +20,8 @@ export interface OpportunityWithRelations {
   status: string;
   lostReason: string | null;
   assignedTo: string;
+  convertedToClientId: number | null;  // Renamed for clarity
+  convertedAt: Date | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -211,6 +213,7 @@ export async function getPipelineView(filters: {
       },
     },
     orderBy: [{ BDStage: { order: 'asc' } }, { updatedAt: 'desc' }],
+    take: 500, // Limit for performance
   });
 
   // Group by stage name
@@ -227,73 +230,6 @@ export async function getPipelineView(filters: {
 }
 
 /**
- * Create a new opportunity
- */
-export async function createOpportunity(data: {
-  title: string;
-  description?: string;
-  clientId?: number;
-  companyName?: string;
-  contactId?: number;
-  serviceLine: string;
-  stageId: number;
-  value?: number;
-  probability?: number;
-  expectedCloseDate?: Date;
-  source?: string;
-  assignedTo: string;
-  createdBy: string;
-}): Promise<OpportunityWithRelations> {
-  const opportunity = await prisma.bDOpportunity.create({
-    data: {
-      title: data.title,
-      description: data.description,
-      clientId: data.clientId,
-      companyName: data.companyName,
-      contactId: data.contactId,
-      serviceLine: data.serviceLine,
-      stageId: data.stageId,
-      value: data.value,
-      probability: data.probability,
-      expectedCloseDate: data.expectedCloseDate,
-      source: data.source,
-      status: 'OPEN',
-      assignedTo: data.assignedTo,
-      createdBy: data.createdBy,
-    },
-    include: {
-      Client: {
-        select: {
-          id: true,
-          clientCode: true,
-          clientNameFull: true,
-        },
-      },
-      BDContact: {
-        select: {
-          id: true,
-          companyName: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-        },
-      },
-      BDStage: {
-        select: {
-          id: true,
-          name: true,
-          probability: true,
-          color: true,
-        },
-      },
-    },
-  });
-
-  return opportunity as OpportunityWithRelations;
-}
-
-/**
  * Update an opportunity
  */
 export async function updateOpportunity(
@@ -301,7 +237,7 @@ export async function updateOpportunity(
   data: Partial<{
     title: string;
     description: string | null;
-    clientId: number | null;
+    clientId: number | null;  // Renamed for clarity
     companyName: string | null;
     contactId: number | null;
     stageId: number;
@@ -469,6 +405,7 @@ export async function getWeightedPipelineValue(filters: {
         },
       },
     },
+    take: 1000, // Limit for performance
   });
 
   let weightedValue = 0;

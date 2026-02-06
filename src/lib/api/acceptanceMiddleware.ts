@@ -5,47 +5,122 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
-
-export type ProjectRole = 'VIEWER' | 'USER' | 'MANAGER' | 'ADMIN';
+import { ServiceLineRole } from '@/types';
+import { hasServiceLineRole } from '@/lib/utils/roleHierarchy';
+import { isSystemAdmin } from '@/lib/services/auth/auth';
 
 /**
  * Validate that a user has access to a project
  * Returns true if user has access (either through project membership or SYSTEM_ADMIN role)
+ * 
+ * NOTE: This function has a side effect -- it auto-adds task partners/managers to TaskTeam
+ * if they have matching user accounts but no existing membership. This ensures partners
+ * and managers mapped from the Employee table always appear on the task team.
  */
 export async function validateAcceptanceAccess(
-  projectId: number,
+  taskId: number,
   userId: string,
-  requiredRole?: ProjectRole
+  requiredRole?: ServiceLineRole | string
 ): Promise<boolean> {
   try {
-    // Check if user has access to project
-    const access = await prisma.projectUser.findFirst({
+    // Auto-add partner/manager before checking access
+    try {
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: {
+          TaskPartner: true,
+          TaskManager: true,
+        },
+      });
+
+      if (task) {
+        const employeeCodesToCheck: string[] = [];
+        if (task.TaskPartner) employeeCodesToCheck.push(task.TaskPartner);
+        if (task.TaskManager && task.TaskManager !== task.TaskPartner) {
+          employeeCodesToCheck.push(task.TaskManager);
+        }
+
+        if (employeeCodesToCheck.length > 0) {
+          const employees = await prisma.employee.findMany({
+            where: { EmpCode: { in: employeeCodesToCheck }, Active: 'Yes' },
+            select: { EmpCode: true, WinLogon: true },
+          });
+
+          for (const emp of employees) {
+            if (!emp.WinLogon) continue;
+
+            // Find user account for this employee (not limited to current user)
+            const matchingUser = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { email: { equals: emp.WinLogon } },
+                  { email: { startsWith: emp.WinLogon.split('@')[0] } },
+                  { email: { equals: `${emp.WinLogon}@mazarsinafrica.onmicrosoft.com` } },
+                ],
+              },
+              select: { id: true },
+            });
+
+            if (matchingUser) {
+              const isPartner = emp.EmpCode === task.TaskPartner;
+              const role = isPartner ? 'PARTNER' : 'MANAGER';
+
+              const existingMembership = await prisma.taskTeam.findFirst({
+                where: { taskId, userId: matchingUser.id },
+                select: { id: true },
+              });
+
+              if (!existingMembership) {
+                try {
+                  await prisma.taskTeam.create({
+                    data: { taskId, userId: matchingUser.id, role },
+                  });
+                  logger.info('Auto-added partner/manager in validateAcceptanceAccess', {
+                    userId: matchingUser.id, taskId, role, empCode: emp.EmpCode,
+                  });
+                } catch (createError: unknown) {
+                  if ((createError as Record<string, unknown>)?.code !== 'P2002') {
+                    logger.error('Failed to auto-create TaskTeam in validateAcceptanceAccess', {
+                      userId: matchingUser.id, taskId, role, error: createError,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (autoAddError) {
+      logger.error('Error during auto-add in validateAcceptanceAccess', {
+        userId, taskId, error: autoAddError,
+      });
+    }
+
+    // Check if user has access to task
+    const access = await prisma.taskTeam.findFirst({
       where: {
-        projectId,
+        taskId,
         userId,
       },
       select: {
         role: true,
-        Project: {
+        Task: {
           select: {
-            serviceLine: true,
+            ServLineCode: true,
           },
         },
       },
     });
 
     if (!access) {
-      // Check if user is SYSTEM_ADMIN
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { role: true },
-      });
+      // Check if user is SYSTEM_ADMIN (uses canonical async check from auth.ts)
+      const isAdmin = await isSystemAdmin(userId);
 
-      if (user?.role !== 'SYSTEM_ADMIN') {
+      if (!isAdmin) {
         logger.warn('User access denied', {
           userId,
-          projectId,
-          reason: 'No project membership and not SYSTEM_ADMIN',
+          taskId,
+          reason: 'No task membership and not SYSTEM_ADMIN',
         });
         return false;
       }
@@ -54,22 +129,12 @@ export async function validateAcceptanceAccess(
       return true;
     }
 
-    // Check role if specified
+    // Check role if specified using ServiceLineRole hierarchy
     if (requiredRole) {
-      const roleHierarchy: Record<ProjectRole, number> = {
-        VIEWER: 0,
-        USER: 1,
-        MANAGER: 2,
-        ADMIN: 3,
-      };
-
-      const userRoleLevel = roleHierarchy[access.role as ProjectRole] || 0;
-      const requiredRoleLevel = roleHierarchy[requiredRole];
-
-      if (userRoleLevel < requiredRoleLevel) {
+      if (!hasServiceLineRole(access.role, requiredRole)) {
         logger.warn('User role insufficient', {
           userId,
-          projectId,
+          taskId,
           userRole: access.role,
           requiredRole,
         });
@@ -82,7 +147,7 @@ export async function validateAcceptanceAccess(
     logger.error('Error validating acceptance access', {
       error,
       userId,
-      projectId,
+      taskId,
     });
     return false;
   }
@@ -92,36 +157,40 @@ export async function validateAcceptanceAccess(
  * Validate that a user can approve acceptance (Partner/Administrator or SYSTEM_ADMIN only)
  */
 export async function canApproveAcceptanceValidation(
-  projectId: number,
+  taskId: number,
   userId: string
 ): Promise<boolean> {
   try {
-    // Check if user is SYSTEM_ADMIN
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    if (user?.role === 'SYSTEM_ADMIN') {
+    // Check if user is SYSTEM_ADMIN (uses canonical async check from auth.ts)
+    const isAdmin = await isSystemAdmin(userId);
+    if (isAdmin) {
       return true;
     }
 
-    // Check if user is Partner/Administrator for the project's service line
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { serviceLine: true },
+    // Check if user is Partner/Administrator for the task's service line
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { ServLineCode: true },
     });
 
-    if (!project) {
+    if (!task) {
       return false;
     }
 
-    const serviceLineAccess = await prisma.serviceLineUser.findUnique({
+    // Get master service line from ServLineCode
+    const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+      where: { ServLineCode: task.ServLineCode },
+      select: { SubServlineGroupCode: true },
+    });
+
+    if (!serviceLineMapping?.SubServlineGroupCode) {
+      return false;
+    }
+
+    const serviceLineAccess = await prisma.serviceLineUser.findFirst({
       where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine: project.serviceLine,
-        },
+        userId,
+        subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
       },
       select: { role: true },
     });
@@ -131,7 +200,7 @@ export async function canApproveAcceptanceValidation(
     logger.error('Error checking approval permission', {
       error,
       userId,
-      projectId,
+      taskId,
     });
     return false;
   }
@@ -139,19 +208,19 @@ export async function canApproveAcceptanceValidation(
 
 /**
  * Validate document access
- * Checks that the document belongs to a questionnaire response for a project the user can access
+ * Checks that the document belongs to a questionnaire response for a task the user can access
  */
 export async function validateDocumentAccess(
   documentId: number,
   userId: string
-): Promise<{ hasAccess: boolean; projectId?: number }> {
+): Promise<{ hasAccess: boolean; taskId?: number }> {
   try {
     const document = await prisma.acceptanceDocument.findUnique({
       where: { id: documentId },
       select: {
         ClientAcceptanceResponse: {
           select: {
-            projectId: true,
+            taskId: true,
           },
         },
       },
@@ -161,10 +230,10 @@ export async function validateDocumentAccess(
       return { hasAccess: false };
     }
 
-    const projectId = document.ClientAcceptanceResponse.projectId;
-    const hasAccess = await validateAcceptanceAccess(projectId, userId);
+    const taskId = document.ClientAcceptanceResponse.taskId;
+    const hasAccess = await validateAcceptanceAccess(taskId, userId);
 
-    return { hasAccess, projectId };
+    return { hasAccess, taskId };
   } catch (error) {
     logger.error('Error validating document access', {
       error,
@@ -174,10 +243,6 @@ export async function validateDocumentAccess(
     return { hasAccess: false };
   }
 }
-
-
-
-
 
 
 

@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { isSystemAdmin } from '@/lib/services/auth/authorization';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { successResponse, parseNumericId } from '@/lib/utils/apiUtils';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { UpdateTemplateSectionSchema } from '@/lib/validation/schemas';
 import {
   updateTemplateSection,
@@ -13,76 +12,33 @@ import {
  * PUT /api/admin/templates/[id]/sections/[sectionId]
  * Update a template section
  */
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; sectionId: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const PUT = secureRoute.mutationWithParams<typeof UpdateTemplateSectionSchema, { id: string; sectionId: string }>({
+  feature: Feature.MANAGE_TEMPLATES,
+  schema: UpdateTemplateSectionSchema,
+  handler: async (request, { data, params }) => {
+    // Validate both params
+    parseNumericId(params.id, 'Template');
+    const sectionId = parseNumericId(params.sectionId, 'Section');
 
-    const hasAdminAccess = await isSystemAdmin(user.id);
-    if (!hasAdminAccess) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const { sectionId } = await context.params;
-    const sectionIdNum = Number.parseInt(sectionId, 10);
-
-    if (Number.isNaN(sectionIdNum)) {
-      return NextResponse.json({ error: 'Invalid section ID' }, { status: 400 });
-    }
-
-    const body = await request.json();
-    const validated = UpdateTemplateSectionSchema.parse(body);
-
-    const section = await updateTemplateSection(sectionIdNum, validated);
+    const section = await updateTemplateSection(sectionId, data);
 
     return NextResponse.json(successResponse(section));
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/admin/templates/[id]/sections/[sectionId]');
-  }
-}
+  },
+});
 
 /**
  * DELETE /api/admin/templates/[id]/sections/[sectionId]
  * Delete a template section
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; sectionId: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const DELETE = secureRoute.mutationWithParams<z.ZodAny, { id: string; sectionId: string }>({
+  feature: Feature.MANAGE_TEMPLATES,
+  handler: async (request, { params }) => {
+    // Validate both params
+    parseNumericId(params.id, 'Template');
+    const sectionId = parseNumericId(params.sectionId, 'Section');
 
-    const hasAdminAccess = await isSystemAdmin(user.id);
-    if (!hasAdminAccess) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const { sectionId } = await context.params;
-    const sectionIdNum = Number.parseInt(sectionId, 10);
-
-    if (Number.isNaN(sectionIdNum)) {
-      return NextResponse.json({ error: 'Invalid section ID' }, { status: 400 });
-    }
-
-    await deleteTemplateSection(sectionIdNum);
+    await deleteTemplateSection(sectionId);
 
     return NextResponse.json(successResponse({ deleted: true }));
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/admin/templates/[id]/sections/[sectionId]');
-  }
-}
-
+  },
+});

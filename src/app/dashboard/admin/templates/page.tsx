@@ -2,8 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DocumentTextIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { FileText, Plus, Upload } from 'lucide-react';
 import { TemplateList } from '@/components/features/templates/TemplateList';
+import { TemplateUploadWizard } from '@/components/features/templates/wizard/TemplateUploadWizard';
+import { TemplateManualWizard } from '@/components/features/templates/wizard/TemplateManualWizard';
+import { ViewOnlyBadge } from '@/components/shared/ViewOnlyBadge';
+import { EditActionWrapper } from '@/components/shared/EditActionWrapper';
+import { usePageAccess } from '@/hooks/permissions/usePageAccess';
+import { Banner } from '@/components/ui';
 
 interface TemplateSection {
   id: number;
@@ -24,7 +30,6 @@ interface TemplateResponse {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -37,7 +42,6 @@ interface Template {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -46,9 +50,13 @@ interface Template {
 
 export default function TemplatesPage() {
   const router = useRouter();
+  const { isViewOnly, canEdit } = usePageAccess();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showUploadWizard, setShowUploadWizard] = useState(false);
+  const [showManualWizard, setShowManualWizard] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
   useEffect(() => {
     fetchTemplates();
@@ -124,31 +132,98 @@ export default function TemplatesPage() {
   };
 
   const handleCreateNew = () => {
-    router.push('/dashboard/admin/templates/new');
+    setShowManualWizard(true);
+  };
+
+  const handleCopy = async (id: number) => {
+    try {
+      const response = await fetch(`/api/admin/templates/${id}/copy`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Add the new template to the list
+          const normalizedTemplate = {
+            ...data.data,
+            sections: data.data.TemplateSection || [],
+          };
+          setTemplates([normalizedTemplate, ...templates]);
+        }
+      }
+    } catch (error) {
+      console.error('Error copying template:', error);
+    }
+  };
+
+  const handleUploadSuccess = (templateId: number) => {
+    setSuccessMessage('Template created successfully from uploaded document');
+    setTimeout(() => setSuccessMessage(''), 5000);
+    fetchTemplates();
+    router.push(`/dashboard/admin/templates/${templateId}`);
+  };
+
+  const handleManualSuccess = (templateId: number) => {
+    setSuccessMessage('Template created successfully');
+    setTimeout(() => setSuccessMessage(''), 5000);
+    fetchTemplates();
+    router.push(`/dashboard/admin/templates/${templateId}`);
   };
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-forvis-gray-900 flex items-center">
-                <DocumentTextIcon className="h-8 w-8 mr-3 text-forvis-blue-600" />
-                Template Management
-              </h1>
-              <p className="mt-2 text-sm text-forvis-gray-700">
-                Create and manage engagement letter templates for your organization
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-semibold text-forvis-gray-900 flex items-center">
+                  <FileText className="h-8 w-8 mr-3 text-forvis-blue-600" />
+                  Template Management
+                </h1>
+                {isViewOnly && <ViewOnlyBadge />}
+              </div>
+              <p className="mt-2 text-sm font-normal text-forvis-gray-600">
+                {isViewOnly 
+                  ? 'Browse engagement letter templates (read-only access)'
+                  : 'Create and manage engagement letter templates for your organization'}
               </p>
             </div>
             
-            <button onClick={handleCreateNew} className="btn-primary flex items-center">
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Create Template
-            </button>
+            <EditActionWrapper>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowUploadWizard(true)}
+                  className="btn-primary flex items-center"
+                  style={{
+                    background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+                  }}
+                >
+                  <Upload className="h-5 w-5 mr-2" />
+                  Upload Template
+                </button>
+                <button onClick={handleCreateNew} className="btn-secondary flex items-center">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Manual
+                </button>
+              </div>
+            </EditActionWrapper>
           </div>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6">
+            <Banner
+              variant="success"
+              message={successMessage}
+              dismissible
+              onDismiss={() => setSuccessMessage('')}
+            />
+          </div>
+        )}
 
         {/* Content */}
         {loading ? (
@@ -165,11 +240,30 @@ export default function TemplatesPage() {
         ) : (
           <TemplateList
             templates={templates}
-            onDelete={handleDelete}
-            onToggleActive={handleToggleActive}
+            onDelete={canEdit ? handleDelete : undefined}
+            onToggleActive={canEdit ? handleToggleActive : undefined}
+            onCopy={canEdit ? handleCopy : undefined}
           />
         )}
       </div>
+
+      {/* Upload Wizard Modal */}
+      {showUploadWizard && (
+        <TemplateUploadWizard
+          isOpen={showUploadWizard}
+          onClose={() => setShowUploadWizard(false)}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* Manual Wizard Modal */}
+      {showManualWizard && (
+        <TemplateManualWizard
+          isOpen={showManualWizard}
+          onClose={() => setShowManualWizard(false)}
+          onSuccess={handleManualSuccess}
+        />
+      )}
     </div>
   );
 }

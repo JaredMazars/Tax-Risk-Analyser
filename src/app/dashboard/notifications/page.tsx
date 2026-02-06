@@ -7,7 +7,9 @@ import {
   useDeleteAllRead 
 } from '@/hooks/notifications/useNotifications';
 import { NotificationItem } from '@/components/features/notifications/NotificationItem';
-import { CheckIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ApproveChangeRequestModal } from '@/components/features/clients/ApproveChangeRequestModal';
+import { Check, Trash2 } from 'lucide-react';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 type FilterTab = 'all' | 'unread';
 
@@ -15,6 +17,21 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
+  const [modalRequestId, setModalRequestId] = useState<number | null>(null);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const filters = {
     page: currentPage,
@@ -31,10 +48,17 @@ export default function NotificationsPage() {
   };
 
   const handleDeleteAllRead = async () => {
-    if (confirm('Are you sure you want to delete all read notifications?')) {
-      await deleteAllRead.mutateAsync();
-      if (currentPage > 1) setCurrentPage(1);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete All Read Notifications',
+      message: 'Are you sure you want to delete all read notifications? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        await deleteAllRead.mutateAsync();
+        if (currentPage > 1) setCurrentPage(1);
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
   };
 
   const totalPages = data ? Math.ceil(data.totalCount / pageSize) : 1;
@@ -44,8 +68,8 @@ export default function NotificationsPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-forvis-gray-900">Notifications</h1>
-          <p className="mt-1 text-sm text-forvis-gray-600">
+          <h1 className="text-2xl font-semibold text-forvis-gray-900">Notifications</h1>
+          <p className="mt-1 text-sm font-normal text-forvis-gray-600">
             Stay updated on your projects and messages
           </p>
         </div>
@@ -96,7 +120,7 @@ export default function NotificationsPage() {
                   disabled={markAllAsRead.isPending || data?.unreadCount === 0}
                   className="inline-flex items-center px-3 py-2 border border-forvis-gray-300 shadow-corporate text-sm font-medium rounded-md text-forvis-gray-700 bg-white hover:bg-forvis-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CheckIcon className="h-4 w-4 mr-2" />
+                  <Check className="h-4 w-4 mr-2" />
                   Mark all read
                 </button>
                 <button
@@ -104,7 +128,7 @@ export default function NotificationsPage() {
                   disabled={deleteAllRead.isPending}
                   className="inline-flex items-center px-3 py-2 border border-red-300 shadow-corporate text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <TrashIcon className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-4 w-4 mr-2" />
                   Delete all read
                 </button>
               </div>
@@ -162,6 +186,7 @@ export default function NotificationsPage() {
                     key={notification.id}
                     notification={notification}
                     compact={false}
+                    onOpenChangeRequestModal={setModalRequestId}
                   />
                 ))}
               </div>
@@ -201,6 +226,25 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+      />
+
+      {/* Change Request Modal */}
+      {modalRequestId && (
+        <ApproveChangeRequestModal
+          isOpen={modalRequestId !== null}
+          onClose={() => setModalRequestId(null)}
+          requestId={modalRequestId}
+        />
+      )}
     </div>
   );
 }

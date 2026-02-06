@@ -1,4 +1,4 @@
-import { ragEngine } from '../opinions/ragEngine';
+import { ragEngine } from '@/lib/tools/tax-opinion/services/ragEngine';
 import { bingSearchService } from './bingSearchService';
 import { logger } from '@/lib/utils/logger';
 import { 
@@ -19,14 +19,14 @@ export class EnhancedSearchService {
    */
   async searchAll(
     query: string,
-    projectId: number,
+    taskId: number,
     includeWeb: boolean = true,
     filters?: SearchFilters
   ): Promise<SearchResponse> {
-    logger.info('Enhanced search initiated', { query, projectId, includeWeb });
+    logger.info('Enhanced search initiated', { query, taskId, includeWeb });
 
     const [internalResults, externalResults] = await Promise.all([
-      this.searchInternalDocuments(query, projectId, filters),
+      this.searchInternalDocuments(query, taskId, filters),
       includeWeb ? this.searchExternal(query) : Promise.resolve([]),
     ]);
 
@@ -45,7 +45,7 @@ export class EnhancedSearchService {
    */
   async searchInternalDocuments(
     query: string,
-    projectId: number,
+    taskId: number,
     filters?: SearchFilters
   ): Promise<InternalDocumentResult[]> {
     try {
@@ -61,14 +61,14 @@ export class EnhancedSearchService {
         if (filters.categories && filters.categories.length > 0) {
           results = await ragEngine.searchByCategories(
             query,
-            projectId,
+            taskId,
             filters.categories,
             filters.limit || 10
           );
         } else if (filters.dateFrom && filters.dateTo) {
           results = await ragEngine.searchByDateRange(
             query,
-            projectId,
+            taskId,
             filters.dateFrom,
             filters.dateTo,
             filters.limit || 10
@@ -76,7 +76,7 @@ export class EnhancedSearchService {
         } else {
           results = await ragEngine.searchWithFilters(
             query,
-            projectId,
+            taskId,
             {
               categories: filters.categories,
               dateFrom: filters.dateFrom,
@@ -87,7 +87,7 @@ export class EnhancedSearchService {
         }
       } else {
         // Default to hybrid search for best results
-        results = await ragEngine.hybridSearch(query, projectId, 10);
+        results = await ragEngine.hybridSearch(query, taskId, 10);
       }
 
       // Map to InternalDocumentResult format
@@ -160,13 +160,13 @@ export class EnhancedSearchService {
    */
   async searchTaxLaw(
     query: string,
-    projectId: number,
+    taskId: number,
     jurisdiction: string = 'South Africa'
   ): Promise<SearchResponse> {
-    logger.info('Tax law search initiated', { query, projectId, jurisdiction });
+    logger.info('Tax law search initiated', { query, taskId, jurisdiction });
 
     const [internalResults, externalResults] = await Promise.all([
-      this.searchInternalDocuments(query, projectId, {
+      this.searchInternalDocuments(query, taskId, {
         categories: ['tax_law', 'legislation', 'regulation'],
       }),
       bingSearchService.isEnabled()
@@ -194,13 +194,13 @@ export class EnhancedSearchService {
    */
   async searchLegalPrecedents(
     query: string,
-    projectId: number,
+    taskId: number,
     jurisdiction: string = 'South Africa'
   ): Promise<SearchResponse> {
-    logger.info('Legal precedent search initiated', { query, projectId, jurisdiction });
+    logger.info('Legal precedent search initiated', { query, taskId, jurisdiction });
 
     const [internalResults, externalResults] = await Promise.all([
-      this.searchInternalDocuments(query, projectId, {
+      this.searchInternalDocuments(query, taskId, {
         categories: ['legal_precedent', 'case_law', 'court_decision'],
       }),
       bingSearchService.isEnabled()

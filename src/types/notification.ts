@@ -15,6 +15,11 @@ export enum NotificationType {
   TAX_CALCULATION_COMPLETE = 'TAX_CALCULATION_COMPLETE',
   FILING_STATUS_UPDATED = 'FILING_STATUS_UPDATED',
   COMMENT_MENTION = 'COMMENT_MENTION',
+  SERVICE_LINE_ADDED = 'SERVICE_LINE_ADDED',
+  SERVICE_LINE_REMOVED = 'SERVICE_LINE_REMOVED',
+  SERVICE_LINE_ROLE_CHANGED = 'SERVICE_LINE_ROLE_CHANGED',
+  SYSTEM_ROLE_CHANGED = 'SYSTEM_ROLE_CHANGED',
+  INDEPENDENCE_REQUIRED = 'INDEPENDENCE_REQUIRED',
 }
 
 /**
@@ -30,7 +35,7 @@ export interface NotificationMetadata {
 export interface InAppNotification {
   id: number;
   userId: string;
-  projectId: number | null;
+  taskId: number | null;
   type: string;
   title: string;
   message: string;
@@ -52,20 +57,32 @@ export interface InAppNotificationWithUser extends InAppNotification {
     email: string;
     image: string | null;
   } | null;
-  project?: {
+  task?: {
     id: number;
     name: string;
   } | null;
 }
 
 /**
+ * Read status filter options
+ */
+export type ReadStatusFilter = 'all' | 'unread' | 'read';
+
+/**
+ * Notification type category for grouping
+ */
+export type NotificationCategory = 'all' | 'userChanges' | 'messages' | 'documentsAndTasks';
+
+/**
  * Notification filters
  */
 export interface NotificationFilters {
   isRead?: boolean;
-  projectId?: number;
+  taskId?: number;
   page?: number;
   pageSize?: number;
+  types?: string[]; // Array of notification types to filter by
+  readStatus?: ReadStatusFilter; // Filter by read status
 }
 
 /**
@@ -86,8 +103,6 @@ export interface SendMessageData {
   recipientUserId: string;
   title: string;
   message: string;
-  projectId?: number;
+  taskId?: number;
   actionUrl?: string;
 }
-
-

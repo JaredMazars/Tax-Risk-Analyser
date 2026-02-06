@@ -1,77 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkUserPermission } from '@/lib/services/permissions/permissionService';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature, RateLimitPresets } from '@/lib/api/secureRoute';
 import { prisma } from '@/lib/db/prisma';
 import { z } from 'zod';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 const bulkMappingSchema = z.object({
-  externalIds: z.array(z.number()).min(1, 'At least one external ID is required'),
-  masterCode: z.string(),
-});
+  externalIds: z.array(z.number()).min(1, 'At least one external ID is required').max(100, 'Maximum 100 IDs per request'),
+  masterCode: z.string().min(1, 'Master code is required'),
+}).strict();
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+/**
+ * POST /api/admin/service-line-mapping/bulk
+ * Bulk update service line mappings
+ */
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 10 },
+  schema: bulkMappingSchema,
+  handler: async (request, { user, data }) => {
+    // Validate masterCode exists
+    const masterExists = await prisma.serviceLineMaster.findUnique({
+      where: { code: data.masterCode },
+      select: { code: true },
+    });
 
-    // 2. Check permission
-    const hasPermission = await checkUserPermission(
-      user.id,
-      'admin.service-line-mapping',
-      'UPDATE'
-    );
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 3. Validate request body
-    const body = await request.json();
-    const validation = bulkMappingSchema.safeParse(body);
-    
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request body', details: validation.error },
-        { status: 400 }
+    if (!masterExists) {
+      throw new AppError(
+        400,
+        `Master service line '${data.masterCode}' does not exist`,
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
-    const { externalIds, masterCode } = validation.data;
-
-    // 4. Bulk update mappings
     const result = await prisma.serviceLineExternal.updateMany({
       where: {
         id: {
-          in: externalIds,
+          in: data.externalIds,
         },
       },
       data: {
-        masterCode,
+        masterCode: data.masterCode,
       },
     });
 
     return NextResponse.json(
       successResponse({
         updated: result.count,
-        masterCode,
+        masterCode: data.masterCode,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/admin/service-line-mapping/bulk');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

@@ -8,10 +8,10 @@ import { Prisma } from '@prisma/client';
 /**
  * Project response with Prisma includes
  */
-type ProjectWithIncludes = Prisma.ProjectGetPayload<{
+type ProjectWithIncludes = Prisma.TaskGetPayload<{
   include: {
     Client: true;
-    ProjectUser: true;
+    TaskTeam: true;
     _count: {
       select: {
         MappedAccount: true;
@@ -28,16 +28,16 @@ export interface TransformedProject {
   id: number;
   name: string;
   description?: string | null;
-  projectType: string;
   serviceLine: string;
   status: string;
   archived: boolean;
-  clientId?: number | null;
+  clientId?: number | null;  // Internal ID - for queries
   taxYear?: number | null;
   createdAt: Date;
   updatedAt: Date;
   client?: {
     id: number;
+    GSClientID: string;  // External ID
     clientNameFull?: string | null;
     clientCode: string;
   } | null;
@@ -55,22 +55,25 @@ export interface TransformedProject {
  * Handles Client → client transformation and _count field mapping
  */
 export function transformProjectResponse(
-  project: Partial<ProjectWithIncludes> & { Client?: unknown; ProjectUser?: unknown[] }
+  project: Partial<ProjectWithIncludes> & { Client?: unknown; TaskTeam?: unknown[] }
 ): TransformedProject {
-  const { Client, ProjectUser, _count, ...rest } = project;
+  const { Client, TaskTeam, _count, ...rest } = project;
+  
+  const task = project as any; // Cast to access Task model fields
 
   return {
     ...rest,
-    id: project.id!,
-    name: project.name!,
-    projectType: project.projectType!,
-    serviceLine: project.serviceLine!,
-    status: project.status!,
-    archived: project.archived!,
-    createdAt: project.createdAt!,
-    updatedAt: project.updatedAt!,
+    id: task.id!,
+    name: task.TaskDesc || '',
+    description: null,
+    serviceLine: task.ServLineCode || '',
+    status: task.Active || 'No',
+    archived: false,
+    taxYear: null,
+    createdAt: task.createdAt!,
+    updatedAt: task.updatedAt!,
     client: Client as TransformedProject['client'],
-    users: ProjectUser,
+    users: TaskTeam,
     _count: _count
       ? {
           mappings: (_count as { MappedAccount?: number }).MappedAccount || 0,
@@ -84,7 +87,7 @@ export function transformProjectResponse(
  * Transform array of projects
  */
 export function transformProjectsResponse(
-  projects: (Partial<ProjectWithIncludes> & { Client?: unknown; ProjectUser?: unknown[] })[]
+  projects: (Partial<ProjectWithIncludes> & { Client?: unknown; TaskTeam?: unknown[] })[]
 ): TransformedProject[] {
   return projects.map(transformProjectResponse);
 }
@@ -93,7 +96,7 @@ export function transformProjectsResponse(
  * Client response transformation (if needed in the future)
  */
 export function transformClientResponse(client: {
-  _count?: { Project?: number };
+  _count?: { Task?: number };
   [key: string]: unknown;
 }) {
   const { _count, ...rest } = client;
@@ -102,7 +105,7 @@ export function transformClientResponse(client: {
     ...rest,
     _count: _count
       ? {
-          projects: _count.Project || 0,
+          tasks: _count.Task || 0,
         }
       : undefined,
   };

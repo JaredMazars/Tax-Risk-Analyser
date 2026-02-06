@@ -1,53 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { parseGSClientID, parseNumericId } from '@/lib/utils/apiUtils';
 import { DocumentType } from '@/types';
-import { readFile } from 'fs/promises';
-import path from 'node:path';
+import { 
+  downloadEngagementLetter,
+  downloadFile 
+} from '@/lib/services/documents/blobStorage';
+import { logger } from '@/lib/utils/logger';
+
+// Zod schema for query parameter validation
+const DownloadQuerySchema = z.object({
+  documentType: z.nativeEnum(DocumentType),
+  documentId: z.string().regex(/^\d+$/, 'Document ID must be a positive integer'),
+  taskId: z.string().regex(/^\d+$/, 'Task ID must be a positive integer').optional(),
+});
 
 /**
  * GET /api/clients/[id]/documents/download
  * Download a document for a client
- * Query params: documentType, documentId, projectId
+ * Query params: documentType, documentId, taskId
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request: NextRequest, { user, params }) => {
+    // Parse and validate GSClientID
+    const GSClientID = parseGSClientID(params.id);
 
-    const { id } = await context.params;
-    const clientId = Number.parseInt(id);
-
-    if (Number.isNaN(clientId)) {
-      return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
-    }
-
-    // Get query parameters
+    // Parse and validate query parameters
     const { searchParams } = new URL(request.url);
-    const documentType = searchParams.get('documentType') as DocumentType;
-    const documentId = Number.parseInt(searchParams.get('documentId') || '');
-    const projectId = Number.parseInt(searchParams.get('projectId') || '');
+    const queryResult = DownloadQuerySchema.safeParse({
+      documentType: searchParams.get('documentType'),
+      documentId: searchParams.get('documentId'),
+      taskId: searchParams.get('taskId'),
+    });
 
-    if (!documentType || Number.isNaN(documentId)) {
-      return NextResponse.json(
-        { error: 'Missing required parameters: documentType, documentId' },
-        { status: 400 }
+    if (!queryResult.success) {
+      const message = queryResult.error.errors
+        .map(e => `${e.path.join('.')}: ${e.message}`)
+        .join('; ');
+      throw new AppError(
+        400,
+        `Invalid query parameters: ${message}`,
+        ErrorCodes.VALIDATION_ERROR
       );
     }
 
+    const { documentType, documentId: documentIdStr, taskId: taskIdStr } = queryResult.data;
+    const documentId = parseNumericId(documentIdStr, 'Document');
+    const taskId = taskIdStr ? parseNumericId(taskIdStr, 'Task') : undefined;
+
     // Verify client exists
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { GSClientID },
+      select: { GSClientID: true },
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
     // Get file path based on document type
@@ -56,46 +68,58 @@ export async function GET(
 
     switch (documentType) {
       case DocumentType.ENGAGEMENT_LETTER: {
-        const project = await prisma.project.findFirst({
+        if (!taskId) {
+          throw new AppError(
+            400,
+            'Task ID is required for engagement letter download',
+            ErrorCodes.VALIDATION_ERROR
+          );
+        }
+        const task = await prisma.task.findFirst({
           where: {
-            id: projectId,
-            clientId,
+            id: taskId,
+            Client: {
+              GSClientID,
+            },
           },
           select: {
-            engagementLetterPath: true,
-            engagementLetterUploaded: true,
+            TaskEngagementLetter: {
+              select: {
+                filePath: true,
+                uploaded: true,
+              },
+            },
           },
         });
 
-        if (!project || !project.engagementLetterUploaded || !project.engagementLetterPath) {
-          return NextResponse.json(
-            { error: 'Engagement letter not found' },
-            { status: 404 }
-          );
+        if (!task || !task.TaskEngagementLetter || !task.TaskEngagementLetter.uploaded || !task.TaskEngagementLetter.filePath) {
+          throw new AppError(404, 'Engagement letter not found', ErrorCodes.NOT_FOUND);
         }
 
-        filePath = project.engagementLetterPath;
-        // Extract filename from path, handling both forward and backward slashes
+        filePath = task.TaskEngagementLetter.filePath;
         const pathParts = filePath.split(/[/\\]/);
         fileName = pathParts[pathParts.length - 1] || 'engagement-letter.pdf';
         break;
       }
 
       case DocumentType.ADMINISTRATION: {
-        const doc = await prisma.administrationDocument.findFirst({
+        const doc = await prisma.taskDocument.findFirst({
           where: {
             id: documentId,
-            Project: {
-              clientId,
+            Task: {
+              Client: {
+                GSClientID,
+              },
             },
+          },
+          select: {
+            filePath: true,
+            fileName: true,
           },
         });
 
         if (!doc) {
-          return NextResponse.json(
-            { error: 'Administration document not found' },
-            { status: 404 }
-          );
+          throw new AppError(404, 'Administration document not found', ErrorCodes.NOT_FOUND);
         }
 
         filePath = doc.filePath;
@@ -107,17 +131,20 @@ export async function GET(
         const doc = await prisma.adjustmentDocument.findFirst({
           where: {
             id: documentId,
-            Project: {
-              clientId,
+            Task: {
+              Client: {
+                GSClientID,
+              },
             },
+          },
+          select: {
+            filePath: true,
+            fileName: true,
           },
         });
 
         if (!doc) {
-          return NextResponse.json(
-            { error: 'Adjustment document not found' },
-            { status: 404 }
-          );
+          throw new AppError(404, 'Adjustment document not found', ErrorCodes.NOT_FOUND);
         }
 
         filePath = doc.filePath;
@@ -130,18 +157,21 @@ export async function GET(
           where: {
             id: documentId,
             OpinionDraft: {
-              Project: {
-                clientId,
+              Task: {
+                Client: {
+                  GSClientID,
+                },
               },
             },
+          },
+          select: {
+            filePath: true,
+            fileName: true,
           },
         });
 
         if (!doc) {
-          return NextResponse.json(
-            { error: 'Opinion document not found' },
-            { status: 404 }
-          );
+          throw new AppError(404, 'Opinion document not found', ErrorCodes.NOT_FOUND);
         }
 
         filePath = doc.filePath;
@@ -153,52 +183,68 @@ export async function GET(
         const doc = await prisma.sarsResponse.findFirst({
           where: {
             id: documentId,
-            Project: {
-              clientId,
+            Task: {
+              Client: {
+                GSClientID,
+              },
             },
+          },
+          select: {
+            documentPath: true,
           },
         });
 
         if (!doc || !doc.documentPath) {
-          return NextResponse.json(
-            { error: 'SARS document not found' },
-            { status: 404 }
-          );
+          throw new AppError(404, 'SARS document not found', ErrorCodes.NOT_FOUND);
         }
 
         filePath = doc.documentPath;
-        // Extract filename from path, handling both forward and backward slashes
         const sarsPathParts = filePath.split(/[/\\]/);
         fileName = sarsPathParts[sarsPathParts.length - 1] || 'sars-document.pdf';
         break;
       }
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid document type' },
-          { status: 400 }
-        );
+        throw new AppError(400, 'Invalid document type', ErrorCodes.VALIDATION_ERROR);
     }
 
     if (!filePath) {
-      return NextResponse.json(
-        { error: 'Document file path not found' },
-        { status: 404 }
+      throw new AppError(404, 'Document file path not found', ErrorCodes.NOT_FOUND);
+    }
+
+    // Download file from Azure Blob Storage
+    let fileBuffer: Buffer;
+    try {
+      switch (documentType) {
+        case DocumentType.ENGAGEMENT_LETTER:
+          fileBuffer = await downloadEngagementLetter(filePath);
+          break;
+        case DocumentType.ADMINISTRATION:
+        case DocumentType.ADJUSTMENT:
+        case DocumentType.OPINION:
+        case DocumentType.SARS:
+          fileBuffer = await downloadFile(filePath);
+          break;
+        default:
+          throw new AppError(400, 'Invalid document type', ErrorCodes.VALIDATION_ERROR);
+      }
+    } catch (downloadError) {
+      logger.error('Blob download error', { path: filePath, error: downloadError });
+      throw new AppError(
+        404,
+        'Document file not found in storage',
+        ErrorCodes.NOT_FOUND
       );
     }
 
-    // Read the file
-    const fullPath = path.join(process.cwd(), filePath);
-    let fileBuffer: Buffer;
-    try {
-      fileBuffer = await readFile(fullPath);
-    } catch (fileError) {
-      console.error('File read error:', fileError);
-      return NextResponse.json(
-        { error: 'Document file not found on server', details: filePath },
-        { status: 404 }
-      );
-    }
+    // Log document download for audit trail
+    logger.info('Document downloaded', {
+      userId: user.id,
+      clientId: GSClientID,
+      documentType,
+      documentId,
+      fileName,
+    });
 
     // Determine content type based on file extension
     const ext = filePath.split('.').pop()?.toLowerCase();
@@ -220,17 +266,16 @@ export async function GET(
       contentType = 'text/plain';
     }
 
-    // Return file with proper headers
+    // Return file with proper headers including security headers
     return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${fileName}"`,
         'Content-Length': fileBuffer.length.toString(),
+        'X-Content-Type-Options': 'nosniff', // Prevent MIME type sniffing
+        'Cache-Control': 'no-store', // Don't cache file downloads
       },
     });
-  } catch (error) {
-    return handleApiError(error, 'GET /api/clients/[id]/documents/download');
-  }
-}
-
+  },
+});

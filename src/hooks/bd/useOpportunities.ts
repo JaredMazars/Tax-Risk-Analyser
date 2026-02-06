@@ -4,7 +4,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
-  CreateBDOpportunityInput,
   UpdateBDOpportunityInput,
   MoveBDOpportunityStageInput,
   ConvertBDOpportunityInput,
@@ -65,30 +64,6 @@ export function usePipeline(filters: { serviceLine?: string; assignedTo?: string
       if (!res.ok) throw new Error('Failed to fetch pipeline');
       const data = await res.json();
       return data.data;
-    },
-  });
-}
-
-/**
- * Create opportunity mutation
- */
-export function useCreateOpportunity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (data: CreateBDOpportunityInput) => {
-      const res = await fetch('/api/bd/opportunities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error('Failed to create opportunity');
-      const result = await res.json();
-      return result.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bd-opportunities'] });
-      queryClient.invalidateQueries({ queryKey: ['bd-pipeline'] });
     },
   });
 }

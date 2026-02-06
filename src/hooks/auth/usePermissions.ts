@@ -4,24 +4,50 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { Project } from '@/types';
+import { Task } from '@/types';
+
+interface CurrentUser {
+  id: string;
+  email: string;
+  name: string;
+  systemRole: string;
+  employeeCode: string | null;
+}
 
 /**
- * Check if current user can approve acceptance/engagement letter for a project
+ * Get current user information
  */
-export function useCanApproveAcceptance(project: Project | null | undefined) {
+export function useCurrentUser() {
   return useQuery({
-    queryKey: ['canApproveAcceptance', project?.id],
-    queryFn: async () => {
-      if (!project) return false;
+    queryKey: ['currentUser'],
+    queryFn: async (): Promise<CurrentUser | null> => {
+      const response = await fetch('/api/auth/me');
+      if (!response.ok) return null;
 
-      const response = await fetch(`/api/projects/${project.id}/permissions/approve-acceptance`);
+      const data = await response.json();
+      return data.data || null;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+/**
+ * Check if current user can approve acceptance/engagement letter for a task
+ */
+export function useCanApproveAcceptance(task: Task | null | undefined) {
+  return useQuery({
+    queryKey: ['canApproveAcceptance', task?.id],
+    queryFn: async () => {
+      if (!task) return false;
+
+      const response = await fetch(`/api/tasks/${task.id}/permissions/approve-acceptance`);
       if (!response.ok) return false;
 
       const data = await response.json();
       return data.data?.allowed || false;
     },
-    enabled: !!project,
+    enabled: !!task && !!task.id,
+    retry: 2, // Limit retries to prevent infinite loading
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -64,26 +90,26 @@ export function useUserServiceLineRole(serviceLine: string | null | undefined) {
 }
 
 /**
- * Check if user has a specific feature permission on a project
+ * Check if user has a specific feature permission on a task
  */
 export function useHasFeaturePermission(
-  projectId: number | null | undefined,
+  taskId: number | null | undefined,
   feature: string
 ) {
   return useQuery({
-    queryKey: ['featurePermission', projectId, feature],
+    queryKey: ['featurePermission', taskId, feature],
     queryFn: async () => {
-      if (!projectId) return false;
+      if (!taskId) return false;
 
       const response = await fetch(
-        `/api/projects/${projectId}/permissions/check?feature=${feature}`
+        `/api/tasks/${taskId}/permissions/check?feature=${feature}`
       );
       if (!response.ok) return false;
 
       const data = await response.json();
       return data.data?.allowed || false;
     },
-    enabled: !!projectId && !!feature,
+    enabled: !!taskId && !!feature,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -145,6 +171,29 @@ export function useFormattedServiceLineRole(serviceLine: string | null | undefin
   return roleMap[role] || role;
 }
 
+/**
+ * Check if user has a specific feature permission
+ * @param feature - The feature to check
+ * @param serviceLine - Optional service line context
+ */
+export function useFeature(feature: string, serviceLine?: string) {
+  return useQuery({
+    queryKey: ['userFeature', feature, serviceLine],
+    queryFn: async (): Promise<boolean> => {
+      const params = new URLSearchParams({ feature });
+      if (serviceLine) {
+        params.append('serviceLine', serviceLine);
+      }
+      
+      const response = await fetch(`/api/permissions/check?${params.toString()}`);
+      if (!response.ok) return false;
+
+      const data = await response.json();
+      return data.data?.hasFeature || false;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
 
 
 

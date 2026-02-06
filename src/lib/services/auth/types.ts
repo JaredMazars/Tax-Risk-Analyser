@@ -16,12 +16,3 @@ export interface Session {
   exp: number;
 }
 
-/**
- * Permission check result
- */
-export interface PermissionCheckResult {
-  allowed: boolean;
-  reason?: string;
-}
-
-

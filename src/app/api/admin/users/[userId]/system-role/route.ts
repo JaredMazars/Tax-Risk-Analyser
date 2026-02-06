@@ -1,45 +1,44 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { isSystemAdmin } from '@/lib/services/auth/authorization';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { z } from 'zod';
+import { notificationService } from '@/lib/services/notifications/notificationService';
+import { createSystemRoleChangedNotification } from '@/lib/services/notifications/templates';
+import { NotificationType } from '@/types/notification';
+import { logger } from '@/lib/utils/logger';
+import { secureRoute, RateLimitPresets } from '@/lib/api/secureRoute';
+import { auditUserRoleChange } from '@/lib/utils/auditLog';
+import { getClientIdentifier } from '@/lib/utils/rateLimit';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 const UpdateSystemRoleSchema = z.object({
   systemRole: z.enum(['USER', 'SYSTEM_ADMIN']),
-});
+}).strict();
 
 /**
  * PUT /api/admin/users/[userId]/system-role
  * Update a user's system role
  * Only callable by existing SYSTEM_ADMINs
+ * 
+ * Security: Rate limited, requires SYSTEM_ADMIN, audit logged
  */
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ userId: string }> }
-) {
-  try {
-    const currentUser = await getCurrentUser();
+export const PUT = secureRoute.mutationWithParams<typeof UpdateSystemRoleSchema, { userId: string }>({
+  rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 10 }, // Stricter limit for admin operations
+  schema: UpdateSystemRoleSchema,
+  handler: async (request, { user, data, params }) => {
+    const { userId } = params;
     
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Validate userId param
+    if (!userId) {
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
-
+    
     // Only SYSTEM_ADMINs can modify system roles
-    const isAdmin = await isSystemAdmin(currentUser.id);
+    const isAdmin = await isSystemAdmin(user.id);
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: 'Forbidden - Only System Administrators can modify system roles' },
-        { status: 403 }
-      );
+      throw new AppError(403, 'Only System Administrators can modify system roles', ErrorCodes.FORBIDDEN);
     }
-
-    const { userId } = await context.params;
-    const body = await request.json();
-    
-    // Validate request body
-    const validatedData = UpdateSystemRoleSchema.parse(body);
 
     // Check if target user exists
     const targetUser = await prisma.user.findUnique({
@@ -53,22 +52,22 @@ export async function PUT(
     });
 
     if (!targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      throw new AppError(404, 'User not found', ErrorCodes.NOT_FOUND);
     }
 
     // Prevent users from demoting themselves
-    if (userId === currentUser.id && validatedData.systemRole !== 'SYSTEM_ADMIN') {
-      return NextResponse.json(
-        { error: 'You cannot demote yourself from SYSTEM_ADMIN' },
-        { status: 400 }
-      );
+    if (userId === user.id && data.systemRole !== 'SYSTEM_ADMIN') {
+      throw new AppError(400, 'You cannot demote yourself from SYSTEM_ADMIN', ErrorCodes.VALIDATION_ERROR);
     }
+
+    // Capture old role for audit and notification
+    const oldRole = targetUser.role;
 
     // Update the user's system role
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        role: validatedData.systemRole,
+        role: data.systemRole,
       },
       select: {
         id: true,
@@ -78,29 +77,36 @@ export async function PUT(
       },
     });
 
+    // Audit log the role change (critical security event)
+    const ipAddress = getClientIdentifier(request);
+    await auditUserRoleChange(user.id, userId, oldRole, data.systemRole, ipAddress);
+
+    // Create in-app notification (non-blocking)
+    try {
+      const notification = createSystemRoleChangedNotification(
+        user.name || user.email,
+        oldRole,
+        data.systemRole
+      );
+
+      await notificationService.createNotification(
+        userId,
+        NotificationType.SYSTEM_ROLE_CHANGED,
+        notification.title,
+        notification.message,
+        undefined,
+        notification.actionUrl,
+        user.id
+      );
+    } catch (notificationError) {
+      logger.error('Failed to create system role changed notification', notificationError);
+    }
+
     return NextResponse.json(
       successResponse({
         user: updatedUser,
-        message: `User ${updatedUser.name || updatedUser.email} updated to ${validatedData.systemRole}`,
+        message: `User ${updatedUser.name || updatedUser.email} updated to ${data.systemRole}`,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/admin/users/[userId]/system-role');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

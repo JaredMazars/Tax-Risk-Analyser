@@ -1,205 +1,311 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db/prisma';
 import { 
   getUserServiceLines,
   grantServiceLineAccess,
   revokeServiceLineAccess,
   updateServiceLineRole,
   getServiceLineUsers,
+  switchAssignmentType,
+  getUserAssignmentType,
 } from '@/lib/services/service-lines/serviceLineService';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { ServiceLine, ServiceLineRole } from '@/types';
+import { notificationService } from '@/lib/services/notifications/notificationService';
+import { 
+  createServiceLineAddedNotification, 
+  createServiceLineRemovedNotification,
+} from '@/lib/services/notifications/templates';
+import { NotificationType } from '@/types/notification';
+import { logger } from '@/lib/utils/logger';
+import {
+  GrantServiceLineAccessSchema,
+  RevokeServiceLineAccessSchema,
+  UpdateServiceLineRoleSchema,
+  SwitchAssignmentTypeSchema,
+} from '@/lib/validation/schemas';
+import { secureRoute, RateLimitPresets, Feature } from '@/lib/api/secureRoute';
+import { auditServiceLineAccessChange } from '@/lib/utils/auditLog';
+import { getClientIdentifier } from '@/lib/utils/rateLimit';
+import { invalidateOnServiceLineAccessMutation } from '@/lib/services/cache/cacheInvalidation';
+import { z } from 'zod';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+
+// Valid service line codes
+const VALID_SERVICE_LINES = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR', 'COUNTRY_MANAGEMENT'] as const;
+
+// Query parameter validation schema for GET
+const ServiceLineAccessQuerySchema = z.object({
+  serviceLine: z.enum(VALID_SERVICE_LINES).optional(),
+  userId: z.string().min(1).optional(), // Azure AD user IDs aren't standard UUIDs, can contain dots
+  assignmentType: z.enum(['true', 'false']).optional(),
+});
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/admin/service-line-access
- * Get all service line access for all users (admin only)
+ * Get all service line access for all users or specific queries (admin only)
  */
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
+export const GET = secureRoute.query({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
-    const serviceLine = searchParams.get('serviceLine');
-    const userId = searchParams.get('userId');
 
+    // Validate query parameters
+    const queryResult = ServiceLineAccessQuerySchema.safeParse({
+      serviceLine: searchParams.get('serviceLine') ?? undefined,
+      userId: searchParams.get('userId') ?? undefined,
+      assignmentType: searchParams.get('assignmentType') ?? undefined,
+    });
+
+    if (!queryResult.success) {
+      throw new AppError(
+        400,
+        'Invalid query parameters',
+        ErrorCodes.VALIDATION_ERROR,
+        { errors: queryResult.error.flatten().fieldErrors }
+      );
+    }
+
+    const { serviceLine, userId, assignmentType } = queryResult.data;
+
+    let data;
     if (serviceLine) {
-      // Get users for a specific service line
       const users = await getServiceLineUsers(serviceLine);
-      return NextResponse.json(successResponse(users));
+      data = users;
     } else if (userId) {
-      // Get service lines for a specific user
       const serviceLines = await getUserServiceLines(userId);
-      return NextResponse.json(successResponse(serviceLines));
+      
+      if (assignmentType === 'true') {
+        const serviceLineWithTypes = await Promise.all(
+          serviceLines.map(async (sl) => {
+            const slAssignmentType = await getUserAssignmentType(userId, sl.serviceLine);
+            return { ...sl, assignmentType: slAssignmentType };
+          })
+        );
+        data = serviceLineWithTypes;
+      } else {
+        data = serviceLines;
+      }
     } else {
-      // Get all service line users
-      const allServiceLines = ['TAX', 'AUDIT', 'ACCOUNTING', 'ADVISORY', 'QRM', 'BUSINESS_DEV', 'IT', 'FINANCE', 'HR'];
       const allData = await Promise.all(
-        allServiceLines.map(async (sl) => ({
+        VALID_SERVICE_LINES.map(async (sl) => ({
           serviceLine: sl,
           users: await getServiceLineUsers(sl),
         }))
       );
-      return NextResponse.json(successResponse(allData));
+      data = allData;
     }
-  } catch (error) {
-    return handleApiError(error, 'GET /api/admin/service-line-access');
-  }
-}
+
+    const response = NextResponse.json(successResponse(data));
+    // Prevent browser caching for user-specific data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    return response;
+  },
+});
 
 /**
  * POST /api/admin/service-line-access
  * Grant user access to a service line (admin only)
  */
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
+export const POST = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 20 },
+  schema: GrantServiceLineAccessSchema,
+  handler: async (request, { user, data }) => {
+    const { userId, type, masterCode, subGroups, role } = data;
+    const ipAddress = getClientIdentifier(request);
 
-    const body = await request.json();
-    const { userId, serviceLine, role } = body;
+    if (type === 'main' && masterCode) {
+      await grantServiceLineAccess(userId, masterCode, role, 'main');
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(userId, masterCode);
+      
+      // Audit log
+      await auditServiceLineAccessChange(user.id, userId, masterCode, 'granted', role, ipAddress);
+      
+      // Notification (non-blocking)
+      try {
+        const targetUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true },
+        });
 
-    if (!userId || !serviceLine) {
+        if (targetUser) {
+          const notification = createServiceLineAddedNotification(masterCode, user.name || user.email, role);
+          await notificationService.createNotification(
+            userId,
+            NotificationType.SERVICE_LINE_ADDED,
+            notification.title,
+            notification.message,
+            undefined,
+            notification.actionUrl,
+            user.id
+          );
+        }
+      } catch (notificationError) {
+        logger.error('Failed to create service line added notification', notificationError);
+      }
+
       return NextResponse.json(
-        { error: 'userId and serviceLine are required' },
+        successResponse({ message: `Access granted to all sub-groups in ${masterCode}`, type: 'main' }),
+        { status: 201 }
+      );
+    } else if (type === 'subgroup' && subGroups) {
+      await grantServiceLineAccess(userId, subGroups, role, 'subgroup');
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(userId);
+
+      return NextResponse.json(
+        successResponse({ message: `Access granted to ${subGroups.length} specific sub-group(s)`, type: 'subgroup' }),
+        { status: 201 }
+      );
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Invalid request: type and corresponding parameters required' },
         { status: 400 }
       );
     }
+  },
+});
 
-    await grantServiceLineAccess(userId, serviceLine, role || 'USER');
-
-    return NextResponse.json(
-      successResponse({ message: 'Access granted successfully' }),
-      { status: 201 }
-    );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/admin/service-line-access');
-  }
-}
+// Schema for PUT that handles both role updates and assignment type switches
+const PutSchema = z.union([
+  SwitchAssignmentTypeSchema,
+  UpdateServiceLineRoleSchema,
+]);
 
 /**
  * PUT /api/admin/service-line-access
- * Update user's role in a service line (admin only)
+ * Update user's role or switch assignment type (admin only)
  */
-export async function PUT(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
+export const PUT = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 20 },
+  schema: PutSchema,
+  handler: async (request, { user, data }) => {
+    // Check if this is a switch assignment type request
+    if ('action' in data && data.action === 'switchType') {
+      const { userId, masterCode, newType, specificSubGroups } = data as z.infer<typeof SwitchAssignmentTypeSchema>;
+      await switchAssignmentType(userId, masterCode, newType, specificSubGroups);
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(userId, masterCode);
 
-    const body = await request.json();
-    const { id, role } = body;
-
-    if (!id || !role) {
       return NextResponse.json(
-        { error: 'id and role are required', received: { id, role } },
-        { status: 400 }
+        successResponse({ message: `Assignment type switched to ${newType}`, userId, masterCode })
       );
     }
 
-    // Update by ServiceLineUser id
-    const { prisma } = await import('@/lib/db/prisma');
-    await prisma.serviceLineUser.update({
-      where: { id },
-      data: { role },
-    });
+    // Otherwise, it's a role update
+    const { userId, serviceLineOrSubGroup, role, isSubGroup } = data as z.infer<typeof UpdateServiceLineRoleSchema>;
+    await updateServiceLineRole(userId, serviceLineOrSubGroup, role, isSubGroup);
+    
+    // Invalidate user's service line cache
+    await invalidateOnServiceLineAccessMutation(userId, isSubGroup ? undefined : serviceLineOrSubGroup);
 
-    return NextResponse.json(
-      successResponse({ message: 'Role updated successfully' })
-    );
-  } catch (error) {
-    return handleApiError(error, 'PUT /api/admin/service-line-access');
-  }
-}
+    // Notification (non-blocking)
+    try {
+      const notification = {
+        title: 'Service Line Role Updated',
+        message: `Your role in ${serviceLineOrSubGroup} has been updated to ${role} by ${user.name || user.email}.`,
+        actionUrl: '/dashboard',
+      };
+
+      await notificationService.createNotification(
+        userId,
+        NotificationType.SERVICE_LINE_ROLE_CHANGED,
+        notification.title,
+        notification.message,
+        undefined,
+        notification.actionUrl,
+        user.id
+      );
+    } catch (notificationError) {
+      logger.error('Failed to create role changed notification', notificationError);
+    }
+
+    return NextResponse.json(successResponse({ message: 'Role updated successfully' }));
+  },
+});
 
 /**
  * DELETE /api/admin/service-line-access
- * Revoke user access to a service line (admin only)
+ * Revoke user access to a service line or sub-group (admin only)
  */
-export async function DELETE(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const isAdmin = await isSystemAdmin(user.id);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
-    }
-
+export const DELETE = secureRoute.mutation({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  rateLimit: { ...RateLimitPresets.STANDARD, maxRequests: 20 },
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
-    const idStr = searchParams.get('id');
+    const userId = searchParams.get('userId');
+    const type = searchParams.get('type') as 'main' | 'subgroup';
+    const masterCode = searchParams.get('masterCode');
+    const subGroup = searchParams.get('subGroup');
 
-    if (!idStr) {
-      return NextResponse.json(
-        { error: 'id is required' },
-        { status: 400 }
+    const requestData = {
+      userId,
+      type,
+      masterCode: masterCode || undefined,
+      subGroups: subGroup ? [subGroup] : undefined,
+    };
+
+    const validation = RevokeServiceLineAccessSchema.safeParse(requestData);
+    if (!validation.success) {
+      throw new AppError(
+        400,
+        'Invalid request parameters',
+        ErrorCodes.VALIDATION_ERROR,
+        { errors: validation.error.flatten().fieldErrors }
       );
     }
 
-    const id = Number.parseInt(idStr, 10);
+    const { userId: validUserId, type: validType, masterCode: validMasterCode, subGroups } = validation.data;
+    const ipAddress = getClientIdentifier(request);
 
-    if (Number.isNaN(id)) {
-      return NextResponse.json(
-        { error: 'id must be a valid number' },
-        { status: 400 }
+    if (validType === 'main' && validMasterCode) {
+      await revokeServiceLineAccess(validUserId, validMasterCode, 'main');
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(validUserId, validMasterCode);
+
+      // Audit log
+      await auditServiceLineAccessChange(user.id, validUserId, validMasterCode, 'revoked', undefined, ipAddress);
+
+      // Notification (non-blocking)
+      try {
+        const notification = createServiceLineRemovedNotification(validMasterCode, user.name || user.email);
+        await notificationService.createNotification(
+          validUserId,
+          NotificationType.SERVICE_LINE_REMOVED,
+          notification.title,
+          notification.message,
+          undefined,
+          notification.actionUrl,
+          user.id
+        );
+      } catch (notificationError) {
+        logger.error('Failed to create service line removed notification', notificationError);
+      }
+
+      return NextResponse.json(successResponse({ message: `Access revoked from ${validMasterCode}` }));
+    } else if (validType === 'subgroup' && subGroups) {
+      await revokeServiceLineAccess(validUserId, subGroups, 'subgroup');
+      
+      // Invalidate user's service line cache
+      await invalidateOnServiceLineAccessMutation(validUserId);
+
+      return NextResponse.json(successResponse({ message: `Access revoked from ${subGroups.length} sub-group(s)` }));
+    } else {
+      throw new AppError(
+        400,
+        'Invalid request parameters: type and corresponding code required',
+        ErrorCodes.VALIDATION_ERROR
       );
     }
-
-    // Delete by ServiceLineUser id
-    const { prisma } = await import('@/lib/db/prisma');
-    
-    // Check if the record exists before attempting deletion
-    const existingRecord = await prisma.serviceLineUser.findUnique({
-      where: { id },
-    });
-
-    if (!existingRecord) {
-      return NextResponse.json(
-        { error: 'Service line access record not found' },
-        { status: 404 }
-      );
-    }
-
-    await prisma.serviceLineUser.delete({
-      where: { id },
-    });
-
-    return NextResponse.json(
-      successResponse({ message: 'Access revoked successfully' })
-    );
-  } catch (error) {
-    return handleApiError(error, 'DELETE /api/admin/service-line-access');
-  }
-}
-
-
+  },
+});

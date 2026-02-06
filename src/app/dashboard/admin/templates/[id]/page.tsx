@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { ArrowLeft, Check } from 'lucide-react';
 import { TemplateSectionManager } from '@/components/features/templates/TemplateSectionManager';
+import { VersionsTab } from '@/components/features/templates/versions/VersionsTab';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
 interface Template {
@@ -12,9 +13,8 @@ interface Template {
   description: string | null;
   type: string;
   serviceLine: string | null;
-  projectType: string | null;
-  content: string;
   active: boolean;
+  currentVersion?: number;
   sections?: TemplateSection[];
   TemplateSection?: TemplateSection[];
 }
@@ -34,12 +34,12 @@ interface TemplateSection {
 export default function TemplateEditorPage() {
   const router = useRouter();
   const params = useParams();
-  const isNew = params.id === 'new';
   
-  const [loading, setLoading] = useState(!isNew);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [activeTab, setActiveTab] = useState<'sections' | 'versions'>('sections');
   
   const [template, setTemplate] = useState<Template>({
     id: 0,
@@ -47,16 +47,12 @@ export default function TemplateEditorPage() {
     description: '',
     type: 'ENGAGEMENT_LETTER',
     serviceLine: null,
-    projectType: null,
-    content: '',
     active: true,
     sections: [],
   });
 
   useEffect(() => {
-    if (!isNew) {
-      fetchTemplate();
-    }
+    fetchTemplate();
   }, [params.id]);
 
   const fetchTemplate = async () => {
@@ -87,22 +83,14 @@ export default function TemplateEditorPage() {
     setError(null);
 
     try {
-      const url = isNew
-        ? '/api/admin/templates'
-        : `/api/admin/templates/${params.id}`;
-      
-      const method = isNew ? 'POST' : 'PUT';
-
-      const response = await fetch(url, {
-        method,
+      const response = await fetch(`/api/admin/templates/${params.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: template.name,
           description: template.description || undefined,
           type: template.type,
           serviceLine: template.serviceLine || undefined,
-          projectType: template.projectType || undefined,
-          content: template.content,
           active: template.active,
         }),
       });
@@ -110,16 +98,12 @@ export default function TemplateEditorPage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        if (isNew) {
-          router.push(`/dashboard/admin/templates/${data.data.id}`);
-        } else {
-          // Normalize template data
-          const normalizedTemplate = {
-            ...data.data,
-            sections: data.data.TemplateSection || data.data.sections || [],
-          };
-          setTemplate(normalizedTemplate);
-        }
+        // Normalize template data
+        const normalizedTemplate = {
+          ...data.data,
+          sections: data.data.TemplateSection || data.data.sections || [],
+        };
+        setTemplate(normalizedTemplate);
       } else {
         setError(data.error || 'Failed to save template');
       }
@@ -131,12 +115,6 @@ export default function TemplateEditorPage() {
   };
 
   const handleAddSection = async (section: Omit<TemplateSection, 'id'>) => {
-    if (isNew) {
-      // For new templates, save the template first
-      await handleSave();
-      return;
-    }
-
     try {
       const response = await fetch(`/api/admin/templates/${params.id}/sections`, {
         method: 'POST',
@@ -209,7 +187,7 @@ export default function TemplateEditorPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-forvis-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-4">
             <div className="h-12 bg-forvis-gray-200 rounded w-1/3"></div>
             <div className="h-64 bg-forvis-gray-200 rounded"></div>
@@ -221,29 +199,81 @@ export default function TemplateEditorPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => router.push('/dashboard/admin/templates')}
             className="text-sm text-forvis-blue-600 hover:text-forvis-blue-700 flex items-center mb-4"
           >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Templates
           </button>
           
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-forvis-gray-900">
-              {isNew ? 'Create New Template' : 'Edit Template'}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-forvis-gray-900">
+                Edit Template
+              </h1>
+              {template.currentVersion && (
+                <span
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white"
+                  style={{
+                    background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+                  }}
+                >
+                  v{template.currentVersion}
+                </span>
+              )}
+            </div>
             
             <button
               onClick={handleSave}
               disabled={saving || !template.name}
               className="btn-primary flex items-center"
             >
-              <CheckIcon className="h-5 w-5 mr-2" />
+              <Check className="h-5 w-5 mr-2" />
               {saving ? 'Saving...' : 'Save Template'}
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 mt-6 border-b border-forvis-gray-200">
+            <button
+              onClick={() => setActiveTab('sections')}
+              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+                activeTab === 'sections'
+                  ? 'text-forvis-blue-600'
+                  : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+              }`}
+            >
+              Sections
+              {activeTab === 'sections' && (
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-0.5"
+                  style={{
+                    background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+                  }}
+                />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('versions')}
+              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+                activeTab === 'versions'
+                  ? 'text-forvis-blue-600'
+                  : 'text-forvis-gray-600 hover:text-forvis-gray-900'
+              }`}
+            >
+              Versions
+              {activeTab === 'versions' && (
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-0.5"
+                  style={{
+                    background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+                  }}
+                />
+              )}
             </button>
           </div>
         </div>
@@ -255,9 +285,10 @@ export default function TemplateEditorPage() {
         )}
 
         {/* Template Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="card p-6">
+        {activeTab === 'sections' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="card p-6">
               <h2 className="text-lg font-semibold text-forvis-gray-900 mb-4">
                 Template Information
               </h2>
@@ -338,45 +369,20 @@ export default function TemplateEditorPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-forvis-gray-700 mb-1">
-                      Project Type (Optional)
-                    </label>
-                    <select
-                      value={template.projectType || ''}
-                      onChange={(e) => setTemplate({ ...template, projectType: e.target.value || null })}
-                      className="input-field"
-                    >
-                      <option value="">All Project Types</option>
-                      <option value="TAX_CALCULATION">Tax Calculation</option>
-                      <option value="TAX_OPINION">Tax Opinion</option>
-                      <option value="TAX_ADMINISTRATION">Tax Administration</option>
-                    </select>
-                  </div>
                 </div>
               </div>
             </div>
 
             {/* Sections */}
-            {!isNew && (
-              <div className="card p-6">
-                <TemplateSectionManager
-                  sections={template.sections || []}
-                  onAddSection={handleAddSection}
-                  onUpdateSection={handleUpdateSection}
-                  onDeleteSection={handleDeleteSection}
-                  onReorder={handleReorder}
-                />
-              </div>
-            )}
-
-            {isNew && (
-              <div className="card p-6 border-2 border-dashed border-forvis-gray-300">
-                <p className="text-sm text-forvis-gray-600 text-center">
-                  Save the template first to add sections
-                </p>
-              </div>
-            )}
+            <div className="card p-6">
+              <TemplateSectionManager
+                sections={template.sections || []}
+                onAddSection={handleAddSection}
+                onUpdateSection={handleUpdateSection}
+                onDeleteSection={handleDeleteSection}
+                onReorder={handleReorder}
+              />
+            </div>
           </div>
 
           {/* Sidebar */}
@@ -393,10 +399,7 @@ export default function TemplateEditorPage() {
                   {'{{clientCode}}'}
                 </div>
                 <div className="p-2 bg-forvis-gray-50 rounded">
-                  {'{{projectName}}'}
-                </div>
-                <div className="p-2 bg-forvis-gray-50 rounded">
-                  {'{{projectType}}'}
+                  {'{{taskName}}'}
                 </div>
                 <div className="p-2 bg-forvis-gray-50 rounded">
                   {'{{serviceLine}}'}
@@ -429,6 +432,14 @@ export default function TemplateEditorPage() {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Versions Tab */}
+        {activeTab === 'versions' && (
+          <div className="card p-6">
+            <VersionsTab templateId={template.id} />
+          </div>
+        )}
       </div>
     </div>
   );

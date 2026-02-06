@@ -21,7 +21,7 @@ export enum CreditRatingGrade {
 
 export interface AnalyticsDocument {
   id: number;
-  clientId: number;
+  clientId: number;  // Internal ID - renamed from GSClientID for clarity
   documentType: string;
   fileName: string;
   filePath: string;
@@ -82,7 +82,7 @@ export interface CreditAnalysisReport {
 
 export interface CreditRating {
   id: number;
-  clientId: number;
+  clientId: number;  // Internal ID - renamed from GSClientID for clarity
   ratingScore: number; // 0-100
   ratingGrade: CreditRatingGrade;
   ratingDate: Date;
@@ -95,72 +95,71 @@ export interface CreditRating {
   documents?: AnalyticsDocument[];
 }
 
-export interface CreditRatingWithDocuments extends CreditRating {
-  documents: AnalyticsDocument[];
-}
-
 export interface GenerateCreditRatingRequest {
   documentIds: number[];
 }
 
-export interface GenerateCreditRatingResponse {
-  success: boolean;
-  data?: CreditRating;
-  error?: string;
+// ============================================
+// Time Accumulation Types (Task Finance Graphs)
+// ============================================
+
+/**
+ * A single data point for cumulative time charts
+ */
+export interface CumulativeDataPoint {
+  /** Date in YYYY-MM-DD format */
+  date: string;
+  /** Cumulative time amount at this date */
+  cumulativeTime: number;
+  /** Budget amount (flat line value) */
+  budget: number;
 }
 
-export interface AnalyticsDocumentsResponse {
-  success: boolean;
-  data?: {
-    documents: AnalyticsDocument[];
-    totalCount: number;
-  };
-  error?: string;
+/**
+ * Time accumulation data for a single employee
+ */
+export interface EmployeeTimeAccumulation {
+  /** User ID (from User table) */
+  userId: string;
+  /** Display name of the employee */
+  userName: string;
+  /** Employee code (from Employee table) */
+  empCode: string;
+  /** Employee category description (e.g., "Partner", "Manager") */
+  empCatDesc: string;
+  /** Total allocated budget for this employee (hours × rate) */
+  allocatedBudget: number;
+  /** Actual time amount used */
+  actualTime: number;
+  /** Whether this employee is an assigned team member (vs just booked time) */
+  isTeamMember: boolean;
+  /** Cumulative data points for charting */
+  cumulativeData: CumulativeDataPoint[];
 }
 
-export interface CreditRatingsResponse {
-  success: boolean;
-  data?: {
-    ratings: CreditRating[];
-    totalCount: number;
-  };
-  error?: string;
+/**
+ * Complete time accumulation data for a task
+ */
+export interface TaskTimeAccumulationData {
+  /** Internal task ID */
+  taskId: number;
+  /** External GUID for task */
+  GSTaskID: string;
+  /** Task code for display */
+  taskCode: string;
+  /** Task description */
+  taskDesc: string;
+  /** Task start date (TaskDateOpen) */
+  startDate: string;
+  /** Current date (end of analysis period) */
+  endDate: string;
+  /** Total budget for the task (sum of all employee budgets) */
+  totalBudget: number;
+  /** Total actual time used */
+  actualTime: number;
+  /** Overall cumulative data points for charting */
+  cumulativeData: CumulativeDataPoint[];
+  /** Per-employee time accumulation data */
+  employeeData: EmployeeTimeAccumulation[];
 }
-
-export interface LatestCreditRatingResponse {
-  success: boolean;
-  data?: CreditRating;
-  error?: string;
-}
-
-export interface FinancialRatiosResponse {
-  success: boolean;
-  data?: FinancialRatios;
-  error?: string;
-}
-
-// Utility types for document upload
-export interface UploadDocumentData {
-  file: File;
-  documentType: AnalyticsDocumentType;
-}
-
-// For trend analysis
-export interface RatingTrend {
-  date: Date;
-  ratingGrade: CreditRatingGrade;
-  ratingScore: number;
-  change?: number; // vs previous rating
-  trend?: 'UP' | 'DOWN' | 'STABLE';
-}
-
-// For ratio comparison
-export interface RatioComparison {
-  current: number;
-  previous?: number;
-  industryAverage?: number;
-  benchmark?: number;
-  status: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
-}
-
 

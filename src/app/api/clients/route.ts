@@ -1,106 +1,80 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
-import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { successResponse } from '@/lib/utils/apiUtils';
+import { performanceMonitor } from '@/lib/utils/performanceMonitor';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
+import { getUserSubServiceLineGroups } from '@/lib/services/service-lines/serviceLineService';
+import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { getClientsWithPagination } from '@/lib/services/clients/clientService';
+
+// Zod schema for query params validation
+const ClientListQuerySchema = z.object({
+  search: z.string().max(100).optional().default(''),
+  page: z.coerce.number().int().min(1).max(1000).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  sortBy: z.enum(['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt']).optional().default('clientNameFull'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
+}).strict();
+
+/**
+ * GET /api/clients
+ * List clients with pagination and filtering
+ */
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
+    const startTime = Date.now();
 
     // Check permission
-    const { checkUserPermission } = await import('@/lib/services/permissions/permissionService');
-    const hasPermission = await checkUserPermission(user.id, 'clients', 'READ');
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+    const hasPagePermission = await checkFeature(user.id, Feature.ACCESS_CLIENTS);
+    const userSubGroups = await getUserSubServiceLineGroups(user.id);
+    const hasServiceLineAccess = userSubGroups.length > 0;
+    
+    if (!hasPagePermission && !hasServiceLineAccess) {
+      throw new AppError(403, 'Forbidden - Insufficient permissions', ErrorCodes.FORBIDDEN);
     }
     
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
-    const page = Number.parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100); // Max 100 per page
-    const sortBy = searchParams.get('sortBy') || 'clientNameFull';
-    const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
     
-    const skip = (page - 1) * limit;
-
-    // Build where clause with improved search
-    interface WhereClause {
-      OR?: Array<Record<string, { contains: string }>>;
+    // Validate query params
+    const queryResult = ClientListQuerySchema.safeParse({
+      search: searchParams.get('search') || undefined,
+      page: searchParams.get('page') || undefined,
+      limit: searchParams.get('limit') || undefined,
+      sortBy: searchParams.get('sortBy') || undefined,
+      sortOrder: searchParams.get('sortOrder') || undefined,
+    });
+    
+    if (!queryResult.success) {
+      throw new AppError(400, 'Invalid query parameters', ErrorCodes.VALIDATION_ERROR, { errors: queryResult.error.flatten() });
     }
-    const where: WhereClause = {};
-    if (search) {
-      where.OR = [
-        { clientNameFull: { contains: search } },
-        { clientCode: { contains: search } },
-        { groupDesc: { contains: search } },
-        { groupCode: { contains: search } },
-        { industry: { contains: search } },
-        { sector: { contains: search } },
-      ];
-    }
-
-    // Build orderBy clause
-    type OrderByClause = Record<string, 'asc' | 'desc'>;
-    const orderBy: OrderByClause = {};
-    const validSortFields = ['clientNameFull', 'clientCode', 'groupDesc', 'createdAt', 'updatedAt'] as const;
-    if (validSortFields.includes(sortBy as typeof validSortFields[number])) {
-      orderBy[sortBy] = sortOrder;
-    } else {
-      orderBy.clientNameFull = 'asc';
-    }
-
-    // Get total count
-    const total = await prisma.client.count({ where });
-
-    // Get clients with project count - optimized field selection
-    const clients = await prisma.client.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy,
-      select: {
-        id: true,
-        clientCode: true,
-        clientNameFull: true,
-        groupCode: true,
-        groupDesc: true,
-        clientPartner: true,
-        clientManager: true,
-        clientIncharge: true,
-        industry: true,
-        sector: true,
-        active: true,
-        typeCode: true,
-        typeDesc: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            Project: true,
-          },
-        },
-      },
+    
+    const { search, page, limit, sortBy, sortOrder } = queryResult.data;
+    
+    // Get advanced filters from query params
+    const clientCodes = searchParams.getAll('clientCodes[]');
+    const partners = searchParams.getAll('partners[]');
+    const managers = searchParams.getAll('managers[]');
+    const groups = searchParams.getAll('groups[]');
+    
+    // Delegate to service layer
+    const result = await getClientsWithPagination({
+      search,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      clientCodes,
+      partners,
+      managers,
+      groups,
     });
 
-    return NextResponse.json(
-      successResponse({
-        clients,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      })
-    );
-  } catch (error) {
-    return handleApiError(error, 'Get Clients');
-  }
-}
+    performanceMonitor.trackApiCall('/api/clients', startTime, false);
 
-
+    return NextResponse.json(successResponse(result));
+  },
+});

@@ -5,19 +5,19 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
-  MagnifyingGlassIcon,
-  FolderIcon,
-  ChevronRightIcon,
-  PlusIcon,
-} from '@heroicons/react/24/outline';
-import { isValidServiceLine, formatServiceLineName, formatProjectType } from '@/lib/utils/serviceLineUtils';
+  Search,
+  Folder,
+  ChevronRight,
+  Plus,
+} from 'lucide-react';
+import { isValidServiceLine, formatServiceLineName } from '@/lib/utils/serviceLineUtils';
 import { useServiceLine } from '@/components/providers/ServiceLineProvider';
 import { ServiceLine } from '@/types';
-import { useProjects, type ProjectListItem, projectListKeys } from '@/hooks/projects/useProjects';
+import { useTasks, type TaskListItem, taskListKeys } from '@/hooks/tasks/useTasks';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { CreateProjectModal } from '@/components/features/projects/CreateProjectModal';
+import { CreateTaskModal } from '@/components/features/tasks/CreateTaskModal';
 
-export default function InternalProjectsPage() {
+export default function InternalTasksPage() {
   const router = useRouter();
   const params = useParams();
   const serviceLine = (params.serviceLine as string)?.toUpperCase();
@@ -30,16 +30,16 @@ export default function InternalProjectsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Fetch internal projects only for this service line
-  const { data: projectsData, isLoading, error } = useProjects({
+  // Fetch internal tasks only for this service line
+  const { data: tasksData, isLoading, error } = useTasks({
     serviceLine,
     includeArchived: showArchived,
     internalOnly: true,
     page: 1,
-    limit: 1000, // Get all internal projects
+    limit: 1000, // Get all internal tasks
     enabled: !!serviceLine,
   });
-  const projects = projectsData?.projects || [];
+  const projects = tasksData?.tasks || [];
 
   // Validate service line
   useEffect(() => {
@@ -58,7 +58,6 @@ export default function InternalProjectsPage() {
     return projects.filter(project =>
       project.name?.toLowerCase().includes(searchLower) ||
       project.description?.toLowerCase().includes(searchLower) ||
-      project.projectType?.toLowerCase().includes(searchLower) ||
       project.status?.toLowerCase().includes(searchLower)
     );
   }, [searchTerm, projects]);
@@ -70,8 +69,8 @@ export default function InternalProjectsPage() {
 
   const handleProjectCreated = (project: { id: number; name: string; serviceLine: string }) => {
     setShowCreateModal(false);
-    // Invalidate projects query to refetch and show the new project
-    queryClient.invalidateQueries({ queryKey: projectListKeys.all });
+    // Invalidate tasks query to refetch and show the new task
+    queryClient.invalidateQueries({ queryKey: taskListKeys.all });
   };
 
   if (!isValidServiceLine(serviceLine)) {
@@ -93,50 +92,50 @@ export default function InternalProjectsPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-forvis-gray-600 py-4 mb-2">
           <Link href="/dashboard" className="hover:text-forvis-gray-900 transition-colors">
-            Dashboard
+            Home
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
           <Link 
             href={`/dashboard/${serviceLine.toLowerCase()}`} 
             className="hover:text-forvis-gray-900 transition-colors"
           >
             {formatServiceLineName(serviceLine)}
           </Link>
-          <ChevronRightIcon className="h-4 w-4" />
-          <span className="text-forvis-gray-900 font-medium">Internal Projects</span>
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-forvis-gray-900 font-medium">Internal Tasks</span>
         </nav>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 space-y-4 sm:space-y-0">
           <div>
             <h1 className="text-3xl font-bold text-forvis-gray-900">
-              {formatServiceLineName(serviceLine)} Internal Projects
+              {formatServiceLineName(serviceLine)} Internal Tasks
             </h1>
             <p className="mt-1 text-sm text-forvis-gray-700">
-              View and manage internal projects without a client
+              View and manage internal tasks without a client
             </p>
           </div>
           
           <div className="flex items-center gap-4">
             <div className="text-right">
               <div className="text-2xl font-bold text-forvis-blue-600">{projects.length}</div>
-              <div className="text-sm text-forvis-gray-600">Total Projects</div>
+              <div className="text-sm text-forvis-gray-600">Total Tasks</div>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center px-4 py-2 bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 transition-colors"
             >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              New Project
+              <Plus className="h-5 w-5 mr-2" />
+              New Task
             </button>
           </div>
         </div>
 
-        {/* Create Project Modal */}
-        <CreateProjectModal
+        {/* Create Task Modal */}
+        <CreateTaskModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleProjectCreated}
@@ -147,7 +146,7 @@ export default function InternalProjectsPage() {
         {/* Search and Filter Bar */}
         <div className="mb-6 flex flex-wrap gap-4 items-center">
           <div className="relative flex-1 max-w-md">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
             <input
               type="text"
               placeholder="Search by name, description, or type..."
@@ -188,27 +187,27 @@ export default function InternalProjectsPage() {
         {/* Results count */}
         {searchTerm && (
           <div className="mb-4 text-sm text-forvis-gray-600">
-            Found <span className="font-medium">{filteredProjects.length}</span> project{filteredProjects.length !== 1 ? 's' : ''} matching "{searchTerm}"
+            Found <span className="font-medium">{filteredProjects.length}</span> task{filteredProjects.length !== 1 ? 's' : ''} matching "{searchTerm}"
           </div>
         )}
 
         {/* Projects List */}
         {filteredProjects.length === 0 ? (
           <div className="card text-center py-12">
-            <FolderIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No internal projects</h3>
+            <Folder className="mx-auto h-12 w-12 text-forvis-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No internal tasks</h3>
             <p className="mt-1 text-sm text-forvis-gray-600">
               {searchTerm 
-                ? 'No projects match your search.' 
-                : 'No internal projects found for this service line.'}
+                ? 'No tasks match your search.' 
+                : 'No internal tasks found for this service line.'}
             </p>
             <div className="mt-6">
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-forvis-blue-600 text-white rounded-lg hover:bg-forvis-blue-700 transition-colors"
               >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Create Internal Project
+                <Plus className="h-5 w-5 mr-2" />
+                Create Internal Task
               </button>
             </div>
           </div>
@@ -220,10 +219,7 @@ export default function InternalProjectsPage() {
                   <thead className="bg-forvis-gray-50">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
-                        Project Name
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
-                        Type
+                        Task Name
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-500 uppercase tracking-wider">
                         Status
@@ -245,7 +241,7 @@ export default function InternalProjectsPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 rounded-lg bg-forvis-blue-100 flex items-center justify-center flex-shrink-0">
-                              <FolderIcon className="h-4 w-4 text-forvis-blue-600" />
+                              <Folder className="h-4 w-4 text-forvis-blue-600" />
                             </div>
                             <div>
                               <div className="text-sm font-medium text-forvis-gray-900">
@@ -259,9 +255,6 @@ export default function InternalProjectsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-forvis-gray-600">
-                          {formatProjectType(project.projectType)}
-                        </td>
                         <td className="px-6 py-4">
                           <StatusBadge status={project.status} />
                         </td>
@@ -273,7 +266,7 @@ export default function InternalProjectsPage() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <Link
-                            href={`/dashboard/${serviceLine.toLowerCase()}/internal/projects/${project.id}`}
+                            href={`/dashboard/${serviceLine.toLowerCase()}/internal/tasks/${project.id}`}
                             className="text-forvis-blue-600 hover:text-forvis-blue-900 text-sm font-medium"
                           >
                             View
@@ -293,7 +286,7 @@ export default function InternalProjectsPage() {
                 <span className="font-medium">
                   {Math.min(currentPage * itemsPerPage, filteredProjects.length)}
                 </span>{' '}
-                of <span className="font-medium">{filteredProjects.length}</span> {searchTerm ? 'filtered ' : ''}project{filteredProjects.length !== 1 ? 's' : ''}
+                of <span className="font-medium">{filteredProjects.length}</span> {searchTerm ? 'filtered ' : ''}task{filteredProjects.length !== 1 ? 's' : ''}
               </div>
               
               {filteredProjects.length > itemsPerPage && (

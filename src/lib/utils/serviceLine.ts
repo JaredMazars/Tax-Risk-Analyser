@@ -27,7 +27,18 @@ export async function getActiveServiceLines(): Promise<ServiceLineMaster[]> {
   try {
     return await prisma.serviceLineMaster.findMany({
       where: { active: true },
-      orderBy: { sortOrder: 'asc' },
+      select: {
+        code: true,
+        name: true,
+        description: true,
+        active: true,
+        sortOrder: true,
+      },
+      orderBy: [
+        { sortOrder: 'asc' },
+        { code: 'asc' }, // Deterministic secondary sort
+      ],
+      take: 100, // Reasonable limit for service lines
     });
   } catch (error) {
     logger.error('Error fetching active service lines', { error });
@@ -42,7 +53,18 @@ export async function getActiveServiceLines(): Promise<ServiceLineMaster[]> {
 export async function getAllServiceLines(): Promise<ServiceLineMaster[]> {
   try {
     return await prisma.serviceLineMaster.findMany({
+      select: {
+        code: true,
+        name: true,
+        description: true,
+        active: true,
+        sortOrder: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { sortOrder: 'asc' },
+      // Bounded by actual service lines in system
+      take: 100,
     });
   } catch (error) {
     logger.error('Error fetching all service lines', { error });
@@ -113,7 +135,14 @@ export async function createServiceLine(
 ): Promise<ServiceLineMaster> {
   try {
     return await prisma.serviceLineMaster.create({
-      data: serviceLine,
+      data: {
+        code: serviceLine.code,
+        name: serviceLine.name,
+        description: serviceLine.description,
+        active: serviceLine.active,
+        sortOrder: serviceLine.sortOrder,
+        updatedAt: new Date(),
+      },
     });
   } catch (error) {
     logger.error('Error creating service line', { serviceLine, error });
@@ -163,11 +192,16 @@ export async function activateServiceLine(code: string): Promise<ServiceLineMast
 }
 
 /**
- * Format service line display name
+ * Get service line display name from database
+ * Looks up the service line by code and returns its display name
+ * 
  * @param code - Service line code
  * @returns Formatted display name or code if not found
+ * 
+ * NOTE: This is an async DB lookup. For synchronous type-based formatting,
+ * use formatServiceLineName() from @/lib/utils/serviceLineUtils instead.
  */
-export async function formatServiceLineName(code: string): Promise<string> {
+export async function getServiceLineDisplayName(code: string): Promise<string> {
   const serviceLine = await getServiceLineByCode(code);
   return serviceLine?.name || code;
 }

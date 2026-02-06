@@ -1,0 +1,432 @@
+'use client';
+
+/**
+ * Group Totals Table Component
+ * 
+ * Displays aggregated totals by Client Group
+ * Columns: Group Name | Total Tasks | Net WIP
+ */
+
+import { useState } from 'react';
+import { Pagination } from '@/components/shared/Pagination';
+import type { TaskWithWIPAndServiceLine } from '@/types/reports';
+
+interface GroupTotal {
+  groupCode: string;
+  groupDesc: string;
+  totalWIP: number;
+  ltdWipProvision: number;
+  balWip: number;
+  grossProduction: number;
+  ltdAdj: number;
+  netRevenue: number;
+  ltdCost: number;
+  grossProfit: number;
+  adjustmentPercentage: number;
+  grossProfitPercentage: number;
+}
+
+interface GroupTotalsTableProps {
+  tasks: TaskWithWIPAndServiceLine[];
+}
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const formatNumber = (num: number) => {
+  return new Intl.NumberFormat('en-ZA', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(num);
+};
+
+const formatPercentage = (percent: number) => {
+  return `${percent.toFixed(2)}%`;
+};
+
+export function GroupTotalsTable({ tasks }: GroupTotalsTableProps) {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<{key: keyof GroupTotal; direction: 'asc' | 'desc'} | null>(null);
+
+  // Aggregate tasks by group
+  const groupTotals = new Map<string, GroupTotal>();
+
+  tasks.forEach((task) => {
+    if (!groupTotals.has(task.groupCode)) {
+      groupTotals.set(task.groupCode, {
+        groupCode: task.groupCode,
+        groupDesc: task.groupDesc,
+        totalWIP: 0,
+        ltdWipProvision: 0,
+        balWip: 0,
+        grossProduction: 0,
+        ltdAdj: 0,
+        netRevenue: 0,
+        ltdCost: 0,
+        grossProfit: 0,
+        adjustmentPercentage: 0,
+        grossProfitPercentage: 0,
+      });
+    }
+
+    const group = groupTotals.get(task.groupCode)!;
+    group.totalWIP += task.netWip;
+    group.ltdWipProvision += task.ltdWipProvision;
+    group.balWip += task.balWip;
+    group.grossProduction += task.grossProduction;
+    group.ltdAdj += task.ltdAdj;
+    group.netRevenue += task.netRevenue;
+    group.ltdCost += task.ltdCost;
+    group.grossProfit += task.grossProfit;
+  });
+  
+  // Calculate percentages for each group
+  groupTotals.forEach((group) => {
+    group.adjustmentPercentage = group.grossProduction !== 0 
+      ? (group.ltdAdj / group.grossProduction) * 100 
+      : 0;
+    group.grossProfitPercentage = group.netRevenue !== 0 
+      ? (group.grossProfit / group.netRevenue) * 100 
+      : 0;
+  });
+
+  // Handle sort
+  const handleSort = (key: keyof GroupTotal) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'desc' }; // Default to desc for amounts (highest first)
+    });
+  };
+
+  // Convert to array and apply sorting
+  const sortedGroups = Array.from(groupTotals.values()).sort((a, b) => {
+    // Apply custom sort if active
+    if (sortConfig) {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      // Handle string comparison (for groupDesc/groupCode)
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortConfig.direction === 'asc' ? comparison : -comparison;
+      }
+      
+      // Handle numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      
+      return 0;
+    }
+    
+    // Default sort by group description
+    return a.groupDesc.localeCompare(b.groupDesc);
+  });
+
+  // Pagination calculation
+  const totalPages = Math.ceil(sortedGroups.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedGroups = sortedGroups.slice(startIndex, endIndex);
+
+  // Calculate grand totals for current page
+  const grandTotals = {
+    totalWIP: paginatedGroups.reduce((sum, group) => sum + group.totalWIP, 0),
+    ltdWipProvision: paginatedGroups.reduce((sum, group) => sum + group.ltdWipProvision, 0),
+    balWip: paginatedGroups.reduce((sum, group) => sum + group.balWip, 0),
+    grossProduction: paginatedGroups.reduce((sum, group) => sum + group.grossProduction, 0),
+    ltdAdj: paginatedGroups.reduce((sum, group) => sum + group.ltdAdj, 0),
+    netRevenue: paginatedGroups.reduce((sum, group) => sum + group.netRevenue, 0),
+    ltdCost: paginatedGroups.reduce((sum, group) => sum + group.ltdCost, 0),
+    grossProfit: paginatedGroups.reduce((sum, group) => sum + group.grossProfit, 0),
+  };
+  
+  const totalAdjPercentage = grandTotals.grossProduction !== 0 
+    ? (grandTotals.ltdAdj / grandTotals.grossProduction) * 100 
+    : 0;
+  const totalGPPercentage = grandTotals.netRevenue !== 0 
+    ? (grandTotals.grossProfit / grandTotals.netRevenue) * 100 
+    : 0;
+
+  if (sortedGroups.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <svg
+          className="mx-auto h-12 w-12 text-forvis-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+        <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">No groups found</h3>
+        <p className="mt-1 text-sm text-forvis-gray-500">
+          No tasks match the current filters.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="inline-block min-w-full align-middle">
+        {/* Table Header */}
+        <div
+          className="grid gap-3 py-3 px-4 text-xs font-semibold text-white shadow-corporate"
+          style={{
+            background: 'linear-gradient(to right, #2E5AAC, #25488A)',
+            gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px',
+          }}
+        >
+          <div 
+            className="cursor-pointer hover:text-white/80 flex items-center gap-1"
+            onClick={() => handleSort('groupDesc')}
+          >
+            <span>Group Name</span>
+            {sortConfig?.key === 'groupDesc' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('totalWIP')}
+          >
+            <span>Net WIP</span>
+            {sortConfig?.key === 'totalWIP' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdWipProvision')}
+          >
+            <span>WIP Provision</span>
+            {sortConfig?.key === 'ltdWipProvision' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('balWip')}
+          >
+            <span>Balance WIP</span>
+            {sortConfig?.key === 'balWip' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProduction')}
+          >
+            <span>Production</span>
+            {sortConfig?.key === 'grossProduction' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdAdj')}
+          >
+            <span>Adjustments</span>
+            {sortConfig?.key === 'ltdAdj' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('netRevenue')}
+          >
+            <span>Net Revenue</span>
+            {sortConfig?.key === 'netRevenue' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('adjustmentPercentage')}
+          >
+            <span>Adj %</span>
+            {sortConfig?.key === 'adjustmentPercentage' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('ltdCost')}
+          >
+            <span>Cost</span>
+            {sortConfig?.key === 'ltdCost' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProfit')}
+          >
+            <span>Gross Profit</span>
+            {sortConfig?.key === 'grossProfit' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+          <div 
+            className="text-right cursor-pointer hover:text-white/80 flex items-center justify-end gap-1"
+            onClick={() => handleSort('grossProfitPercentage')}
+          >
+            <span>GP %</span>
+            {sortConfig?.key === 'grossProfitPercentage' && (
+              <span className="text-xs">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Table Body */}
+        <div className="bg-white">
+          {paginatedGroups.map((group, index) => {
+            const adjustmentPercentage = group.grossProduction !== 0 ? (group.ltdAdj / group.grossProduction) * 100 : 0;
+            const grossProfitPercentage = group.netRevenue !== 0 ? (group.grossProfit / group.netRevenue) * 100 : 0;
+            
+            return (
+              <div
+                key={group.groupCode}
+                className={`grid gap-3 py-3 px-4 text-xs transition-colors duration-200 hover:bg-forvis-blue-50 ${
+                  index % 2 === 0 ? 'bg-white' : 'bg-forvis-gray-50'
+                }`}
+                style={{ gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px' }}
+              >
+                <div className="font-semibold text-forvis-gray-900">{group.groupDesc}</div>
+                <div className={`text-right tabular-nums font-semibold ${
+                  group.totalWIP < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+                }`}>
+                  {formatCurrency(group.totalWIP)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(group.ltdWipProvision)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(group.balWip)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(group.grossProduction)}
+                </div>
+                <div className={`text-right tabular-nums font-medium ${
+                  group.ltdAdj < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                }`}>
+                  {formatCurrency(group.ltdAdj)}
+                </div>
+                <div className={`text-right tabular-nums font-semibold ${
+                  group.netRevenue < 0 ? 'text-red-600' : 'text-forvis-blue-600'
+                }`}>
+                  {formatCurrency(group.netRevenue)}
+                </div>
+                <div className={`text-right tabular-nums ${
+                  adjustmentPercentage < 0 ? 'text-red-600' : 'text-forvis-gray-700'
+                }`}>
+                  {formatPercentage(adjustmentPercentage)}
+                </div>
+                <div className="text-right tabular-nums text-forvis-gray-700">
+                  {formatCurrency(group.ltdCost)}
+                </div>
+                <div className={`text-right tabular-nums font-semibold ${
+                  group.grossProfit < 0 ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {formatCurrency(group.grossProfit)}
+                </div>
+                <div className={`text-right tabular-nums font-bold ${
+                  grossProfitPercentage >= 60 ? 'text-green-600' : 
+                  grossProfitPercentage >= 50 ? 'text-yellow-600' : 
+                  'text-red-600'
+                }`}>
+                  {formatPercentage(grossProfitPercentage)}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Totals Row */}
+          <div
+            className="grid gap-3 py-3 px-4 text-xs font-bold border-t-2 border-forvis-blue-500"
+            style={{
+              background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)',
+              gridTemplateColumns: '2fr 120px 120px 120px 120px 120px 120px 100px 120px 120px 120px'
+            }}
+          >
+            <div className="text-forvis-blue-800">TOTAL (Page {currentPage} of {totalPages})</div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.totalWIP < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.totalWIP)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.ltdWipProvision)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.balWip)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.grossProduction)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.ltdAdj < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.ltdAdj)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.netRevenue < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatCurrency(grandTotals.netRevenue)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              totalAdjPercentage < 0 ? 'text-forvis-error-600' : 'text-forvis-blue-800'
+            }`}>
+              {formatPercentage(totalAdjPercentage)}
+            </div>
+            <div className="text-right tabular-nums text-forvis-blue-800">
+              {formatCurrency(grandTotals.ltdCost)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              grandTotals.grossProfit < 0 ? 'text-forvis-error-600' : 'text-forvis-success-600'
+            }`}>
+              {formatCurrency(grandTotals.grossProfit)}
+            </div>
+            <div className={`text-right tabular-nums ${
+              totalGPPercentage >= 60 ? 'text-forvis-success-600' : 
+              totalGPPercentage >= 50 ? 'text-forvis-warning-600' : 
+              'text-forvis-error-600'
+            }`}>
+              {formatPercentage(totalGPPercentage)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={sortedGroups.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        showMetadata
+        className="mt-4 px-4"
+      />
+    </div>
+  );
+}

@@ -37,7 +37,7 @@ export interface PaginationMeta {
  * Tax computation export data types
  */
 export interface TaxExportData {
-  projectName: string;
+  taskName: string;
   accountingProfit: number;
   adjustments: TaxAdjustmentExport[];
   taxableIncome: number;
@@ -55,25 +55,8 @@ export interface TaxAdjustmentExport {
 }
 
 /**
- * Document extraction context
+ * File validation types
  */
-export interface ExtractionContext {
-  adjustmentType: string;
-  adjustmentDescription: string;
-  projectId: number;
-}
-
-/**
- * File upload types
- */
-export interface FileUploadResult {
-  success: boolean;
-  fileId?: number;
-  fileName?: string;
-  fileSize?: number;
-  error?: string;
-}
-
 export interface FileValidationResult {
   valid: boolean;
   error?: string;
@@ -100,55 +83,5 @@ export interface ServiceStatus {
   message?: string;
 }
 
-/**
- * Permission check types
- */
-export interface PermissionCheckResult {
-  allowed: boolean;
-  reason?: string;
-}
-
-export interface PermissionCheckRequest {
-  userId: string;
-  projectId?: number;
-  serviceLine?: string;
-  feature?: string;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Re-export report types for backwards compatibility
+export * from './reports';

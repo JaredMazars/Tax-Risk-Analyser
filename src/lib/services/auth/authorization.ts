@@ -1,28 +1,32 @@
 /**
  * Authorization Service
- * Handles system-level, service-line-level, and project-level permissions
+ * 
+ * @deprecated This module is being phased out. Prefer importing from canonical locations:
+ * - `isSystemAdmin` -> `@/lib/services/auth/auth` (async DB) or `@/lib/utils/systemAdmin` (sync)
+ * - `canApproveAcceptance` / `canApproveEngagementLetter` -> `@/lib/services/tasks/taskAuthorization`
+ * - `hasFeature` / `canManageTasks` etc -> use `checkFeature` from `@/lib/permissions/checkFeature` directly
+ * - `getUserSystemRole` / `getServiceLineRole` -> `@/lib/services/service-lines/serviceLineService`
+ * 
+ * Re-exports are maintained for backward compatibility.
  */
 
 import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 import { SystemRole, ServiceLineRole } from '@/types';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
+import {
+  getServiceLineRole as getServiceLineRoleFromService,
+  checkServiceLineAccess as checkAccessFromService,
+} from '@/lib/services/service-lines/serviceLineService';
 
 /**
- * Check if user is a System Admin
+ * Check if user is a System Admin (database lookup)
+ * 
+ * @deprecated Use `isSystemAdmin()` from `@/lib/services/auth/auth` instead.
+ * This re-export is kept for backward compatibility.
  */
-export async function isSystemAdmin(userId: string): Promise<boolean> {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    return user?.role === SystemRole.SYSTEM_ADMIN;
-  } catch (error) {
-    logger.error('Error checking system admin', { userId, error });
-    return false;
-  }
-}
+export { isSystemAdmin } from './auth';
 
 /**
  * Get user's system role
@@ -59,20 +63,9 @@ export async function getServiceLineRole(
   serviceLine: string
 ): Promise<ServiceLineRole | null> {
   try {
-    const serviceLineUser = await prisma.serviceLineUser.findUnique({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine,
-        },
-      },
-      select: { role: true },
-    });
-
-    if (!serviceLineUser) return null;
-
-    // Return the role as a ServiceLineRole enum
-    return serviceLineUser.role as ServiceLineRole;
+    // Delegate to serviceLineService which handles sub-groups
+    const role = await getServiceLineRoleFromService(userId, serviceLine);
+    return role as ServiceLineRole | null;
   } catch (error) {
     logger.error('Error getting service line role', { userId, serviceLine, error });
     return null;
@@ -106,21 +99,8 @@ export async function hasServiceLineAccess(
   serviceLine: string
 ): Promise<boolean> {
   try {
-    // System Admins have access to all service lines
-    const isAdmin = await isSystemAdmin(userId);
-    if (isAdmin) return true;
-
-    // Check if user has ServiceLineUser entry
-    const serviceLineUser = await prisma.serviceLineUser.findUnique({
-      where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine,
-        },
-      },
-    });
-
-    return !!serviceLineUser;
+    // Delegate to serviceLineService which handles sub-groups
+    return await checkAccessFromService(userId, serviceLine);
   } catch (error) {
     logger.error('Error checking service line access', { userId, serviceLine, error });
     return false;
@@ -128,145 +108,62 @@ export async function hasServiceLineAccess(
 }
 
 /**
- * Check if user can approve client acceptance for a project
- * Rules: SYSTEM_ADMIN OR Administrator/Partner (ServiceLineUser.role = ADMINISTRATOR or PARTNER)
+ * Check if user can approve client acceptance for a task
+ * @deprecated Use `canApproveAcceptance()` from `@/lib/services/tasks/taskAuthorization` instead.
  */
-export async function canApproveAcceptance(
+export { canApproveAcceptance } from '@/lib/services/tasks/taskAuthorization';
+
+/**
+ * Check if user can approve engagement letter for a task
+ * @deprecated Use `canApproveEngagementLetter()` from `@/lib/services/tasks/taskAuthorization` instead.
+ */
+export { canApproveEngagementLetter } from '@/lib/services/tasks/taskAuthorization';
+
+/**
+ * Check if user has a specific feature
+ * Convenience wrapper around checkFeature for use in authorization contexts
+ * 
+ * @param userId - User ID to check
+ * @param feature - Feature to check
+ * @param serviceLine - Optional service line context
+ * @returns true if user has the feature
+ */
+export async function hasFeature(
   userId: string,
-  projectId: number
+  feature: Feature,
+  serviceLine?: string
 ): Promise<boolean> {
-  try {
-    // Check if user is a system admin
-    const isAdmin = await isSystemAdmin(userId);
-    if (isAdmin) return true;
-
-    // Get the project's service line
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { serviceLine: true },
-    });
-
-    if (!project) {
-      logger.warn('Project not found for approval check', { projectId });
-      return false;
-    }
-
-    // Check if user is an Administrator or Partner in the project's service line
-    const isServiceLinePartner = await isPartner(userId, project.serviceLine);
-    
-    // Also verify they have project access
-    if (isServiceLinePartner) {
-      const hasProjectAccess = await prisma.projectUser.findUnique({
-        where: {
-          projectId_userId: {
-            projectId,
-            userId,
-          },
-        },
-      });
-      
-      return !!hasProjectAccess;
-    }
-
-    return false;
-  } catch (error) {
-    logger.error('Error checking approval permission', { userId, projectId, error });
-    return false;
-  }
+  return checkFeature(userId, feature, serviceLine);
 }
 
 /**
- * Check if user can approve engagement letter for a project
- * Same rules as acceptance: SYSTEM_ADMIN OR Administrator/Partner
+ * Feature-based authorization checks
+ * These provide convenient wrappers for common permission checks
  */
-export async function canApproveEngagementLetter(
-  userId: string,
-  projectId: number
-): Promise<boolean> {
-  // Same logic as acceptance approval
-  return canApproveAcceptance(userId, projectId);
+
+export async function canManageTasks(userId: string, serviceLine?: string): Promise<boolean> {
+  return checkFeature(userId, Feature.MANAGE_TASKS, serviceLine);
 }
 
-/**
- * Get all service lines a user has access to
- * @deprecated Use getUserServiceLines from serviceLineService instead (returns enhanced data with stats)
- * This simplified version is kept for internal authorization use only
- */
-export async function getUserServiceLines(userId: string): Promise<
-  Array<{
-    serviceLine: string;
-    role: string;
-  }>
-> {
-  try {
-    // System Admins have access to all service lines
-    const isAdmin = await isSystemAdmin(userId);
-    if (isAdmin) {
-      // Load all active service lines from database
-      const activeServiceLines = await prisma.serviceLineMaster.findMany({
-        where: { active: true },
-        orderBy: { sortOrder: 'asc' },
-        select: { code: true },
-      });
-      
-      // Return all active service lines with ADMINISTRATOR role
-      return activeServiceLines.map(sl => ({
-        serviceLine: sl.code,
-        role: ServiceLineRole.ADMINISTRATOR,
-      }));
-    }
-
-    // Get user's service line assignments
-    const serviceLineUsers = await prisma.serviceLineUser.findMany({
-      where: { userId },
-      select: {
-        serviceLine: true,
-        role: true,
-      },
-    });
-
-    return serviceLineUsers;
-  } catch (error) {
-    logger.error('Error getting user service lines', { userId, error });
-    return [];
-  }
+export async function canManageClients(userId: string, serviceLine?: string): Promise<boolean> {
+  return checkFeature(userId, Feature.MANAGE_CLIENTS, serviceLine);
 }
 
-/**
- * Format service line role for display
- * @deprecated Use formatServiceLineRole from roleHierarchy instead
- */
-export function formatServiceLineRole(role: string): string {
-  switch (role) {
-    case ServiceLineRole.ADMINISTRATOR:
-      return 'Administrator';
-    case ServiceLineRole.PARTNER:
-      return 'Partner';
-    case ServiceLineRole.MANAGER:
-      return 'Manager';
-    case ServiceLineRole.SUPERVISOR:
-      return 'Supervisor';
-    case ServiceLineRole.USER:
-      return 'Staff';
-    case ServiceLineRole.VIEWER:
-      return 'Viewer';
-    default:
-      return role;
-  }
+export async function canAccessAdmin(userId: string): Promise<boolean> {
+  return checkFeature(userId, Feature.ACCESS_ADMIN);
 }
 
-/**
- * Format system role for display
- * @deprecated Use formatSystemRole from roleHierarchy instead
- */
-export function formatSystemRole(role: string): string {
-  switch (role) {
-    case SystemRole.SYSTEM_ADMIN:
-      return 'System Administrator';
-    case SystemRole.USER:
-      return 'User';
-    default:
-      return role;
-  }
+export async function canManageUsers(userId: string): Promise<boolean> {
+  return checkFeature(userId, Feature.MANAGE_USERS);
 }
+
+export async function canViewAnalytics(userId: string, serviceLine?: string): Promise<boolean> {
+  return checkFeature(userId, Feature.ACCESS_ANALYTICS, serviceLine);
+}
+
+export async function canExportData(userId: string, serviceLine?: string): Promise<boolean> {
+  return checkFeature(userId, Feature.EXPORT_REPORTS, serviceLine);
+}
+
+
 

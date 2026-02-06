@@ -1,13 +1,26 @@
+import { NextRequest } from 'next/server';
 import { prisma } from '../db/prisma';
 import { AppError, ErrorCodes } from './errorHandler';
 import { Prisma } from '@prisma/client';
+import { GSClientIDSchema } from '@/lib/validation/schemas';
+import {
+  TaskId, toTaskId,
+  AdjustmentId, toAdjustmentId,
+  ToolId, toToolId,
+  DocumentId, toDocumentId,
+  ApprovalId, toApprovalId,
+  GSClientID as GSClientIDType,
+  toGSClientID as toGSClientIDBranded,
+} from '@/types/branded';
 
 /**
  * Common utility functions for API routes
  */
 
 /**
- * Generic numeric ID parser and validator
+ * Generic numeric ID parser and validator for route params.
+ * Use the entity-specific parsers (parseTaskId, parseAdjustmentId, etc.) when available
+ * for branded type safety. Use this function for entities without a dedicated parser.
  * @param id - String ID from route params
  * @param entityName - Name of the entity (e.g., 'Project', 'Adjustment', 'Document')
  * @param required - Whether the ID is required (default: true)
@@ -19,25 +32,18 @@ export function parseNumericId(
   entityName: string,
   required: boolean = true
 ): number {
-  if (!id || id === 'undefined' || id === 'null') {
-    if (required) {
-      throw new AppError(
-        400,
-        `${entityName} ID is required`,
-        ErrorCodes.VALIDATION_ERROR,
-        { providedId: id, type: typeof id }
-      );
-    }
+  const sanitized = sanitizeRouteParam(id);
+  if (!sanitized) {
     throw new AppError(
       400,
-      `Invalid ${entityName} ID`,
+      required ? `${entityName} ID is required` : `Invalid ${entityName} ID`,
       ErrorCodes.VALIDATION_ERROR,
-      { providedId: id }
+      { providedId: id, type: typeof id }
     );
   }
-  
-  const parsedId = Number.Number.parseInt(id, 10);
-  
+
+  const parsedId = Number.parseInt(sanitized, 10);
+
   if (Number.isNaN(parsedId) || parsedId <= 0) {
     throw new AppError(
       400,
@@ -46,67 +52,161 @@ export function parseNumericId(
       { providedId: id, parsedValue: parsedId }
     );
   }
-  
+
   return parsedId;
 }
 
 /**
- * Parse and validate project ID from route params
+ * Sanitize route param values that may arrive as literal strings "undefined" or "null"
+ * from Next.js dynamic route segments.
+ * @param id - Raw string from route params
+ * @returns The id if valid, or undefined if it's a sentinel value
+ */
+function sanitizeRouteParam(id: string | undefined): string | undefined {
+  if (!id || id === 'undefined' || id === 'null') {
+    return undefined;
+  }
+  return id;
+}
+
+/**
+ * Parse and validate a numeric ID from route params, returning a branded type.
+ * Handles route-param edge cases (undefined, 'undefined', 'null' strings) before
+ * delegating to the branded converter.
  * @param id - String ID from route params
- * @returns Validated numeric project ID
+ * @param entityName - Name of the entity for error messages
+ * @param converter - Branded type converter function
+ * @param required - Whether the ID is required (default: true)
+ * @returns Validated branded numeric ID
+ * @throws AppError if ID is invalid or missing
+ */
+function parseNumericIdBranded<T>(
+  id: string | undefined,
+  entityName: string,
+  converter: (value: unknown) => T,
+  required: boolean = true
+): T {
+  const sanitized = sanitizeRouteParam(id);
+  if (!sanitized) {
+    throw new AppError(
+      400,
+      required ? `${entityName} ID is required` : `Invalid ${entityName} ID`,
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id, type: typeof id }
+    );
+  }
+  return converter(sanitized);
+}
+
+/**
+ * Parse and validate task ID from route params
+ * @param id - String ID from route params
+ * @returns Validated branded TaskId
  * @throws AppError if ID is invalid
  */
-export function parseProjectId(id: string | undefined): number {
-  return parseNumericId(id, 'Project');
+export function parseTaskId(id: string | undefined): TaskId {
+  return parseNumericIdBranded(id, 'Task', toTaskId);
+}
+
+/**
+ * Parse and validate GSClientID (GUID) from route params
+ * @param id - String ID from route params
+ * @returns Validated branded GSClientID
+ * @throws AppError if ID is invalid
+ */
+export function parseGSClientID(id: string | undefined): GSClientIDType {
+  const sanitized = sanitizeRouteParam(id);
+  if (!sanitized) {
+    throw new AppError(
+      400,
+      'Client ID is required',
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id, type: typeof id }
+    );
+  }
+
+  const result = GSClientIDSchema.safeParse(sanitized);
+
+  if (!result.success) {
+    throw new AppError(
+      400,
+      'Invalid Client ID format - must be a valid GUID',
+      ErrorCodes.VALIDATION_ERROR,
+      { providedId: id }
+    );
+  }
+
+  return toGSClientIDBranded(result.data);
 }
 
 /**
  * Parse and validate adjustment ID from route params
  * @param id - String ID from route params
- * @returns Validated numeric adjustment ID
+ * @returns Validated branded AdjustmentId
  * @throws AppError if ID is invalid
  */
-export function parseAdjustmentId(id: string | undefined): number {
-  return parseNumericId(id, 'Adjustment');
+export function parseAdjustmentId(id: string | undefined): AdjustmentId {
+  return parseNumericIdBranded(id, 'Adjustment', toAdjustmentId);
+}
+
+/**
+ * Parse and validate tool ID from route params
+ * @param id - String ID from route params
+ * @returns Validated branded ToolId
+ * @throws AppError if ID is invalid
+ */
+export function parseToolId(id: string | undefined): ToolId {
+  return parseNumericIdBranded(id, 'Tool', toToolId);
 }
 
 /**
  * Parse and validate document ID from route params
  * @param id - String ID from route params
- * @returns Validated numeric document ID
+ * @returns Validated branded DocumentId
  * @throws AppError if ID is invalid
  */
-export function parseDocumentId(id: string): number {
-  return parseNumericId(id, 'Document', false);
+export function parseDocumentId(id: string): DocumentId {
+  return parseNumericIdBranded(id, 'Document', toDocumentId, false);
 }
 
 /**
- * Fetch project by ID or throw 404 error
- * @param projectId - Project ID
- * @param include - Optional Prisma include object
- * @returns Project object
- * @throws AppError if project not found
+ * Parse and validate approval ID from route params
+ * @param id - String ID from route params
+ * @returns Validated branded ApprovalId
+ * @throws AppError if ID is invalid
  */
-export async function getProjectOrThrow(
-  projectId: number,
-  include?: Prisma.ProjectInclude
+export function parseApprovalId(id: string | undefined): ApprovalId {
+  return parseNumericIdBranded(id, 'Approval', toApprovalId);
+}
+
+/**
+ * Fetch task by ID or throw 404 error
+ * @param taskId - Task ID
+ * @param include - Optional Prisma include object
+ * @returns Task object
+ * @throws AppError if task not found
+ */
+export async function getTaskOrThrow(
+  taskId: number,
+  include?: Prisma.TaskInclude
 ) {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
     include,
   });
   
-  if (!project) {
+  if (!task) {
     throw new AppError(
       404,
-      'Project not found',
+      'Task not found',
       ErrorCodes.NOT_FOUND,
-      { projectId }
+      { taskId }
     );
   }
   
-  return project;
+  return task;
 }
+
 
 /**
  * Fetch tax adjustment by ID or throw 404 error
@@ -193,40 +293,41 @@ export async function getMappedAccountOrThrow(
 }
 
 /**
- * Verify that a project exists and is accessible
+ * Verify that a task exists and is accessible
  * Useful for authorization checks
- * @param projectId - Project ID to verify
- * @throws AppError if project doesn't exist
+ * @param taskId - Task ID to verify
+ * @throws AppError if task doesn't exist
  */
-export async function verifyProjectExists(projectId: number): Promise<void> {
-  const exists = await prisma.project.findUnique({
-    where: { id: projectId },
+export async function verifyTaskExists(taskId: number): Promise<void> {
+  const exists = await prisma.task.findUnique({
+    where: { id: taskId },
     select: { id: true },
   });
   
   if (!exists) {
     throw new AppError(
       404,
-      'Project not found',
+      'Task not found',
       ErrorCodes.NOT_FOUND,
-      { projectId }
+      { taskId }
     );
   }
 }
 
+
 /**
- * Verify that an adjustment belongs to a specific project
+ * Verify that an adjustment belongs to a specific task
  * @param adjustmentId - Adjustment ID
- * @param projectId - Expected project ID
- * @throws AppError if adjustment doesn't belong to project
+ * @param taskId - Expected task ID
+ * @throws AppError if adjustment doesn't belong to task
  */
-export async function verifyAdjustmentBelongsToProject(
+export async function verifyAdjustmentBelongsToTask(
   adjustmentId: number,
-  projectId: number
+  taskId: number
 ): Promise<void> {
   const adjustment = await prisma.taxAdjustment.findUnique({
     where: { id: adjustmentId },
-    select: { projectId: true },
+    select: { taskId: true },
   });
   
   if (!adjustment) {
@@ -238,14 +339,63 @@ export async function verifyAdjustmentBelongsToProject(
     );
   }
   
-  if (adjustment.projectId !== projectId) {
+  if (adjustment.taskId !== taskId) {
     throw new AppError(
       403,
-      'Tax adjustment does not belong to this project',
+      'Tax adjustment does not belong to this task',
       ErrorCodes.FORBIDDEN,
-      { adjustmentId, projectId, actualProjectId: adjustment.projectId }
+      { adjustmentId, taskId, actualTaskId: adjustment.taskId }
     );
   }
+}
+
+
+/**
+ * Extract pagination params from request
+ * @param request - The incoming request
+ * @returns Object with page, limit, and offset
+ */
+export function getPaginationParams(request: NextRequest): {
+  page: number;
+  limit: number;
+  offset: number;
+} {
+  const { searchParams } = new URL(request.url);
+  const page = Number.parseInt(searchParams.get('page') || '1');
+  const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50'), 100);
+  const offset = (page - 1) * limit;
+  
+  return { page, limit, offset };
+}
+
+/**
+ * Extract sort params from request
+ * @param request - The incoming request
+ * @param defaultSort - Default sort field (default: 'createdAt')
+ * @param allowedFields - Optional allowlist of permitted sort fields. If provided, user-supplied
+ *   sortBy values not in this list will be replaced with defaultSort to prevent field enumeration.
+ *   Callers SHOULD provide this for security.
+ */
+export function getSortParams(
+  request: NextRequest,
+  defaultSort: string = 'createdAt',
+  allowedFields?: string[]
+): {
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+} {
+  const { searchParams } = new URL(request.url);
+  let sortBy = searchParams.get('sortBy') || defaultSort;
+
+  // Validate against allowlist if provided
+  if (allowedFields && !allowedFields.includes(sortBy)) {
+    sortBy = defaultSort;
+  }
+
+  const sortOrderParam = searchParams.get('sortOrder');
+  const sortOrder: 'asc' | 'desc' = sortOrderParam === 'asc' ? 'asc' : 'desc';
+  
+  return { sortBy, sortOrder };
 }
 
 /**

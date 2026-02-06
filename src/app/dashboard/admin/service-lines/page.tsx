@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  UserPlusIcon, 
-  TrashIcon,
-  PencilIcon,
-  ShieldCheckIcon,
-  MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline';
+  UserPlus, 
+  Trash2,
+  Pencil,
+  ShieldCheck,
+  Search,
+} from 'lucide-react';
 import { ServiceLine, ServiceLineRole } from '@/types';
 import { formatServiceLineName, isSharedService } from '@/lib/utils/serviceLineUtils';
 import { 
@@ -15,6 +15,9 @@ import {
   useUpdateServiceLineRole,
   useRevokeServiceLineAccess,
 } from '@/hooks/service-lines/useServiceLines';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { AlertModal } from '@/components/shared/AlertModal';
+import { Button, LoadingSpinner } from '@/components/ui';
 
 interface ServiceLineUser {
   id: number;
@@ -41,6 +44,32 @@ export default function ServiceLineAdminPage() {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ServiceLineUser | null>(null);
   const [allUsers, setAllUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
   
   // React Query mutations
   const grantAccessMutation = useGrantServiceLineAccess();
@@ -98,7 +127,12 @@ export default function ServiceLineAdminPage() {
       await fetchServiceLineData();
       setShowGrantModal(false);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to grant access');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to grant access',
+        variant: 'error',
+      });
     }
   };
 
@@ -110,19 +144,37 @@ export default function ServiceLineAdminPage() {
       });
       await fetchServiceLineData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update role');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to update role',
+        variant: 'error',
+      });
     }
   };
 
   const handleRevokeAccess = async (serviceLineUserId: number) => {
-    if (!confirm('Are you sure you want to revoke access?')) return;
-
-    try {
-      await revokeAccessMutation.mutateAsync(serviceLineUserId);
-      await fetchServiceLineData();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to revoke access');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Revoke Service Line Access',
+      message: 'Are you sure you want to revoke this user\'s access to the service line?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await revokeAccessMutation.mutateAsync(serviceLineUserId);
+          await fetchServiceLineData();
+        } catch (error) {
+          setAlertModal({
+            isOpen: true,
+            title: 'Error',
+            message: error instanceof Error ? error.message : 'Failed to revoke access',
+            variant: 'error',
+          });
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const availableUsers = allUsers.filter(
@@ -131,11 +183,11 @@ export default function ServiceLineAdminPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-3 mb-2">
-            <ShieldCheckIcon className="h-8 w-8 text-forvis-blue-600" />
+            <ShieldCheck className="h-8 w-8 text-forvis-blue-600" />
             <h1 className="text-3xl font-bold text-forvis-gray-900">
               Service Line Access Management
             </h1>
@@ -156,22 +208,26 @@ export default function ServiceLineAdminPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {Object.values(ServiceLine)
                   .filter((sl) => !isSharedService(sl))
-                  .map((sl) => (
-                    <button
-                      key={sl}
-                      onClick={() => setSelectedServiceLine(sl)}
-                      className={`px-4 py-3 text-sm font-semibold rounded-lg transition-colors ${
-                        selectedServiceLine === sl
-                          ? 'bg-forvis-blue-600 text-white'
-                          : 'text-forvis-gray-700 hover:bg-forvis-gray-100 border border-forvis-gray-200'
-                      }`}
-                    >
-                      {formatServiceLineName(sl)}
-                      <span className="ml-2 text-xs">
-                        ({serviceLineData.find((data) => data.serviceLine === sl)?.users.length || 0})
-                      </span>
-                    </button>
-                  ))}
+                  .map((sl) => {
+                    const isActive = selectedServiceLine === sl;
+                    return (
+                      <button
+                        key={sl}
+                        onClick={() => setSelectedServiceLine(sl)}
+                        className={`px-4 py-3 text-sm font-semibold rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 ${
+                          isActive
+                            ? 'text-white shadow-corporate-md'
+                            : 'text-forvis-gray-700 hover:bg-forvis-gray-100 border border-forvis-gray-200 bg-white'
+                        }`}
+                        style={isActive ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : undefined}
+                      >
+                        {formatServiceLineName(sl)}
+                        <span className="ml-2 text-xs">
+                          ({serviceLineData.find((data) => data.serviceLine === sl)?.users.length || 0})
+                        </span>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
 
@@ -183,50 +239,58 @@ export default function ServiceLineAdminPage() {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 {Object.values(ServiceLine)
                   .filter((sl) => isSharedService(sl))
-                  .map((sl) => (
-                    <button
-                      key={sl}
-                      onClick={() => setSelectedServiceLine(sl)}
-                      className={`px-4 py-3 text-sm font-semibold rounded-lg transition-colors ${
-                        selectedServiceLine === sl
-                          ? 'bg-forvis-blue-600 text-white'
-                          : 'text-forvis-gray-700 hover:bg-forvis-gray-100 border border-forvis-gray-200'
-                      }`}
-                    >
-                      {formatServiceLineName(sl)}
-                      <span className="ml-2 text-xs">
-                        ({serviceLineData.find((data) => data.serviceLine === sl)?.users.length || 0})
-                      </span>
-                    </button>
-                  ))}
+                  .map((sl) => {
+                    const isActive = selectedServiceLine === sl;
+                    return (
+                      <button
+                        key={sl}
+                        onClick={() => setSelectedServiceLine(sl)}
+                        className={`px-4 py-3 text-sm font-semibold rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 ${
+                          isActive
+                            ? 'text-white shadow-corporate-md'
+                            : 'text-forvis-gray-700 hover:bg-forvis-gray-100 border border-forvis-gray-200 bg-white'
+                        }`}
+                        style={isActive ? { background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' } : undefined}
+                      >
+                        {formatServiceLineName(sl)}
+                        <span className="ml-2 text-xs">
+                          ({serviceLineData.find((data) => data.serviceLine === sl)?.users.length || 0})
+                        </span>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           </div>
         </div>
 
         {/* Actions Bar */}
-        <div className="bg-white rounded-lg shadow-sm border border-forvis-gray-200 p-4 mb-6">
+        <div 
+          className="rounded-lg shadow-corporate border border-forvis-blue-100 p-4 mb-6"
+          style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex-1 max-w-md">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
                 <input
                   type="text"
                   placeholder="Search users..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-forvis-gray-300 rounded-lg focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-forvis-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2"
                 />
               </div>
             </div>
 
-            <button
+            <Button
+              variant="gradient"
               onClick={() => setShowGrantModal(true)}
-              className="ml-4 inline-flex items-center px-4 py-2 bg-forvis-blue-600 text-white font-semibold rounded-lg hover:bg-forvis-blue-700 transition-colors"
+              icon={<UserPlus className="h-5 w-5" />}
+              className="ml-4"
             >
-              <UserPlusIcon className="h-5 w-5 mr-2" />
               Grant Access
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -234,7 +298,7 @@ export default function ServiceLineAdminPage() {
         <div className="bg-white rounded-lg shadow-sm border border-forvis-gray-200 overflow-hidden">
           {isLoading ? (
             <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forvis-blue-600 mx-auto"></div>
+              <LoadingSpinner size="lg" />
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="p-8 text-center text-forvis-gray-600">
@@ -242,25 +306,25 @@ export default function ServiceLineAdminPage() {
             </div>
           ) : (
             <table className="min-w-full divide-y divide-forvis-gray-200">
-              <thead className="bg-forvis-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
+              <thead>
+                <tr style={{ background: 'linear-gradient(to right, #2E5AAC, #25488A)' }}>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-forvis-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-forvis-gray-200">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-forvis-gray-50">
+                  <tr key={user.id} className="hover:bg-forvis-gray-50 transition-colors duration-200">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-forvis-gray-900">
                         {user.User.name || 'N/A'}
@@ -275,7 +339,7 @@ export default function ServiceLineAdminPage() {
                         onChange={(e) =>
                           handleUpdateRole(user.id, e.target.value as ServiceLineRole)
                         }
-                        className="text-sm border border-forvis-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-forvis-blue-500 focus:border-transparent"
+                        className="text-sm border border-forvis-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-forvis-blue-500 focus:ring-offset-2 transition-all duration-200"
                       >
                         <option value="VIEWER">Viewer</option>
                         <option value="USER">User</option>
@@ -284,12 +348,15 @@ export default function ServiceLineAdminPage() {
                       </select>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <button
+                      <Button
+                        variant="danger"
+                        size="sm"
                         onClick={() => handleRevokeAccess(user.id)}
-                        className="text-red-600 hover:text-red-900"
+                        icon={<Trash2 className="h-4 w-4" />}
+                        className="px-2 py-1"
                       >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
+                        Revoke
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -301,56 +368,85 @@ export default function ServiceLineAdminPage() {
         {/* Grant Access Modal */}
         {showGrantModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold text-forvis-gray-900 mb-4">
-                Grant Access to {formatServiceLineName(selectedServiceLine)}
-              </h2>
+            <div className="bg-white rounded-lg shadow-corporate-lg w-full max-w-lg overflow-hidden">
+              {/* Modal Header with Gradient */}
+              <div 
+                className="px-6 py-4"
+                style={{ background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)' }}
+              >
+                <h2 className="text-xl font-semibold text-white">
+                  Grant Access to {formatServiceLineName(selectedServiceLine)}
+                </h2>
+              </div>
 
-              {availableUsers.length === 0 ? (
-                <p className="text-forvis-gray-600 mb-4">
-                  All users already have access to this service line.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {availableUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-3 border border-forvis-gray-200 rounded-lg"
-                    >
-                      <div>
-                        <div className="font-medium text-forvis-gray-900">{user.name}</div>
-                        <div className="text-sm text-forvis-gray-600">{user.email}</div>
+              {/* Modal Body */}
+              <div className="p-6">
+                {availableUsers.length === 0 ? (
+                  <p className="text-forvis-gray-600 mb-4">
+                    All users already have access to this service line.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {availableUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center justify-between p-4 border border-forvis-gray-200 rounded-lg hover:bg-forvis-gray-50 transition-colors"
+                      >
+                        <div>
+                          <div className="font-medium text-forvis-gray-900">{user.name}</div>
+                          <div className="text-sm text-forvis-gray-600">{user.email}</div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleGrantAccess(user.id, ServiceLineRole.USER)}
+                          >
+                            Grant User
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleGrantAccess(user.id, ServiceLineRole.ADMINISTRATOR)}
+                          >
+                            Grant Admin
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleGrantAccess(user.id, ServiceLineRole.USER)}
-                          className="px-3 py-1 text-sm bg-forvis-blue-600 text-white rounded hover:bg-forvis-blue-700"
-                        >
-                          Grant User
-                        </button>
-                        <button
-                          onClick={() => handleGrantAccess(user.id, ServiceLineRole.ADMINISTRATOR)}
-                          className="px-3 py-1 text-sm bg-forvis-gray-600 text-white rounded hover:bg-forvis-gray-700"
-                        >
-                          Grant Admin
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowGrantModal(false)}
+                  >
+                    Close
+                  </Button>
                 </div>
-              )}
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setShowGrantModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200"
-                >
-                  Close
-                </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Modals */}
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant={confirmModal.variant}
+        />
+
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+          title={alertModal.title}
+          message={alertModal.message}
+          variant={alertModal.variant}
+        />
       </div>
     </div>
   );

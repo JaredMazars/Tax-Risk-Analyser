@@ -1,53 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+export const dynamic = 'force-dynamic';
+
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
 import { getApplicableTemplates } from '@/lib/services/templates/templateService';
+import { secureRoute } from '@/lib/api/secureRoute';
 
 /**
  * GET /api/templates/available
- * Get templates applicable to a service line and project type
+ * Get templates applicable to a service line
  */
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'ENGAGEMENT_LETTER';
     const serviceLine = searchParams.get('serviceLine') || undefined;
-    const projectType = searchParams.get('projectType') || undefined;
 
-    const templates = await getApplicableTemplates(type, serviceLine, projectType);
+    const templates = await getApplicableTemplates(type, serviceLine);
 
     return NextResponse.json(successResponse(templates));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/templates/available');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

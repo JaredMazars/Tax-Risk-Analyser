@@ -3,8 +3,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Query Keys
+// v2: Removed serviceLine/subServiceLineGroup from cache key (all clients shown)
 export const clientKeys = {
-  all: ['clients'] as const,
+  all: ['clients', 'v2'] as const,
   list: (params?: Record<string, string | number | null | undefined>) => [...clientKeys.all, 'list', params] as const,
   detail: (id: string | number, params?: Record<string, string | number | boolean | null | undefined>) => 
     params ? [...clientKeys.all, id, params] as const : [...clientKeys.all, id] as const,
@@ -13,13 +14,29 @@ export const clientKeys = {
 // Types
 export interface Client {
   id: number;
+  GSClientID: string;
   clientCode: string;
   clientNameFull: string | null;
   groupCode: string;
   groupDesc: string;
   clientPartner: string;
+  clientPartnerName?: string;
+  clientPartnerStatus?: {
+    isActive: boolean;
+    hasUserAccount: boolean;
+  };
   clientManager: string;
+  clientManagerName?: string;
+  clientManagerStatus?: {
+    isActive: boolean;
+    hasUserAccount: boolean;
+  };
   clientIncharge: string;
+  clientInchargeName?: string;
+  clientInchargeStatus?: {
+    isActive: boolean;
+    hasUserAccount: boolean;
+  };
   industry: string | null;
   sector: string | null;
   active: string;
@@ -28,34 +45,52 @@ export interface Client {
   createdAt: string;
   updatedAt: string;
   _count: {
-    Project: number;
+    Task: number;
   };
 }
 
-export interface ClientWithProjects extends Client {
-  projects: Array<{
+export interface ClientWithTasks extends Omit<Client, 'clientPartnerName' | 'clientManagerName' | 'clientInchargeName'> {
+  clientPartnerName?: string;
+  clientManagerName?: string;
+  clientInchargeName?: string;
+  tasks: Array<{
     id: number;
-    name: string;
-    description?: string | null;
-    projectType: string;
-    serviceLine: string;
-    taxYear?: number | null;
-    status: string;
-    archived: boolean;
+    TaskDesc: string;
+    TaskCode: string;
+    Active: string;
     createdAt: string;
     updatedAt: string;
+    ServLineCode: string;
+    ServLineDesc?: string;
+    SLGroup: string;
+    subServiceLineGroupCode?: string | null;
+    subServiceLineGroupDesc?: string | null;
+    GSTaskID: string;
+    TaskDateOpen: string;
+    TaskDateTerminate?: string | null;
+    TaskPartner: string;
+    TaskPartnerName: string;
+    TaskManager: string;
+    TaskManagerName: string;
+    masterServiceLine: string | null;
+    masterServiceLineDesc?: string | null;
+    wip?: {
+      balWIP: number;
+      balTime: number;
+      balDisb: number;
+    };
     _count: {
-      mappings: number;
-      taxAdjustments: number;
+      MappedAccount: number;
+      TaxAdjustment: number;
     };
   }>;
-  projectPagination?: {
+  taskPagination?: {
     page: number;
     limit: number;
     total: number;
     totalPages: number;
   };
-  projectCountsByServiceLine?: {
+  taskCountsByServiceLine?: {
     TAX: number;
     AUDIT: number;
     ACCOUNTING: number;
@@ -81,9 +116,15 @@ interface ClientsResponse {
 export interface UseClientsParams {
   search?: string;
   page?: number;
-  limit?: number;
+  limit?: number; // Note: For virtual scrolling, use higher limits (100-500) to minimize API calls
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  subServiceLineGroup?: string;
+  serviceLine?: string;
+  clientCodes?: string[]; // Filter by specific client codes
+  partners?: string[]; // Filter by specific client partners
+  managers?: string[]; // Filter by specific client managers
+  groups?: string[]; // Filter by specific group codes
   enabled?: boolean;
 }
 
@@ -97,11 +138,20 @@ export function useClients(params: UseClientsParams = {}) {
     limit = 50,
     sortBy = 'clientNameFull',
     sortOrder = 'asc',
+    subServiceLineGroup,
+    serviceLine,
+    clientCodes = [],
+    partners = [],
+    managers = [],
+    groups = [],
     enabled = true,
   } = params;
 
   return useQuery<ClientsResponse>({
-    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder }),
+    // NOTE: Cache key excludes subServiceLineGroup and serviceLine because
+    // the API now returns ALL clients regardless of service line
+    // Includes array filters for proper cache segmentation
+    queryKey: clientKeys.list({ search, page, limit, sortBy, sortOrder, clientCodes: clientCodes.join(','), partners: partners.join(','), managers: managers.join(','), groups: groups.join(',') }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
       if (search) searchParams.set('search', search);
@@ -109,6 +159,14 @@ export function useClients(params: UseClientsParams = {}) {
       searchParams.set('limit', limit.toString());
       searchParams.set('sortBy', sortBy);
       searchParams.set('sortOrder', sortOrder);
+      if (subServiceLineGroup) searchParams.set('subServiceLineGroup', subServiceLineGroup);
+      if (serviceLine) searchParams.set('serviceLine', serviceLine);
+      
+      // Add array filters
+      clientCodes.forEach(code => searchParams.append('clientCodes[]', code));
+      partners.forEach(partner => searchParams.append('partners[]', partner));
+      managers.forEach(manager => searchParams.append('managers[]', manager));
+      groups.forEach(grp => searchParams.append('groups[]', grp));
       
       const url = `/api/clients?${searchParams.toString()}`;
       const response = await fetch(url);
@@ -118,15 +176,18 @@ export function useClients(params: UseClientsParams = {}) {
       return result.success ? result.data : result;
     },
     enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes - clients don't change frequently
-    gcTime: 10 * 60 * 1000, // 10 minutes cache retention
-    placeholderData: (previousData) => previousData, // Keep previous data while fetching
+    staleTime: 10 * 60 * 1000, // 10 minutes - clients don't change frequently (increased from 5)
+    gcTime: 15 * 60 * 1000, // 15 minutes cache retention (increased from 10)
+    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
+    placeholderData: (previousData) => previousData,
   });
 }
 
 export interface UseClientParams {
-  projectPage?: number;
-  projectLimit?: number;
+  taskPage?: number;
+  taskLimit?: number;
   serviceLine?: string;
   includeArchived?: boolean;
   enabled?: boolean;
@@ -136,41 +197,45 @@ export interface UseClientParams {
  * Fetch a single client with paginated projects
  */
 export function useClient(
-  clientId: string | number,
+  GSClientID: string | number,
   params: UseClientParams = {}
 ) {
   const {
-    projectPage = 1,
-    projectLimit = 20,
+    taskPage = 1,
+    taskLimit = 20,
     serviceLine,
     includeArchived = false,
     enabled = true,
   } = params;
 
-  return useQuery<ClientWithProjects>({
-    queryKey: clientKeys.detail(clientId, {
-      projectPage,
-      projectLimit,
+  return useQuery<ClientWithTasks>({
+    queryKey: clientKeys.detail(GSClientID, {
+      taskPage,
+      taskLimit,
       serviceLine,
       includeArchived,
     }),
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      searchParams.set('projectPage', projectPage.toString());
-      searchParams.set('projectLimit', projectLimit.toString());
+      searchParams.set('taskPage', taskPage.toString());
+      searchParams.set('taskLimit', taskLimit.toString());
       if (serviceLine) searchParams.set('serviceLine', serviceLine);
       if (includeArchived) searchParams.set('includeArchived', 'true');
 
-      const url = `/api/clients/${clientId}?${searchParams.toString()}`;
+      const url = `/api/clients/${GSClientID}?${searchParams.toString()}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch client');
       
       const result = await response.json();
+      
       return result.success ? result.data : result;
     },
-    enabled: enabled && !!clientId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
-    gcTime: 10 * 60 * 1000,
+    enabled: enabled && !!GSClientID,
+    staleTime: 10 * 60 * 1000, // 10 minutes - aligned with Redis cache TTL (increased from 5)
+    gcTime: 15 * 60 * 1000, // 15 minutes cache retention (increased from 10)
+    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
     placeholderData: (previousData) => previousData, // Keep previous data while fetching new data
   });
 }
@@ -178,12 +243,12 @@ export function useClient(
 /**
  * Update a client
  */
-export function useUpdateClient(clientId: string | number) {
+export function useUpdateClient(GSClientID: string | number) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: Partial<Client>) => {
-      const response = await fetch(`/api/clients/${clientId}`, {
+      const response = await fetch(`/api/clients/${GSClientID}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -196,8 +261,10 @@ export function useUpdateClient(clientId: string | number) {
     },
     onSuccess: () => {
       // Invalidate both the client detail and the clients list
-      queryClient.invalidateQueries({ queryKey: clientKeys.detail(clientId) });
+      queryClient.invalidateQueries({ queryKey: clientKeys.detail(GSClientID) });
       queryClient.invalidateQueries({ queryKey: clientKeys.all });
+      // Invalidate workspace counts
+      queryClient.invalidateQueries({ queryKey: ['workspace-counts'] });
     },
   });
 }
@@ -209,8 +276,8 @@ export function useDeleteClient() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (clientId: string | number) => {
-      const response = await fetch(`/api/clients/${clientId}`, {
+    mutationFn: async (GSClientID: string | number) => {
+      const response = await fetch(`/api/clients/${GSClientID}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -222,6 +289,8 @@ export function useDeleteClient() {
     onSuccess: () => {
       // Invalidate the clients list
       queryClient.invalidateQueries({ queryKey: clientKeys.all });
+      // Invalidate workspace counts
+      queryClient.invalidateQueries({ queryKey: ['workspace-counts'] });
     },
   });
 }

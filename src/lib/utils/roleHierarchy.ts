@@ -1,48 +1,22 @@
 /**
  * Role Hierarchy Utility
  * 
- * Centralized role hierarchy logic for the three-tier security model:
+ * Centralized role hierarchy logic for the two-tier security model:
  * 1. System Level (User.role) - SYSTEM_ADMIN, USER
- * 2. Service Line Level (ServiceLineUser.role) - ADMINISTRATOR, PARTNER, MANAGER, SUPERVISOR, USER, VIEWER
- * 3. Project Level (ProjectUser.role) - ADMIN, REVIEWER, EDITOR, VIEWER
+ * 2. Service Line Level (ServiceLineUser.role and TaskTeam.role) - ADMINISTRATOR, PARTNER, MANAGER, SUPERVISOR, USER, VIEWER
+ * 
+ * Enums are defined once in @/types/index.ts and re-exported here for convenience.
  */
 
-/**
- * System Roles - User.role
- * ONLY these two roles should exist at the system level
- */
-export enum SystemRole {
-  SYSTEM_ADMIN = 'SYSTEM_ADMIN', // Full system access, bypasses all checks
-  USER = 'USER',                  // Regular user, requires service line assignments
-}
+import { SystemRole, ServiceLineRole } from '@/types';
 
-/**
- * Service Line Roles - ServiceLineUser.role
- * Used to control access within a service line (TAX, AUDIT, etc.)
- */
-export enum ServiceLineRole {
-  ADMINISTRATOR = 'ADMINISTRATOR', // Service line administrator (highest)
-  PARTNER = 'PARTNER',             // Partner level (can approve letters)
-  MANAGER = 'MANAGER',             // Manager level
-  SUPERVISOR = 'SUPERVISOR',       // Supervisor level
-  USER = 'USER',                   // Staff level
-  VIEWER = 'VIEWER',               // View-only access (lowest)
-}
-
-/**
- * Project Roles - ProjectUser.role
- * Used to control access within a specific project
- */
-export enum ProjectRole {
-  ADMIN = 'ADMIN',       // Full project control
-  REVIEWER = 'REVIEWER', // Can review and approve work
-  EDITOR = 'EDITOR',     // Can edit project data
-  VIEWER = 'VIEWER',     // Read-only access
-}
+// Re-export enums so existing consumers of roleHierarchy don't break
+export { SystemRole, ServiceLineRole };
 
 /**
  * Service Line Role Hierarchy
  * Higher numbers = more privileges
+ * Used for both service line access and task team permissions
  */
 const SERVICE_LINE_HIERARCHY: Record<string, number> = {
   [ServiceLineRole.VIEWER]: 1,
@@ -51,17 +25,6 @@ const SERVICE_LINE_HIERARCHY: Record<string, number> = {
   [ServiceLineRole.MANAGER]: 4,
   [ServiceLineRole.PARTNER]: 5,
   [ServiceLineRole.ADMINISTRATOR]: 6, // Administrator is highest
-};
-
-/**
- * Project Role Hierarchy
- * Higher numbers = more privileges
- */
-const PROJECT_ROLE_HIERARCHY: Record<string, number> = {
-  [ProjectRole.VIEWER]: 1,
-  [ProjectRole.EDITOR]: 2,
-  [ProjectRole.REVIEWER]: 3,
-  [ProjectRole.ADMIN]: 4,
 };
 
 /**
@@ -80,36 +43,12 @@ export function hasServiceLineRole(
 }
 
 /**
- * Check if a project role meets or exceeds the required role
- * @param userRole - The user's current role
- * @param requiredRole - The minimum required role
- * @returns true if user role is sufficient
- */
-export function hasProjectRole(
-  userRole: string,
-  requiredRole: string
-): boolean {
-  const userLevel = PROJECT_ROLE_HIERARCHY[userRole] || 0;
-  const requiredLevel = PROJECT_ROLE_HIERARCHY[requiredRole] || 0;
-  return userLevel >= requiredLevel;
-}
-
-/**
  * Get service line role hierarchy level
  * @param role - The role to check
  * @returns Numeric level (higher = more privileges)
  */
 export function getServiceLineRoleLevel(role: string): number {
   return SERVICE_LINE_HIERARCHY[role] || 0;
-}
-
-/**
- * Get project role hierarchy level
- * @param role - The role to check
- * @returns Numeric level (higher = more privileges)
- */
-export function getProjectRoleLevel(role: string): number {
-  return PROJECT_ROLE_HIERARCHY[role] || 0;
 }
 
 /**
@@ -131,15 +70,6 @@ export function isValidServiceLineRole(role: string): boolean {
 }
 
 /**
- * Check if role is a valid project role
- * @param role - The role to validate
- * @returns true if valid project role
- */
-export function isValidProjectRole(role: string): boolean {
-  return role in PROJECT_ROLE_HIERARCHY;
-}
-
-/**
  * Format service line role for display
  * @param role - The role to format
  * @returns Formatted role name
@@ -157,26 +87,6 @@ export function formatServiceLineRole(role: string): string {
     case ServiceLineRole.USER:
       return 'Staff';
     case ServiceLineRole.VIEWER:
-      return 'Viewer';
-    default:
-      return role;
-  }
-}
-
-/**
- * Format project role for display
- * @param role - The role to format
- * @returns Formatted role name
- */
-export function formatProjectRole(role: string): string {
-  switch (role) {
-    case ProjectRole.ADMIN:
-      return 'Admin';
-    case ProjectRole.REVIEWER:
-      return 'Reviewer';
-    case ProjectRole.EDITOR:
-      return 'Editor';
-    case ProjectRole.VIEWER:
       return 'Viewer';
     default:
       return role;
@@ -215,19 +125,6 @@ export function getServiceLineRolesOrdered(): ServiceLineRole[] {
 }
 
 /**
- * Get all project roles in hierarchy order (lowest to highest)
- * @returns Array of project roles
- */
-export function getProjectRolesOrdered(): ProjectRole[] {
-  return [
-    ProjectRole.VIEWER,
-    ProjectRole.EDITOR,
-    ProjectRole.REVIEWER,
-    ProjectRole.ADMIN,
-  ];
-}
-
-/**
  * Check if a service line role can approve acceptance/engagement letters
  * ADMINISTRATOR and PARTNER can approve
  * @param role - The role to check
@@ -248,12 +145,12 @@ export function isAdministrativeRole(role: string): boolean {
 }
 
 /**
- * Check if a service line role can manage projects
- * Manager and above can manage projects
+ * Check if a service line role can manage tasks
+ * Manager and above can manage tasks
  * @param role - The role to check
- * @returns true if can manage projects
+ * @returns true if can manage tasks
  */
-export function canManageProjects(role: string): boolean {
+export function canManageTasks(role: string): boolean {
   return hasServiceLineRole(role, ServiceLineRole.MANAGER);
 }
 
@@ -268,11 +165,18 @@ export function canSupervise(role: string): boolean {
 }
 
 /**
- * Check if user is system administrator
- * @param role - The user's system role
- * @returns true if system administrator
+ * Check if user has Partner-level access
+ * Partners and Administrators (service line) or System Admins (system level) have partner access
+ * @param role - The user's role (can be system or service line role, may be undefined)
+ * @returns true if has partner access
  */
-export function isSystemAdmin(role: string): boolean {
-  return role === SystemRole.SYSTEM_ADMIN;
+export function hasPartnerAccess(role?: string): boolean {
+  if (!role) return false;
+  
+  // System admins always have partner access
+  if (role === SystemRole.SYSTEM_ADMIN) {
+    return true;
+  }
+  // Partner and Administrator service line roles have partner access
+  return role === ServiceLineRole.PARTNER || role === ServiceLineRole.ADMINISTRATOR;
 }
-

@@ -1,88 +1,105 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { prisma } from '@/lib/db/prisma';
+import { searchActiveEmployees, EmployeeSearchFilters } from '@/lib/services/employees/employeeSearch';
+import { secureRoute } from '@/lib/api/secureRoute';
 
-// Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
-  try {
-    // Require authentication
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
+// Allowlists for filter validation
+const MAX_QUERY_LENGTH = 100;
+const MAX_LIMIT = 100;
+const MIN_LIMIT = 1;
+const DEFAULT_LIMIT = 20;
+
+/**
+ * GET /api/users/search
+ * Search active employees with optional filters
+ */
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q') || '';
-    const limit = Number.Number.parseInt(searchParams.get('limit') || '20');
-    const projectId = searchParams.get('projectId');
-
+    
+    // Validate and sanitize query param
+    const rawQuery = searchParams.get('q') || '';
+    const query = rawQuery.slice(0, MAX_QUERY_LENGTH);
+    
     // Validate limit
-    if (limit < 1 || limit > 100) {
-      return NextResponse.json(
-        { error: 'Limit must be between 1 and 100' },
-        { status: 400 }
-      );
+    const limitParam = searchParams.get('limit');
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : DEFAULT_LIMIT;
+    if (Number.isNaN(parsedLimit) || parsedLimit < MIN_LIMIT || parsedLimit > MAX_LIMIT) {
+      throw new AppError(400, `Limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}`, ErrorCodes.VALIDATION_ERROR);
     }
-
-    // Build where clause for search
-    interface WhereClause {
-      OR?: Array<{ name: { contains: string } } | { email: { contains: string } }>;
-    }
+    const limit = parsedLimit;
     
-    const whereClause: WhereClause = {};
+    // Validate filter params (alphanumeric codes only)
+    const subServiceLineGroup = searchParams.get('subServiceLineGroup');
+    const jobGrade = searchParams.get('jobGrade');
+    const office = searchParams.get('office');
     
-    if (query.trim()) {
-      // Search by name or email (SQL Server uses case-insensitive collation by default)
-      whereClause.OR = [
-        { name: { contains: query.trim() } },
-        { email: { contains: query.trim() } },
-      ];
+    // Validate subServiceLineGroup format if provided
+    if (subServiceLineGroup && !/^[a-zA-Z0-9_-]+$/.test(subServiceLineGroup)) {
+      throw new AppError(400, 'Invalid subServiceLineGroup format', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // Get users from database
-    let users = await prisma.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        image: true,
-      },
-      take: limit,
-      orderBy: {
-        name: 'asc',
-      },
-    });
+    // Get taskId to exclude existing team members
+    const taskId = searchParams.get('taskId');
+    let excludeUserIds: string[] = [];
 
-    // If projectId is provided, filter out users already in the project
-    if (projectId) {
-      const projectUsers = await prisma.projectUser.findMany({
-        where: { projectId: Number.Number.parseInt(projectId) },
-        select: { userId: true },
+    if (taskId) {
+      const taskIdNum = Number.parseInt(taskId, 10);
+      if (!Number.isNaN(taskIdNum)) {
+        // Fetch existing team members for this task
+        const existingTeamMembers = await prisma.taskTeam.findMany({
+          where: { taskId: taskIdNum },
+          select: { userId: true },
+        });
+        excludeUserIds = existingTeamMembers.map(tm => tm.userId);
+      }
+    }
+
+    let serviceLineCodes: string[] = [];
+    if (subServiceLineGroup) {
+      const mappings = await prisma.serviceLineExternal.findMany({
+        where: { SubServlineGroupCode: subServiceLineGroup },
+        select: { ServLineCode: true }
       });
-      
-      const projectUserIds = new Set(projectUsers.map(pu => pu.userId));
-      users = users.filter(u => !projectUserIds.has(u.id));
+      serviceLineCodes = mappings
+        .map(m => m.ServLineCode)
+        .filter((code): code is string => code !== null);
     }
 
-    // Transform to expected format
-    const formattedUsers = users.map(u => ({
-      id: u.id,
-      email: u.email,
-      displayName: u.name || u.email,
-      jobTitle: null,
-      department: null,
+    const filters: EmployeeSearchFilters = {};
+    if (serviceLineCodes.length > 0) {
+      filters.serviceLineCodes = serviceLineCodes;
+    }
+    if (jobGrade) {
+      filters.jobGrade = jobGrade;
+    }
+    if (office) {
+      filters.office = office;
+    }
+
+    const employees = await searchActiveEmployees(query, limit, excludeUserIds, filters);
+
+    const formattedUsers = employees.map(emp => ({
+      id: emp.User?.id || '',
+      email: emp.User?.email || emp.WinLogon || '',
+      displayName: emp.EmpNameFull,
+      userPrincipalName: emp.User?.email,
+      jobTitle: emp.EmpCatDesc,
+      department: emp.ServLineDesc,
+      officeLocation: emp.OfficeCode,
+      employeeId: emp.EmpCode,
+      employeeType: emp.Team,
+      hasUserAccount: emp.User !== null,
+      GSEmployeeID: emp.GSEmployeeID,
+      EmpCode: emp.EmpCode,
+      ServLineCode: emp.ServLineCode,
+      WinLogon: emp.WinLogon,
     }));
 
     return NextResponse.json(successResponse(formattedUsers));
-  } catch (error) {
-    return handleApiError(error, 'Search Users');
-  }
-}
-
-
-
+  },
+});

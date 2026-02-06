@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { Trash2 } from 'lucide-react';
 import { InAppNotificationWithUser } from '@/types/notification';
 import { useMarkAsRead, useDeleteNotification } from '@/hooks/notifications/useNotifications';
 import { 
@@ -15,12 +16,14 @@ interface NotificationItemProps {
   notification: InAppNotificationWithUser;
   compact?: boolean;
   onNavigate?: () => void;
+  onOpenChangeRequestModal?: (requestId: number) => void;
 }
 
 export function NotificationItem({ 
   notification, 
   compact = false,
-  onNavigate 
+  onNavigate,
+  onOpenChangeRequestModal
 }: NotificationItemProps) {
   const router = useRouter();
   const markAsRead = useMarkAsRead();
@@ -33,6 +36,21 @@ export function NotificationItem({
     // Mark as read if unread
     if (!notification.isRead) {
       await markAsRead.mutateAsync(notification.id);
+    }
+
+    // Check if this is a change request notification
+    if (notification.actionUrl && notification.actionUrl.startsWith('/change-requests/')) {
+      const parts = notification.actionUrl.split('/');
+      const requestIdStr = parts[parts.length - 1];
+      const requestId = parseInt(requestIdStr || '0', 10);
+      
+      if (!isNaN(requestId) && requestId > 0) {
+        if (onOpenChangeRequestModal) {
+          onOpenChangeRequestModal(requestId);
+          onNavigate?.(); // Close dropdown
+          return;
+        }
+      }
     }
 
     // Navigate to action URL if present
@@ -53,14 +71,15 @@ export function NotificationItem({
   const messageText = compact ? truncateMessage(notification.message, 80) : notification.message;
 
   return (
-    <div
-      onClick={handleClick}
-      className={`
-        group relative p-4 cursor-pointer transition-colors
-        ${!notification.isRead ? 'bg-forvis-blue-50 border-l-4 border-l-forvis-blue-500' : 'bg-white hover:bg-forvis-gray-50'}
-        ${compact ? 'border-b border-forvis-gray-100' : 'border border-forvis-gray-200 rounded-lg mb-2'}
-      `}
-    >
+    <>
+      <div
+        onClick={handleClick}
+        className={`
+          group relative p-4 cursor-pointer transition-colors
+          ${!notification.isRead ? 'bg-forvis-blue-50 border-l-4 border-l-forvis-blue-500' : 'bg-white hover:bg-forvis-gray-50'}
+          ${compact ? 'border-b border-forvis-gray-100' : 'border border-forvis-gray-200 rounded-lg mb-2'}
+        `}
+      >
       <div className="flex gap-3">
         {/* Icon */}
         <div className={`flex-shrink-0 ${iconColor}`}>
@@ -96,11 +115,11 @@ export function NotificationItem({
             {messageText}
           </p>
 
-          {/* Project Badge */}
-          {notification.project && (
+          {/* Task Badge */}
+          {notification.task && (
             <div className="mt-2">
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-forvis-gray-100 text-forvis-gray-800">
-                {notification.project.name}
+                {notification.task.name}
               </span>
             </div>
           )}
@@ -112,10 +131,11 @@ export function NotificationItem({
           className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
           title="Delete notification"
         >
-          <TrashIcon className="h-4 w-4 text-red-600" />
+          <Trash2 className="h-4 w-4 text-red-600" />
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

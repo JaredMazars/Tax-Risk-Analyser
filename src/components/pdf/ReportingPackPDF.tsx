@@ -2,7 +2,7 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import { ReportData, MappedAccount, TaxAdjustment } from '../../lib/services/export/serverPdfExporter';
 import { formatAmount } from '../../lib/utils/formatters';
-import { AITaxReportData } from '../../lib/services/opinions/aiTaxReportGenerator';
+import { AITaxReportData } from '@/lib/tools/tax-opinion/services/aiTaxReportGenerator';
 import { calculateNestedTotal, calculateNestedPriorYearTotal, calculateTotals, transformMappedDataToBalanceSheet } from './pdfUtils';
 
 // Register fonts if needed (using default Helvetica for now)
@@ -193,7 +193,7 @@ export const ReportingPackPDF: React.FC<ReportingPackPDFProps> = ({ data, select
             <Page size="A4" style={styles.page}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={styles.title}>Financial Reporting Pack</Text>
-                    <Text style={styles.subtitle}>{data.projectName}</Text>
+                    <Text style={styles.subtitle}>{data.taskName}</Text>
                     <Text style={styles.date}>{new Date().toLocaleDateString()}</Text>
                 </View>
             </Page>
@@ -424,7 +424,7 @@ export const ReportingPackPDF: React.FC<ReportingPackPDFProps> = ({ data, select
 
                     <View style={styles.aiSection}>
                         <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#2E5AAC', marginBottom: 5 }}>RISK ANALYSIS</Text>
-                        {data.aiReport.risks.map((risk, i) => (
+                        {data.aiReport.risks.map((risk: { title: string; severity: 'high' | 'medium' | 'low'; description: string; recommendation: string }, i: number) => (
                             <View key={i} style={[styles.aiBox, risk.severity === 'high' ? styles.riskHigh : risk.severity === 'medium' ? styles.riskMedium : styles.riskLow]}>
                                 <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{risk.title} ({risk.severity.toUpperCase()})</Text>
                                 <Text style={{ marginBottom: 4 }}>{risk.description}</Text>

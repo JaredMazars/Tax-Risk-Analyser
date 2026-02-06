@@ -1,90 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { notificationService } from '@/lib/services/notifications/notificationService';
 import { SendUserMessageSchema } from '@/lib/validation/schemas';
 import { prisma } from '@/lib/db/prisma';
+import { secureRoute } from '@/lib/api/secureRoute';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 /**
  * POST /api/notifications/send-message
  * Send a message/notification from one user to another
  */
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const validated = SendUserMessageSchema.parse(body);
-
+export const POST = secureRoute.mutation({
+  schema: SendUserMessageSchema,
+  handler: async (request, { user, data }) => {
     // Check if recipient exists
     const recipient = await prisma.user.findUnique({
-      where: { id: validated.recipientUserId },
+      where: { id: data.recipientUserId },
+      select: { id: true },
     });
 
     if (!recipient) {
-      return NextResponse.json(
-        { error: 'Recipient user not found' },
-        { status: 404 }
-      );
+      throw new AppError(404, 'Recipient user not found', ErrorCodes.NOT_FOUND);
     }
 
-    // If projectId is provided, verify both users have access to the project
-    if (validated.projectId) {
+    // If taskId is provided, verify both users have access to the task
+    if (data.taskId) {
       const [senderAccess, recipientAccess] = await Promise.all([
-        prisma.projectUser.findUnique({
-          where: {
-            projectId_userId: {
-              projectId: validated.projectId,
-              userId: user.id,
-            },
-          },
+        prisma.taskTeam.findFirst({
+          where: { taskId: data.taskId, userId: user.id },
+          select: { id: true },
         }),
-        prisma.projectUser.findUnique({
-          where: {
-            projectId_userId: {
-              projectId: validated.projectId,
-              userId: validated.recipientUserId,
-            },
-          },
+        prisma.taskTeam.findFirst({
+          where: { taskId: data.taskId, userId: data.recipientUserId },
+          select: { id: true },
         }),
       ]);
 
       if (!senderAccess) {
-        return NextResponse.json(
-          { error: 'You do not have access to this project' },
-          { status: 403 }
-        );
+        throw new AppError(403, 'You do not have access to this project', ErrorCodes.FORBIDDEN);
       }
 
       if (!recipientAccess) {
-        return NextResponse.json(
-          { error: 'Recipient does not have access to this project' },
-          { status: 400 }
-        );
+        throw new AppError(400, 'Recipient does not have access to this project', ErrorCodes.VALIDATION_ERROR);
       }
     }
 
     // Send the message
     await notificationService.sendUserMessage(
       user.id,
-      validated.recipientUserId,
-      validated.title,
-      validated.message,
-      validated.projectId,
-      validated.actionUrl
+      data.recipientUserId,
+      data.title,
+      data.message,
+      data.taskId,
+      data.actionUrl
     );
 
-    return NextResponse.json(
-      successResponse({ message: 'Message sent successfully' }),
-      { status: 201 }
-    );
-  } catch (error) {
-    return handleApiError(error, 'POST /api/notifications/send-message');
-  }
-}
-
-
+    return NextResponse.json(successResponse({ message: 'Message sent successfully' }), { status: 201 });
+  },
+});

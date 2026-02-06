@@ -11,7 +11,7 @@ export function GT3Logo() {
         overflow: 'visible',
         minWidth: '600px',
         minHeight: '350px',
-        transform: 'rotate(-12deg)',
+        transform: 'rotate(-0deg)',
         position: 'relative',
       }}
     >

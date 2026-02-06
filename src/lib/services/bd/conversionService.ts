@@ -1,42 +1,45 @@
 /**
  * Business Development Conversion Service
- * Handles converting BD opportunities to clients and projects
+ * Handles converting BD opportunities to clients and tasks
  */
 
 import { prisma } from '@/lib/db/prisma';
 import { v4 as uuidv4 } from 'uuid';
+import { isClientAcceptanceValid } from '@/lib/services/acceptance/clientAcceptanceService';
 
 export interface ConversionResult {
   client: {
     id: number;
+    GSClientID: string;
     clientCode: string;
     clientNameFull: string | null;
   };
-  project?: {
+  task?: {
     id: number;
-    name: string;
+    TaskDesc: string;
   };
   opportunity: {
     id: number;
-    convertedToClientId: number;
+    convertedToClientId: number;  // Renamed for clarity
     convertedAt: Date;
   };
+  needsClientAcceptance: boolean; // Flag indicating if client acceptance is required
 }
 
 /**
- * Convert a BD opportunity to a Client (and optionally a Project)
+ * Convert a BD opportunity to a Client (and optionally a Task)
  */
 export async function convertOpportunityToClient(
   opportunityId: number,
   userId: string,
   options: {
-    createProject?: boolean;
-    projectType?: string;
-    projectName?: string;
-    projectDescription?: string;
+    createTask?: boolean;
+    taskType?: string;
+    taskName?: string;
+    taskDescription?: string;
   } = {}
 ): Promise<ConversionResult> {
-  const { createProject = false, projectType, projectName, projectDescription } = options;
+  const { createTask = false, taskType, taskName, taskDescription } = options;
 
   // Get the opportunity
   const opportunity = await prisma.bDOpportunity.findUnique({
@@ -54,7 +57,7 @@ export async function convertOpportunityToClient(
     throw new Error('Can only convert won opportunities to clients');
   }
 
-  if (opportunity.convertedToClientId) {
+      if (opportunity.convertedToClientId) {
     throw new Error('Opportunity has already been converted to a client');
   }
 
@@ -93,7 +96,8 @@ export async function convertOpportunityToClient(
         rolePlayer: false,
         typeCode: 'STD',
         typeDesc: 'Standard Client',
-        ClientID: crypto.randomUUID(),
+        GSClientID: crypto.randomUUID(),
+        updatedAt: new Date(),
       },
     });
   }
@@ -102,32 +106,48 @@ export async function convertOpportunityToClient(
   const updatedOpportunity = await prisma.bDOpportunity.update({
     where: { id: opportunityId },
     data: {
-      convertedToClientId: client.id,
+      clientId: client.id,              // Use internal ID
+      convertedToClientId: client.id,   // Use internal ID
       convertedAt: new Date(),
     },
   });
 
-  let project;
-  if (createProject && projectType) {
-    // Create an initial project for this client
-    const finalProjectName = projectName || `${opportunity.title} - ${opportunity.companyName}`;
+  let task;
+  if (createTask && taskType) {
+    // Create an initial task for this client
+    const finalTaskName = taskName || `${opportunity.title} - ${opportunity.companyName}`;
+    const taskCode = `T${Date.now().toString().slice(-6)}`; // Generate a simple task code
 
-    project = await prisma.project.create({
+    task = await prisma.task.create({
       data: {
-        name: finalProjectName,
-        description: projectDescription || opportunity.description,
-        clientId: client.id,
-        serviceLine: opportunity.serviceLine,
-        projectType,
-        status: 'ACTIVE',
-        createdAt: new Date(),
+        GSTaskID: crypto.randomUUID(),
+        GSClientID: client.GSClientID, // External GUID for client relationship
+        TaskCode: taskCode,
+        TaskDesc: finalTaskName,
+        taskYear: new Date().getFullYear(),
+        TaskPartner: 'TBD',
+        TaskPartnerName: 'TBD',
+        TaskManager: 'TBD',
+        TaskManagerName: 'TBD',
+        OfficeCode: 'TBD',
+        SLGroup: 'TBD',
+        ServLineCode: opportunity.serviceLine.substring(0, 10) || 'TBD',
+        ServLineDesc: opportunity.serviceLine,
+        Active: 'Yes',
+        TaskDateOpen: new Date(),
+        createdBy: userId,
+        updatedAt: new Date(),
       },
     });
   }
 
+  // Check if client acceptance is needed
+  const hasValidAcceptance = await isClientAcceptanceValid(client.id);
+
   const result: ConversionResult = {
     client: {
       id: client.id,
+      GSClientID: client.GSClientID,
       clientCode: client.clientCode,
       clientNameFull: client.clientNameFull,
     },
@@ -136,12 +156,13 @@ export async function convertOpportunityToClient(
       convertedToClientId: updatedOpportunity.convertedToClientId!,
       convertedAt: updatedOpportunity.convertedAt!,
     },
+    needsClientAcceptance: !hasValidAcceptance,
   };
 
-  if (project) {
-    result.project = {
-      id: project.id,
-      name: project.name,
+  if (task) {
+    result.task = {
+      id: task.id,
+      TaskDesc: task.TaskDesc,
     };
   }
 
@@ -248,7 +269,7 @@ export async function getConversionStats(filters: {
 
 /**
  * Revert a conversion (unlink opportunity from client)
- * Note: This does NOT delete the client or project, just removes the link
+ * Note: This does NOT delete the client or task, just removes the link
  */
 export async function revertConversion(opportunityId: number): Promise<void> {
   const opportunity = await prisma.bDOpportunity.findUnique({

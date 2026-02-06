@@ -12,6 +12,11 @@ import {
 } from '@/types/email';
 import { generateUserAddedHtml, generateUserAddedText } from './templates/userAddedTemplate';
 import { generateUserRemovedHtml, generateUserRemovedText } from './templates/userRemovedTemplate';
+import { 
+  generateClientAcceptanceApprovalHtml, 
+  generateClientAcceptanceApprovalText,
+  ClientAcceptanceApprovalEmailData 
+} from './templates/clientAcceptanceApprovalTemplate';
 
 /**
  * Email Service using Azure Communication Services
@@ -45,30 +50,30 @@ export class EmailService {
    */
   async checkNotificationPreference(
     userId: string,
-    projectId: number | null,
+    taskId: number | null,
     notificationType: string
   ): Promise<boolean> {
     try {
-      // Check project-specific preference first
-      if (projectId) {
-        const projectPref = await prisma.notificationPreference.findFirst({
+      // Check task-specific preference first
+      if (taskId) {
+        const taskPref = await prisma.notificationPreference.findFirst({
           where: {
             userId,
-            projectId,
+            taskId,
             notificationType,
           },
         });
 
-        if (projectPref !== null) {
-          return projectPref.emailEnabled;
+        if (taskPref !== null) {
+          return taskPref.emailEnabled;
         }
       }
 
-      // Check global preference (projectId = null)
+      // Check global preference (taskId = null)
       const globalPref = await prisma.notificationPreference.findFirst({
         where: {
           userId,
-          projectId: null,
+          taskId: null,
           notificationType,
         },
       });
@@ -173,12 +178,12 @@ export class EmailService {
   }
 
   /**
-   * Send user added to project notification
+   * Send user added to task notification
    */
   async sendUserAddedEmail(
-    projectId: number,
-    projectName: string,
-    projectType: string,
+    taskId: number,
+    taskName: string,
+    taskType: string,
     addedUser: EmailUser,
     addedBy: EmailUser,
     role: string
@@ -187,31 +192,31 @@ export class EmailService {
       // Check if user wants to receive this notification
       const enabled = await this.checkNotificationPreference(
         addedUser.id,
-        projectId,
+        taskId,
         EmailNotificationType.USER_ADDED
       );
 
       if (!enabled) {
         logger.info('User has disabled USER_ADDED notifications', {
           userId: addedUser.id,
-          projectId,
+          taskId,
         });
         return { success: true, messageId: 'skipped' };
       }
 
       const data: UserAddedEmailData = {
-        project: {
-          id: projectId,
-          name: projectName,
-          projectType,
+        task: {
+          id: taskId,
+          name: taskName,
+          taskType,
         },
         addedUser,
         addedBy,
         role,
-        projectUrl: `${this.baseUrl}/dashboard/projects/${projectId}`,
+        taskUrl: `${this.baseUrl}/dashboard/projects/${taskId}`,
       };
 
-      const subject = `Added to Project: ${projectName}`;
+      const subject = `Added to Task: ${taskName}`;
       const htmlContent = generateUserAddedHtml(data);
       const textContent = generateUserAddedText(data);
 
@@ -231,8 +236,8 @@ export class EmailService {
         result.success ? EmailStatus.SENT : EmailStatus.FAILED,
         result.error,
         {
-          projectId,
-          projectName,
+          taskId,
+          taskName,
           role,
           addedById: addedBy.id,
         }
@@ -249,12 +254,12 @@ export class EmailService {
   }
 
   /**
-   * Send user removed from project notification
+   * Send user removed from task notification
    */
   async sendUserRemovedEmail(
-    projectId: number,
-    projectName: string,
-    projectType: string,
+    taskId: number,
+    taskName: string,
+    taskType: string,
     removedUser: EmailUser,
     removedBy: EmailUser
   ): Promise<EmailSendResult> {
@@ -262,30 +267,30 @@ export class EmailService {
       // Check if user wants to receive this notification
       const enabled = await this.checkNotificationPreference(
         removedUser.id,
-        projectId,
+        taskId,
         EmailNotificationType.USER_REMOVED
       );
 
       if (!enabled) {
         logger.info('User has disabled USER_REMOVED notifications', {
           userId: removedUser.id,
-          projectId,
+          taskId,
         });
         return { success: true, messageId: 'skipped' };
       }
 
       const data: UserRemovedEmailData = {
-        project: {
-          id: projectId,
-          name: projectName,
-          projectType,
+        task: {
+          id: taskId,
+          name: taskName,
+          taskType,
         },
         removedUser,
         removedBy,
-        projectUrl: `${this.baseUrl}/dashboard/projects/${projectId}`,
+        taskUrl: `${this.baseUrl}/dashboard/projects/${taskId}`,
       };
 
-      const subject = `Removed from Project: ${projectName}`;
+      const subject = `Removed from Task: ${taskName}`;
       const htmlContent = generateUserRemovedHtml(data);
       const textContent = generateUserRemovedText(data);
 
@@ -305,8 +310,8 @@ export class EmailService {
         result.success ? EmailStatus.SENT : EmailStatus.FAILED,
         result.error,
         {
-          projectId,
-          projectName,
+          taskId,
+          taskName,
           removedById: removedBy.id,
         }
       );
@@ -314,6 +319,104 @@ export class EmailService {
       return result;
     } catch (error) {
       logger.error('Error in sendUserRemovedEmail:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Send client acceptance approval notification
+   * This sends an email to the assigned partner when a client acceptance is submitted
+   * 
+   * @param approverEmail - Partner's email address (WinLogon for employees without user accounts)
+   * @param approverName - Partner's full name
+   * @param approverUserId - Partner's user ID (null if no account exists)
+   * @param clientName - Full client name
+   * @param clientCode - Client code
+   * @param riskRating - Risk rating (LOW, MEDIUM, HIGH)
+   * @param riskScore - Optional numeric risk score
+   * @param submittedByName - Name of user who submitted the acceptance
+   */
+  async sendClientAcceptanceApprovalEmail(
+    approverEmail: string,
+    approverName: string,
+    approverUserId: string | null,
+    clientName: string,
+    clientCode: string,
+    riskRating: string,
+    riskScore: number | null,
+    submittedByName: string
+  ): Promise<EmailSendResult> {
+    try {
+      // For users with accounts, check notification preferences
+      if (approverUserId) {
+        const enabled = await this.checkNotificationPreference(
+          approverUserId,
+          null, // No specific task, this is client-level
+          'APPROVAL_ASSIGNED'
+        );
+
+        if (!enabled) {
+          logger.info('User has disabled APPROVAL_ASSIGNED notifications', {
+            userId: approverUserId,
+            clientCode,
+          });
+          return { success: true, messageId: 'skipped' };
+        }
+      }
+
+      const data: ClientAcceptanceApprovalEmailData = {
+        approverName,
+        approverEmail,
+        clientName,
+        clientCode,
+        riskRating,
+        riskScore: riskScore ?? undefined,
+        submittedByName,
+        approvalUrl: `${this.baseUrl}/dashboard/approvals`,
+      };
+
+      const subject = `Approval Required: Client Acceptance for ${clientName}`;
+      const htmlContent = generateClientAcceptanceApprovalHtml(data);
+      const textContent = generateClientAcceptanceApprovalText(data);
+
+      const result = await this.sendEmail(
+        approverEmail,
+        subject,
+        htmlContent,
+        textContent
+      );
+
+      // Log the email
+      await this.logEmail(
+        approverEmail,
+        approverUserId,
+        'APPROVAL_ASSIGNED',
+        subject,
+        result.success ? EmailStatus.SENT : EmailStatus.FAILED,
+        result.error,
+        {
+          clientName,
+          clientCode,
+          riskRating,
+          riskScore,
+          hasUserAccount: !!approverUserId,
+        }
+      );
+
+      logger.info('Client acceptance approval email sent', {
+        approverEmail,
+        approverUserId: approverUserId || 'no-account',
+        clientCode,
+        riskRating,
+        success: result.success,
+      });
+
+      return result;
+    } catch (error) {
+      logger.error('Error in sendClientAcceptanceApprovalEmail:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

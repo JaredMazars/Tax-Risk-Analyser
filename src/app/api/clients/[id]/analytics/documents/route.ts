@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, checkClientAccess } from '@/lib/services/auth/auth';
+import { checkClientAccess } from '@/lib/services/auth/auth';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 import { DocumentExtractor } from '@/lib/services/documents/documentExtractor';
 import { logger } from '@/lib/utils/logger';
 import path from 'node:path';
 import fs from 'fs/promises';
 import { fileTypeFromBuffer } from 'file-type';
+import { GSClientIDSchema, UploadAnalyticsDocumentSchema } from '@/lib/validation/schemas';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 
 const MAX_FILE_SIZE = Number.parseInt(process.env.MAX_FILE_UPLOAD_SIZE || '10485760', 10); // 10MB default
 const ALLOWED_TYPES = [
@@ -23,48 +25,58 @@ const ALLOWED_TYPES = [
  * GET /api/clients/[id]/analytics/documents
  * Fetch all analytics documents for a client
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = secureRoute.queryWithParams<{ id: string }>({
+  feature: Feature.ACCESS_CLIENTS,
+  handler: async (request, { user, params }) => {
+    const GSClientID = params.id;
 
-    const { id } = await context.params;
-    const clientId = Number.parseInt(id);
-
-    if (Number.isNaN(clientId)) {
-      return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
+    if (!validationResult.success) {
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // SECURITY: Check authorization - user must have access to this client
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, GSClientID);
     if (!hasAccess) {
       logger.warn('Unauthorized client access attempt', {
         userId: user.id,
-        userEmail: user.email,
-        clientId,
+        GSClientID,
         action: 'GET /analytics/documents',
       });
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
-    // Verify client exists
+    // Verify client exists and get numeric id
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { GSClientID: GSClientID },
+      select: { id: true },
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
-    // Fetch all analytics documents for this client
+    // Fetch all analytics documents for this client (using numeric id)
     const documents = await prisma.clientAnalyticsDocument.findMany({
-      where: { clientId },
-      orderBy: { uploadedAt: 'desc' },
+      where: { clientId: client.id },
+      orderBy: [
+        { uploadedAt: 'desc' },
+        { id: 'desc' }, // Deterministic secondary sort
+      ],
+      take: 100, // Prevent unbounded queries
+      select: {
+        id: true,
+        clientId: true,
+        documentType: true,
+        fileName: true,
+        filePath: true,
+        fileSize: true,
+        uploadedBy: true,
+        uploadedAt: true,
+        extractedData: true,
+        updatedAt: true,
+      },
     });
 
     return NextResponse.json(
@@ -73,75 +85,70 @@ export async function GET(
         totalCount: documents.length,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/clients/[id]/analytics/documents');
-  }
-}
+  },
+});
 
 /**
  * POST /api/clients/[id]/analytics/documents
  * Upload a new analytics document
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const POST = secureRoute.fileUploadWithParams<{ id: string }>({
+  feature: Feature.MANAGE_CLIENTS,
+  handler: async (request, { user, params }) => {
+    const GSClientID = params.id;
 
-    const { id } = await context.params;
-    const clientId = Number.parseInt(id);
-
-    if (Number.isNaN(clientId)) {
-      return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
+    // Validate GSClientID is a valid GUID
+    const validationResult = GSClientIDSchema.safeParse(GSClientID);
+    if (!validationResult.success) {
+      throw new AppError(400, 'Invalid client ID format. Expected GUID.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // SECURITY: Check authorization
-    const hasAccess = await checkClientAccess(user.id, clientId);
+    const hasAccess = await checkClientAccess(user.id, GSClientID);
     if (!hasAccess) {
       logger.warn('Unauthorized document upload attempt', {
         userId: user.id,
-        userEmail: user.email,
-        clientId,
+        GSClientID,
       });
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      throw new AppError(403, 'Forbidden', ErrorCodes.FORBIDDEN);
     }
 
-    // Verify client exists
+    // Verify client exists and get numeric id
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
+      where: { GSClientID: GSClientID },
+      select: { id: true },
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      throw new AppError(404, 'Client not found', ErrorCodes.NOT_FOUND);
     }
 
     // Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const documentType = (formData.get('documentType') as string) || 'OTHER';
+    const rawDocumentType = (formData.get('documentType') as string) || 'OTHER';
+
+    // Validate documentType with Zod schema
+    const docTypeValidation = UploadAnalyticsDocumentSchema.safeParse({ documentType: rawDocumentType });
+    if (!docTypeValidation.success) {
+      throw new AppError(400, 'Invalid document type', ErrorCodes.VALIDATION_ERROR, {
+        validTypes: ['AFS', 'MANAGEMENT_ACCOUNTS', 'BANK_STATEMENTS', 'CASH_FLOW', 'OTHER'],
+      });
+    }
+    const documentType = docTypeValidation.data.documentType;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      throw new AppError(400, 'No file provided', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: `File size exceeds maximum of ${MAX_FILE_SIZE / 1024 / 1024}MB` },
-        { status: 400 }
-      );
+      throw new AppError(400, `File size exceeds maximum of ${MAX_FILE_SIZE / 1024 / 1024}MB`, ErrorCodes.VALIDATION_ERROR);
     }
 
     // Validate MIME type from header
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only PDF, Excel, CSV, and image files are allowed.' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Invalid file type. Only PDF, Excel, CSV, and image files are allowed.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Convert file to buffer
@@ -150,10 +157,7 @@ export async function POST(
     // SECURITY: Verify file signature (magic numbers) to prevent MIME type spoofing
     const detectedType = await fileTypeFromBuffer(buffer);
     if (!detectedType) {
-      return NextResponse.json(
-        { error: 'Unable to determine file type. File may be corrupted.' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Unable to determine file type. File may be corrupted.', ErrorCodes.VALIDATION_ERROR);
     }
 
     if (!ALLOWED_TYPES.includes(detectedType.mime)) {
@@ -161,16 +165,13 @@ export async function POST(
         declaredType: file.type,
         detectedType: detectedType.mime,
         userId: user.id,
-        clientId,
+        clientId: client.id,
       });
-      return NextResponse.json(
-        { error: 'File type verification failed. The file does not match its declared type.' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'File type verification failed. The file does not match its declared type.', ErrorCodes.VALIDATION_ERROR);
     }
 
     // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'uploads', 'analytics', clientId.toString());
+    const uploadDir = path.join(process.cwd(), 'uploads', 'analytics', client.id.toString());
     await fs.mkdir(uploadDir, { recursive: true });
 
     // SECURITY: Generate safe filename - remove original extension and use verified one
@@ -203,31 +204,75 @@ export async function POST(
       // Continue without extraction - not critical
     }
 
-    // Create document record
+    // Create document record with explicit field mapping
     const document = await prisma.clientAnalyticsDocument.create({
       data: {
-        clientId,
+        clientId: client.id,
         documentType,
         fileName: file.name,
         filePath,
         fileSize: file.size,
         uploadedBy: user.email!,
         extractedData: extractedData ? JSON.stringify(extractedData) : null,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        clientId: true,
+        documentType: true,
+        fileName: true,
+        filePath: true,
+        fileSize: true,
+        uploadedBy: true,
+        uploadedAt: true,
+        extractedData: true,
+        updatedAt: true,
       },
     });
 
     logger.info('Analytics document uploaded', {
       documentId: document.id,
-      clientId,
+      clientId: client.id,
       fileName: file.name,
       uploadedBy: user.email,
     });
 
     return NextResponse.json(successResponse(document), { status: 201 });
-  } catch (error) {
-    return handleApiError(error, 'POST /api/clients/[id]/analytics/documents');
-  }
-}
+  },
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

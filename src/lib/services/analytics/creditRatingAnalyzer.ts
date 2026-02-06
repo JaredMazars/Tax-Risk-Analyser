@@ -41,7 +41,7 @@ export class CreditRatingAnalyzer {
     documents: DocumentInfo[]
   ): Promise<CreditRatingResult> {
     logger.info('Starting credit rating analysis', {
-      clientId: client.id,
+      GSClientID: client.id,
       clientName: client.name,
       documentCount: documents.length,
     });
@@ -50,7 +50,7 @@ export class CreditRatingAnalyzer {
       // Step 1: Extract and combine financial data from all documents
       const financialData = this.combineFinancialData(documents);
       logger.info('Financial data extracted', {
-        clientId: client.id,
+        GSClientID: client.id,
         dataPoints: Object.keys(financialData).filter(k => financialData[k as keyof typeof financialData] !== undefined).length,
       });
 
@@ -58,7 +58,7 @@ export class CreditRatingAnalyzer {
       const financialRatios = FinancialRatioCalculator.calculateRatios(financialData);
       const calculatedRatios = Object.keys(financialRatios).filter(k => financialRatios[k as keyof typeof financialRatios] !== undefined);
       logger.info('Financial ratios calculated', {
-        clientId: client.id,
+        GSClientID: client.id,
         ratiosCalculated: calculatedRatios.length,
         ratios: calculatedRatios,
       });
@@ -69,7 +69,7 @@ export class CreditRatingAnalyzer {
       // Step 4: Generate AI analysis
       const analysisReport = await this.generateAIAnalysis(prompt, financialRatios);
       logger.info('AI analysis generated', {
-        clientId: client.id,
+        GSClientID: client.id,
         hasExecutiveSummary: !!analysisReport.executiveSummary,
         strengthsCount: analysisReport.strengths.length,
         weaknessesCount: analysisReport.weaknesses.length,
@@ -85,7 +85,7 @@ export class CreditRatingAnalyzer {
       );
 
       logger.info('Credit rating calculation completed', {
-        clientId: client.id,
+        GSClientID: client.id,
         ratingGrade,
         ratingScore,
         confidence,
@@ -94,7 +94,7 @@ export class CreditRatingAnalyzer {
       // Verify we have all required data before returning
       if (!analysisReport || !financialRatios) {
         logger.error('Missing critical data in credit rating result', {
-          clientId: client.id,
+          GSClientID: client.id,
           hasAnalysisReport: !!analysisReport,
           hasFinancialRatios: !!financialRatios,
         });
@@ -109,7 +109,7 @@ export class CreditRatingAnalyzer {
         confidence,
       };
     } catch (error) {
-      logger.error('Error analyzing credit rating', { error, clientId: client.id });
+      logger.error('Error analyzing credit rating', { error, GSClientID: client.id });
       throw error;
     }
   }

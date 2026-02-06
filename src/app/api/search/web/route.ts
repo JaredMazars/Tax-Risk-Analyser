@@ -1,43 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { getCurrentUser } from '@/lib/services/auth/auth';
 import { bingSearchService } from '@/lib/services/search/bingSearchService';
 import { logger } from '@/lib/utils/logger';
-import { enforceRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+import { secureRoute } from '@/lib/api/secureRoute';
 
-// Force dynamic rendering (uses cookies and headers)
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/search/web
  * Perform general web search using Bing
  */
-export async function GET(request: NextRequest) {
-  try {
-    // Apply rate limiting for search operations
-    enforceRateLimit(request, RateLimitPresets.STANDARD);
-    
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export const GET = secureRoute.query({
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
-    const count = Number.Number.parseInt(searchParams.get('count') || '10', 10);
+    const countParam = searchParams.get('count');
+    const count = countParam ? Math.min(Number.parseInt(countParam, 10), 50) : 10;
     const market = searchParams.get('market') || 'en-ZA';
 
     if (!query) {
       return NextResponse.json(
-        { error: 'Query parameter "q" is required' },
+        { success: false, error: 'Query parameter "q" is required' },
         { status: 400 }
       );
     }
 
     if (!bingSearchService.isEnabled()) {
       return NextResponse.json(
-        { error: 'Web search is not configured' },
+        { success: false, error: 'Web search is not configured' },
         { status: 503 }
       );
     }
@@ -53,9 +43,7 @@ export async function GET(request: NextRequest) {
         results,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/search/web');
-  }
-}
+  },
+});
 
 

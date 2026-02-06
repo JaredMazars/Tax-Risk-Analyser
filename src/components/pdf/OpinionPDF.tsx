@@ -78,7 +78,7 @@ interface OpinionPDFProps {
     title: string;
     sections: OpinionSection[];
     metadata?: {
-        projectName?: string;
+        taskName?: string;
         clientName?: string;
     };
 }
@@ -94,8 +94,8 @@ export const OpinionPDF: React.FC<OpinionPDFProps> = ({ title, sections, metadat
                 {metadata?.clientName && (
                     <Text style={styles.metadata}>Client: {metadata.clientName}</Text>
                 )}
-                {metadata?.projectName && (
-                    <Text style={styles.metadata}>Project: {metadata.projectName}</Text>
+                {metadata?.taskName && (
+                    <Text style={styles.metadata}>Task: {metadata.taskName}</Text>
                 )}
 
                 <Text style={[styles.metadata, { marginTop: 20 }]}>

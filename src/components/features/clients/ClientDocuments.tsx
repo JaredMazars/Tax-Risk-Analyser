@@ -2,18 +2,18 @@
 
 import { useState, useMemo } from 'react';
 import {
-  DocumentTextIcon,
-  ArrowDownTrayIcon,
-  FolderOpenIcon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+  FileText,
+  Download,
+  FolderOpen,
+  Search,
+  X,
+} from 'lucide-react';
 import { useClientDocuments, downloadClientDocument } from '@/hooks/clients/useClientDocuments';
 import { DocumentType, ClientDocument } from '@/types';
-import { formatDate } from '@/lib/utils/projectUtils';
+import { formatDate } from '@/lib/utils/taskUtils';
 
 interface ClientDocumentsProps {
-  clientId: string | number;
+  GSClientID: string | number;
 }
 
 const DOCUMENT_TYPE_LABELS = {
@@ -32,17 +32,17 @@ function formatFileSize(bytes: number): string {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-export function ClientDocuments({ clientId }: ClientDocumentsProps) {
+export function ClientDocuments({ GSClientID }: ClientDocumentsProps) {
   const [activeTab, setActiveTab] = useState<DocumentType>(DocumentType.ENGAGEMENT_LETTER);
   const [searchTerm, setSearchTerm] = useState('');
-  const { data, isLoading, error } = useClientDocuments(clientId);
+  const { data, isLoading, error } = useClientDocuments(GSClientID);
 
   const handleDownload = (doc: ClientDocument) => {
     downloadClientDocument(
-      clientId,
+      GSClientID,
       doc.documentType,
       doc.id,
-      doc.projectId,
+      doc.taskId,
       doc.fileName
     );
   };
@@ -77,7 +77,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
     return docs.filter((doc) => {
       return (
         doc.fileName?.toLowerCase().includes(searchLower) ||
-        doc.projectName?.toLowerCase().includes(searchLower) ||
+        doc.taskName?.toLowerCase().includes(searchLower) ||
         doc.uploadedBy?.toLowerCase().includes(searchLower) ||
         doc.category?.toLowerCase().includes(searchLower) ||
         doc.referenceNumber?.toLowerCase().includes(searchLower) ||
@@ -111,7 +111,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
   if (error) {
     return (
       <div className="p-6 text-center">
-        <p className="text-red-600">Failed to load documents. Please try again.</p>
+        <p className="text-forvis-error-600">Failed to load documents. Please try again.</p>
       </div>
     );
   }
@@ -162,7 +162,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
       {/* Search Bar */}
       <div className="px-6 pt-4 pb-2">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
           <input
             type="text"
             placeholder="Search documents by name, project, uploaded by, category..."
@@ -175,7 +175,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
               onClick={() => setSearchTerm('')}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-forvis-gray-400 hover:text-forvis-gray-600"
             >
-              <XMarkIcon className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
           )}
         </div>
@@ -196,7 +196,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
           </div>
         ) : documents.length === 0 ? (
           <div className="text-center py-12">
-            <FolderOpenIcon className="mx-auto h-12 w-12 text-forvis-gray-400" />
+            <FolderOpen className="mx-auto h-12 w-12 text-forvis-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-forvis-gray-900">
               {searchTerm ? 'No documents found' : `No ${DOCUMENT_TYPE_LABELS[activeTab].toLowerCase()}`}
             </h3>
@@ -295,14 +295,14 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
                   <tr key={`${doc.documentType}-${doc.id}`} className="hover:bg-forvis-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <DocumentTextIcon className="h-5 w-5 text-forvis-gray-400 mr-2 flex-shrink-0" />
+                        <FileText className="h-5 w-5 text-forvis-gray-400 mr-2 flex-shrink-0" />
                         <span className="text-sm font-medium text-forvis-gray-900 truncate max-w-xs">
                           {doc.fileName}
                         </span>
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="text-sm text-forvis-gray-600">{doc.projectName}</span>
+                      <span className="text-sm text-forvis-gray-600">{doc.taskName}</span>
                     </td>
                     {activeTab === DocumentType.ADMINISTRATION && (
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -324,10 +324,10 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
                         <span
                           className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             doc.extractionStatus === 'COMPLETED'
-                              ? 'bg-green-100 text-green-700'
+                              ? 'bg-forvis-success-100 text-forvis-success-700'
                               : doc.extractionStatus === 'PENDING'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-red-100 text-red-700'
+                              ? 'bg-forvis-warning-100 text-forvis-warning-700'
+                              : 'bg-forvis-error-100 text-forvis-error-700'
                           }`}
                         >
                           {doc.extractionStatus || 'N/A'}
@@ -349,7 +349,7 @@ export function ClientDocuments({ clientId }: ClientDocumentsProps) {
                         className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-forvis-blue-600 hover:text-forvis-blue-700 hover:bg-forvis-blue-50 rounded-lg transition-colors"
                         title="Download document"
                       >
-                        <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                        <Download className="h-4 w-4 mr-1" />
                         Download
                       </button>
                     </td>

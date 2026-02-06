@@ -1,4 +1,4 @@
-import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
+import { ConfidentialClientApplication, CryptoProvider, type AuthorizationUrlRequest } from '@azure/msal-node';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { randomBytes, createHash } from 'crypto';
@@ -6,19 +6,11 @@ import { prisma } from '../../db/prisma';
 import { withRetry, RetryPresets } from '../../utils/retryUtils';
 import type { Session, SessionUser } from './types';
 import { cache } from '@/lib/services/cache/CacheService';
+import { SessionManager } from './sessionManager';
 import type { NextRequest } from 'next/server';
-
-// Helper for conditional logging (avoid importing logger to prevent Edge Runtime issues)
-const log = {
-  info: (message: string, meta?: any) => {
-    if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
-      // console.log(`[INFO] ${message}`, meta || '');
-    }
-  },
-  error: (message: string, error?: any) => {
-    console.error(`[ERROR] ${message}`, error?.message || error || '');
-  },
-};
+import { ensureSharedServiceAccess } from '@/lib/services/service-lines/serviceLineService';
+import { logger } from '@/lib/utils/logger';
+import { SystemRole } from '@/types';
 
 const msalConfig = {
   auth: {
@@ -73,15 +65,29 @@ function getClientIP(headers: { get: (name: string) => string | null }): string 
 
 /**
  * Generate authorization URL for Azure AD login
+ * @param redirectUri - Callback URL after authentication
+ * @param prompt - Optional prompt parameter ('login', 'select_account', 'consent', 'none')
  */
-export async function getAuthUrl(redirectUri: string): Promise<string> {
-  const authCodeUrlParameters = {
+export async function getAuthUrl(redirectUri: string, prompt?: string | null): Promise<string> {
+  const authCodeUrlParameters: AuthorizationUrlRequest = {
     scopes: ['user.read', 'openid', 'profile', 'email'],
     redirectUri,
+    ...(prompt ? { prompt } : {}),
   };
 
   const authUrl = await pca.getAuthCodeUrl(authCodeUrlParameters);
   return authUrl;
+}
+
+/**
+ * Generate Azure AD logout URL for full sign-out
+ * Clears both application session and Azure AD session
+ * @param postLogoutRedirectUri - URL to redirect to after logout
+ */
+export function getLogoutUrl(postLogoutRedirectUri: string): string {
+  const tenantId = process.env.AZURE_AD_TENANT_ID;
+  const logoutUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
+  return logoutUrl;
 }
 
 /**
@@ -94,18 +100,47 @@ export async function handleCallback(code: string, redirectUri: string) {
     redirectUri,
   };
 
-  const response = await pca.acquireTokenByCode(tokenRequest);
+  logger.info('Attempting token exchange with Azure AD', { 
+    redirectUri, 
+    hasCode: !!code,
+    codeLength: code?.length 
+  });
+
+  let response;
+  try {
+    response = await pca.acquireTokenByCode(tokenRequest);
+  } catch (error) {
+    logger.error('Azure AD token exchange failed', error);
+    // Re-throw with additional context
+    const enhancedError = new Error(
+      `Azure AD token exchange failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+    // Preserve original error properties for MSAL errors
+    if (error && typeof error === 'object') {
+      Object.assign(enhancedError, error);
+    }
+    throw enhancedError;
+  }
   
   if (!response || !response.account) {
-    throw new Error('Failed to acquire token');
+    logger.error('Token response missing account information', { 
+      hasResponse: !!response,
+      hasAccount: !!response?.account 
+    });
+    throw new Error('Failed to acquire token - no account information in response');
   }
+  
+  logger.info('Token exchange successful', { 
+    accountId: response.account.homeAccountId,
+    username: response.account.username 
+  });
 
   const email = response.account.username;
   const name = response.account.name || response.account.username;
   const userId = response.account.homeAccountId || response.account.localAccountId;
 
   // Find or create user in database with retry logic for Azure SQL cold-start
-  log.info('Looking up user in database', { email });
+  logger.info('Looking up user in database', { email });
   
   let dbUser = await withRetry(
     async () => {
@@ -113,12 +148,28 @@ export async function handleCallback(code: string, redirectUri: string) {
         where: { email },
       });
     },
-    RetryPresets.AZURE_SQL_COLD_START,
+    RetryPresets.AUTH_DATABASE,
     'Auth callback - find user'
   );
 
   if (!dbUser) {
-    log.info('Creating new user in database', { email, userId });
+    logger.info('Creating new user in database', { email, userId });
+    
+    // Check if this is the first user in the system
+    const userCount = await withRetry(
+      async () => {
+        return await prisma.user.count();
+      },
+      RetryPresets.AUTH_DATABASE,
+      'Auth callback - count users'
+    );
+    
+    const isFirstUser = userCount === 0;
+    const assignedRole = isFirstUser ? 'SYSTEM_ADMIN' : 'USER';
+    
+    if (isFirstUser) {
+      logger.info('Creating first user in system - assigning SYSTEM_ADMIN role', { email });
+    }
     
     // Create new user in database with retry logic
     dbUser = await withRetry(
@@ -128,13 +179,32 @@ export async function handleCallback(code: string, redirectUri: string) {
             id: userId,
             email,
             name,
-            role: 'USER', // Default role
+            role: assignedRole,
+            updatedAt: new Date(),
           },
         });
       },
-      RetryPresets.AZURE_SQL_COLD_START,
+      RetryPresets.AUTH_DATABASE,
       'Auth callback - create user'
     );
+    
+    if (isFirstUser) {
+      logger.info('First system administrator created successfully', { 
+        userId: dbUser.id, 
+        email: dbUser.email 
+      });
+    }
+    
+    // Auto-assign shared services access for new users (non-SYSTEM_ADMIN)
+    if (dbUser.role !== 'SYSTEM_ADMIN') {
+      try {
+        await ensureSharedServiceAccess(dbUser.id);
+        logger.info('Assigned shared services access to new user', { userId: dbUser.id });
+      } catch (error) {
+        // Log error but don't fail authentication
+        logger.error('Failed to assign shared services access', error);
+      }
+    }
   }
 
   const user: SessionUser = {
@@ -145,7 +215,7 @@ export async function handleCallback(code: string, redirectUri: string) {
     systemRole: dbUser.role || 'USER', // SYSTEM_ADMIN or USER
   };
 
-  log.info('User authenticated successfully', { userId: user.id, email: user.email, systemRole: user.systemRole });
+  logger.info('User authenticated successfully', { userId: user.id, email: user.email, systemRole: user.systemRole });
   
   return user;
 }
@@ -159,8 +229,8 @@ export async function createSession(
   userAgent?: string,
   ipAddress?: string
 ): Promise<string> {
-  // Generate session fingerprint if fingerprinting is enabled
-  const fingerprintEnabled = process.env.SESSION_FINGERPRINT_ENABLED === 'true';
+  // Generate session fingerprint (enabled by default, opt-out with SESSION_FINGERPRINT_DISABLED=true)
+  const fingerprintEnabled = process.env.SESSION_FINGERPRINT_DISABLED !== 'true';
   const fingerprint = fingerprintEnabled && userAgent && ipAddress
     ? generateFingerprint(userAgent, ipAddress)
     : undefined;
@@ -169,7 +239,7 @@ export async function createSession(
   const sessionJti = randomBytes(16).toString('hex');
   
   // Include fingerprint in JWT payload for validation
-  const payload: any = { user };
+  const payload: Record<string, unknown> = { user };
   if (fingerprint) {
     payload.fingerprint = fingerprint;
   }
@@ -185,7 +255,7 @@ export async function createSession(
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
   const sessionId = `sess_${sessionJti}`;
   
-  log.info('Creating session in database', { userId: user.id, sessionId, hasFingerprint: !!fingerprint });
+  logger.info('Creating session in database', { userId: user.id, sessionId, hasFingerprint: !!fingerprint });
   
   await withRetry(
     async () => {
@@ -198,7 +268,7 @@ export async function createSession(
         },
       });
     },
-    RetryPresets.AZURE_SQL_COLD_START,
+    RetryPresets.AUTH_DATABASE,
     'Create session'
   );
 
@@ -218,7 +288,7 @@ export async function createSession(
   };
   await cache.set(`session:${token}`, sessionData, 3600);
 
-  log.info('Session created successfully', { userId: user.id, sessionId });
+  logger.info('Session created successfully', { userId: user.id, sessionId });
 
   return token;
 }
@@ -251,7 +321,7 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
     if (cachedSession) {
       // Check if cached session hasn't expired
       if (new Date(cachedSession.expires) > new Date()) {
-        log.info('Session cache hit', { userId: cachedSession.userId });
+        logger.info('Session cache hit', { userId: cachedSession.userId });
         return cachedSession;
       }
       // Expired - remove from cache
@@ -259,15 +329,28 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
     }
 
     // Not in cache or expired - fetch from database
-    // Use retry logic for session lookup to handle Azure SQL cold-start
+    // Use fast retry logic for session lookup (user-facing operation)
     const session = await withRetry(
       async () => {
         return await prisma.session.findUnique({
           where: { sessionToken: token },
-          include: { User: true },
+          select: {
+            id: true,
+            sessionToken: true,
+            userId: true,
+            expires: true,
+            User: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
         });
       },
-      RetryPresets.AZURE_SQL_COLD_START,
+      RetryPresets.AUTH_DATABASE,
       'Get session from database'
     );
 
@@ -281,7 +364,7 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
               where: { sessionToken: token },
             });
           },
-          RetryPresets.AZURE_SQL_COLD_START,
+          RetryPresets.AUTH_DATABASE,
           'Delete expired session'
         );
       }
@@ -303,11 +386,11 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
     };
     
     await cache.set(cacheKey, sessionData, 3600); // 1 hour
-    log.info('Session cached', { userId: session.userId });
+    logger.info('Session cached', { userId: session.userId });
 
     return sessionData;
   } catch (error) {
-    log.error('Failed to get session from database', error);
+    logger.error('Failed to get session from database', error);
     return null;
   }
 }
@@ -315,15 +398,12 @@ export async function getSessionFromDatabase(token: string): Promise<DatabaseSes
 /**
  * Verify JWT token only (no database check)
  * Use this in middleware/edge runtime where Prisma is not available
+ * 
+ * @deprecated Import from '@/lib/services/auth/jwt' instead.
+ * This re-export is kept for backward compatibility. The jwt.ts version
+ * supports secret rotation (tries current then old secret).
  */
-export async function verifySessionJWTOnly(token: string): Promise<Session | null> {
-  try {
-    const verified = await jwtVerify(token, JWT_SECRET);
-    return verified.payload as unknown as Session;
-  } catch (error) {
-    return null;
-  }
-}
+export { verifySessionJWTOnly } from './jwt';
 
 /**
  * Verify and decode session token
@@ -340,12 +420,12 @@ export async function verifySession(
     // First verify JWT signature and expiration
     const verified = await jwtVerify(token, JWT_SECRET);
     
-    // Validate fingerprint if enabled and present in token
-    const fingerprintEnabled = process.env.SESSION_FINGERPRINT_ENABLED === 'true';
+    // Validate fingerprint (enabled by default, opt-out with SESSION_FINGERPRINT_DISABLED=true)
+    const fingerprintEnabled = process.env.SESSION_FINGERPRINT_DISABLED !== 'true';
     if (fingerprintEnabled && verified.payload.fingerprint && userAgent && ipAddress) {
       const currentFingerprint = generateFingerprint(userAgent, ipAddress);
       if (verified.payload.fingerprint !== currentFingerprint) {
-        log.error('Session fingerprint mismatch - possible session hijacking attempt', {
+        logger.error('Session fingerprint mismatch - possible session hijacking attempt', {
           userId: (verified.payload as any).user?.id,
         });
         return null;
@@ -414,7 +494,7 @@ function hasRolePermission(userRole: string, requiredRole: string): boolean {
  */
 export async function checkProjectAccess(
   userId: string,
-  projectId: number,
+  taskId: number,
   requiredRole?: string
 ): Promise<boolean> {
   try {
@@ -427,12 +507,12 @@ export async function checkProjectAccess(
     const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
 
     // Get the project's service line
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { serviceLine: true },
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { ServLineCode: true },
     });
 
-    if (!project) {
+    if (!task) {
       return false;
     }
 
@@ -442,12 +522,20 @@ export async function checkProjectAccess(
     }
 
     // Non-System Admins must have service line access
-    const serviceLineAccess = await prisma.serviceLineUser.findUnique({
+    // First, map ServLineCode to SubServlineGroupCode
+    const serviceLineMapping = await prisma.serviceLineExternal.findFirst({
+      where: { ServLineCode: task.ServLineCode },
+      select: { SubServlineGroupCode: true },
+    });
+
+    if (!serviceLineMapping?.SubServlineGroupCode) {
+      return false;
+    }
+
+    const serviceLineAccess = await prisma.serviceLineUser.findFirst({
       where: {
-        userId_serviceLine: {
-          userId,
-          serviceLine: project.serviceLine,
-        },
+        userId,
+        subServiceLineGroup: serviceLineMapping.SubServlineGroupCode,
       },
     });
 
@@ -461,12 +549,10 @@ export async function checkProjectAccess(
     }
 
     // Get user's project membership
-    const projectUser = await prisma.projectUser.findUnique({
+    const projectUser = await prisma.taskTeam.findFirst({
       where: {
-        projectId_userId: {
-          projectId,
-          userId,
-        },
+        taskId,
+        userId,
       },
     });
 
@@ -496,7 +582,7 @@ export async function checkProjectAccess(
  */
 export async function checkClientAccess(
   userId: string,
-  clientId: number
+  GSClientID: string
 ): Promise<boolean> {
   try {
     // Check if user is a superuser (full access)
@@ -511,29 +597,31 @@ export async function checkClientAccess(
 
     // Check if client exists
     const client = await prisma.client.findUnique({
-      where: { id: clientId },
-      select: { id: true },
+      where: { GSClientID: GSClientID },
+      select: { GSClientID: true },
     });
 
     if (!client) {
       return false;
     }
 
-    // Get all unique service lines from projects for this client
-    const projectServiceLines = await prisma.project.findMany({
-      where: { clientId },
-      select: { serviceLine: true },
-      distinct: ['serviceLine'],
+    // Get all unique service lines from tasks for this client
+    const taskServiceLines = await prisma.task.findMany({
+      where: { 
+        Client: { GSClientID: GSClientID }
+      },
+      select: { ServLineCode: true },
+      distinct: ['ServLineCode'],
     });
 
-    // If client has projects, check if user has access to any of those service lines
-    if (projectServiceLines.length > 0) {
-      const serviceLines = projectServiceLines.map(p => p.serviceLine);
+    // If client has tasks, check if user has access to any of those service lines
+    if (taskServiceLines.length > 0) {
+      const serviceLines = taskServiceLines.map(t => t.ServLineCode);
       
       const serviceLineAccess = await prisma.serviceLineUser.findFirst({
         where: {
           userId,
-          serviceLine: { in: serviceLines },
+          subServiceLineGroup: { in: serviceLines },
         },
       });
 
@@ -542,19 +630,19 @@ export async function checkClientAccess(
       }
     }
 
-    // Check if user is assigned to any project for this client
-    const projectAccess = await prisma.projectUser.findFirst({
+    // Check if user is assigned to any task for this client
+    const taskAccess = await prisma.taskTeam.findFirst({
       where: {
         userId,
-        Project: {
-          clientId,
+        Task: {
+          Client: { GSClientID: GSClientID },
         },
       },
     });
 
-    return !!projectAccess;
+    return !!taskAccess;
   } catch (error) {
-    log.error('Error checking client access', error);
+    logger.error('Error checking client access', error);
     return false;
   }
 }
@@ -562,17 +650,15 @@ export async function checkClientAccess(
 /**
  * Get user's role on a project
  */
-export async function getUserProjectRole(
+export async function getUserTaskRole(
   userId: string,
-  projectId: number
+  taskId: number
 ): Promise<string | null> {
   try {
-    const projectUser = await prisma.projectUser.findUnique({
+    const projectUser = await prisma.taskTeam.findFirst({
       where: {
-        projectId_userId: {
-          projectId,
-          userId,
-        },
+        taskId,
+        userId,
       },
     });
 
@@ -583,7 +669,13 @@ export async function getUserProjectRole(
 }
 
 /**
- * Check if user is a System Admin (SYSTEM_ADMIN or legacy ADMIN role)
+ * Check if user is a System Admin by user ID (async database lookup)
+ * 
+ * Use this variant when you only have a user ID and need a database check.
+ * For user objects or role strings in memory: use `isSystemAdmin()` from `@/lib/utils/systemAdmin`
+ * 
+ * @param userId - User ID to check
+ * @returns true if user is SYSTEM_ADMIN
  */
 export async function isSystemAdmin(userId: string): Promise<boolean> {
   try {
@@ -592,9 +684,9 @@ export async function isSystemAdmin(userId: string): Promise<boolean> {
       select: { role: true },
     });
 
-    // Check for SYSTEM_ADMIN (current) or ADMIN (legacy support)
-    return user?.role === 'SYSTEM_ADMIN' || user?.role === 'ADMIN';
+    return user?.role === SystemRole.SYSTEM_ADMIN || user?.role === 'ADMIN';
   } catch (error) {
+    logger.error('Error checking system admin status', { userId, error });
     return false;
   }
 }
@@ -613,12 +705,12 @@ export async function requireAdmin(userId: string): Promise<void> {
 /**
  * Require specific project role - throws error if insufficient permissions
  */
-export async function requireProjectRole(
+export async function requireTaskRole(
   userId: string,
-  projectId: number,
+  taskId: number,
   requiredRole: string
 ): Promise<void> {
-  const hasAccess = await checkProjectAccess(userId, projectId, requiredRole);
+  const hasAccess = await checkProjectAccess(userId, taskId, requiredRole);
   
   if (!hasAccess) {
     throw new Error(`Insufficient permissions. Required role: ${requiredRole}`);
@@ -627,32 +719,18 @@ export async function requireProjectRole(
 
 /**
  * Delete a specific session from database
+ * Delegates to SessionManager for distributed invalidation via Redis Pub/Sub
  */
 export async function deleteSession(token: string): Promise<void> {
-  try {
-    // Delete from cache
-    await cache.delete(`session:${token}`);
-    
-    // Delete from database
-    await prisma.session.delete({
-      where: { sessionToken: token },
-    });
-  } catch (error) {
-    // Session might not exist, which is fine
-  }
+  await SessionManager.invalidateSession(token);
 }
 
 /**
  * Delete all sessions for a user (logout from all devices)
+ * Delegates to SessionManager for distributed invalidation via Redis Pub/Sub
  */
 export async function deleteAllUserSessions(userId: string): Promise<void> {
-  // Invalidate all session caches for this user
-  await cache.invalidate(`session:`);
-  
-  // Delete from database
-  await prisma.session.deleteMany({
-    where: { userId },
-  });
+  await SessionManager.invalidateAllUserSessions(userId);
 }
 
 /**
@@ -667,11 +745,10 @@ export async function getUserProjects(
   id: number;
   name: string;
   description: string | null;
-  projectType: string;
   serviceLine: string;
   status: string;
   archived: boolean;
-  clientId: number | null;
+  GSClientID: number | null;
   taxYear: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -680,77 +757,34 @@ export async function getUserProjects(
     TaxAdjustment: number;
   };
 }>> {
-  if (includeCounts) {
-    // Optimized query with counts in single query
-    const projectUsers = await prisma.projectUser.findMany({
-      where: { userId },
-      include: {
-        Project: {
-          include: {
-            _count: {
-              select: {
-                MappedAccount: true,
-                TaxAdjustment: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return projectUsers.map(pu => pu.Project);
-  } else {
-    // Backward compatible - no counts
-    const projectUsers = await prisma.projectUser.findMany({
-      where: { userId },
-      include: {
-        Project: true,
-      },
-    });
-
-    return projectUsers.map(pu => pu.Project);
-  }
+  // This function is not yet fully implemented to match the new Task schema
+  // TODO: Refactor to map Task schema fields to expected output format
+  return [];
 }
 
 /**
- * Check if user has a specific permission
- * Integrates with the permission service
- * @param userId - The user ID
- * @param resource - The resource key
- * @param action - The action to check
- * @returns true if user has permission, false otherwise
+ * @deprecated This function is deprecated. Use checkFeature() from @/lib/permissions/checkFeature instead.
+ * Kept for backward compatibility only - always returns false.
  */
 export async function checkUserPermission(
   userId: string,
   resource: string,
   action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
 ): Promise<boolean> {
-  try {
-    // Dynamic import to avoid circular dependency
-    const { checkUserPermission: checkPermission } = await import('@/lib/services/permissions/permissionService');
-    return await checkPermission(userId, resource, action);
-  } catch (error) {
-    log.error('Error checking user permission', error);
-    return false;
-  }
+  logger.warn('checkUserPermission is deprecated. Use checkFeature() from @/lib/permissions/checkFeature instead.', { resource, action });
+  return false;
 }
 
 /**
- * Require specific permission - throws error if user doesn't have it
- * @param userId - The user ID
- * @param resource - The resource key
- * @param action - The action to check
- * @throws Error if user doesn't have permission
+ * @deprecated This function is deprecated. Use requireFeature() from @/lib/permissions/checkFeature instead.
+ * Kept for backward compatibility only - always throws an error.
  */
 export async function requirePermission(
   userId: string,
   resource: string,
   action: 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
 ): Promise<void> {
-  const hasPermission = await checkUserPermission(userId, resource, action);
-  
-  if (!hasPermission) {
-    throw new Error(`Permission denied: ${action} on ${resource}`);
-  }
+  logger.warn('requirePermission is deprecated. Use requireFeature() from @/lib/permissions/checkFeature instead.', { resource, action });
+  throw new Error(`Permission denied: ${action} on ${resource} - Use feature-based permissions instead`);
 }
 

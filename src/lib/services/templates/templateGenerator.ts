@@ -2,16 +2,17 @@ import { prisma } from '@/lib/db/prisma';
 import { logger } from '@/lib/utils/logger';
 import { getApplicableTemplates } from './templateService';
 import { adaptSection } from './aiAdaptation';
+import { getActiveVersion } from './templateVersionService';
 
-export interface ProjectContext {
-  projectId: number;
-  projectName: string;
-  projectType: string;
+export interface TaskContext {
+  taskId: number;
+  taskName: string;
+  taskType: string;
   serviceLine: string;
   taxYear?: number;
   taxPeriodStart?: Date;
   taxPeriodEnd?: Date;
-  projectDescription?: string;
+  taskDescription?: string;
   clientCode?: string;
   clientName?: string;
   partnerName?: string;
@@ -24,18 +25,114 @@ export interface GeneratedTemplate {
     title: string;
     wasAiAdapted: boolean;
   }>;
+  versionId?: number;  // Version ID used for generation (for audit trail)
+  version?: number;    // Version number used
 }
 
 /**
- * Generate a document from template for a specific project
+ * Generate a document from template for a specific task
+ * Uses active version for generation and locks to that version for audit trail
  */
 export async function generateFromTemplate(
   templateId: number,
-  projectContext: ProjectContext,
+  taskContext: TaskContext,
   useAiAdaptation: boolean = true
 ): Promise<GeneratedTemplate> {
   try {
-    // Get template with sections
+    // Get active version (preferred) or fall back to template sections
+    const activeVersion = await getActiveVersion(templateId);
+    
+    if (activeVersion) {
+      // Use version-based generation
+      logger.info('Generating from active template version', {
+        templateId,
+        versionId: activeVersion.id,
+        version: activeVersion.version,
+      });
+
+      // Filter sections applicable to this task
+      const applicableSections = activeVersion.TemplateSectionVersion.filter((section) => {
+        // If section has no applicability constraints, it's always included
+        if (!section.applicableServiceLines && !section.applicableProjectTypes) {
+          return true;
+        }
+
+        // Check service line applicability
+        if (section.applicableServiceLines) {
+          const serviceLines = JSON.parse(section.applicableServiceLines);
+          if (!serviceLines.includes(taskContext.serviceLine)) {
+            return false;
+          }
+        }
+
+        // Check task type applicability
+        if (section.applicableProjectTypes) {
+          const taskTypes = JSON.parse(section.applicableProjectTypes);
+          if (!taskTypes.includes(taskContext.taskType)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      // Build context data for placeholder replacement
+      const contextData = buildContextData(taskContext);
+
+      // Process sections
+      const processedSections: Array<{
+        sectionKey: string;
+        title: string;
+        content: string;
+        wasAiAdapted: boolean;
+      }> = [];
+
+      for (const section of applicableSections) {
+        let content = section.content;
+        let wasAiAdapted = false;
+
+        // Replace placeholders first
+        content = replacePlaceholders(content, contextData);
+
+        // Apply AI adaptation if needed
+        if (useAiAdaptation && section.isAiAdaptable) {
+          try {
+            content = await adaptSection(section.title, content, taskContext);
+            wasAiAdapted = true;
+          } catch (error) {
+            logger.error(`Failed to adapt section ${section.title}:`, error);
+            // Fall back to placeholder-replaced content
+          }
+        }
+
+        processedSections.push({
+          sectionKey: section.sectionKey,
+          title: section.title,
+          content,
+          wasAiAdapted,
+        });
+      }
+
+      // Combine all sections into final document
+      const finalContent = processedSections
+        .map((section) => section.content)
+        .join('\n\n');
+
+      return {
+        content: finalContent,
+        sectionsUsed: processedSections.map((s) => ({
+          sectionKey: s.sectionKey,
+          title: s.title,
+          wasAiAdapted: s.wasAiAdapted,
+        })),
+        versionId: activeVersion.id,
+        version: activeVersion.version,
+      };
+    }
+
+    // Fallback: Use template directly (legacy behavior for templates without versions)
+    logger.warn('No active version found, using template sections directly (legacy mode)', { templateId });
+    
     const template = await prisma.template.findUnique({
       where: { id: templateId },
       include: {
@@ -49,7 +146,7 @@ export async function generateFromTemplate(
       throw new Error('Template not found');
     }
 
-    // Filter sections applicable to this project
+    // Filter sections applicable to this task
     const applicableSections = template.TemplateSection.filter((section) => {
       // If section has no applicability constraints, it's always included
       if (!section.applicableServiceLines && !section.applicableProjectTypes) {
@@ -59,15 +156,15 @@ export async function generateFromTemplate(
       // Check service line applicability
       if (section.applicableServiceLines) {
         const serviceLines = JSON.parse(section.applicableServiceLines);
-        if (!serviceLines.includes(projectContext.serviceLine)) {
+        if (!serviceLines.includes(taskContext.serviceLine)) {
           return false;
         }
       }
 
-      // Check project type applicability
+      // Check task type applicability
       if (section.applicableProjectTypes) {
-        const projectTypes = JSON.parse(section.applicableProjectTypes);
-        if (!projectTypes.includes(projectContext.projectType)) {
+        const taskTypes = JSON.parse(section.applicableProjectTypes);
+        if (!taskTypes.includes(taskContext.taskType)) {
           return false;
         }
       }
@@ -76,7 +173,7 @@ export async function generateFromTemplate(
     });
 
     // Build context data for placeholder replacement
-    const contextData = buildContextData(projectContext);
+    const contextData = buildContextData(taskContext);
 
     // Process sections
     const processedSections: Array<{
@@ -96,7 +193,7 @@ export async function generateFromTemplate(
       // Apply AI adaptation if needed
       if (useAiAdaptation && section.isAiAdaptable) {
         try {
-          content = await adaptSection(section.title, content, projectContext);
+          content = await adaptSection(section.title, content, taskContext);
           wasAiAdapted = true;
         } catch (error) {
           logger.error(`Failed to adapt section ${section.title}:`, error);
@@ -132,31 +229,29 @@ export async function generateFromTemplate(
 }
 
 /**
- * Get the best matching template for a project
+ * Get the best matching template for a task
  */
-export async function getBestTemplateForProject(
-  projectId: number,
+export async function getBestTemplateForTask(
+  taskId: number,
   templateType: string = 'ENGAGEMENT_LETTER'
 ): Promise<number | null> {
   try {
-    // Get project details
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    // Get task details
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
       select: {
-        projectType: true,
-        serviceLine: true,
+        ServLineCode: true,
       },
     });
 
-    if (!project) {
-      throw new Error('Project not found');
+    if (!task) {
+      throw new Error('Task not found');
     }
 
-    // Get applicable templates
+    // Get applicable templates for this service line
     const templates = await getApplicableTemplates(
       templateType,
-      project.serviceLine,
-      project.projectType
+      task.ServLineCode
     );
 
     if (templates.length === 0) {
@@ -164,28 +259,16 @@ export async function getBestTemplateForProject(
     }
 
     // Prioritize templates:
-    // 1. Exact match (service line + project type)
-    // 2. Service line match only
-    // 3. Project type match only
-    // 4. Global template
-
-    const exactMatch = templates.find(
-      (t) => t.serviceLine === project.serviceLine && t.projectType === project.projectType
-    );
-    if (exactMatch) return exactMatch.id;
+    // 1. Service line match
+    // 2. Global template
 
     const serviceLineMatch = templates.find(
-      (t) => t.serviceLine === project.serviceLine && !t.projectType
+      (t) => t.serviceLine === task.ServLineCode
     );
     if (serviceLineMatch) return serviceLineMatch.id;
 
-    const projectTypeMatch = templates.find(
-      (t) => !t.serviceLine && t.projectType === project.projectType
-    );
-    if (projectTypeMatch) return projectTypeMatch.id;
-
     // Return first global template
-    const globalTemplate = templates.find((t) => !t.serviceLine && !t.projectType);
+    const globalTemplate = templates.find((t) => !t.serviceLine);
     if (globalTemplate) return globalTemplate.id;
 
     // Return first template if available
@@ -197,9 +280,9 @@ export async function getBestTemplateForProject(
 }
 
 /**
- * Build context data from project for placeholder replacement
+ * Build context data from task for placeholder replacement
  */
-function buildContextData(context: ProjectContext): Record<string, string> {
+function buildContextData(context: TaskContext): Record<string, string> {
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -207,8 +290,8 @@ function buildContextData(context: ProjectContext): Record<string, string> {
   });
 
   return {
-    projectName: context.projectName || '',
-    projectType: context.projectType?.replace(/_/g, ' ') || '',
+    taskName: context.taskName || '',
+    taskType: context.taskType?.replace(/_/g, ' ') || '',
     serviceLine: context.serviceLine || '',
     taxYear: context.taxYear?.toString() || '',
     taxPeriodStart: context.taxPeriodStart
@@ -217,7 +300,8 @@ function buildContextData(context: ProjectContext): Record<string, string> {
     taxPeriodEnd: context.taxPeriodEnd
       ? context.taxPeriodEnd.toLocaleDateString()
       : '',
-    projectDescription: context.projectDescription || '',
+    taskDescription: context.taskDescription || '',
+    projectDescription: context.taskDescription || '', // Map taskDescription to projectDescription for template compatibility
     clientName: context.clientName || '',
     clientCode: context.clientCode || '',
     partnerName: context.partnerName || '',
@@ -227,12 +311,43 @@ function buildContextData(context: ProjectContext): Record<string, string> {
 
 /**
  * Replace placeholders in content with actual values
+ * Logs warnings for unknown placeholders (not in data context)
  */
 function replacePlaceholders(
   content: string,
   data: Record<string, string>
 ): string {
   let result = content;
+
+  // Extract all placeholders from content
+  const placeholderRegex = /\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g;
+  const detectedPlaceholders = new Set<string>();
+  let match;
+  
+  while ((match = placeholderRegex.exec(content)) !== null) {
+    if (match[1]) {
+      detectedPlaceholders.add(match[1]);
+    }
+  }
+
+  // Check for unknown placeholders and log warnings
+  const knownPlaceholders = Object.keys(data);
+  const unknownPlaceholders = Array.from(detectedPlaceholders).filter(
+    (p) => !knownPlaceholders.includes(p)
+  );
+
+  if (unknownPlaceholders.length > 0) {
+    logger.warn('Template contains unknown placeholders that will not be replaced', {
+      unknownPlaceholders,
+      knownPlaceholders,
+    });
+  }
+
+  // Log available placeholders for debugging
+  logger.debug('Available placeholders for template generation', {
+    placeholders: knownPlaceholders,
+    detectedInTemplate: Array.from(detectedPlaceholders),
+  });
 
   // Replace all {{placeholder}} patterns
   Object.keys(data).forEach((key) => {
@@ -245,37 +360,282 @@ function replacePlaceholders(
 }
 
 /**
- * Get project context from database
+ * Get task context from database
  */
-export async function getProjectContext(projectId: number): Promise<ProjectContext> {
+export async function getTaskContext(taskId: number): Promise<TaskContext> {
   try {
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
       include: {
         Client: true,
       },
     });
 
-    if (!project) {
-      throw new Error('Project not found');
+    if (!task) {
+      throw new Error('Task not found');
     }
 
     return {
-      projectId: project.id,
-      projectName: project.name,
-      projectType: project.projectType,
-      serviceLine: project.serviceLine,
-      taxYear: project.taxYear || undefined,
-      taxPeriodStart: project.taxPeriodStart || undefined,
-      taxPeriodEnd: project.taxPeriodEnd || undefined,
-      projectDescription: project.description || undefined,
-      clientCode: project.Client?.clientCode || undefined,
-      clientName: project.Client?.clientNameFull || undefined,
-      partnerName: project.Client?.clientPartner || undefined,
+      taskId: task.id,
+      taskName: task.TaskDesc,
+      taskType: task.TaskCode, // Using TaskCode as taskType
+      serviceLine: task.ServLineCode,
+      taxYear: undefined, // Task model doesn't have taxYear field
+      taxPeriodStart: undefined, // Task model doesn't have taxPeriodStart field
+      taxPeriodEnd: undefined, // Task model doesn't have taxPeriodEnd field
+      taskDescription: task.TaskDesc,
+      clientCode: task.Client?.clientCode || undefined,
+      clientName: task.Client?.clientNameFull || undefined,
+      partnerName: task.Client?.clientPartner || undefined,
     };
   } catch (error) {
-    logger.error('Error getting project context:', error);
-    throw new Error('Failed to get project context');
+    logger.error('Error getting task context:', error);
+    throw new Error('Failed to get task context');
+  }
+}
+
+/**
+ * Opportunity context for proposal generation
+ */
+export interface OpportunityContext {
+  opportunityId: number;
+  opportunityTitle: string;
+  opportunityDescription?: string;
+  companyName: string;
+  serviceLine: string;
+  value?: number;
+  expectedCloseDate?: Date;
+  clientCode?: string;
+  clientPartner?: string;
+  clientManager?: string;
+  clientIncharge?: string;
+}
+
+/**
+ * Build context data for proposal generation
+ */
+function buildProposalContextData(
+  context: OpportunityContext
+): Record<string, string> {
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  return {
+    opportunityTitle: context.opportunityTitle || '',
+    companyName: context.companyName || '',
+    serviceLine: context.serviceLine?.replace(/_/g, ' ') || '',
+    proposedValue: context.value?.toLocaleString() || '',
+    expectedCloseDate: context.expectedCloseDate
+      ? context.expectedCloseDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : '',
+    clientCode: context.clientCode || '',
+    partnerName: context.clientPartner || '',
+    managerName: context.clientManager || '',
+    inchargeName: context.clientIncharge || '',
+    currentDate,
+    description: context.opportunityDescription || '',
+  };
+}
+
+/**
+ * Generate proposal from template for BD opportunity
+ */
+export async function generateProposalFromTemplate(
+  opportunityId: number,
+  templateId: number,
+  useAiAdaptation: boolean = false
+): Promise<GeneratedTemplate> {
+  try {
+    // Get opportunity with client data
+    const opportunity = await prisma.bDOpportunity.findUnique({
+      where: { id: opportunityId },
+      include: {
+        Client: {
+          select: {
+            clientCode: true,
+            clientNameFull: true,
+            clientPartner: true,
+            clientManager: true,
+            clientIncharge: true,
+          },
+        },
+      },
+    });
+
+    if (!opportunity) {
+      throw new Error('Opportunity not found');
+    }
+
+    // Build opportunity context
+    const opportunityContext: OpportunityContext = {
+      opportunityId: opportunity.id,
+      opportunityTitle: opportunity.title,
+      opportunityDescription: opportunity.description || undefined,
+      companyName:
+        opportunity.Client?.clientNameFull || opportunity.companyName || 'Company',
+      serviceLine: opportunity.serviceLine,
+      value: opportunity.value || undefined,
+      expectedCloseDate: opportunity.expectedCloseDate || undefined,
+      clientCode: opportunity.Client?.clientCode || undefined,
+      clientPartner: opportunity.Client?.clientPartner || undefined,
+      clientManager: opportunity.Client?.clientManager || undefined,
+      clientIncharge: opportunity.Client?.clientIncharge || undefined,
+    };
+
+    logger.info('Generating proposal from template', {
+      opportunityId,
+      templateId,
+      companyName: opportunityContext.companyName,
+    });
+
+    // Get active version or template sections
+    const activeVersion = await getActiveVersion(templateId);
+
+    if (activeVersion) {
+      // Use version-based generation
+      logger.info('Generating from active template version', {
+        templateId,
+        versionId: activeVersion.id,
+        version: activeVersion.version,
+      });
+
+      // Filter sections applicable to this opportunity
+      const applicableSections = activeVersion.TemplateSectionVersion.filter(
+        (section) => {
+          // If section has no applicability constraints, include it
+          if (!section.applicableServiceLines) {
+            return true;
+          }
+
+          // Check service line applicability
+          const serviceLines = JSON.parse(section.applicableServiceLines);
+          return serviceLines.includes(opportunityContext.serviceLine);
+        }
+      );
+
+      // Build context data for placeholder replacement
+      const contextData = buildProposalContextData(opportunityContext);
+
+      // Process sections
+      const processedSections: Array<{
+        sectionKey: string;
+        title: string;
+        content: string;
+        wasAiAdapted: boolean;
+      }> = [];
+
+      for (const section of applicableSections) {
+        let content = section.content;
+        let wasAiAdapted = false;
+
+        // Replace placeholders
+        content = replacePlaceholders(content, contextData);
+
+        // Apply AI adaptation if needed (optional for proposals)
+        if (useAiAdaptation && section.isAiAdaptable) {
+          try {
+            // Create a task-like context for AI adaptation
+            const adaptContext = {
+              taskName: opportunityContext.opportunityTitle,
+              taskType: 'PROPOSAL',
+              serviceLine: opportunityContext.serviceLine,
+              taskDescription: opportunityContext.opportunityDescription,
+              clientName: opportunityContext.companyName,
+            } as any;
+
+            content = await adaptSection(section.title, content, adaptContext);
+            wasAiAdapted = true;
+          } catch (error) {
+            logger.warn('AI adaptation failed for proposal section, using placeholder-replaced content', {
+              sectionKey: section.sectionKey,
+              error,
+            });
+          }
+        }
+
+        processedSections.push({
+          sectionKey: section.sectionKey,
+          title: section.title,
+          content,
+          wasAiAdapted,
+        });
+      }
+
+      // Combine sections into final document
+      const finalContent = processedSections
+        .map((s) => `# ${s.title}\n\n${s.content}`)
+        .join('\n\n---\n\n');
+
+      return {
+        content: finalContent,
+        sectionsUsed: processedSections.map((s) => ({
+          sectionKey: s.sectionKey,
+          title: s.title,
+          wasAiAdapted: s.wasAiAdapted,
+        })),
+        versionId: activeVersion.id,
+        version: activeVersion.version,
+      };
+    } else {
+      // Fallback to template sections (no version)
+      const template = await prisma.template.findUnique({
+        where: { id: templateId },
+        include: {
+          TemplateSection: {
+            orderBy: { order: 'asc' },
+          },
+        },
+      });
+
+      if (!template) {
+        throw new Error('Template not found');
+      }
+
+      // Filter applicable sections
+      const applicableSections = template.TemplateSection.filter((section) => {
+        if (!section.applicableServiceLines) {
+          return true;
+        }
+
+        const serviceLines = JSON.parse(section.applicableServiceLines);
+        return serviceLines.includes(opportunityContext.serviceLine);
+      });
+
+      const contextData = buildProposalContextData(opportunityContext);
+
+      const processedSections = applicableSections.map((section) => {
+        const content = replacePlaceholders(section.content, contextData);
+        return {
+          sectionKey: section.sectionKey,
+          title: section.title,
+          content,
+          wasAiAdapted: false,
+        };
+      });
+
+      const finalContent = processedSections
+        .map((s) => `# ${s.title}\n\n${s.content}`)
+        .join('\n\n---\n\n');
+
+      return {
+        content: finalContent,
+        sectionsUsed: processedSections.map((s) => ({
+          sectionKey: s.sectionKey,
+          title: s.title,
+          wasAiAdapted: s.wasAiAdapted,
+        })),
+      };
+    }
+  } catch (error) {
+    logger.error('Error generating proposal from template', error);
+    throw new Error('Failed to generate proposal from template');
   }
 }
 

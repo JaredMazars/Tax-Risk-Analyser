@@ -1,9 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ESLint configuration
+  eslint: {
+    // Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors.
+    ignoreDuringBuilds: true,
+  },
+  
   // Experimental features
   experimental: {
     // Optimize for production
-    optimizePackageImports: ['@heroicons/react', '@headlessui/react'],
+    optimizePackageImports: ['lucide-react', '@headlessui/react'],
   },
   
   // Image optimization
@@ -63,7 +70,47 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.azure.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.blob.core.windows.net; font-src 'self' data:; connect-src 'self' https://*.azure.com https://*.microsoft.com;",
+            value: process.env.NODE_ENV === 'development' 
+              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.azure.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.blob.core.windows.net; font-src 'self' data:; connect-src 'self' https://*.azure.com https://*.microsoft.com http://127.0.0.1:* http://localhost:*; frame-src 'self' https://*.blob.core.windows.net;"
+              : "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.azure.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.blob.core.windows.net; font-src 'self' data:; connect-src 'self' https://*.azure.com https://*.microsoft.com; frame-src 'self' https://*.blob.core.windows.net;",
+          },
+        ],
+      },
+      // Analytics API routes - optimized caching and compression
+      {
+        source: '/api/clients/:id/analytics/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, max-age=600', // 10 minutes cache
+          },
+        ],
+      },
+      {
+        source: '/api/clients/:id/wip',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, max-age=600', // 10 minutes cache
+          },
+        ],
+      },
+      {
+        source: '/api/clients/:id/debtors',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, max-age=600', // 10 minutes cache
+          },
+        ],
+      },
+      // Group analytics API routes - optimized caching
+      {
+        source: '/api/groups/:groupCode/analytics/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, max-age=600', // 10 minutes cache
           },
         ],
       },

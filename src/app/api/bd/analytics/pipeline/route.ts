@@ -3,32 +3,30 @@
  * GET /api/bd/analytics/pipeline - Get pipeline metrics by stage
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
+export const dynamic = 'force-dynamic';
+
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { getPipelineMetrics } from '@/lib/services/bd/analyticsService';
+import { BDAnalyticsFiltersSchema } from '@/lib/validation/schemas';
 
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+/**
+ * GET /api/bd/analytics/pipeline
+ * Get pipeline metrics by stage
+ */
+export const GET = secureRoute.query({
+  feature: Feature.ACCESS_BD,
+  handler: async (request, { user }) => {
     const { searchParams } = new URL(request.url);
 
-    const filters = {
+    const filters = BDAnalyticsFiltersSchema.parse({
       serviceLine: searchParams.get('serviceLine') || undefined,
       assignedTo: searchParams.get('assignedTo') || undefined,
-    };
+    });
 
     const metrics = await getPipelineMetrics(filters);
 
     return NextResponse.json(successResponse(metrics));
-  } catch (error) {
-    return handleApiError(error, 'GET /api/bd/analytics/pipeline');
-  }
-}
-
-
+  },
+});

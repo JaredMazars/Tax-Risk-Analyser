@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isSystemAdmin } from '@/lib/services/auth/auth';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
+import { successResponse } from '@/lib/utils/apiUtils';
+import { AppError, ErrorCodes } from '@/lib/utils/errorHandler';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
@@ -11,36 +12,52 @@ export const dynamic = 'force-dynamic';
  * Get detailed user information
  * Admin only
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ userId: string }> }
-) {
-  try {
-    const currentUser = await getCurrentUser();
-    
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const GET = secureRoute.queryWithParams<{ userId: string }>({
+  feature: Feature.MANAGE_USERS,
+  handler: async (request, { params }) => {
+    if (!params.userId) {
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    const isAdmin = await isSystemAdmin(currentUser.id);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const params = await context.params;
-    const user = await prisma.user.findUnique({
+    const targetUser = await prisma.user.findUnique({
       where: { id: params.userId },
-      include: {
-        ProjectUser: {
-          include: {
-            Project: {
-              include: {
-                Client: true,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        TaskTeam: {
+          select: {
+            id: true,
+            role: true,
+            createdAt: true,
+            Task: {
+              select: {
+                id: true,
+                TaskDesc: true,
+                TaskCode: true,
+                ServLineDesc: true,
+                Client: {
+                  select: {
+                    id: true,
+                    GSClientID: true,
+                    clientCode: true,
+                    clientNameFull: true,
+                  },
+                },
               },
             },
           },
+          take: 100,
+          orderBy: { createdAt: 'desc' },
         },
         Session: {
+          select: {
+            id: true,
+            expires: true,
+          },
           orderBy: {
             expires: 'desc',
           },
@@ -49,52 +66,38 @@ export async function GET(
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!targetUser) {
+      throw new AppError(404, 'User not found', ErrorCodes.NOT_FOUND);
     }
 
-    return NextResponse.json({
-      success: true,
-      data: user,
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+    return NextResponse.json(successResponse(targetUser));
+  },
+});
 
 /**
  * DELETE /api/admin/users/[userId]
  * Remove user from all projects
  * Admin only
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ userId: string }> }
-) {
-  try {
-    const currentUser = await getCurrentUser();
-    
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const DELETE = secureRoute.mutationWithParams({
+  feature: Feature.MANAGE_USERS,
+  handler: async (request, { user, params }) => {
+    if (!params.userId) {
+      throw new AppError(400, 'User ID is required', ErrorCodes.VALIDATION_ERROR);
     }
 
-    const isAdmin = await isSystemAdmin(currentUser.id);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Prevent self-deletion
+    if (user.id === params.userId) {
+      throw new AppError(400, 'Cannot remove yourself from projects', ErrorCodes.VALIDATION_ERROR);
     }
 
-    const params = await context.params;
     // Remove user from all projects
-    await prisma.projectUser.deleteMany({
+    await prisma.taskTeam.deleteMany({
       where: { userId: params.userId },
     });
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json(successResponse({
       message: 'User removed from all projects',
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
-
+    }));
+  },
+});

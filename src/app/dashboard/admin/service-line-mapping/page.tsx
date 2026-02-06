@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import {
-  ArrowPathIcon,
-  MagnifyingGlassIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ChartBarIcon,
-  LinkIcon,
-} from '@heroicons/react/24/outline';
+  RefreshCw,
+  Search,
+  CheckCircle,
+  XCircle,
+  BarChart3,
+  Link,
+} from 'lucide-react';
+import { AlertModal } from '@/components/shared/AlertModal';
+import { LoadingSpinner } from '@/components/ui';
 
 interface ExternalServiceLine {
   id: number;
@@ -17,6 +19,9 @@ interface ExternalServiceLine {
   GLPrefix: string | null;
   SLGroup: string | null;
   masterCode: string | null;
+  SubServlineGroupCode: string | null;
+  SubServlineGroupDesc: string | null;
+  taskCount?: number;
   masterServiceLine: {
     code: string;
     name: string;
@@ -59,6 +64,19 @@ export default function ServiceLineMappingPage() {
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -87,7 +105,12 @@ export default function ServiceLineMappingPage() {
       }
     } catch (error) {
       console.error('Failed to fetch service line data:', error);
-      alert('Failed to load service line mapping data');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error Loading Data',
+        message: 'Failed to load service line mapping data. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +131,12 @@ export default function ServiceLineMappingPage() {
       setSelectedExternal([]);
     } catch (error) {
       console.error('Failed to update mapping:', error);
-      alert('Failed to update mapping');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to update mapping. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -136,7 +164,12 @@ export default function ServiceLineMappingPage() {
       setShowBulkConfirm(false);
     } catch (error) {
       console.error('Failed to bulk map:', error);
-      alert('Failed to bulk map service lines');
+      setAlertModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Failed to bulk map service lines. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -167,6 +200,8 @@ export default function ServiceLineMappingPage() {
   const filteredExternal = externalServiceLines.filter((external) => {
     const matchesSearch =
       !searchTerm ||
+      external.SubServlineGroupCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      external.SubServlineGroupDesc?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       external.ServLineCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       external.ServLineDesc?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       external.SLGroup?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -188,11 +223,11 @@ export default function ServiceLineMappingPage() {
 
   return (
     <div className="min-h-screen bg-forvis-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-3 mb-2">
-            <LinkIcon className="h-8 w-8 text-forvis-blue-600" />
+            <Link className="h-8 w-8 text-forvis-blue-600" />
             <h1 className="text-3xl font-bold text-forvis-gray-900">
               Service Line Mapping
             </h1>
@@ -205,75 +240,75 @@ export default function ServiceLineMappingPage() {
         {/* Statistics Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div
-            className="rounded-lg p-4 shadow-corporate text-white"
-            style={{ background: 'linear-gradient(to bottom right, #2E5AAC, #25488A)' }}
+            className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+            style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium opacity-90">Total External</p>
-                <p className="text-2xl font-bold mt-1">{stats.total}</p>
+                <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Total External</p>
+                <p className="text-2xl font-bold mt-2 text-forvis-blue-600">{stats.total}</p>
               </div>
               <div
-                className="rounded-full p-2"
-                style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}
+                className="rounded-full p-2.5"
+                style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
               >
-                <ChartBarIcon className="w-5 h-5" />
+                <BarChart3 className="w-5 h-5 text-white" />
               </div>
             </div>
           </div>
 
           <div
-            className="rounded-lg p-4 shadow-corporate text-white"
-            style={{ background: 'linear-gradient(to bottom right, #16A34A, #15803D)' }}
+            className="rounded-lg p-4 shadow-corporate border border-green-100"
+            style={{ background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)' }}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium opacity-90">Mapped</p>
-                <p className="text-2xl font-bold mt-1">{stats.mapped}</p>
+                <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Mapped</p>
+                <p className="text-2xl font-bold mt-2 text-green-600">{stats.mapped}</p>
               </div>
               <div
-                className="rounded-full p-2"
-                style={{ backgroundColor: 'rgba(21, 128, 61, 0.5)' }}
+                className="rounded-full p-2.5"
+                style={{ background: 'linear-gradient(to bottom right, #16A34A, #15803D)' }}
               >
-                <CheckCircleIcon className="w-5 h-5" />
+                <CheckCircle className="w-5 h-5 text-white" />
               </div>
             </div>
           </div>
 
           <div
-            className="rounded-lg p-4 shadow-corporate text-white"
-            style={{ background: 'linear-gradient(to bottom right, #EAB308, #CA8A04)' }}
+            className="rounded-lg p-4 shadow-corporate border border-yellow-100"
+            style={{ background: 'linear-gradient(135deg, #FEFCE8 0%, #FEF9C3 100%)' }}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium opacity-90">Unmapped</p>
-                <p className="text-2xl font-bold mt-1">{stats.unmapped}</p>
+                <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Unmapped</p>
+                <p className="text-2xl font-bold mt-2 text-yellow-600">{stats.unmapped}</p>
               </div>
               <div
-                className="rounded-full p-2"
-                style={{ backgroundColor: 'rgba(202, 138, 4, 0.5)' }}
+                className="rounded-full p-2.5"
+                style={{ background: 'linear-gradient(to bottom right, #EAB308, #CA8A04)' }}
               >
-                <XCircleIcon className="w-5 h-5" />
+                <XCircle className="w-5 h-5 text-white" />
               </div>
             </div>
           </div>
 
           <div
-            className="rounded-lg p-4 shadow-corporate text-white"
-            style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
+            className="rounded-lg p-4 shadow-corporate border border-forvis-blue-100"
+            style={{ background: 'linear-gradient(135deg, #F0F7FD 0%, #E0EDFB 100%)' }}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium opacity-90">Completion</p>
-                <p className="text-2xl font-bold mt-1">
+                <p className="text-xs font-medium text-forvis-gray-600 uppercase tracking-wider">Completion</p>
+                <p className="text-2xl font-bold mt-2 text-forvis-blue-600">
                   {stats.total > 0 ? Math.round((stats.mapped / stats.total) * 100) : 0}%
                 </p>
               </div>
               <div
-                className="rounded-full p-2"
-                style={{ backgroundColor: 'rgba(28, 54, 103, 0.5)' }}
+                className="rounded-full p-2.5"
+                style={{ background: 'linear-gradient(to bottom right, #5B93D7, #2E5AAC)' }}
               >
-                <ArrowPathIcon className="w-5 h-5" />
+                <RefreshCw className="w-5 h-5 text-white" />
               </div>
             </div>
           </div>
@@ -284,7 +319,7 @@ export default function ServiceLineMappingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
               <input
                 type="text"
                 placeholder="Search external service lines..."
@@ -339,7 +374,7 @@ export default function ServiceLineMappingPage() {
         {/* Two-Column Layout */}
         {isLoading ? (
           <div className="text-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-forvis-blue-600 mx-auto"></div>
+            <LoadingSpinner size="lg" />
             <p className="mt-4 text-forvis-gray-600">Loading service line data...</p>
           </div>
         ) : (
@@ -349,7 +384,7 @@ export default function ServiceLineMappingPage() {
               <div
                 className="px-4 py-3 flex items-center justify-between"
                 style={{
-                  background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)',
+                  background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)',
                 }}
               >
                 <h2 className="text-lg font-bold text-white">
@@ -388,7 +423,7 @@ export default function ServiceLineMappingPage() {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
                             <h3 className="text-sm font-bold text-forvis-gray-900">
-                              {external.ServLineCode || 'N/A'}
+                              {external.SubServlineGroupCode || 'N/A'}
                             </h3>
                             {external.masterCode ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -401,19 +436,39 @@ export default function ServiceLineMappingPage() {
                             )}
                           </div>
                           <p className="text-sm text-forvis-gray-700 mb-2">
-                            {external.ServLineDesc || 'No description'}
+                            {external.SubServlineGroupDesc || 'No description'}
                           </p>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                            <div>
+                              <span className="text-forvis-gray-500">Service Line:</span>{' '}
+                              <span className="font-medium text-forvis-gray-800">
+                                {external.ServLineCode || 'N/A'}
+                              </span>
+                            </div>
                             <div>
                               <span className="text-forvis-gray-500">SL Group:</span>{' '}
                               <span className="font-medium text-forvis-gray-800">
                                 {external.SLGroup || 'N/A'}
                               </span>
                             </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div>
+                              <span className="text-forvis-gray-500">SL Description:</span>{' '}
+                              <span className="font-medium text-forvis-gray-800">
+                                {external.ServLineDesc || 'N/A'}
+                              </span>
+                            </div>
                             <div>
                               <span className="text-forvis-gray-500">GL Prefix:</span>{' '}
                               <span className="font-medium text-forvis-gray-800">
                                 {external.GLPrefix || 'N/A'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-forvis-gray-500">Tasks:</span>{' '}
+                              <span className="font-medium text-forvis-blue-600">
+                                {external.taskCount || 0}
                               </span>
                             </div>
                           </div>
@@ -449,7 +504,7 @@ export default function ServiceLineMappingPage() {
               <div
                 className="px-4 py-3"
                 style={{
-                  background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 50%, #1C3667 100%)',
+                  background: 'linear-gradient(135deg, #5B93D7 0%, #2E5AAC 100%)',
                 }}
               >
                 <h2 className="text-lg font-bold text-white">
@@ -525,7 +580,7 @@ export default function ServiceLineMappingPage() {
         {/* Bulk Mapping Confirmation Modal */}
         {showBulkConfirm && selectedMaster && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <div className="max-w-lg w-full p-6 bg-white rounded-lg shadow-corporate-lg">
               <h2 className="text-xl font-bold text-forvis-gray-900 mb-4">
                 Confirm Bulk Mapping
               </h2>
@@ -547,14 +602,14 @@ export default function ServiceLineMappingPage() {
                     setSelectedMaster(null);
                   }}
                   disabled={isUpdating}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 text-sm font-medium text-forvis-gray-700 bg-forvis-gray-100 rounded-lg hover:bg-forvis-gray-200 disabled:opacity-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleBulkMapping}
                   disabled={isUpdating}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-forvis-blue-600 rounded-lg hover:bg-forvis-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {isUpdating ? 'Mapping...' : 'Confirm'}
                 </button>
@@ -562,6 +617,15 @@ export default function ServiceLineMappingPage() {
             </div>
           </div>
         )}
+
+        {/* Modals */}
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+          title={alertModal.title}
+          message={alertModal.message}
+          variant={alertModal.variant}
+        />
       </div>
     </div>
   );

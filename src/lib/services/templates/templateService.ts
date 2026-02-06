@@ -4,7 +4,6 @@ import { logger } from '@/lib/utils/logger';
 export interface TemplateFilter {
   type?: string;
   serviceLine?: string;
-  projectType?: string;
   active?: boolean;
   search?: string;
 }
@@ -14,8 +13,6 @@ export interface CreateTemplateData {
   description?: string;
   type: string;
   serviceLine?: string;
-  projectType?: string;
-  content: string;
   active?: boolean;
   createdBy: string;
 }
@@ -25,8 +22,6 @@ export interface UpdateTemplateData {
   description?: string;
   type?: string;
   serviceLine?: string | null;
-  projectType?: string | null;
-  content?: string;
   active?: boolean;
 }
 
@@ -61,7 +56,6 @@ export async function getTemplates(filter?: TemplateFilter) {
     interface TemplateWhere {
       type?: string;
       serviceLine?: string;
-      projectType?: string;
       active?: boolean;
       OR?: Array<{
         name?: { contains: string };
@@ -79,10 +73,6 @@ export async function getTemplates(filter?: TemplateFilter) {
       where.serviceLine = filter.serviceLine;
     }
 
-    if (filter?.projectType) {
-      where.projectType = filter.projectType;
-    }
-
     if (filter?.active !== undefined) {
       where.active = filter.active;
     }
@@ -95,13 +85,34 @@ export async function getTemplates(filter?: TemplateFilter) {
     }
 
     const templates = await prisma.template.findMany({
+      take: 100,
       where,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        active: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
         TemplateSection: {
+          select: {
+            id: true,
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
           orderBy: { order: 'asc' },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
     return templates;
@@ -118,8 +129,28 @@ export async function getTemplateById(id: number) {
   try {
     const template = await prisma.template.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        active: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
         TemplateSection: {
+          select: {
+            id: true,
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
           orderBy: { order: 'asc' },
         },
       },
@@ -143,13 +174,32 @@ export async function createTemplate(data: CreateTemplateData) {
         description: data.description,
         type: data.type,
         serviceLine: data.serviceLine,
-        projectType: data.projectType,
-        content: data.content,
         active: data.active ?? true,
         createdBy: data.createdBy,
+        updatedAt: new Date(),
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        active: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
         TemplateSection: {
+          select: {
+            id: true,
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
           orderBy: { order: 'asc' },
         },
       },
@@ -175,12 +225,30 @@ export async function updateTemplate(id: number, data: UpdateTemplateData) {
         ...(data.description !== undefined && { description: data.description }),
         ...(data.type && { type: data.type }),
         ...(data.serviceLine !== undefined && { serviceLine: data.serviceLine }),
-        ...(data.projectType !== undefined && { projectType: data.projectType }),
-        ...(data.content && { content: data.content }),
         ...(data.active !== undefined && { active: data.active }),
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        active: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
         TemplateSection: {
+          select: {
+            id: true,
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
           orderBy: { order: 'asc' },
         },
       },
@@ -215,6 +283,16 @@ export async function deleteTemplate(id: number) {
  */
 export async function createTemplateSection(data: CreateTemplateSectionData) {
   try {
+    // Verify template exists
+    const templateExists = await prisma.template.findUnique({
+      where: { id: data.templateId },
+      select: { id: true },
+    });
+
+    if (!templateExists) {
+      throw new Error('Template not found');
+    }
+
     const section = await prisma.templateSection.create({
       data: {
         templateId: data.templateId,
@@ -230,6 +308,21 @@ export async function createTemplateSection(data: CreateTemplateSectionData) {
         applicableProjectTypes: data.applicableProjectTypes
           ? JSON.stringify(data.applicableProjectTypes)
           : null,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        templateId: true,
+        sectionKey: true,
+        title: true,
+        content: true,
+        isRequired: true,
+        isAiAdaptable: true,
+        order: true,
+        applicableServiceLines: true,
+        applicableProjectTypes: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -283,6 +376,20 @@ export async function updateTemplateSection(
     const section = await prisma.templateSection.update({
       where: { id },
       data: updateData,
+      select: {
+        id: true,
+        templateId: true,
+        sectionKey: true,
+        title: true,
+        content: true,
+        isRequired: true,
+        isAiAdaptable: true,
+        order: true,
+        applicableServiceLines: true,
+        applicableProjectTypes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     logger.info(`Updated template section: ${section.title} (ID: ${section.id})`);
@@ -316,6 +423,21 @@ export async function getTemplateSections(templateId: number) {
   try {
     const sections = await prisma.templateSection.findMany({
       where: { templateId },
+      take: 100,
+      select: {
+        id: true,
+        templateId: true,
+        sectionKey: true,
+        title: true,
+        content: true,
+        isRequired: true,
+        isAiAdaptable: true,
+        order: true,
+        applicableServiceLines: true,
+        applicableProjectTypes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { order: 'asc' },
     });
 
@@ -358,12 +480,11 @@ export function validateMarkdown(content: string): boolean {
 }
 
 /**
- * Get templates applicable to a specific service line and project type
+ * Get templates applicable to a specific service line
  */
 export async function getApplicableTemplates(
   type: string,
-  serviceLine?: string,
-  projectType?: string
+  serviceLine?: string
 ) {
   try {
     interface ApplicableTemplateWhere {
@@ -371,7 +492,6 @@ export async function getApplicableTemplates(
       active: boolean;
       OR: Array<{
         serviceLine?: string | null;
-        projectType?: string | null;
       }>;
     }
 
@@ -379,14 +499,10 @@ export async function getApplicableTemplates(
       type,
       active: true,
       OR: [
-        // Template with no specific service line/project type (global)
-        { serviceLine: null, projectType: null },
-        // Template matching service line only
-        { serviceLine, projectType: null },
-        // Template matching project type only
-        { serviceLine: null, projectType },
-        // Template matching both
-        { serviceLine, projectType },
+        // Global template (no specific service line)
+        { serviceLine: null },
+        // Template matching service line
+        ...(serviceLine ? [{ serviceLine }] : []),
       ],
     };
 
@@ -404,6 +520,98 @@ export async function getApplicableTemplates(
   } catch (error) {
     logger.error('Error fetching applicable templates:', error);
     throw new Error('Failed to fetch applicable templates');
+  }
+}
+
+/**
+ * Copy an existing template with all its sections
+ */
+export async function copyTemplate(id: number, createdBy: string) {
+  try {
+    // Get the original template with all sections
+    const originalTemplate = await prisma.template.findUnique({
+      where: { id },
+      select: {
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        TemplateSection: {
+          select: {
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!originalTemplate) {
+      throw new Error('Template not found');
+    }
+
+    // Create the new template with copied data
+    const copiedTemplate = await prisma.template.create({
+      data: {
+        name: `${originalTemplate.name} (Copy)`,
+        description: originalTemplate.description,
+        type: originalTemplate.type,
+        serviceLine: originalTemplate.serviceLine,
+        active: false, // Set to inactive by default
+        createdBy,
+        updatedAt: new Date(),
+        TemplateSection: {
+          create: originalTemplate.TemplateSection.map((section) => ({
+            sectionKey: section.sectionKey,
+            title: section.title,
+            content: section.content,
+            isRequired: section.isRequired,
+            isAiAdaptable: section.isAiAdaptable,
+            order: section.order,
+            applicableServiceLines: section.applicableServiceLines,
+            applicableProjectTypes: section.applicableProjectTypes,
+            updatedAt: new Date(),
+          })),
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        serviceLine: true,
+        active: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+        TemplateSection: {
+          select: {
+            id: true,
+            sectionKey: true,
+            title: true,
+            content: true,
+            isRequired: true,
+            isAiAdaptable: true,
+            order: true,
+            applicableServiceLines: true,
+            applicableProjectTypes: true,
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    logger.info(`Copied template: ${originalTemplate.name} -> ${copiedTemplate.name} (ID: ${copiedTemplate.id})`);
+    return copiedTemplate;
+  } catch (error) {
+    logger.error('Error copying template:', error);
+    throw new Error('Failed to copy template');
   }
 }
 

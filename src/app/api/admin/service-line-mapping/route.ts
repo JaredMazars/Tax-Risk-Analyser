@@ -1,36 +1,48 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { checkUserPermission } from '@/lib/services/permissions/permissionService';
+export const dynamic = 'force-dynamic';
+
+import { NextResponse } from 'next/server';
 import { successResponse } from '@/lib/utils/apiUtils';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, Feature } from '@/lib/api/secureRoute';
 import { getAllExternalServiceLines } from '@/lib/utils/serviceLineExternal';
 import { getAllServiceLines } from '@/lib/utils/serviceLine';
+import { prisma } from '@/lib/db/prisma';
 
-export async function GET(request: NextRequest) {
-  try {
-    // 1. Authenticate
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. Check permission
-    const hasPermission = await checkUserPermission(
-      user.id,
-      'admin.service-line-mapping',
-      'READ'
-    );
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 3. Fetch external service lines
+/**
+ * GET /api/admin/service-line-mapping
+ * Get all external service lines with their master service line mappings
+ */
+export const GET = secureRoute.query({
+  feature: Feature.MANAGE_SERVICE_LINES,
+  handler: async (request, { user }) => {
     const externalServiceLines = await getAllExternalServiceLines();
-
-    // 4. Fetch master service lines for reference
     const masterServiceLines = await getAllServiceLines();
 
-    // 5. Enrich external service lines with master details
+    // Get all unique ServLineCodes for task count query
+    const allServLineCodes = Array.from(
+      new Set(
+        externalServiceLines
+          .map((e) => e.ServLineCode)
+          .filter((code): code is string => code !== null)
+      )
+    );
+
+    // Fetch task counts in a single aggregated query (active tasks only)
+    const taskCounts = allServLineCodes.length > 0
+      ? await prisma.task.groupBy({
+          by: ['ServLineCode'],
+          where: {
+            ServLineCode: { in: allServLineCodes },
+            Active: 'Yes',
+          },
+          _count: true,
+        })
+      : [];
+
+    // Create a map of ServLineCode -> task count
+    const taskCountMap = new Map<string, number>(
+      taskCounts.map((item) => [item.ServLineCode, item._count])
+    );
+
     const enrichedData = externalServiceLines.map((external) => {
       const master = external.masterCode
         ? masterServiceLines.find((m) => m.code === external.masterCode)
@@ -39,6 +51,9 @@ export async function GET(request: NextRequest) {
       return {
         ...external,
         masterServiceLine: master || null,
+        taskCount: external.ServLineCode
+          ? taskCountMap.get(external.ServLineCode) || 0
+          : 0,
       };
     });
 
@@ -48,18 +63,5 @@ export async function GET(request: NextRequest) {
         masterServiceLines,
       })
     );
-  } catch (error) {
-    return handleApiError(error, 'GET /api/admin/service-line-mapping');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
+  },
+});

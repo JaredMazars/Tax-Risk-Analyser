@@ -3,10 +3,21 @@ import ExcelJS from 'exceljs';
 import { generateObject } from 'ai';
 import { models } from '@/lib/ai/config';
 import { AccountMappingSchema } from '@/lib/ai/schemas';
-import { mappingGuide } from '@/lib/services/projects/mappingGuide';
+import { mappingGuide } from '@/lib/services/tasks/mappingGuide';
 import { prisma } from '@/lib/db/prisma';
-import { logInfo, logError } from '@/lib/utils/logger';
-import { determineSectionAndSubsection } from '@/lib/services/opinions/sectionMapper';
+import { logger } from '@/lib/utils/logger';
+import { determineSectionAndSubsection } from '@/lib/tools/tax-opinion/services/sectionMapper';
+import { getCurrentUser } from '@/lib/services/auth/auth';
+import { checkFeature } from '@/lib/permissions/checkFeature';
+import { Feature } from '@/lib/permissions/features';
+import { handleApiError, AppError, ErrorCodes } from '@/lib/utils/errorHandler';
+import { checkRateLimit, RateLimitPresets } from '@/lib/utils/rateLimit';
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const ALLOWED_MIME_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+];
 
 // Helper to convert worksheet to JSON
 function sheetToJson(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
@@ -23,9 +34,6 @@ function sheetToJson(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
     row.eachCell((cell, colNumber) => {
       const header = headers[colNumber];
       if (header) {
-        // Handle rich text or other cell types if necessary, but .value usually works
-        // For simple values, .value is fine. For formulas, .result might be needed but usually .value contains the result if cached
-        // Or .text for string representation
         rowData[header] = cell.value;
       }
     });
@@ -34,7 +42,7 @@ function sheetToJson(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
   return data;
 }
 
-async function handleStreamingRequest(trialBalanceFile: File, projectId: number) {
+async function handleStreamingRequest(trialBalanceFile: File, taskId: number, userId: string) {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -163,14 +171,14 @@ Do not include any explanation, commentary, or text outside the JSON array.
         await prisma.$transaction(async (tx) => {
           // Delete existing mapped accounts for this project
           await tx.mappedAccount.deleteMany({
-            where: { projectId }
+            where: { taskId }
           });
 
           // Use createMany for better performance and to avoid transaction timeout
           if (enrichedResults.length > 0) {
             await tx.mappedAccount.createMany({
               data: enrichedResults.map(item => ({
-                projectId,
+                taskId,
                 accountCode: item.accountCode.toString(),
                 accountName: item.accountName,
                 section: item.section,
@@ -178,6 +186,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
                 balance: item.balance,
                 priorYearBalance: item.priorYearBalance || 0,
                 sarsItem: item.sarsItem,
+                updatedAt: new Date(),
               }))
             });
           }
@@ -214,51 +223,65 @@ Do not include any explanation, commentary, or text outside the JSON array.
 
 export async function POST(request: NextRequest) {
   try {
-    logInfo('Starting POST /api/map');
+    // 1. Authenticate
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 2. Check feature permission
+    const hasPermission = await checkFeature(user.id, Feature.MANAGE_TASKS);
+    if (!hasPermission) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
+    // 3. Rate limiting for AI operations
+    await checkRateLimit(request, RateLimitPresets.AI_ENDPOINTS);
+
+    logger.info('Starting POST /api/map', { userId: user.id });
     const formData = await request.formData();
     const trialBalanceFile = formData.get('trialBalance') as File;
-    const projectIdStr = formData.get('projectId') as string;
+    const taskIdStr = formData.get('taskId') as string;
     const streamProgress = formData.get('stream') === 'true';
-    logInfo('Processing mapping request', { projectId: projectIdStr, stream: streamProgress });
+    logger.info('Processing mapping request', { taskId: taskIdStr, stream: streamProgress, userId: user.id });
 
     if (!trialBalanceFile) {
-      return NextResponse.json(
-        { error: 'Trial Balance file is required.' },
-        { status: 400 }
-      );
+      throw new AppError(400, 'Trial Balance file is required.', ErrorCodes.VALIDATION_ERROR);
     }
 
-    if (!projectIdStr) {
-      return NextResponse.json(
-        { error: 'Project ID is required.' },
-        { status: 400 }
-      );
+    // Validate file type
+    if (!ALLOWED_MIME_TYPES.includes(trialBalanceFile.type)) {
+      throw new AppError(400, 'Invalid file type. Only Excel files (.xlsx, .xls) are supported.', ErrorCodes.VALIDATION_ERROR);
     }
 
-    // Convert projectId to number
-    const projectId = Number.parseInt(projectIdStr, 10);
-    if (Number.isNaN(projectId)) {
-      return NextResponse.json(
-        { error: 'Invalid Project ID format.' },
-        { status: 400 }
-      );
+    // Validate file size
+    if (trialBalanceFile.size > MAX_FILE_SIZE) {
+      throw new AppError(400, `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`, ErrorCodes.VALIDATION_ERROR);
     }
 
-    // Verify project exists
-    const project = await prisma.project.findUnique({
-      where: { id: projectId }
+    if (!taskIdStr) {
+      throw new AppError(400, 'Task ID is required.', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    // Convert taskId to number
+    const taskId = Number.parseInt(taskIdStr, 10);
+    if (Number.isNaN(taskId)) {
+      throw new AppError(400, 'Invalid Task ID format.', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    // Verify task exists
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true },
     });
 
-    if (!project) {
-      return NextResponse.json(
-        { error: 'Project not found.' },
-        { status: 404 }
-      );
+    if (!task) {
+      throw new AppError(404, 'Task not found.', ErrorCodes.NOT_FOUND);
     }
 
     // If streaming is requested, return a streaming response
     if (streamProgress) {
-      return handleStreamingRequest(trialBalanceFile, projectId);
+      return handleStreamingRequest(trialBalanceFile, taskId, user.id);
     }
 
     // Parse Trial Balance
@@ -268,7 +291,7 @@ export async function POST(request: NextRequest) {
 
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
-      throw new Error('No sheets found in the trial balance file');
+      throw new AppError(400, 'No sheets found in the trial balance file', ErrorCodes.VALIDATION_ERROR);
     }
 
     const trialBalanceData = sheetToJson(worksheet);
@@ -288,9 +311,9 @@ export async function POST(request: NextRequest) {
     );
 
     // Process Income Statement first
-    logInfo('Processing Income Statement', { rowCount: incomeStatementData.length });
+    logger.info('Processing Income Statement', { rowCount: incomeStatementData.length, userId: user.id });
     const incomeStatementPrompt = generatePrompt(incomeStatementData, mappingGuide.incomeStatement, 'Income Statement');
-    logInfo('Calling AI SDK for Income Statement');
+    logger.info('Calling AI SDK for Income Statement', { userId: user.id });
     let incomeStatementResult;
     try {
       const result = await generateObject({
@@ -332,20 +355,20 @@ Do not include any explanation, commentary, or text outside the JSON array.
         type: 'type' in apiError ? apiError.type : undefined,
       } : {};
       
-      logError('AI SDK Error for Income Statement', apiError, errorDetails);
+      logger.error('AI SDK Error for Income Statement', { error: apiError, ...errorDetails, userId: user.id });
       
       const errorMessage = apiError instanceof Error ? apiError.message : String(apiError);
       throw new Error(`AI SDK Error: ${errorMessage}`);
     }
 
-    logInfo('Income Statement mapping completed');
+    logger.info('Income Statement mapping completed', { userId: user.id });
     const incomeStatementMapped = incomeStatementResult.accounts;
-    logInfo('Income Statement accounts mapped', { count: incomeStatementMapped.length });
+    logger.info('Income Statement accounts mapped', { count: incomeStatementMapped.length, userId: user.id });
 
     // Process Balance Sheet
-    logInfo('Processing Balance Sheet', { rowCount: balanceSheetData.length });
+    logger.info('Processing Balance Sheet', { rowCount: balanceSheetData.length, userId: user.id });
     const balanceSheetPrompt = generatePrompt(balanceSheetData, mappingGuide.balanceSheet, 'Balance Sheet');
-    logInfo('Calling AI SDK for Balance Sheet');
+    logger.info('Calling AI SDK for Balance Sheet', { userId: user.id });
     const { object: balanceSheetResult } = await generateObject({
       model: models.mini,
       schema: AccountMappingSchema,
@@ -377,9 +400,9 @@ Do not include any explanation, commentary, or text outside the JSON array.
       prompt: balanceSheetPrompt,
     });
 
-    logInfo('Balance Sheet mapping completed');
+    logger.info('Balance Sheet mapping completed', { userId: user.id });
     const balanceSheetMapped = balanceSheetResult.accounts;
-    logInfo('Balance Sheet accounts mapped', { count: balanceSheetMapped.length });
+    logger.info('Balance Sheet accounts mapped', { count: balanceSheetMapped.length, userId: user.id });
 
     // Combine results
     const combinedResults = [...incomeStatementMapped, ...balanceSheetMapped];
@@ -398,20 +421,21 @@ Do not include any explanation, commentary, or text outside the JSON array.
     await prisma.$transaction(async (tx) => {
       // Delete existing mapped accounts for this project
       await tx.mappedAccount.deleteMany({
-        where: { projectId }
+        where: { taskId }
       });
 
       // Log the data we're about to insert
-      logInfo('Inserting mapped accounts to database', {
-        projectId,
-        accountCount: enrichedResults.length
+      logger.info('Inserting mapped accounts to database', {
+        taskId,
+        accountCount: enrichedResults.length,
+        userId: user.id,
       });
 
       // Use createMany for better performance and to avoid transaction timeout
       if (enrichedResults.length > 0) {
         await tx.mappedAccount.createMany({
           data: enrichedResults.map(item => ({
-            projectId,
+            taskId,
             accountCode: item.accountCode.toString(),
             accountName: item.accountName,
             section: item.section,
@@ -419,6 +443,7 @@ Do not include any explanation, commentary, or text outside the JSON array.
             balance: item.balance,
             priorYearBalance: item.priorYearBalance || 0,
             sarsItem: item.sarsItem,
+            updatedAt: new Date(),
           }))
         });
       }
@@ -427,14 +452,10 @@ Do not include any explanation, commentary, or text outside the JSON array.
       timeout: 30000, // Maximum time for the transaction to complete (30 seconds)
     });
 
-    return NextResponse.json(enrichedResults);
+    return NextResponse.json({ success: true, data: enrichedResults });
 
   } catch (error) {
-    logError('Error processing files', error);
-    return NextResponse.json(
-      { error: 'Error processing files: ' + (error as Error).message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/map');
   }
 }
 

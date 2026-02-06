@@ -41,11 +41,11 @@ export async function GET() {
     healthCheck.status = 'degraded';
   }
 
-  // Check OpenAI API key is configured
-  if (!process.env.OPENAI_API_KEY) {
+  // Check Azure OpenAI API key is configured
+  if (!process.env.AZURE_OPENAI_API_KEY) {
     healthCheck.services.openai = {
       status: 'down',
-      message: 'OpenAI API key not configured',
+      message: 'Azure OpenAI API key not configured',
     };
     healthCheck.status = 'degraded';
   }

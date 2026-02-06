@@ -1,14 +1,28 @@
 'use client';
 
 import { useState } from 'react';
+import { AlertModal } from '@/components/shared/AlertModal';
 
 interface ExportMenuProps {
-  projectId: number;
+  taskId: number;
 }
 
-export default function ExportMenu({ projectId }: ExportMenuProps) {
+export default function ExportMenu({ taskId }: ExportMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+  });
 
   const handleExport = async (format: 'excel' | 'pdf' | 'xml') => {
     try {
@@ -16,7 +30,7 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
       setIsOpen(false);
 
       const response = await fetch(
-        `/api/projects/${projectId}/tax-calculation/export?format=${format}`
+        `/api/tasks/${taskId}/tax-calculation/export?format=${format}`
       );
 
       if (!response.ok) {
@@ -26,7 +40,7 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
 
       // Get filename from Content-Disposition header
       const contentDisposition = response.headers.get('Content-Disposition');
-      let fileName = `tax-computation-${projectId}.${format}`;
+      let fileName = `tax-computation-${taskId}.${format}`;
       if (contentDisposition) {
         const matches = /filename="([^"]+)"/.exec(contentDisposition);
         if (matches && matches[1]) {
@@ -45,7 +59,12 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Export failed');
+      setAlertModal({
+        isOpen: true,
+        title: 'Export Failed',
+        message: error instanceof Error ? error.message : 'Export failed. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsExporting(false);
     }
@@ -153,6 +172,15 @@ export default function ExportMenu({ projectId }: ExportMenuProps) {
           </div>
         </>
       )}
+
+      {/* Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
     </div>
   );
 }

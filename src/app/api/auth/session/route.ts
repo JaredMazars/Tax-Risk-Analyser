@@ -1,38 +1,29 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/services/auth/auth';
-import { handleApiError } from '@/lib/utils/errorHandler';
+import { secureRoute, RateLimitPresets } from '@/lib/api/secureRoute';
+import { successResponse } from '@/lib/utils/apiUtils';
 
 // Force dynamic rendering (uses cookies)
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  try {
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return NextResponse.json({ user: null }, { status: 401 });
-    }
-
-    return NextResponse.json({ user });
-  } catch (error) {
-    return handleApiError(error, 'GET /api/auth/session');
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * GET /api/auth/session
+ * Get current session information
+ */
+export const GET = secureRoute.query({
+  rateLimit: RateLimitPresets.AUTH_ENDPOINTS,
+  handler: async (request, { user }) => {
+    return NextResponse.json(
+      successResponse({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        systemRole: user.systemRole || user.role || 'USER',
+      }),
+      {
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
+    );
+  },
+});

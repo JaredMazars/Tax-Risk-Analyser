@@ -136,6 +136,7 @@ export async function getUpcomingActivities(
       },
     },
     orderBy: { dueDate: 'asc' },
+    take: 100,
   });
 
   return activities as ActivityWithRelations[];
@@ -173,6 +174,7 @@ export async function getOverdueActivities(userId: string): Promise<ActivityWith
       },
     },
     orderBy: { dueDate: 'asc' },
+    take: 100,
   });
 
   return activities as ActivityWithRelations[];
@@ -206,6 +208,7 @@ export async function getOpportunityTimeline(
       },
     },
     orderBy: { createdAt: 'desc' },
+    take: 200,
   });
 
   return activities as ActivityWithRelations[];
@@ -240,6 +243,7 @@ export async function createActivity(data: {
       location: data.location,
       assignedTo: data.assignedTo,
       createdBy: data.createdBy,
+      updatedAt: new Date(),
     },
     include: {
       BDOpportunity: {

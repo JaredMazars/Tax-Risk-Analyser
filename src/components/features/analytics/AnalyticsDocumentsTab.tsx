@@ -1,15 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { DocumentTextIcon, MagnifyingGlassIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { FileText, Search, Trash2 } from 'lucide-react';
 import { useAnalyticsDocuments, useDeleteAnalyticsDocument, useDeleteCreditRating } from '@/hooks/analytics/useClientAnalytics';
 import { DeleteDocumentWithRatingsModal } from './DeleteDocumentWithRatingsModal';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 
 interface AnalyticsDocumentsTabProps {
-  clientId: string | number;
+  clientId: string | number;  // Can be internal ID or GSClientID depending on context
 }
 
 export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) {
+  const GSClientID = clientId;  // Alias for backward compatibility with hooks
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -25,8 +27,22 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
   }
   const [affectedRatings, setAffectedRatings] = useState<AffectedRating[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    variant?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   
-  const { data: documentsData, isLoading } = useAnalyticsDocuments(clientId);
+  const { data: documentsData, isLoading } = useAnalyticsDocuments(GSClientID);
   const deleteMutation = useDeleteAnalyticsDocument();
   const deleteRatingMutation = useDeleteCreditRating();
 
@@ -43,28 +59,34 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
   const documentTypes = ['ALL', ...Array.from(new Set(documents.map((d) => d.documentType)))];
 
   const handleDelete = async (documentId: number, fileName: string) => {
-    if (!confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    setDeleteError(null);
-    try {
-      await deleteMutation.mutateAsync({ clientId, documentId });
-    } catch (error) {
-      // Check if this is a 409 conflict (document used in ratings)
-      if (error && typeof error === 'object' && 'status' in error && error.status === 409 && 'ratingsAffected' in error) {
-        // Show modal with affected ratings
-        setDocumentToDelete({ id: documentId, name: fileName });
-        setAffectedRatings((error as { ratingsAffected: AffectedRating[] }).ratingsAffected);
-        setShowDeleteRatingsModal(true);
-      } else {
-        // Show error for other failures
-        const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
-        setDeleteError(errorMessage);
-        // Auto-dismiss error after 10 seconds
-        setTimeout(() => setDeleteError(null), 10000);
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Document',
+      message: `Are you sure you want to delete "${fileName}"? This action cannot be undone.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeleteError(null);
+        try {
+          await deleteMutation.mutateAsync({ GSClientID, documentId });
+        } catch (error) {
+          // Check if this is a 409 conflict (document used in ratings)
+          if (error && typeof error === 'object' && 'status' in error && error.status === 409 && 'ratingsAffected' in error) {
+            // Show modal with affected ratings
+            setDocumentToDelete({ id: documentId, name: fileName });
+            setAffectedRatings((error as { ratingsAffected: AffectedRating[] }).ratingsAffected);
+            setShowDeleteRatingsModal(true);
+          } else {
+            // Show error for other failures
+            const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
+            setDeleteError(errorMessage);
+            // Auto-dismiss error after 10 seconds
+            setTimeout(() => setDeleteError(null), 10000);
+          }
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleConfirmDeleteWithRatings = async () => {
@@ -75,14 +97,14 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
       // Delete all affected ratings first
       for (const rating of affectedRatings) {
         await deleteRatingMutation.mutateAsync({
-          clientId,
+          GSClientID,
           ratingId: rating.id,
         });
       }
       
       // Now delete the document
       await deleteMutation.mutateAsync({
-        clientId,
+        GSClientID,
         documentId: documentToDelete.id,
       });
       
@@ -141,7 +163,7 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
         <div className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-forvis-gray-400" />
               <input
                 type="text"
                 placeholder="Search documents..."
@@ -168,7 +190,7 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
       {/* Documents Table */}
       {filteredDocuments.length === 0 ? (
         <div className="text-center py-16 rounded-xl border-3 border-dashed shadow-lg" style={{ borderColor: '#2E5AAC', borderWidth: '3px', background: 'linear-gradient(135deg, #F8FBFE 0%, #EEF6FC 100%)' }}>
-          <DocumentTextIcon className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
+          <FileText className="mx-auto h-16 w-16" style={{ color: '#2E5AAC' }} />
           <h3 className="mt-4 text-lg font-bold" style={{ color: '#1C3667' }}>
             {documents.length === 0 ? 'No documents uploaded yet' : 'No documents match your search'}
           </h3>
@@ -215,7 +237,7 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <DocumentTextIcon className="h-5 w-5 text-forvis-blue-600 flex-shrink-0" />
+                        <FileText className="h-5 w-5 text-forvis-blue-600 flex-shrink-0" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-forvis-gray-900 truncate">
                             {doc.fileName}
@@ -251,7 +273,7 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
                           </>
                         ) : (
                           <>
-                            <TrashIcon className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                             Delete
                           </>
                         )}
@@ -284,6 +306,16 @@ export function AnalyticsDocumentsTab({ clientId }: AnalyticsDocumentsTabProps) 
         documentName={documentToDelete?.name || ''}
         affectedRatings={affectedRatings}
         isDeleting={isDeleting}
+      />
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
       />
     </div>
   );

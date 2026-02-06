@@ -53,7 +53,7 @@ export async function verifySessionJWTOnly(token: string): Promise<Session | nul
  * Create a new session token
  */
 export async function createSessionToken(session: Session): Promise<string> {
-  return new SignJWT(session as any)
+  return new SignJWT(session as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('24h')

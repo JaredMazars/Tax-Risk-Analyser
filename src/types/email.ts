@@ -25,35 +25,6 @@ export enum EmailStatus {
 }
 
 /**
- * Notification preference
- */
-export interface NotificationPreference {
-  id: number;
-  userId: string;
-  projectId: number | null;
-  notificationType: string;
-  emailEnabled: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * Email log entry
- */
-export interface EmailLog {
-  id: number;
-  recipientEmail: string;
-  recipientUserId: string | null;
-  emailType: string;
-  subject: string;
-  status: string;
-  errorMessage: string | null;
-  metadata: string | null;
-  sentAt: Date | null;
-  createdAt: Date;
-}
-
-/**
  * User info for email templates
  */
 export interface EmailUser {
@@ -63,33 +34,33 @@ export interface EmailUser {
 }
 
 /**
- * Project info for email templates
+ * Task info for email templates
  */
-export interface EmailProject {
+export interface EmailTask {
   id: number;
   name: string;
-  projectType: string;
+  taskType: string;
 }
 
 /**
  * User added email data
  */
 export interface UserAddedEmailData {
-  project: EmailProject;
+  task: EmailTask;
   addedUser: EmailUser;
   addedBy: EmailUser;
   role: string;
-  projectUrl: string;
+  taskUrl: string;
 }
 
 /**
  * User removed email data
  */
 export interface UserRemovedEmailData {
-  project: EmailProject;
+  task: EmailTask;
   removedUser: EmailUser;
   removedBy: EmailUser;
-  projectUrl: string;
+  taskUrl: string;
 }
 
 /**
@@ -100,5 +71,3 @@ export interface EmailSendResult {
   messageId?: string;
   error?: string;
 }
-
-
